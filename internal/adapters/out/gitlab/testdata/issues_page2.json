@@ -1,0 +1,10 @@
+[
+  {
+    "id": 77, "iid": 18, "project_id": 9,
+    "title": "Crash offline", "description": null, "state": "closed",
+    "labels": ["bug", "Doing"],
+    "author": {"username": "joao"},
+    "web_url": "https://gitlab.com/acme/app/-/issues/18",
+    "updated_at": "2026-11-21T12:00:00.000Z"
+  }
+]

@@ -1,0 +1,20 @@
+{
+  "data": {
+    "repositoryOwner": {
+      "projectV2": {
+        "id": "PVT_kwDOAbcProj",
+        "title": "Nobira",
+        "field": {
+          "id": "PVTSSF_status",
+          "name": "Status",
+          "options": [
+            {"id": "f75ad846", "name": "Todo"},
+            {"id": "47fc9ee4", "name": "In Progress"},
+            {"id": "98236657", "name": "Review"},
+            {"id": "a1b2c3d4", "name": "Done"}
+          ]
+        }
+      }
+    }
+  }
+}

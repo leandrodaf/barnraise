@@ -1,0 +1,32 @@
+# Backend service: plan approved by the analyst, unit and lint checks, review by another model family.
+checks:
+  unit: { run: make test, runs_on: local, scope: touched }
+  lint: { run: make lint, runs_on: local, scope: all, flaky_retries: 0 }
+flows:
+  feature:
+    steps:
+      plan:       { role: implementer, output: plan.md, approve: analyst }
+      implement:  { role: implementer, class: auto }
+      quick-look: { role: critic, model: haiku }
+      lint:       { run: checks.lint }
+      check:      { run: checks.unit, scope: touched }
+      review:     { role: reviewer, model_family: different_from(implement) }
+      integrate:  { run: merge_queue }
+    rework:
+      quick-look.fail: implement
+      lint.fail: implement
+      check.fail: implement
+      review.reject: implement
+      limit: { same_model: 3, escalate: 2, then: owner }
+  bug:
+    steps:
+      reproduce:  { role: implementer, output: failing_test }
+      implement:  { role: implementer }
+      check:      { run: checks.unit, require: failing_test_now_passes }
+      review:     { role: reviewer, model_family: different_from(implement) }
+      integrate:  { run: merge_queue }
+    rework:
+      check.fail: implement
+      review.reject: implement
+policy:
+  lock_existing: ["**/migrations/**"]

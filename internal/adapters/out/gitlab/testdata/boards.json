@@ -1,0 +1,7 @@
+[
+  {"id": 1, "name": "Development", "lists": [
+    {"id": 1, "label": {"id": 1, "name": "To do"}, "position": 0},
+    {"id": 2, "label": {"id": 2, "name": "Doing"}, "position": 1},
+    {"id": 3, "label": {"id": 3, "name": "Review"}, "position": 2}
+  ]}
+]

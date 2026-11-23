@@ -1,0 +1,4 @@
+{"type":"thread.started","thread_id":"01a20850-9999-7aaa-8bbb-ccccddddeeee"}
+{"type":"turn.started"}
+{"type":"error","message":"You've hit your usage limit. Upgrade to Pro (https://chatgpt.com/explore/pro), visit https://chatgpt.com/codex/settings/usage to purchase more credits or try again at Nov 24th, 2026 3:05 PM."}
+{"type":"turn.failed","error":{"message":"You've hit your usage limit. Upgrade to Pro (https://chatgpt.com/explore/pro), visit https://chatgpt.com/codex/settings/usage to purchase more credits or try again at Nov 24th, 2026 3:05 PM."}}

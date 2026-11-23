@@ -1,0 +1,13 @@
+{
+  "ref": "refs/heads/main",
+  "before": "aa218f56b14c9653891f9e74264a383fa43fefbd",
+  "after": "6dcb09b5b57875f334f61aebed695e2e4193db5e",
+  "repository": {"id": 1, "name": "app", "full_name": "acme/app"},
+  "pusher": {"name": "maria", "email": "maria@example.com"},
+  "sender": {"login": "maria"},
+  "commits": [
+    {"id": "111", "message": "a", "added": ["app/src/Login.kt"], "removed": [], "modified": ["README.md"]},
+    {"id": "222", "message": "b", "added": [], "removed": ["old/Thing.kt"], "modified": ["README.md", "app/build.gradle"]}
+  ],
+  "head_commit": {"id": "222"}
+}

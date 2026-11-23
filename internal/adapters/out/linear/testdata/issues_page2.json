@@ -1,0 +1,11 @@
+{"data": {"issues": {
+  "nodes": [{
+    "id": "2f1b7c8e-0000-4000-8000-000000000018", "identifier": "ENG-18", "number": 18,
+    "title": "Crash offline", "description": null,
+    "url": "https://linear.app/acme/issue/ENG-18/crash-offline",
+    "updatedAt": "2026-11-21T12:00:00.000Z",
+    "state": {"name": "Done", "type": "completed"},
+    "labels": {"nodes": []}, "creator": null
+  }],
+  "pageInfo": {"hasNextPage": false, "endCursor": "cursor-2"}
+}}}

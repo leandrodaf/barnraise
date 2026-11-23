@@ -1,0 +1,27 @@
+# Blank: a feature flow and a bug flow around one check you configure.
+checks:
+  main: { run: make test, runs_on: local }
+flows:
+  feature:
+    steps:
+      plan:       { role: implementer, output: plan.md, approve: analyst }
+      implement:  { role: implementer, class: auto }
+      quick-look: { role: critic, model: haiku }
+      check:      { run: checks.main, scope: touched }
+      review:     { role: reviewer, model_family: different_from(implement) }
+      integrate:  { run: merge_queue }
+    rework:
+      quick-look.fail: implement
+      check.fail: implement
+      review.reject: implement
+      limit: { same_model: 3, escalate: 2, then: owner }
+  bug:
+    steps:
+      reproduce:  { role: implementer, output: failing_test }
+      implement:  { role: implementer }
+      check:      { run: checks.main, require: failing_test_now_passes }
+      review:     { role: reviewer, model_family: different_from(implement) }
+      integrate:  { run: merge_queue }
+    rework:
+      check.fail: implement
+      review.reject: implement

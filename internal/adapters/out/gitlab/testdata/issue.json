@@ -1,0 +1,6 @@
+{
+  "id": 76, "iid": 17, "title": "[I-42] Login screen remembers the last email", "description": "old",
+  "state": "opened", "labels": ["barnraise", "needs-design", "Doing", "status:ready", "P2"],
+  "author": {"username": "barnraise-bot"}, "web_url": "https://gitlab.com/acme/app/-/issues/17",
+  "updated_at": "2026-11-22T10:00:00.000Z"
+}

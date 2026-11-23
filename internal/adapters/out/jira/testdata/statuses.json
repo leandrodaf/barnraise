@@ -1,0 +1,8 @@
+[
+  {"id": "10002", "name": "Task", "subtask": false, "statuses": [
+    {"id": "10000", "name": "To Do"}, {"id": "3", "name": "In Progress"}, {"id": "10001", "name": "Done"}
+  ]},
+  {"id": "10004", "name": "Bug", "subtask": false, "statuses": [
+    {"id": "10000", "name": "To Do"}, {"id": "10005", "name": "Triage"}, {"id": "10001", "name": "Done"}
+  ]}
+]

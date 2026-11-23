@@ -1,0 +1,13 @@
+[
+  {
+    "html_url": "https://github.com/acme/app/issues/1611",
+    "node_id": "I_kwDOAbc1611",
+    "number": 1611,
+    "title": "Crash when opening settings offline",
+    "user": {"login": "joao"},
+    "labels": [{"name": "bug"}],
+    "state": "closed",
+    "updated_at": "2026-11-21T12:00:00Z",
+    "body": null
+  }
+]

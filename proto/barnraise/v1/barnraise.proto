@@ -1,0 +1,942 @@
+// Barnraise public API, version 1.
+//
+// One service answers gRPC (binary) and HTTP with JSON (Connect protocol),
+// and the OpenAPI document is generated from this file. Field names match
+// the JSON the daemon uses everywhere (snake_case), and every resource uses
+// the glossary words: projects, goals, focus, items, proposals, deliveries,
+// reviews, checks, agents, accounts, machines, events.
+syntax = "proto3";
+
+package barnraise.v1;
+
+import "google/protobuf/struct.proto";
+
+option go_package = "github.com/leandrodaf/barnraise/gen/barnraise/v1;barnraisev1";
+
+// ---------- entities ----------
+
+message Criterion {
+  string id = 1;
+  string text = 2;
+  string check = 3;
+  bool met = 4;
+  string evidence = 5;
+}
+
+message Anchors {
+  repeated string files = 1;
+  repeated string symbols = 2;
+  repeated string areas = 3;
+  repeated string screens = 4;
+  repeated string contracts = 5;
+  repeated string decisions = 6;
+  repeated string specs = 7;
+  string base = 8;
+}
+
+message ReworkRecord {
+  string from = 1;
+  string to = 2;
+  string by = 3;
+  string reason = 4;
+  string outcome = 5;
+  int32 tier = 6;
+  string at = 7;
+}
+
+message Claim {
+  string machine = 1;
+  string agent = 2;
+  string since = 3;
+}
+
+message StepRun {
+  string agent = 1;
+  string account = 2;
+  string provider = 3;
+  string model = 4;
+  string family = 5;
+}
+
+message Item {
+  string id = 1;
+  int32 version = 2;
+  string title = 3;
+  string body = 4;
+  string kind = 5;
+  int32 priority = 6;
+  string lane = 7;
+  string area = 8;
+  string goal_id = 9;
+  string size = 10;
+  string class = 11;
+  string status = 12;
+  string step = 13;
+  repeated Criterion criteria = 14;
+  repeated string preserve = 15;
+  repeated string clarifications = 16;
+  Anchors anchors = 17;
+  repeated string deps = 18;
+  repeated string tweaks = 19;
+  repeated string checklist = 20;
+  repeated ReworkRecord rework = 21;
+  int32 tier = 22;
+  Claim claim = 23;
+  string branch = 24;
+  string pr = 25;
+  string tracker_ref = 26;
+  bool risky = 27;
+  bool parked = 28;
+  string closed_reason = 29;
+  string closed_by = 30;
+  string waiting_question = 31;
+  string validated_at = 32;
+  string created_at = 33;
+  string updated_at = 34;
+  string step_started_at = 35;
+  string integrated_at = 36;
+  string merge_commit = 37;
+  repeated string files_touched = 38;
+  map<string, StepRun> runs = 39;
+  int32 attempts = 40;
+}
+
+message Goal {
+  string id = 1;
+  string name = 2;
+  string done_when = 3;
+  string inventory = 4;
+  bool active = 5;
+  string created_at = 6;
+  string finished_at = 7;
+  int32 budget_pct = 8;
+}
+
+message GoalProgress {
+  int32 total = 1;
+  int32 done = 2;
+  double per_day = 3;
+  string forecast = 4;
+  int32 percentage = 5;
+}
+
+message Focus {
+  string name = 1;
+  string area = 2;
+  repeated string items = 3;
+  string until = 4;
+  int32 share = 5;
+  string set_by = 6;
+  string set_at = 7;
+  bool cancelled = 8;
+}
+
+message FocusEffect {
+  int32 focus_items = 1;
+  repeated string parked_elsewhere = 2;
+  int32 share = 3;
+}
+
+message Proposal {
+  string id = 1;
+  int32 version = 2;
+  string title = 3;
+  string problem = 4;
+  string evidence = 5;
+  string impact = 6;
+  string size = 7;
+  string area = 8;
+  string goal_link = 9;
+  string kind = 10;
+  int32 priority = 11;
+  string by = 12;
+  string status = 13;
+  repeated string comments = 14;
+  string reason = 15;
+  string item_id = 16;
+  string created_at = 17;
+  string decided_at = 18;
+  string decided_by = 19;
+  string later_until = 20;
+}
+
+message ProposalGroup {
+  string area = 1;
+  repeated Proposal proposals = 2;
+}
+
+message Tweak {
+  string id = 1;
+  string area = 2;
+  string text = 3;
+  string by = 4;
+  string created_at = 5;
+  string item_id = 6;
+}
+
+message Option {
+  string label = 1;
+  bool recommended = 2;
+}
+
+message Question {
+  string id = 1;
+  int32 version = 2;
+  string item_id = 3;
+  string context = 4;
+  string decision = 5;
+  repeated Option options = 6;
+  string if_no_answer = 7;
+  string asked_by = 8;
+  string asked_at = 9;
+  string deadline = 10;
+  string answer = 11;
+  string answered_by = 12;
+  string answered_at = 13;
+  bool urgent = 14;
+}
+
+message Message {
+  string id = 1;
+  string from = 2;
+  string to = 3;
+  string item_id = 4;
+  string text = 5;
+  string at = 6;
+  bool delivered = 7;
+}
+
+message CriterionMark {
+  string id = 1;
+  bool met = 2;
+  string evidence = 3;
+}
+
+message Delivery {
+  string item_id = 1;
+  string step = 2;
+  string agent = 3;
+  // DONE, DONE_WITH_CONCERNS, NEEDS_CONTEXT or BLOCKED.
+  string status = 4;
+  string summary = 5;
+  repeated CriterionMark criteria = 6;
+  repeated string files = 7;
+  repeated string concerns = 8;
+  string reason = 9;
+  string commit = 10;
+  string at = 11;
+}
+
+message Finding {
+  string area = 1;
+  string file = 2;
+  int32 line = 3;
+  string severity = 4;
+  string text = 5;
+}
+
+message Review {
+  string item_id = 1;
+  string step = 2;
+  string reviewer = 3;
+  // pass or fail: does it meet the criteria?
+  string criteria_verdict = 4;
+  // pass or fail: is the code good?
+  string code_verdict = 5;
+  // APPROVE, REWORK or REJECT.
+  string decision = 6;
+  repeated Finding findings = 7;
+  string summary = 8;
+  string family = 9;
+  string at = 10;
+}
+
+message CheckResult {
+  string id = 1;
+  string item_id = 2;
+  string check = 3;
+  string commit = 4;
+  bool passed = 5;
+  bool flaky = 6;
+  string summary = 7;
+  string log_path = 8;
+  string log_hash = 9;
+  repeated string artifacts = 10;
+  int64 duration = 11;
+  repeated string criteria = 12;
+  string runs_on = 13;
+  string at = 14;
+}
+
+message Usage {
+  double five_hour_pct = 1;
+  double weekly_pct = 2;
+  double weekly_top_pct = 3;
+  string five_hour_resets = 4;
+  string weekly_resets = 5;
+  double context_pct = 6;
+  string updated_at = 7;
+  string source = 8;
+}
+
+message Account {
+  string id = 1;
+  string provider = 2;
+  string plan = 3;
+  string config_dir = 4;
+  string linux_user = 5;
+  string machine = 6;
+  double ceiling_pct = 7;
+  string status = 8;
+  Usage usage = 9;
+  repeated string projects = 10;
+  string added_at = 11;
+}
+
+message Machine {
+  string name = 1;
+  string version = 2;
+  string address = 3;
+  int32 cpus = 4;
+  double mem_gb = 5;
+  double free_cpu = 6;
+  int32 emulators = 7;
+  bool gpu = 8;
+  repeated string labels = 9;
+  int32 slots = 10;
+  int32 busy = 11;
+  repeated string accounts = 12;
+  string last_seen = 13;
+  bool leaving = 14;
+  bool left = 15;
+  // green, yellow, red (gray when it left).
+  string health = 16;
+}
+
+message SessionInfo {
+  string agent = 1;
+  string role = 2;
+  string account = 3;
+  string provider = 4;
+  string model = 5;
+  string effort = 6;
+  string item_id = 7;
+  string step = 8;
+  string session_id = 9;
+  string state = 10;
+  string detail = 11;
+  string at = 12;
+}
+
+// Event is one entry of the log; the CloudEvents form is served by /v1/events.
+message Event {
+  string id = 1;
+  string type = 2;
+  string project = 3;
+  string subject = 4;
+  string machine = 5;
+  string actor = 6;
+  string time = 7;
+  int64 seq = 8;
+  google.protobuf.Struct data = 9;
+}
+
+// ---------- requests and responses ----------
+
+message ProjectRef {
+  string project = 1;
+}
+
+message ItemRef {
+  string project = 1;
+  string id = 2;
+}
+
+message ItemResponse {
+  Item item = 1;
+}
+
+message ItemsResponse {
+  repeated Item items = 1;
+}
+
+message CreateItemRequest {
+  string project = 1;
+  string title = 2;
+  string body = 3;
+  string kind = 4;
+  string priority = 5;
+  string area = 6;
+  string goal_id = 7;
+  string size = 8;
+  string class = 9;
+  repeated Criterion criteria = 10;
+  repeated string preserve = 11;
+  repeated string deps = 12;
+  Anchors anchors = 13;
+  repeated string checklist = 14;
+  bool risky = 15;
+  bool external = 16;
+  string tracker_ref = 17;
+  string lane = 18;
+}
+
+message CreateItemResponse {
+  Item item = 1;
+  Proposal proposal = 2;
+  string note = 3;
+}
+
+message ListItemsRequest {
+  string project = 1;
+  string status = 2;
+  string area = 3;
+  string lane = 4;
+  string goal = 5;
+  string kind = 6;
+  bool all = 7;
+}
+
+// UpdateItemRequest uses a JSON patch of the item fields to change
+// (title, body, priority, area, size, class, criteria, preserve, deps,
+// anchors, clarifications, checklist, risky, kind, reason).
+message UpdateItemRequest {
+  string project = 1;
+  string id = 2;
+  google.protobuf.Struct patch = 3;
+}
+
+message CloseItemRequest {
+  string project = 1;
+  string id = 2;
+  // obsolete, duplicate, done_by, split or abandoned.
+  string reason = 3;
+  string by = 4;
+  string note = 5;
+}
+
+message NextItemRequest {
+  string project = 1;
+}
+
+message Assignment {
+  string project = 1;
+  Item item = 2;
+  google.protobuf.Struct step = 3;
+  bool new = 4;
+  bool none = 5;
+  string note = 6;
+}
+
+message DeliverRequest {
+  string project = 1;
+  Delivery delivery = 2;
+}
+
+message ReviewRequest {
+  string project = 1;
+  Review review = 2;
+}
+
+message ReportCheckRequest {
+  string project = 1;
+  CheckResult result = 2;
+}
+
+message ProposeRequest {
+  string project = 1;
+  Proposal proposal = 2;
+}
+
+message ProposeResponse {
+  Proposal proposal = 1;
+  string duplicate = 2;
+}
+
+message ListProposalsRequest {
+  string project = 1;
+  bool all = 2;
+}
+
+message ListProposalsResponse {
+  repeated Proposal proposals = 1;
+  repeated ProposalGroup groups = 2;
+}
+
+message DecideProposalRequest {
+  string project = 1;
+  string id = 2;
+  // approve, reject or later.
+  string decision = 3;
+  string reason = 4;
+}
+
+message ProposalResponse {
+  Proposal proposal = 1;
+}
+
+message AddTweakRequest {
+  string project = 1;
+  string area = 2;
+  string text = 3;
+}
+
+message AddTweakResponse {
+  Tweak tweak = 1;
+  Item item = 2;
+}
+
+message AskOwnerRequest {
+  string project = 1;
+  Question question = 2;
+}
+
+message QuestionResponse {
+  Question question = 1;
+}
+
+message QuestionsResponse {
+  repeated Question questions = 1;
+}
+
+message AnswerRequest {
+  string project = 1;
+  string id = 2;
+  string answer = 3;
+  string note = 4;
+}
+
+message ApproveRequest {
+  string project = 1;
+  // I-42 or P-7.
+  string target = 2;
+  // plan, delivery or proposal: never approve without saying what.
+  string what = 3;
+  bool approve = 4;
+  string note = 5;
+}
+
+message Empty {}
+
+message SetGoalRequest {
+  string project = 1;
+  Goal goal = 2;
+}
+
+message SetGoalResponse {
+  Goal goal = 1;
+  repeated Item inventory = 2;
+}
+
+message FocusRequest {
+  string project = 1;
+  Focus focus = 2;
+  string until = 3;
+  bool preview = 4;
+}
+
+message FocusResponse {
+  FocusEffect effect = 1;
+  bool applied = 2;
+}
+
+message PauseRequest {
+  string project = 1;
+  string why = 2;
+}
+
+message StatusResponse {
+  string project = 1;
+  string machine = 2;
+  bool paused = 3;
+  string paused_why = 4;
+  Goal goal = 5;
+  GoalProgress progress = 6;
+  Focus focus = 7;
+  int32 focus_done = 8;
+  int32 focus_all = 9;
+  map<string, int32> counts = 10;
+  repeated Item queue = 11;
+  repeated Question waiting_owner = 12;
+  repeated SessionInfo agents = 13;
+  repeated Account accounts = 14;
+  repeated Machine machines = 15;
+  int32 open_proposals = 16;
+  repeated string alerts = 17;
+}
+
+message MetricsRequest {
+  string project = 1;
+  // Go duration or days: 7d.
+  string window = 2;
+}
+
+message MetricsResponse {
+  string window = 1;
+  double integrated_per_day = 2;
+  map<string, int32> integrated_by_kind = 3;
+  double rework_avg = 4;
+  map<string, int32> rework_causes = 5;
+  map<string, int64> tokens_by_model = 6;
+  map<string, int64> tokens_by_role = 7;
+  map<string, int64> tokens_by_item = 8;
+  map<string, double> step_seconds = 9;
+  double cache_hit_rate = 10;
+  int32 proposals_made = 11;
+  int32 proposals_approved = 12;
+  string waiting_owner_max = 13;
+  int32 violations = 14;
+  int32 flaky_quarantined = 15;
+  map<string, int32> explore_reads_by_area = 16;
+  map<string, double> fixed_cost_ratio_by_area = 17;
+  repeated string alerts = 18;
+}
+
+message TimelineEntry {
+  int64 seq = 1;
+  string time = 2;
+  string type = 3;
+  string actor = 4;
+  string machine = 5;
+  string step = 6;
+  string summary = 7;
+  google.protobuf.Struct payload = 8;
+}
+
+message TimelineResponse {
+  repeated TimelineEntry entries = 1;
+}
+
+message EstimateResponse {
+  string item_id = 1;
+  double hours = 2;
+  int64 tokens = 3;
+  double week_pct = 4;
+  string account = 5;
+  int32 based_on_items = 6;
+}
+
+message DigestResponse {
+  string project = 1;
+  repeated string integrated = 2;
+  string goal = 3;
+  repeated ProposalGroup proposals = 4;
+  repeated string accounts = 5;
+  repeated string waiting = 6;
+  repeated string alerts = 7;
+  string generated_at = 8;
+  string text = 9;
+}
+
+message SendMessageRequest {
+  string project = 1;
+  Message message = 2;
+}
+
+message MessageResponse {
+  Message message = 1;
+}
+
+message InboxRequest {
+  string project = 1;
+  string agent = 2;
+  string role = 3;
+  string item_id = 4;
+  bool mark = 5;
+}
+
+message InboxResponse {
+  repeated Message messages = 1;
+}
+
+message JournalRequest {
+  string project = 1;
+  string text = 2;
+}
+
+message ContextRequest {
+  string project = 1;
+  string id = 2;
+  int32 budget = 3;
+}
+
+message ContextPart {
+  int32 order = 1;
+  string id = 2;
+  string kind = 3;
+  string title = 4;
+  string body = 5;
+  double relevance = 6;
+  int32 tokens = 7;
+}
+
+message ContextResponse {
+  string item_id = 1;
+  repeated ContextPart parts = 2;
+  repeated string cut = 3;
+  int32 tokens = 4;
+  int32 budget = 5;
+  string text = 6;
+}
+
+message FindRequest {
+  string project = 1;
+  string query = 2;
+  string kind = 3;
+  string area = 4;
+  string status = 5;
+  string goal = 6;
+  int32 limit = 7;
+}
+
+message SearchHit {
+  string id = 1;
+  string kind = 2;
+  string title = 3;
+  string summary = 4;
+  string area = 5;
+  string path = 6;
+  string date = 7;
+  int32 tokens = 8;
+  double score = 9;
+  string layer = 10;
+}
+
+message FindResponse {
+  repeated SearchHit hits = 1;
+}
+
+message KnowledgeRequest {
+  string project = 1;
+  // An id (I-142, D-12), a path, path:line or a symbol, depending on the call.
+  string target = 2;
+}
+
+message KnowledgeResponse {
+  google.protobuf.Struct result = 1;
+  string text = 2;
+}
+
+message RevalidateRequest {
+  string project = 1;
+  google.protobuf.Struct change = 2;
+}
+
+message RevalidateResponse {
+  google.protobuf.Struct result = 1;
+}
+
+message QueueResponse {
+  repeated Item items = 1;
+  int32 integrated = 2;
+}
+
+message TakeoverResponse {
+  Item item = 1;
+  string worktree = 2;
+}
+
+message HandbackRequest {
+  string project = 1;
+  string id = 2;
+  string note = 3;
+}
+
+message RedoRequest {
+  string project = 1;
+  string id = 2;
+  string step = 3;
+  string why = 4;
+}
+
+message AccountRequest {
+  string project = 1;
+  Account account = 2;
+}
+
+message AccountResponse {
+  Account account = 1;
+}
+
+message AccountsResponse {
+  repeated Account accounts = 1;
+}
+
+message ReportUsageRequest {
+  string project = 1;
+  string account = 2;
+  Usage usage = 3;
+}
+
+message MachinesResponse {
+  repeated Machine machines = 1;
+  repeated google.protobuf.Struct sessions = 2;
+}
+
+message LeaveResponse {
+  repeated string returned = 1;
+}
+
+message CreateTokenRequest {
+  string name = 1;
+  string project = 2;
+  repeated string scopes = 3;
+  // Go duration or days: 30d. Empty: no expiry.
+  string ttl = 4;
+}
+
+message Token {
+  string id = 1;
+  string name = 2;
+  string project = 3;
+  repeated string scopes = 4;
+  string expires = 5;
+  bool revoked = 6;
+  string created = 7;
+}
+
+message CreateTokenResponse {
+  Token token = 1;
+  // Shown once.
+  string secret = 2;
+}
+
+message TokensResponse {
+  repeated Token tokens = 1;
+}
+
+message RevokeTokenRequest {
+  string id = 1;
+}
+
+message AuditRequest {
+  string project = 1;
+  int32 limit = 2;
+}
+
+message AuditEntry {
+  string time = 1;
+  string actor = 2;
+  string token_id = 3;
+  string action = 4;
+  string target = 5;
+  string project = 6;
+  string detail = 7;
+}
+
+message AuditResponse {
+  repeated AuditEntry entries = 1;
+}
+
+message ProjectsResponse {
+  repeated string projects = 1;
+  string machine = 2;
+  string version = 3;
+}
+
+message PolicyViolationRequest {
+  string project = 1;
+  string item_id = 2;
+  string agent = 3;
+  string tool = 4;
+  string rule = 5;
+  string reason = 6;
+  string excerpt = 7;
+}
+
+message EventsRequest {
+  string project = 1;
+  string subject = 2;
+  repeated string types = 3;
+  int64 after_seq = 4;
+  int32 limit = 5;
+}
+
+message EventsResponse {
+  repeated Event events = 1;
+}
+
+message RegisterProjectRequest {
+  // Absolute path of a repository with a barnraise.yaml.
+  string root = 1;
+}
+
+// BarnraiseService is the daemon's whole API. The CLI, the MCP server, the
+// panel and any other interface use it.
+service BarnraiseService {
+  // Projects
+  rpc ListProjects(Empty) returns (ProjectsResponse);
+  rpc RegisterProject(RegisterProjectRequest) returns (ProjectsResponse);
+  rpc ReloadProject(ProjectRef) returns (ProjectsResponse);
+
+  // Items
+  rpc CreateItem(CreateItemRequest) returns (CreateItemResponse);
+  rpc GetItem(ItemRef) returns (ItemResponse);
+  rpc ListItems(ListItemsRequest) returns (ItemsResponse);
+  rpc UpdateItem(UpdateItemRequest) returns (ItemResponse);
+  rpc CloseItem(CloseItemRequest) returns (ItemResponse);
+  rpc NextItem(NextItemRequest) returns (Assignment);
+  rpc Deliver(DeliverRequest) returns (ItemResponse);
+  rpc SubmitReview(ReviewRequest) returns (ItemResponse);
+  rpc ReportCheck(ReportCheckRequest) returns (ItemResponse);
+  rpc Timeline(ItemRef) returns (TimelineResponse);
+  rpc Estimate(ItemRef) returns (EstimateResponse);
+  rpc Takeover(ItemRef) returns (TakeoverResponse);
+  rpc Handback(HandbackRequest) returns (ItemResponse);
+  rpc Redo(RedoRequest) returns (ItemResponse);
+
+  // Proposals and tweaks
+  rpc Propose(ProposeRequest) returns (ProposeResponse);
+  rpc ListProposals(ListProposalsRequest) returns (ListProposalsResponse);
+  rpc DecideProposal(DecideProposalRequest) returns (ProposalResponse);
+  rpc AddTweak(AddTweakRequest) returns (AddTweakResponse);
+
+  // Owner
+  rpc AskOwner(AskOwnerRequest) returns (QuestionResponse);
+  rpc ListQuestions(ProjectRef) returns (QuestionsResponse);
+  rpc Answer(AnswerRequest) returns (QuestionResponse);
+  rpc Approve(ApproveRequest) returns (Empty);
+  rpc SetGoal(SetGoalRequest) returns (SetGoalResponse);
+  rpc SetFocus(FocusRequest) returns (FocusResponse);
+  rpc ClearFocus(ProjectRef) returns (Empty);
+  rpc Pause(PauseRequest) returns (Empty);
+  rpc Resume(ProjectRef) returns (Empty);
+
+  // Views
+  rpc Status(ProjectRef) returns (StatusResponse);
+  rpc Metrics(MetricsRequest) returns (MetricsResponse);
+  rpc Digest(ProjectRef) returns (DigestResponse);
+  rpc Queue(ProjectRef) returns (QueueResponse);
+  rpc ProcessQueue(ProjectRef) returns (QueueResponse);
+  rpc ListEvents(EventsRequest) returns (EventsResponse);
+
+  // Messaging
+  rpc SendMessage(SendMessageRequest) returns (MessageResponse);
+  rpc Inbox(InboxRequest) returns (InboxResponse);
+  rpc Journal(JournalRequest) returns (Empty);
+  rpc ReportViolation(PolicyViolationRequest) returns (Empty);
+
+  // Knowledge
+  rpc Context(ContextRequest) returns (ContextResponse);
+  rpc Find(FindRequest) returns (FindResponse);
+  rpc Get(KnowledgeRequest) returns (KnowledgeResponse);
+  rpc Related(KnowledgeRequest) returns (KnowledgeResponse);
+  rpc Why(KnowledgeRequest) returns (KnowledgeResponse);
+  rpc History(KnowledgeRequest) returns (KnowledgeResponse);
+  rpc Rules(KnowledgeRequest) returns (KnowledgeResponse);
+  rpc Revalidate(RevalidateRequest) returns (RevalidateResponse);
+  rpc Sweep(ProjectRef) returns (RevalidateResponse);
+
+  // Accounts and machines
+  rpc UpsertAccount(AccountRequest) returns (AccountResponse);
+  rpc ListAccounts(ProjectRef) returns (AccountsResponse);
+  rpc ReportUsage(ReportUsageRequest) returns (Empty);
+  rpc ListMachines(ProjectRef) returns (MachinesResponse);
+  rpc LeaveMachine(ProjectRef) returns (LeaveResponse);
+
+  // Tokens and audit
+  rpc CreateToken(CreateTokenRequest) returns (CreateTokenResponse);
+  rpc ListTokens(Empty) returns (TokensResponse);
+  rpc RevokeToken(RevokeTokenRequest) returns (Empty);
+  rpc ListAudit(AuditRequest) returns (AuditResponse);
+}

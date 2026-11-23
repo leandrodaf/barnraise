@@ -1,0 +1,14 @@
+{
+  "url": "https://api.github.com/repos/acme/app/pulls/1610",
+  "id": 3001610,
+  "node_id": "PR_kwDOAbc1610",
+  "html_url": "https://github.com/acme/app/pull/1610",
+  "number": 1610,
+  "state": "open",
+  "locked": false,
+  "title": "[I-42] Remember last email",
+  "draft": true,
+  "merged_at": null,
+  "head": {"label": "acme:br/I-42-remember-email", "ref": "br/I-42-remember-email", "sha": "6dcb09b5b57875f334f61aebed695e2e4193db5e"},
+  "base": {"label": "acme:main", "ref": "main", "sha": "aa218f56b14c9653891f9e74264a383fa43fefbd"}
+}

@@ -1,0 +1,8 @@
+{"type":"thread.started","thread_id":"01a20849-139d-77b1-9ef2-18e006df2467"}
+{"type":"turn.started"}
+{"type":"item.started","item":{"id":"item_0","type":"file_change","changes":[{"path":"/tmp/barnraise-golden/hello.txt","kind":"add"}],"status":"in_progress"}}
+{"type":"item.completed","item":{"id":"item_0","type":"file_change","changes":[{"path":"/tmp/barnraise-golden/hello.txt","kind":"add"}],"status":"failed"}}
+{"type":"item.started","item":{"id":"item_1","type":"file_change","changes":[{"path":"/tmp/barnraise-golden/hello.txt","kind":"add"}],"status":"in_progress"}}
+{"type":"item.completed","item":{"id":"item_1","type":"file_change","changes":[{"path":"/tmp/barnraise-golden/hello.txt","kind":"add"}],"status":"failed"}}
+{"type":"item.completed","item":{"id":"item_2","type":"agent_message","text":"Unable to create `hello.txt` because the file editing tool failed."}}
+{"type":"turn.completed","usage":{"input_tokens":72101,"cached_input_tokens":70144,"cache_write_input_tokens":0,"output_tokens":364,"reasoning_output_tokens":121}}

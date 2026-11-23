@@ -1,0 +1,29 @@
+# Built-in defaults. Templates and barnraise.yaml only keep what differs.
+language: en
+approves: owner
+main_branch: main
+tracker:
+  type: local
+capacity: { goal: 80%, bugs: 15%, improvements: 5% }
+proposals: { per_agent_per_day: 3, expire: 14d, duplicate: comment }
+items:
+  target_size: 2h-6h
+  smaller: tweak
+  tweaks: { group_by: area, become_item_at: 5, attach_on_claim: true }
+  same_area_findings: rework
+self_improvement: { budget: 1/week, approves: owner }
+roles:
+  implementer: { class: auto, count: 2 }
+  reviewer:    { class: normal, count: 1, reviewer: true }
+  critic:      { class: cheap, count: 1, reviewer: true }
+  analyst:     { class: normal, count: 1, reviewer: true }
+kinds:
+  feature: feature
+  improvement: feature
+  bug: bug
+  self_improvement: feature
+merge: { mode: squash, batch: 4 }
+lease: { renew: 30s, ttl: 2m }
+budget: { triage_week: 2%, context_tokens: 6000, compact_at: 60% }
+revalidation: { stale_after: 14d }
+worktree: { include: [.env, .env.local], port_base: 4100, safety_commit: 15m }

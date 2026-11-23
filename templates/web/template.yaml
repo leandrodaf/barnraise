@@ -1,0 +1,33 @@
+# Web app: unit tests, build, preview link on the PR and a design review.
+roles:
+  designer: { class: normal, count: 1, reviewer: true }
+checks:
+  unit:  { run: npm test --silent, runs_on: local, scope: touched }
+  build: { run: npm run build --silent, runs_on: local, scope: all, flaky_retries: 0 }
+flows:
+  feature:
+    steps:
+      plan:       { role: implementer, output: plan.md, approve: analyst }
+      implement:  { role: implementer, class: auto }
+      quick-look: { role: critic, model: haiku }
+      build:      { run: checks.build }
+      check:      { run: checks.unit, scope: touched }
+      design:     { role: designer, model_family: different_from(implement) }
+      review:     { role: reviewer, model_family: different_from(implement) }
+      integrate:  { run: merge_queue }
+    rework:
+      quick-look.fail: implement
+      build.fail: implement
+      check.fail: implement
+      design.reject: implement
+      review.reject: implement
+  bug:
+    steps:
+      reproduce:  { role: implementer, output: failing_test }
+      implement:  { role: implementer }
+      check:      { run: checks.unit, require: failing_test_now_passes }
+      review:     { role: reviewer, model_family: different_from(implement) }
+      integrate:  { run: merge_queue }
+    rework:
+      check.fail: implement
+      review.reject: implement

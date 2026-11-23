@@ -1,0 +1,4 @@
+{"data": {
+  "team": {"labels": {"nodes": [{"id": "lb-area-auth", "name": "area:auth"}]}},
+  "issueLabels": {"nodes": [{"id": "lb-barnraise", "name": "Barnraise"}]}
+}}

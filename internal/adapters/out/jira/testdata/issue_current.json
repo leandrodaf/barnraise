@@ -1,0 +1,7 @@
+{
+  "id": "10017", "key": "APP-17",
+  "fields": {
+    "labels": ["barnraise", "customer-reported", "status:ready", "P2"],
+    "status": {"name": "To Do", "statusCategory": {"key": "new"}}
+  }
+}

@@ -1,0 +1,11 @@
+{
+  "html_url": "https://github.com/acme/app/issues/1608",
+  "node_id": "I_kwDOAbc1608",
+  "number": 1608,
+  "title": "[I-42] Login screen remembers the last email",
+  "user": {"login": "barnraise-bot"},
+  "labels": [{"name": "barnraise"}, {"name": "needs-design"}, {"name": "status:ready"}, {"name": "P2"}, {"name": "area:auth"}],
+  "state": "open",
+  "updated_at": "2026-11-22T10:00:00Z",
+  "body": "old"
+}

@@ -1,0 +1,10 @@
+{
+  "action": "completed",
+  "workflow_run": {
+    "id": 30433642, "name": "CI", "path": ".github/workflows/ci.yml",
+    "head_branch": "br/I-42-remember-email", "head_sha": "acb5820ced9479c074f688cc328bf03f341a511d",
+    "status": "completed", "conclusion": "success",
+    "html_url": "https://github.com/acme/app/actions/runs/30433642"
+  },
+  "repository": {"full_name": "acme/app"}
+}

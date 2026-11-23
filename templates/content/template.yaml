@@ -1,0 +1,27 @@
+# Content: blog posts and media drafted by a writer, reviewed by an editor of another family, approved by the owner.
+roles:
+  writer: { class: normal, count: 1 }
+  editor: { class: normal, count: 1, reviewer: true }
+checks:
+  links: { run: "true", runs_on: local, scope: touched }
+kinds:
+  feature: blog-post
+  post: blog-post
+  bug: fix-content
+flows:
+  blog-post:
+    steps:
+      draft:  { role: writer }
+      review: { role: editor, model_family: different_from(draft) }
+      owner:  { approve: owner }
+      integrate: { run: merge_queue }
+    rework:
+      review.reject: draft
+      owner.reject: draft
+  fix-content:
+    steps:
+      draft:  { role: writer }
+      review: { role: editor, model_family: different_from(draft) }
+      integrate: { run: merge_queue }
+    rework:
+      review.reject: draft

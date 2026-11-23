@@ -1,0 +1,170 @@
+{
+  "Version": "1.104.5-t0000000000-g0000000000",
+  "TUN": true,
+  "BackendState": "Running",
+  "HaveNodeKey": true,
+  "AuthURL": "",
+  "TailscaleIPs": [
+    "100.101.1.10",
+    "fd7a:115c:a1e0::1:a"
+  ],
+  "Self": {
+    "ID": "nSelf000000CNTRL",
+    "NodeID": 1000000000000001,
+    "PublicKey": "nodekey:0000000000000000000000000000000000000000000000000000000000000001",
+    "HostName": "pc-alpha",
+    "DNSName": "pc-alpha.tail0000.ts.net.",
+    "OS": "linux",
+    "UserID": 2000000000000001,
+    "TailscaleIPs": [
+      "100.101.1.10",
+      "fd7a:115c:a1e0::1:a"
+    ],
+    "AllowedIPs": [
+      "100.101.1.10/32",
+      "fd7a:115c:a1e0::1:a/128"
+    ],
+    "Tags": [
+      "tag:barnraise"
+    ],
+    "Addrs": [
+      "203.0.113.5:41641",
+      "192.168.1.20:41641"
+    ],
+    "CurAddr": "",
+    "Relay": "gru",
+    "PeerRelay": "",
+    "RxBytes": 0,
+    "TxBytes": 0,
+    "Created": "2026-01-02T10:00:00.000000Z",
+    "LastWrite": "0001-01-01T00:00:00Z",
+    "LastSeen": "0001-01-01T00:00:00Z",
+    "LastHandshake": "0001-01-01T00:00:00Z",
+    "Online": true,
+    "ExitNode": false,
+    "ExitNodeOption": false,
+    "Active": false,
+    "PeerAPIURL": [
+      "http://100.101.1.10:50000"
+    ],
+    "TaildropTarget": 0,
+    "NoFileSharingReason": "",
+    "Capabilities": [
+      "https://tailscale.com/cap/file-sharing"
+    ],
+    "InNetworkMap": true,
+    "InMagicSock": false,
+    "InEngine": false,
+    "KeyExpiry": "2027-01-01T10:00:00Z"
+  },
+  "Health": [],
+  "MagicDNSSuffix": "tail0000.ts.net",
+  "CurrentTailnet": {
+    "Name": "owner@example.com",
+    "MagicDNSSuffix": "tail0000.ts.net",
+    "MagicDNSEnabled": true
+  },
+  "CertDomains": [
+    "pc-alpha.tail0000.ts.net"
+  ],
+  "Peer": {
+    "nodekey:0000000000000000000000000000000000000000000000000000000000000002": {
+      "ID": "nPeer000002CNTRL",
+      "NodeID": 1000000000000002,
+      "PublicKey": "nodekey:0000000000000000000000000000000000000000000000000000000000000002",
+      "HostName": "pc-beta",
+      "DNSName": "pc-beta.tail0000.ts.net.",
+      "OS": "linux",
+      "UserID": 2000000000000002,
+      "TailscaleIPs": [
+        "100.101.1.11",
+        "fd7a:115c:a1e0::1:b"
+      ],
+      "AllowedIPs": [
+        "100.101.1.11/32",
+        "fd7a:115c:a1e0::1:b/128"
+      ],
+      "Tags": [
+        "tag:barnraise"
+      ],
+      "Addrs": null,
+      "CurAddr": "192.168.1.21:41641",
+      "Relay": "gru",
+      "PeerRelay": "",
+      "RxBytes": 1024,
+      "TxBytes": 2048,
+      "Created": "2026-01-03T10:00:00.000000Z",
+      "LastWrite": "2026-11-20T12:00:00.000000Z",
+      "LastSeen": "2026-11-20T12:00:00Z",
+      "LastHandshake": "2026-11-20T11:59:00.000000Z",
+      "Online": true,
+      "ExitNode": false,
+      "ExitNodeOption": false,
+      "Active": true,
+      "PeerAPIURL": [
+        "http://100.101.1.11:50001"
+      ],
+      "TaildropTarget": 0,
+      "NoFileSharingReason": "",
+      "InNetworkMap": true,
+      "InMagicSock": true,
+      "InEngine": true,
+      "KeyExpiry": "2027-01-01T10:00:00Z"
+    },
+    "nodekey:0000000000000000000000000000000000000000000000000000000000000003": {
+      "ID": "nPeer000003CNTRL",
+      "NodeID": 1000000000000003,
+      "PublicKey": "nodekey:0000000000000000000000000000000000000000000000000000000000000003",
+      "HostName": "phone",
+      "DNSName": "phone.tail0000.ts.net.",
+      "OS": "android",
+      "UserID": 2000000000000001,
+      "TailscaleIPs": [
+        "100.101.1.12",
+        "fd7a:115c:a1e0::1:c"
+      ],
+      "AllowedIPs": [
+        "100.101.1.12/32",
+        "fd7a:115c:a1e0::1:c/128"
+      ],
+      "Addrs": null,
+      "CurAddr": "",
+      "Relay": "gru",
+      "PeerRelay": "",
+      "RxBytes": 0,
+      "TxBytes": 0,
+      "Created": "2026-02-01T10:00:00.000000Z",
+      "LastWrite": "0001-01-01T00:00:00Z",
+      "LastSeen": "2026-11-01T08:00:00Z",
+      "LastHandshake": "0001-01-01T00:00:00Z",
+      "Online": false,
+      "ExitNode": false,
+      "ExitNodeOption": false,
+      "Active": false,
+      "PeerAPIURL": [
+        "http://100.101.1.12:50002"
+      ],
+      "TaildropTarget": 0,
+      "NoFileSharingReason": "",
+      "InNetworkMap": true,
+      "InMagicSock": false,
+      "InEngine": false,
+      "KeyExpiry": "2027-02-01T10:00:00Z"
+    }
+  },
+  "User": {
+    "2000000000000001": {
+      "ID": 2000000000000001,
+      "LoginName": "owner@example.com",
+      "DisplayName": "Owner",
+      "ProfilePicURL": ""
+    },
+    "2000000000000002": {
+      "ID": 2000000000000002,
+      "LoginName": "friend@example.com",
+      "DisplayName": "Friend",
+      "ProfilePicURL": ""
+    }
+  },
+  "ClientVersion": null
+}

@@ -1,0 +1,6 @@
+{
+  "id": 501, "iid": 5, "title": "[I-42] Remember last email", "state": "merged", "draft": false,
+  "source_branch": "br/I-42-remember-email", "sha": "6dcb09b5b57875f334f61aebed695e2e4193db5e",
+  "merge_commit_sha": null, "squash_commit_sha": "4d1f2a0b9c8e7d6f5a4b3c2d1e0f9a8b7c6d5e4f",
+  "web_url": "https://gitlab.com/acme/app/-/merge_requests/5"
+}

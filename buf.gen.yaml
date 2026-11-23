@@ -1,0 +1,11 @@
+version: v2
+plugins:
+  - local: protoc-gen-go
+    out: gen
+    opt: paths=source_relative
+  - local: protoc-gen-connect-go
+    out: gen
+    opt: paths=source_relative
+  - local: protoc-gen-connect-openapi
+    out: gen/openapi
+    opt: [format=yaml, base=docs/openapi-base.yaml]

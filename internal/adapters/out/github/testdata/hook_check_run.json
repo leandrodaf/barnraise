@@ -1,0 +1,11 @@
+{
+  "action": "completed",
+  "check_run": {
+    "id": 4, "name": "unit", "head_sha": "ce587453ced02b1526dfb4cb910479d431683101",
+    "status": "completed", "conclusion": "failure",
+    "html_url": "https://github.com/acme/app/runs/4",
+    "check_suite": {"id": 5, "head_branch": "br/I-42-remember-email"}
+  },
+  "repository": {"full_name": "acme/app"},
+  "sender": {"login": "github-actions[bot]"}
+}

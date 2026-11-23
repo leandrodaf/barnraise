@@ -1,0 +1,13 @@
+openapi: 3.1.0
+info:
+  title: Barnraise API
+  version: v1
+  description: |
+    Barnraise daemon API. Every RPC is a POST with a JSON body at
+    `/barnraise.v1.BarnraiseService/<Method>` (Connect protocol); the same
+    service answers gRPC. Authenticate with `Authorization: Bearer <token>`.
+    Live events: `GET /v1/events` (Server-Sent Events, CloudEvents JSON).
+    Inbound webhooks: `POST /v1/webhooks/github`, `POST /v1/webhooks/gitlab`,
+    `POST /v1/webhooks/inbound/<project>`.
+  license:
+    name: Apache-2.0

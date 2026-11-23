@@ -1,0 +1,14 @@
+{
+  "issues": [
+    {
+      "id": "10018", "key": "APP-18",
+      "fields": {
+        "summary": "Crash offline", "description": null, "labels": ["bug"],
+        "updated": "2026-11-21T12:00:00.000-0300",
+        "status": {"name": "Done", "statusCategory": {"key": "done"}},
+        "reporter": {"displayName": "João"}
+      }
+    }
+  ],
+  "isLast": true
+}

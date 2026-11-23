@@ -1,0 +1,4 @@
+{"type":"thread.started","thread_id":"01a20850-aaaa-7bbb-8ccc-ddddeeeeffff"}
+{"type":"turn.started"}
+{"type":"error","message":"Reconnecting... 1/5 (stream disconnected before completion)"}
+{"type":"turn.failed","error":{"message":"stream disconnected before completion: error sending request"}}

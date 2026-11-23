@@ -1,0 +1,12 @@
+{"type":"thread.started","thread_id":"01a20850-1111-7222-8333-444455556666"}
+{"type":"turn.started"}
+{"type":"item.completed","item":{"id":"item_0","type":"reasoning","text":"**Counting entries**\n\nI will list /etc and count the lines."}}
+{"type":"item.started","item":{"id":"item_1","type":"command_execution","command":"/bin/bash -lc 'ls -1 /etc | wc -l'","aggregated_output":"","exit_code":null,"status":"in_progress"}}
+{"type":"item.completed","item":{"id":"item_1","type":"command_execution","command":"/bin/bash -lc 'ls -1 /etc | wc -l'","aggregated_output":"212\n","exit_code":0,"status":"completed"}}
+{"type":"item.completed","item":{"id":"item_2","type":"command_execution","command":"/bin/bash -lc 'cat missing.txt'","aggregated_output":"cat: missing.txt: No such file or directory\n","exit_code":1,"status":"failed"}}
+{"type":"item.started","item":{"id":"item_3","type":"mcp_tool_call","server":"docs","tool":"search","arguments":{"query":"sandbox"},"result":null,"error":null,"status":"in_progress"}}
+{"type":"item.completed","item":{"id":"item_3","type":"mcp_tool_call","server":"docs","tool":"search","arguments":{"query":"sandbox"},"result":{"content":[{"type":"text","text":"3 pages found"}],"structured_content":null},"error":null,"status":"completed"}}
+{"type":"item.started","item":{"id":"item_4","type":"todo_list","items":[{"text":"count entries","completed":false}]}}
+{"type":"item.updated","item":{"id":"item_4","type":"todo_list","items":[{"text":"count entries","completed":true}]}}
+{"type":"item.completed","item":{"id":"item_5","type":"agent_message","text":"212"}}
+{"type":"turn.completed","usage":{"input_tokens":53376,"cached_input_tokens":41216,"cache_write_input_tokens":0,"output_tokens":279,"reasoning_output_tokens":87}}

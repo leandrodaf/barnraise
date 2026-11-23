@@ -1,0 +1,6 @@
+{"data": {"issueCreate": {"success": true, "issue": {
+  "id": "2f1b7c8e-0000-4000-8000-000000000017", "identifier": "ENG-17", "number": 17,
+  "title": "[I-42] Login screen remembers the last email", "description": "## Goal",
+  "url": "https://linear.app/acme/issue/ENG-17/login-screen", "updatedAt": "2026-11-22T10:00:00.000Z",
+  "state": {"name": "Todo", "type": "unstarted"}, "labels": {"nodes": [{"name": "barnraise"}]}
+}}}}

@@ -1,0 +1,6 @@
+# area: folders, screens, contracts and standard
+# cards:
+#   paths: [app/src/main/java/com/example/cards/**]
+#   screens: [Cards]
+#   contracts: [POST /v1/payments]
+#   standard: standards/cards.md

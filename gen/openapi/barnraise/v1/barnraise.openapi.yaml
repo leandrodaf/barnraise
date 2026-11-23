@@ -1,0 +1,4736 @@
+openapi: 3.1.0
+info:
+  title: barnraise.v1
+  version: v1
+  description: |-
+    API documentation for barnraise.v1
+  license:
+    name: Apache-2.0
+paths:
+  /barnraise.v1.BarnraiseService/AddTweak:
+    post:
+      tags:
+        - barnraise.v1.BarnraiseService
+      summary: AddTweak
+      operationId: barnraise.v1.BarnraiseService.AddTweak
+      parameters:
+        - name: Connect-Protocol-Version
+          in: header
+          description: Define the version of the Connect protocol
+          schema:
+            $ref: '#/components/schemas/connect-protocol-version'
+          example: 1
+        - name: Connect-Timeout-Ms
+          in: header
+          description: Define the timeout, in ms
+          schema:
+            $ref: '#/components/schemas/connect-timeout-header'
+          example: 1000
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/barnraise.v1.AddTweakRequest'
+        required: true
+      responses:
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.error'
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/barnraise.v1.AddTweakResponse'
+  /barnraise.v1.BarnraiseService/Answer:
+    post:
+      tags:
+        - barnraise.v1.BarnraiseService
+      summary: Answer
+      operationId: barnraise.v1.BarnraiseService.Answer
+      parameters:
+        - name: Connect-Protocol-Version
+          in: header
+          description: Define the version of the Connect protocol
+          schema:
+            $ref: '#/components/schemas/connect-protocol-version'
+          example: 1
+        - name: Connect-Timeout-Ms
+          in: header
+          description: Define the timeout, in ms
+          schema:
+            $ref: '#/components/schemas/connect-timeout-header'
+          example: 1000
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/barnraise.v1.AnswerRequest'
+        required: true
+      responses:
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.error'
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/barnraise.v1.QuestionResponse'
+  /barnraise.v1.BarnraiseService/Approve:
+    post:
+      tags:
+        - barnraise.v1.BarnraiseService
+      summary: Approve
+      operationId: barnraise.v1.BarnraiseService.Approve
+      parameters:
+        - name: Connect-Protocol-Version
+          in: header
+          description: Define the version of the Connect protocol
+          schema:
+            $ref: '#/components/schemas/connect-protocol-version'
+          example: 1
+        - name: Connect-Timeout-Ms
+          in: header
+          description: Define the timeout, in ms
+          schema:
+            $ref: '#/components/schemas/connect-timeout-header'
+          example: 1000
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/barnraise.v1.ApproveRequest'
+        required: true
+      responses:
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.error'
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/barnraise.v1.Empty'
+  /barnraise.v1.BarnraiseService/AskOwner:
+    post:
+      tags:
+        - barnraise.v1.BarnraiseService
+      summary: AskOwner
+      description: Owner
+      operationId: barnraise.v1.BarnraiseService.AskOwner
+      parameters:
+        - name: Connect-Protocol-Version
+          in: header
+          description: Define the version of the Connect protocol
+          schema:
+            $ref: '#/components/schemas/connect-protocol-version'
+          example: 1
+        - name: Connect-Timeout-Ms
+          in: header
+          description: Define the timeout, in ms
+          schema:
+            $ref: '#/components/schemas/connect-timeout-header'
+          example: 1000
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/barnraise.v1.AskOwnerRequest'
+        required: true
+      responses:
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.error'
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/barnraise.v1.QuestionResponse'
+  /barnraise.v1.BarnraiseService/ClearFocus:
+    post:
+      tags:
+        - barnraise.v1.BarnraiseService
+      summary: ClearFocus
+      operationId: barnraise.v1.BarnraiseService.ClearFocus
+      parameters:
+        - name: Connect-Protocol-Version
+          in: header
+          description: Define the version of the Connect protocol
+          schema:
+            $ref: '#/components/schemas/connect-protocol-version'
+          example: 1
+        - name: Connect-Timeout-Ms
+          in: header
+          description: Define the timeout, in ms
+          schema:
+            $ref: '#/components/schemas/connect-timeout-header'
+          example: 1000
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/barnraise.v1.ProjectRef'
+        required: true
+      responses:
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.error'
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/barnraise.v1.Empty'
+  /barnraise.v1.BarnraiseService/CloseItem:
+    post:
+      tags:
+        - barnraise.v1.BarnraiseService
+      summary: CloseItem
+      operationId: barnraise.v1.BarnraiseService.CloseItem
+      parameters:
+        - name: Connect-Protocol-Version
+          in: header
+          description: Define the version of the Connect protocol
+          schema:
+            $ref: '#/components/schemas/connect-protocol-version'
+          example: 1
+        - name: Connect-Timeout-Ms
+          in: header
+          description: Define the timeout, in ms
+          schema:
+            $ref: '#/components/schemas/connect-timeout-header'
+          example: 1000
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/barnraise.v1.CloseItemRequest'
+        required: true
+      responses:
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.error'
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/barnraise.v1.ItemResponse'
+  /barnraise.v1.BarnraiseService/Context:
+    post:
+      tags:
+        - barnraise.v1.BarnraiseService
+      summary: Context
+      description: Knowledge
+      operationId: barnraise.v1.BarnraiseService.Context
+      parameters:
+        - name: Connect-Protocol-Version
+          in: header
+          description: Define the version of the Connect protocol
+          schema:
+            $ref: '#/components/schemas/connect-protocol-version'
+          example: 1
+        - name: Connect-Timeout-Ms
+          in: header
+          description: Define the timeout, in ms
+          schema:
+            $ref: '#/components/schemas/connect-timeout-header'
+          example: 1000
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/barnraise.v1.ContextRequest'
+        required: true
+      responses:
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.error'
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/barnraise.v1.ContextResponse'
+  /barnraise.v1.BarnraiseService/CreateItem:
+    post:
+      tags:
+        - barnraise.v1.BarnraiseService
+      summary: CreateItem
+      description: Items
+      operationId: barnraise.v1.BarnraiseService.CreateItem
+      parameters:
+        - name: Connect-Protocol-Version
+          in: header
+          description: Define the version of the Connect protocol
+          schema:
+            $ref: '#/components/schemas/connect-protocol-version'
+          example: 1
+        - name: Connect-Timeout-Ms
+          in: header
+          description: Define the timeout, in ms
+          schema:
+            $ref: '#/components/schemas/connect-timeout-header'
+          example: 1000
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/barnraise.v1.CreateItemRequest'
+        required: true
+      responses:
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.error'
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/barnraise.v1.CreateItemResponse'
+  /barnraise.v1.BarnraiseService/CreateToken:
+    post:
+      tags:
+        - barnraise.v1.BarnraiseService
+      summary: CreateToken
+      description: Tokens and audit
+      operationId: barnraise.v1.BarnraiseService.CreateToken
+      parameters:
+        - name: Connect-Protocol-Version
+          in: header
+          description: Define the version of the Connect protocol
+          schema:
+            $ref: '#/components/schemas/connect-protocol-version'
+          example: 1
+        - name: Connect-Timeout-Ms
+          in: header
+          description: Define the timeout, in ms
+          schema:
+            $ref: '#/components/schemas/connect-timeout-header'
+          example: 1000
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/barnraise.v1.CreateTokenRequest'
+        required: true
+      responses:
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.error'
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/barnraise.v1.CreateTokenResponse'
+  /barnraise.v1.BarnraiseService/DecideProposal:
+    post:
+      tags:
+        - barnraise.v1.BarnraiseService
+      summary: DecideProposal
+      operationId: barnraise.v1.BarnraiseService.DecideProposal
+      parameters:
+        - name: Connect-Protocol-Version
+          in: header
+          description: Define the version of the Connect protocol
+          schema:
+            $ref: '#/components/schemas/connect-protocol-version'
+          example: 1
+        - name: Connect-Timeout-Ms
+          in: header
+          description: Define the timeout, in ms
+          schema:
+            $ref: '#/components/schemas/connect-timeout-header'
+          example: 1000
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/barnraise.v1.DecideProposalRequest'
+        required: true
+      responses:
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.error'
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/barnraise.v1.ProposalResponse'
+  /barnraise.v1.BarnraiseService/Deliver:
+    post:
+      tags:
+        - barnraise.v1.BarnraiseService
+      summary: Deliver
+      operationId: barnraise.v1.BarnraiseService.Deliver
+      parameters:
+        - name: Connect-Protocol-Version
+          in: header
+          description: Define the version of the Connect protocol
+          schema:
+            $ref: '#/components/schemas/connect-protocol-version'
+          example: 1
+        - name: Connect-Timeout-Ms
+          in: header
+          description: Define the timeout, in ms
+          schema:
+            $ref: '#/components/schemas/connect-timeout-header'
+          example: 1000
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/barnraise.v1.DeliverRequest'
+        required: true
+      responses:
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.error'
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/barnraise.v1.ItemResponse'
+  /barnraise.v1.BarnraiseService/Digest:
+    post:
+      tags:
+        - barnraise.v1.BarnraiseService
+      summary: Digest
+      operationId: barnraise.v1.BarnraiseService.Digest
+      parameters:
+        - name: Connect-Protocol-Version
+          in: header
+          description: Define the version of the Connect protocol
+          schema:
+            $ref: '#/components/schemas/connect-protocol-version'
+          example: 1
+        - name: Connect-Timeout-Ms
+          in: header
+          description: Define the timeout, in ms
+          schema:
+            $ref: '#/components/schemas/connect-timeout-header'
+          example: 1000
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/barnraise.v1.ProjectRef'
+        required: true
+      responses:
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.error'
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/barnraise.v1.DigestResponse'
+  /barnraise.v1.BarnraiseService/Estimate:
+    post:
+      tags:
+        - barnraise.v1.BarnraiseService
+      summary: Estimate
+      operationId: barnraise.v1.BarnraiseService.Estimate
+      parameters:
+        - name: Connect-Protocol-Version
+          in: header
+          description: Define the version of the Connect protocol
+          schema:
+            $ref: '#/components/schemas/connect-protocol-version'
+          example: 1
+        - name: Connect-Timeout-Ms
+          in: header
+          description: Define the timeout, in ms
+          schema:
+            $ref: '#/components/schemas/connect-timeout-header'
+          example: 1000
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/barnraise.v1.ItemRef'
+        required: true
+      responses:
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.error'
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/barnraise.v1.EstimateResponse'
+  /barnraise.v1.BarnraiseService/Find:
+    post:
+      tags:
+        - barnraise.v1.BarnraiseService
+      summary: Find
+      operationId: barnraise.v1.BarnraiseService.Find
+      parameters:
+        - name: Connect-Protocol-Version
+          in: header
+          description: Define the version of the Connect protocol
+          schema:
+            $ref: '#/components/schemas/connect-protocol-version'
+          example: 1
+        - name: Connect-Timeout-Ms
+          in: header
+          description: Define the timeout, in ms
+          schema:
+            $ref: '#/components/schemas/connect-timeout-header'
+          example: 1000
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/barnraise.v1.FindRequest'
+        required: true
+      responses:
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.error'
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/barnraise.v1.FindResponse'
+  /barnraise.v1.BarnraiseService/Get:
+    post:
+      tags:
+        - barnraise.v1.BarnraiseService
+      summary: Get
+      operationId: barnraise.v1.BarnraiseService.Get
+      parameters:
+        - name: Connect-Protocol-Version
+          in: header
+          description: Define the version of the Connect protocol
+          schema:
+            $ref: '#/components/schemas/connect-protocol-version'
+          example: 1
+        - name: Connect-Timeout-Ms
+          in: header
+          description: Define the timeout, in ms
+          schema:
+            $ref: '#/components/schemas/connect-timeout-header'
+          example: 1000
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/barnraise.v1.KnowledgeRequest'
+        required: true
+      responses:
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.error'
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/barnraise.v1.KnowledgeResponse'
+  /barnraise.v1.BarnraiseService/GetItem:
+    post:
+      tags:
+        - barnraise.v1.BarnraiseService
+      summary: GetItem
+      operationId: barnraise.v1.BarnraiseService.GetItem
+      parameters:
+        - name: Connect-Protocol-Version
+          in: header
+          description: Define the version of the Connect protocol
+          schema:
+            $ref: '#/components/schemas/connect-protocol-version'
+          example: 1
+        - name: Connect-Timeout-Ms
+          in: header
+          description: Define the timeout, in ms
+          schema:
+            $ref: '#/components/schemas/connect-timeout-header'
+          example: 1000
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/barnraise.v1.ItemRef'
+        required: true
+      responses:
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.error'
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/barnraise.v1.ItemResponse'
+  /barnraise.v1.BarnraiseService/Handback:
+    post:
+      tags:
+        - barnraise.v1.BarnraiseService
+      summary: Handback
+      operationId: barnraise.v1.BarnraiseService.Handback
+      parameters:
+        - name: Connect-Protocol-Version
+          in: header
+          description: Define the version of the Connect protocol
+          schema:
+            $ref: '#/components/schemas/connect-protocol-version'
+          example: 1
+        - name: Connect-Timeout-Ms
+          in: header
+          description: Define the timeout, in ms
+          schema:
+            $ref: '#/components/schemas/connect-timeout-header'
+          example: 1000
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/barnraise.v1.HandbackRequest'
+        required: true
+      responses:
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.error'
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/barnraise.v1.ItemResponse'
+  /barnraise.v1.BarnraiseService/History:
+    post:
+      tags:
+        - barnraise.v1.BarnraiseService
+      summary: History
+      operationId: barnraise.v1.BarnraiseService.History
+      parameters:
+        - name: Connect-Protocol-Version
+          in: header
+          description: Define the version of the Connect protocol
+          schema:
+            $ref: '#/components/schemas/connect-protocol-version'
+          example: 1
+        - name: Connect-Timeout-Ms
+          in: header
+          description: Define the timeout, in ms
+          schema:
+            $ref: '#/components/schemas/connect-timeout-header'
+          example: 1000
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/barnraise.v1.KnowledgeRequest'
+        required: true
+      responses:
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.error'
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/barnraise.v1.KnowledgeResponse'
+  /barnraise.v1.BarnraiseService/Inbox:
+    post:
+      tags:
+        - barnraise.v1.BarnraiseService
+      summary: Inbox
+      operationId: barnraise.v1.BarnraiseService.Inbox
+      parameters:
+        - name: Connect-Protocol-Version
+          in: header
+          description: Define the version of the Connect protocol
+          schema:
+            $ref: '#/components/schemas/connect-protocol-version'
+          example: 1
+        - name: Connect-Timeout-Ms
+          in: header
+          description: Define the timeout, in ms
+          schema:
+            $ref: '#/components/schemas/connect-timeout-header'
+          example: 1000
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/barnraise.v1.InboxRequest'
+        required: true
+      responses:
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.error'
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/barnraise.v1.InboxResponse'
+  /barnraise.v1.BarnraiseService/Journal:
+    post:
+      tags:
+        - barnraise.v1.BarnraiseService
+      summary: Journal
+      operationId: barnraise.v1.BarnraiseService.Journal
+      parameters:
+        - name: Connect-Protocol-Version
+          in: header
+          description: Define the version of the Connect protocol
+          schema:
+            $ref: '#/components/schemas/connect-protocol-version'
+          example: 1
+        - name: Connect-Timeout-Ms
+          in: header
+          description: Define the timeout, in ms
+          schema:
+            $ref: '#/components/schemas/connect-timeout-header'
+          example: 1000
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/barnraise.v1.JournalRequest'
+        required: true
+      responses:
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.error'
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/barnraise.v1.Empty'
+  /barnraise.v1.BarnraiseService/LeaveMachine:
+    post:
+      tags:
+        - barnraise.v1.BarnraiseService
+      summary: LeaveMachine
+      operationId: barnraise.v1.BarnraiseService.LeaveMachine
+      parameters:
+        - name: Connect-Protocol-Version
+          in: header
+          description: Define the version of the Connect protocol
+          schema:
+            $ref: '#/components/schemas/connect-protocol-version'
+          example: 1
+        - name: Connect-Timeout-Ms
+          in: header
+          description: Define the timeout, in ms
+          schema:
+            $ref: '#/components/schemas/connect-timeout-header'
+          example: 1000
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/barnraise.v1.ProjectRef'
+        required: true
+      responses:
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.error'
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/barnraise.v1.LeaveResponse'
+  /barnraise.v1.BarnraiseService/ListAccounts:
+    post:
+      tags:
+        - barnraise.v1.BarnraiseService
+      summary: ListAccounts
+      operationId: barnraise.v1.BarnraiseService.ListAccounts
+      parameters:
+        - name: Connect-Protocol-Version
+          in: header
+          description: Define the version of the Connect protocol
+          schema:
+            $ref: '#/components/schemas/connect-protocol-version'
+          example: 1
+        - name: Connect-Timeout-Ms
+          in: header
+          description: Define the timeout, in ms
+          schema:
+            $ref: '#/components/schemas/connect-timeout-header'
+          example: 1000
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/barnraise.v1.ProjectRef'
+        required: true
+      responses:
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.error'
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/barnraise.v1.AccountsResponse'
+  /barnraise.v1.BarnraiseService/ListAudit:
+    post:
+      tags:
+        - barnraise.v1.BarnraiseService
+      summary: ListAudit
+      operationId: barnraise.v1.BarnraiseService.ListAudit
+      parameters:
+        - name: Connect-Protocol-Version
+          in: header
+          description: Define the version of the Connect protocol
+          schema:
+            $ref: '#/components/schemas/connect-protocol-version'
+          example: 1
+        - name: Connect-Timeout-Ms
+          in: header
+          description: Define the timeout, in ms
+          schema:
+            $ref: '#/components/schemas/connect-timeout-header'
+          example: 1000
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/barnraise.v1.AuditRequest'
+        required: true
+      responses:
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.error'
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/barnraise.v1.AuditResponse'
+  /barnraise.v1.BarnraiseService/ListEvents:
+    post:
+      tags:
+        - barnraise.v1.BarnraiseService
+      summary: ListEvents
+      operationId: barnraise.v1.BarnraiseService.ListEvents
+      parameters:
+        - name: Connect-Protocol-Version
+          in: header
+          description: Define the version of the Connect protocol
+          schema:
+            $ref: '#/components/schemas/connect-protocol-version'
+          example: 1
+        - name: Connect-Timeout-Ms
+          in: header
+          description: Define the timeout, in ms
+          schema:
+            $ref: '#/components/schemas/connect-timeout-header'
+          example: 1000
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/barnraise.v1.EventsRequest'
+        required: true
+      responses:
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.error'
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/barnraise.v1.EventsResponse'
+  /barnraise.v1.BarnraiseService/ListItems:
+    post:
+      tags:
+        - barnraise.v1.BarnraiseService
+      summary: ListItems
+      operationId: barnraise.v1.BarnraiseService.ListItems
+      parameters:
+        - name: Connect-Protocol-Version
+          in: header
+          description: Define the version of the Connect protocol
+          schema:
+            $ref: '#/components/schemas/connect-protocol-version'
+          example: 1
+        - name: Connect-Timeout-Ms
+          in: header
+          description: Define the timeout, in ms
+          schema:
+            $ref: '#/components/schemas/connect-timeout-header'
+          example: 1000
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/barnraise.v1.ListItemsRequest'
+        required: true
+      responses:
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.error'
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/barnraise.v1.ItemsResponse'
+  /barnraise.v1.BarnraiseService/ListMachines:
+    post:
+      tags:
+        - barnraise.v1.BarnraiseService
+      summary: ListMachines
+      operationId: barnraise.v1.BarnraiseService.ListMachines
+      parameters:
+        - name: Connect-Protocol-Version
+          in: header
+          description: Define the version of the Connect protocol
+          schema:
+            $ref: '#/components/schemas/connect-protocol-version'
+          example: 1
+        - name: Connect-Timeout-Ms
+          in: header
+          description: Define the timeout, in ms
+          schema:
+            $ref: '#/components/schemas/connect-timeout-header'
+          example: 1000
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/barnraise.v1.ProjectRef'
+        required: true
+      responses:
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.error'
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/barnraise.v1.MachinesResponse'
+  /barnraise.v1.BarnraiseService/ListProjects:
+    post:
+      tags:
+        - barnraise.v1.BarnraiseService
+      summary: ListProjects
+      description: Projects
+      operationId: barnraise.v1.BarnraiseService.ListProjects
+      parameters:
+        - name: Connect-Protocol-Version
+          in: header
+          description: Define the version of the Connect protocol
+          schema:
+            $ref: '#/components/schemas/connect-protocol-version'
+          example: 1
+        - name: Connect-Timeout-Ms
+          in: header
+          description: Define the timeout, in ms
+          schema:
+            $ref: '#/components/schemas/connect-timeout-header'
+          example: 1000
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/barnraise.v1.Empty'
+        required: true
+      responses:
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.error'
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/barnraise.v1.ProjectsResponse'
+  /barnraise.v1.BarnraiseService/ListProposals:
+    post:
+      tags:
+        - barnraise.v1.BarnraiseService
+      summary: ListProposals
+      operationId: barnraise.v1.BarnraiseService.ListProposals
+      parameters:
+        - name: Connect-Protocol-Version
+          in: header
+          description: Define the version of the Connect protocol
+          schema:
+            $ref: '#/components/schemas/connect-protocol-version'
+          example: 1
+        - name: Connect-Timeout-Ms
+          in: header
+          description: Define the timeout, in ms
+          schema:
+            $ref: '#/components/schemas/connect-timeout-header'
+          example: 1000
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/barnraise.v1.ListProposalsRequest'
+        required: true
+      responses:
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.error'
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/barnraise.v1.ListProposalsResponse'
+  /barnraise.v1.BarnraiseService/ListQuestions:
+    post:
+      tags:
+        - barnraise.v1.BarnraiseService
+      summary: ListQuestions
+      operationId: barnraise.v1.BarnraiseService.ListQuestions
+      parameters:
+        - name: Connect-Protocol-Version
+          in: header
+          description: Define the version of the Connect protocol
+          schema:
+            $ref: '#/components/schemas/connect-protocol-version'
+          example: 1
+        - name: Connect-Timeout-Ms
+          in: header
+          description: Define the timeout, in ms
+          schema:
+            $ref: '#/components/schemas/connect-timeout-header'
+          example: 1000
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/barnraise.v1.ProjectRef'
+        required: true
+      responses:
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.error'
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/barnraise.v1.QuestionsResponse'
+  /barnraise.v1.BarnraiseService/ListTokens:
+    post:
+      tags:
+        - barnraise.v1.BarnraiseService
+      summary: ListTokens
+      operationId: barnraise.v1.BarnraiseService.ListTokens
+      parameters:
+        - name: Connect-Protocol-Version
+          in: header
+          description: Define the version of the Connect protocol
+          schema:
+            $ref: '#/components/schemas/connect-protocol-version'
+          example: 1
+        - name: Connect-Timeout-Ms
+          in: header
+          description: Define the timeout, in ms
+          schema:
+            $ref: '#/components/schemas/connect-timeout-header'
+          example: 1000
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/barnraise.v1.Empty'
+        required: true
+      responses:
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.error'
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/barnraise.v1.TokensResponse'
+  /barnraise.v1.BarnraiseService/Metrics:
+    post:
+      tags:
+        - barnraise.v1.BarnraiseService
+      summary: Metrics
+      operationId: barnraise.v1.BarnraiseService.Metrics
+      parameters:
+        - name: Connect-Protocol-Version
+          in: header
+          description: Define the version of the Connect protocol
+          schema:
+            $ref: '#/components/schemas/connect-protocol-version'
+          example: 1
+        - name: Connect-Timeout-Ms
+          in: header
+          description: Define the timeout, in ms
+          schema:
+            $ref: '#/components/schemas/connect-timeout-header'
+          example: 1000
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/barnraise.v1.MetricsRequest'
+        required: true
+      responses:
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.error'
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/barnraise.v1.MetricsResponse'
+  /barnraise.v1.BarnraiseService/NextItem:
+    post:
+      tags:
+        - barnraise.v1.BarnraiseService
+      summary: NextItem
+      operationId: barnraise.v1.BarnraiseService.NextItem
+      parameters:
+        - name: Connect-Protocol-Version
+          in: header
+          description: Define the version of the Connect protocol
+          schema:
+            $ref: '#/components/schemas/connect-protocol-version'
+          example: 1
+        - name: Connect-Timeout-Ms
+          in: header
+          description: Define the timeout, in ms
+          schema:
+            $ref: '#/components/schemas/connect-timeout-header'
+          example: 1000
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/barnraise.v1.NextItemRequest'
+        required: true
+      responses:
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.error'
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/barnraise.v1.Assignment'
+  /barnraise.v1.BarnraiseService/Pause:
+    post:
+      tags:
+        - barnraise.v1.BarnraiseService
+      summary: Pause
+      operationId: barnraise.v1.BarnraiseService.Pause
+      parameters:
+        - name: Connect-Protocol-Version
+          in: header
+          description: Define the version of the Connect protocol
+          schema:
+            $ref: '#/components/schemas/connect-protocol-version'
+          example: 1
+        - name: Connect-Timeout-Ms
+          in: header
+          description: Define the timeout, in ms
+          schema:
+            $ref: '#/components/schemas/connect-timeout-header'
+          example: 1000
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/barnraise.v1.PauseRequest'
+        required: true
+      responses:
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.error'
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/barnraise.v1.Empty'
+  /barnraise.v1.BarnraiseService/ProcessQueue:
+    post:
+      tags:
+        - barnraise.v1.BarnraiseService
+      summary: ProcessQueue
+      operationId: barnraise.v1.BarnraiseService.ProcessQueue
+      parameters:
+        - name: Connect-Protocol-Version
+          in: header
+          description: Define the version of the Connect protocol
+          schema:
+            $ref: '#/components/schemas/connect-protocol-version'
+          example: 1
+        - name: Connect-Timeout-Ms
+          in: header
+          description: Define the timeout, in ms
+          schema:
+            $ref: '#/components/schemas/connect-timeout-header'
+          example: 1000
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/barnraise.v1.ProjectRef'
+        required: true
+      responses:
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.error'
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/barnraise.v1.QueueResponse'
+  /barnraise.v1.BarnraiseService/Propose:
+    post:
+      tags:
+        - barnraise.v1.BarnraiseService
+      summary: Propose
+      description: Proposals and tweaks
+      operationId: barnraise.v1.BarnraiseService.Propose
+      parameters:
+        - name: Connect-Protocol-Version
+          in: header
+          description: Define the version of the Connect protocol
+          schema:
+            $ref: '#/components/schemas/connect-protocol-version'
+          example: 1
+        - name: Connect-Timeout-Ms
+          in: header
+          description: Define the timeout, in ms
+          schema:
+            $ref: '#/components/schemas/connect-timeout-header'
+          example: 1000
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/barnraise.v1.ProposeRequest'
+        required: true
+      responses:
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.error'
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/barnraise.v1.ProposeResponse'
+  /barnraise.v1.BarnraiseService/Queue:
+    post:
+      tags:
+        - barnraise.v1.BarnraiseService
+      summary: Queue
+      operationId: barnraise.v1.BarnraiseService.Queue
+      parameters:
+        - name: Connect-Protocol-Version
+          in: header
+          description: Define the version of the Connect protocol
+          schema:
+            $ref: '#/components/schemas/connect-protocol-version'
+          example: 1
+        - name: Connect-Timeout-Ms
+          in: header
+          description: Define the timeout, in ms
+          schema:
+            $ref: '#/components/schemas/connect-timeout-header'
+          example: 1000
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/barnraise.v1.ProjectRef'
+        required: true
+      responses:
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.error'
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/barnraise.v1.QueueResponse'
+  /barnraise.v1.BarnraiseService/Redo:
+    post:
+      tags:
+        - barnraise.v1.BarnraiseService
+      summary: Redo
+      operationId: barnraise.v1.BarnraiseService.Redo
+      parameters:
+        - name: Connect-Protocol-Version
+          in: header
+          description: Define the version of the Connect protocol
+          schema:
+            $ref: '#/components/schemas/connect-protocol-version'
+          example: 1
+        - name: Connect-Timeout-Ms
+          in: header
+          description: Define the timeout, in ms
+          schema:
+            $ref: '#/components/schemas/connect-timeout-header'
+          example: 1000
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/barnraise.v1.RedoRequest'
+        required: true
+      responses:
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.error'
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/barnraise.v1.ItemResponse'
+  /barnraise.v1.BarnraiseService/RegisterProject:
+    post:
+      tags:
+        - barnraise.v1.BarnraiseService
+      summary: RegisterProject
+      operationId: barnraise.v1.BarnraiseService.RegisterProject
+      parameters:
+        - name: Connect-Protocol-Version
+          in: header
+          description: Define the version of the Connect protocol
+          schema:
+            $ref: '#/components/schemas/connect-protocol-version'
+          example: 1
+        - name: Connect-Timeout-Ms
+          in: header
+          description: Define the timeout, in ms
+          schema:
+            $ref: '#/components/schemas/connect-timeout-header'
+          example: 1000
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/barnraise.v1.RegisterProjectRequest'
+        required: true
+      responses:
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.error'
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/barnraise.v1.ProjectsResponse'
+  /barnraise.v1.BarnraiseService/Related:
+    post:
+      tags:
+        - barnraise.v1.BarnraiseService
+      summary: Related
+      operationId: barnraise.v1.BarnraiseService.Related
+      parameters:
+        - name: Connect-Protocol-Version
+          in: header
+          description: Define the version of the Connect protocol
+          schema:
+            $ref: '#/components/schemas/connect-protocol-version'
+          example: 1
+        - name: Connect-Timeout-Ms
+          in: header
+          description: Define the timeout, in ms
+          schema:
+            $ref: '#/components/schemas/connect-timeout-header'
+          example: 1000
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/barnraise.v1.KnowledgeRequest'
+        required: true
+      responses:
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.error'
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/barnraise.v1.KnowledgeResponse'
+  /barnraise.v1.BarnraiseService/ReloadProject:
+    post:
+      tags:
+        - barnraise.v1.BarnraiseService
+      summary: ReloadProject
+      operationId: barnraise.v1.BarnraiseService.ReloadProject
+      parameters:
+        - name: Connect-Protocol-Version
+          in: header
+          description: Define the version of the Connect protocol
+          schema:
+            $ref: '#/components/schemas/connect-protocol-version'
+          example: 1
+        - name: Connect-Timeout-Ms
+          in: header
+          description: Define the timeout, in ms
+          schema:
+            $ref: '#/components/schemas/connect-timeout-header'
+          example: 1000
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/barnraise.v1.ProjectRef'
+        required: true
+      responses:
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.error'
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/barnraise.v1.ProjectsResponse'
+  /barnraise.v1.BarnraiseService/ReportCheck:
+    post:
+      tags:
+        - barnraise.v1.BarnraiseService
+      summary: ReportCheck
+      operationId: barnraise.v1.BarnraiseService.ReportCheck
+      parameters:
+        - name: Connect-Protocol-Version
+          in: header
+          description: Define the version of the Connect protocol
+          schema:
+            $ref: '#/components/schemas/connect-protocol-version'
+          example: 1
+        - name: Connect-Timeout-Ms
+          in: header
+          description: Define the timeout, in ms
+          schema:
+            $ref: '#/components/schemas/connect-timeout-header'
+          example: 1000
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/barnraise.v1.ReportCheckRequest'
+        required: true
+      responses:
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.error'
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/barnraise.v1.ItemResponse'
+  /barnraise.v1.BarnraiseService/ReportUsage:
+    post:
+      tags:
+        - barnraise.v1.BarnraiseService
+      summary: ReportUsage
+      operationId: barnraise.v1.BarnraiseService.ReportUsage
+      parameters:
+        - name: Connect-Protocol-Version
+          in: header
+          description: Define the version of the Connect protocol
+          schema:
+            $ref: '#/components/schemas/connect-protocol-version'
+          example: 1
+        - name: Connect-Timeout-Ms
+          in: header
+          description: Define the timeout, in ms
+          schema:
+            $ref: '#/components/schemas/connect-timeout-header'
+          example: 1000
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/barnraise.v1.ReportUsageRequest'
+        required: true
+      responses:
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.error'
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/barnraise.v1.Empty'
+  /barnraise.v1.BarnraiseService/ReportViolation:
+    post:
+      tags:
+        - barnraise.v1.BarnraiseService
+      summary: ReportViolation
+      operationId: barnraise.v1.BarnraiseService.ReportViolation
+      parameters:
+        - name: Connect-Protocol-Version
+          in: header
+          description: Define the version of the Connect protocol
+          schema:
+            $ref: '#/components/schemas/connect-protocol-version'
+          example: 1
+        - name: Connect-Timeout-Ms
+          in: header
+          description: Define the timeout, in ms
+          schema:
+            $ref: '#/components/schemas/connect-timeout-header'
+          example: 1000
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/barnraise.v1.PolicyViolationRequest'
+        required: true
+      responses:
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.error'
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/barnraise.v1.Empty'
+  /barnraise.v1.BarnraiseService/Resume:
+    post:
+      tags:
+        - barnraise.v1.BarnraiseService
+      summary: Resume
+      operationId: barnraise.v1.BarnraiseService.Resume
+      parameters:
+        - name: Connect-Protocol-Version
+          in: header
+          description: Define the version of the Connect protocol
+          schema:
+            $ref: '#/components/schemas/connect-protocol-version'
+          example: 1
+        - name: Connect-Timeout-Ms
+          in: header
+          description: Define the timeout, in ms
+          schema:
+            $ref: '#/components/schemas/connect-timeout-header'
+          example: 1000
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/barnraise.v1.ProjectRef'
+        required: true
+      responses:
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.error'
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/barnraise.v1.Empty'
+  /barnraise.v1.BarnraiseService/Revalidate:
+    post:
+      tags:
+        - barnraise.v1.BarnraiseService
+      summary: Revalidate
+      operationId: barnraise.v1.BarnraiseService.Revalidate
+      parameters:
+        - name: Connect-Protocol-Version
+          in: header
+          description: Define the version of the Connect protocol
+          schema:
+            $ref: '#/components/schemas/connect-protocol-version'
+          example: 1
+        - name: Connect-Timeout-Ms
+          in: header
+          description: Define the timeout, in ms
+          schema:
+            $ref: '#/components/schemas/connect-timeout-header'
+          example: 1000
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/barnraise.v1.RevalidateRequest'
+        required: true
+      responses:
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.error'
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/barnraise.v1.RevalidateResponse'
+  /barnraise.v1.BarnraiseService/RevokeToken:
+    post:
+      tags:
+        - barnraise.v1.BarnraiseService
+      summary: RevokeToken
+      operationId: barnraise.v1.BarnraiseService.RevokeToken
+      parameters:
+        - name: Connect-Protocol-Version
+          in: header
+          description: Define the version of the Connect protocol
+          schema:
+            $ref: '#/components/schemas/connect-protocol-version'
+          example: 1
+        - name: Connect-Timeout-Ms
+          in: header
+          description: Define the timeout, in ms
+          schema:
+            $ref: '#/components/schemas/connect-timeout-header'
+          example: 1000
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/barnraise.v1.RevokeTokenRequest'
+        required: true
+      responses:
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.error'
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/barnraise.v1.Empty'
+  /barnraise.v1.BarnraiseService/Rules:
+    post:
+      tags:
+        - barnraise.v1.BarnraiseService
+      summary: Rules
+      operationId: barnraise.v1.BarnraiseService.Rules
+      parameters:
+        - name: Connect-Protocol-Version
+          in: header
+          description: Define the version of the Connect protocol
+          schema:
+            $ref: '#/components/schemas/connect-protocol-version'
+          example: 1
+        - name: Connect-Timeout-Ms
+          in: header
+          description: Define the timeout, in ms
+          schema:
+            $ref: '#/components/schemas/connect-timeout-header'
+          example: 1000
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/barnraise.v1.KnowledgeRequest'
+        required: true
+      responses:
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.error'
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/barnraise.v1.KnowledgeResponse'
+  /barnraise.v1.BarnraiseService/SendMessage:
+    post:
+      tags:
+        - barnraise.v1.BarnraiseService
+      summary: SendMessage
+      description: Messaging
+      operationId: barnraise.v1.BarnraiseService.SendMessage
+      parameters:
+        - name: Connect-Protocol-Version
+          in: header
+          description: Define the version of the Connect protocol
+          schema:
+            $ref: '#/components/schemas/connect-protocol-version'
+          example: 1
+        - name: Connect-Timeout-Ms
+          in: header
+          description: Define the timeout, in ms
+          schema:
+            $ref: '#/components/schemas/connect-timeout-header'
+          example: 1000
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/barnraise.v1.SendMessageRequest'
+        required: true
+      responses:
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.error'
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/barnraise.v1.MessageResponse'
+  /barnraise.v1.BarnraiseService/SetFocus:
+    post:
+      tags:
+        - barnraise.v1.BarnraiseService
+      summary: SetFocus
+      operationId: barnraise.v1.BarnraiseService.SetFocus
+      parameters:
+        - name: Connect-Protocol-Version
+          in: header
+          description: Define the version of the Connect protocol
+          schema:
+            $ref: '#/components/schemas/connect-protocol-version'
+          example: 1
+        - name: Connect-Timeout-Ms
+          in: header
+          description: Define the timeout, in ms
+          schema:
+            $ref: '#/components/schemas/connect-timeout-header'
+          example: 1000
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/barnraise.v1.FocusRequest'
+        required: true
+      responses:
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.error'
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/barnraise.v1.FocusResponse'
+  /barnraise.v1.BarnraiseService/SetGoal:
+    post:
+      tags:
+        - barnraise.v1.BarnraiseService
+      summary: SetGoal
+      operationId: barnraise.v1.BarnraiseService.SetGoal
+      parameters:
+        - name: Connect-Protocol-Version
+          in: header
+          description: Define the version of the Connect protocol
+          schema:
+            $ref: '#/components/schemas/connect-protocol-version'
+          example: 1
+        - name: Connect-Timeout-Ms
+          in: header
+          description: Define the timeout, in ms
+          schema:
+            $ref: '#/components/schemas/connect-timeout-header'
+          example: 1000
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/barnraise.v1.SetGoalRequest'
+        required: true
+      responses:
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.error'
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/barnraise.v1.SetGoalResponse'
+  /barnraise.v1.BarnraiseService/Status:
+    post:
+      tags:
+        - barnraise.v1.BarnraiseService
+      summary: Status
+      description: Views
+      operationId: barnraise.v1.BarnraiseService.Status
+      parameters:
+        - name: Connect-Protocol-Version
+          in: header
+          description: Define the version of the Connect protocol
+          schema:
+            $ref: '#/components/schemas/connect-protocol-version'
+          example: 1
+        - name: Connect-Timeout-Ms
+          in: header
+          description: Define the timeout, in ms
+          schema:
+            $ref: '#/components/schemas/connect-timeout-header'
+          example: 1000
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/barnraise.v1.ProjectRef'
+        required: true
+      responses:
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.error'
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/barnraise.v1.StatusResponse'
+  /barnraise.v1.BarnraiseService/SubmitReview:
+    post:
+      tags:
+        - barnraise.v1.BarnraiseService
+      summary: SubmitReview
+      operationId: barnraise.v1.BarnraiseService.SubmitReview
+      parameters:
+        - name: Connect-Protocol-Version
+          in: header
+          description: Define the version of the Connect protocol
+          schema:
+            $ref: '#/components/schemas/connect-protocol-version'
+          example: 1
+        - name: Connect-Timeout-Ms
+          in: header
+          description: Define the timeout, in ms
+          schema:
+            $ref: '#/components/schemas/connect-timeout-header'
+          example: 1000
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/barnraise.v1.ReviewRequest'
+        required: true
+      responses:
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.error'
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/barnraise.v1.ItemResponse'
+  /barnraise.v1.BarnraiseService/Sweep:
+    post:
+      tags:
+        - barnraise.v1.BarnraiseService
+      summary: Sweep
+      operationId: barnraise.v1.BarnraiseService.Sweep
+      parameters:
+        - name: Connect-Protocol-Version
+          in: header
+          description: Define the version of the Connect protocol
+          schema:
+            $ref: '#/components/schemas/connect-protocol-version'
+          example: 1
+        - name: Connect-Timeout-Ms
+          in: header
+          description: Define the timeout, in ms
+          schema:
+            $ref: '#/components/schemas/connect-timeout-header'
+          example: 1000
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/barnraise.v1.ProjectRef'
+        required: true
+      responses:
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.error'
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/barnraise.v1.RevalidateResponse'
+  /barnraise.v1.BarnraiseService/Takeover:
+    post:
+      tags:
+        - barnraise.v1.BarnraiseService
+      summary: Takeover
+      operationId: barnraise.v1.BarnraiseService.Takeover
+      parameters:
+        - name: Connect-Protocol-Version
+          in: header
+          description: Define the version of the Connect protocol
+          schema:
+            $ref: '#/components/schemas/connect-protocol-version'
+          example: 1
+        - name: Connect-Timeout-Ms
+          in: header
+          description: Define the timeout, in ms
+          schema:
+            $ref: '#/components/schemas/connect-timeout-header'
+          example: 1000
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/barnraise.v1.ItemRef'
+        required: true
+      responses:
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.error'
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/barnraise.v1.TakeoverResponse'
+  /barnraise.v1.BarnraiseService/Timeline:
+    post:
+      tags:
+        - barnraise.v1.BarnraiseService
+      summary: Timeline
+      operationId: barnraise.v1.BarnraiseService.Timeline
+      parameters:
+        - name: Connect-Protocol-Version
+          in: header
+          description: Define the version of the Connect protocol
+          schema:
+            $ref: '#/components/schemas/connect-protocol-version'
+          example: 1
+        - name: Connect-Timeout-Ms
+          in: header
+          description: Define the timeout, in ms
+          schema:
+            $ref: '#/components/schemas/connect-timeout-header'
+          example: 1000
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/barnraise.v1.ItemRef'
+        required: true
+      responses:
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.error'
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/barnraise.v1.TimelineResponse'
+  /barnraise.v1.BarnraiseService/UpdateItem:
+    post:
+      tags:
+        - barnraise.v1.BarnraiseService
+      summary: UpdateItem
+      operationId: barnraise.v1.BarnraiseService.UpdateItem
+      parameters:
+        - name: Connect-Protocol-Version
+          in: header
+          description: Define the version of the Connect protocol
+          schema:
+            $ref: '#/components/schemas/connect-protocol-version'
+          example: 1
+        - name: Connect-Timeout-Ms
+          in: header
+          description: Define the timeout, in ms
+          schema:
+            $ref: '#/components/schemas/connect-timeout-header'
+          example: 1000
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/barnraise.v1.UpdateItemRequest'
+        required: true
+      responses:
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.error'
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/barnraise.v1.ItemResponse'
+  /barnraise.v1.BarnraiseService/UpsertAccount:
+    post:
+      tags:
+        - barnraise.v1.BarnraiseService
+      summary: UpsertAccount
+      description: Accounts and machines
+      operationId: barnraise.v1.BarnraiseService.UpsertAccount
+      parameters:
+        - name: Connect-Protocol-Version
+          in: header
+          description: Define the version of the Connect protocol
+          schema:
+            $ref: '#/components/schemas/connect-protocol-version'
+          example: 1
+        - name: Connect-Timeout-Ms
+          in: header
+          description: Define the timeout, in ms
+          schema:
+            $ref: '#/components/schemas/connect-timeout-header'
+          example: 1000
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/barnraise.v1.AccountRequest'
+        required: true
+      responses:
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.error'
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/barnraise.v1.AccountResponse'
+  /barnraise.v1.BarnraiseService/Why:
+    post:
+      tags:
+        - barnraise.v1.BarnraiseService
+      summary: Why
+      operationId: barnraise.v1.BarnraiseService.Why
+      parameters:
+        - name: Connect-Protocol-Version
+          in: header
+          description: Define the version of the Connect protocol
+          schema:
+            $ref: '#/components/schemas/connect-protocol-version'
+          example: 1
+        - name: Connect-Timeout-Ms
+          in: header
+          description: Define the timeout, in ms
+          schema:
+            $ref: '#/components/schemas/connect-timeout-header'
+          example: 1000
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/barnraise.v1.KnowledgeRequest'
+        required: true
+      responses:
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.error'
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/barnraise.v1.KnowledgeResponse'
+components:
+  schemas:
+    barnraise.v1.Account:
+      type: object
+      properties:
+        id:
+          type: string
+          title: id
+        provider:
+          type: string
+          title: provider
+        plan:
+          type: string
+          title: plan
+        configDir:
+          type: string
+          title: config_dir
+        linuxUser:
+          type: string
+          title: linux_user
+        machine:
+          type: string
+          title: machine
+        ceilingPct:
+          oneOf:
+            - type: number
+              format: double
+            - type: string
+              enum:
+                - NaN
+                - Infinity
+                - -Infinity
+          title: ceiling_pct
+        status:
+          type: string
+          title: status
+        usage:
+          title: usage
+          $ref: '#/components/schemas/barnraise.v1.Usage'
+        projects:
+          type: array
+          items:
+            type: string
+          title: projects
+        addedAt:
+          type: string
+          title: added_at
+      title: Account
+      additionalProperties: false
+    barnraise.v1.AccountRequest:
+      type: object
+      properties:
+        project:
+          type: string
+          title: project
+        account:
+          title: account
+          $ref: '#/components/schemas/barnraise.v1.Account'
+      title: AccountRequest
+      additionalProperties: false
+    barnraise.v1.AccountResponse:
+      type: object
+      properties:
+        account:
+          title: account
+          $ref: '#/components/schemas/barnraise.v1.Account'
+      title: AccountResponse
+      additionalProperties: false
+    barnraise.v1.AccountsResponse:
+      type: object
+      properties:
+        accounts:
+          type: array
+          items:
+            $ref: '#/components/schemas/barnraise.v1.Account'
+          title: accounts
+      title: AccountsResponse
+      additionalProperties: false
+    barnraise.v1.AddTweakRequest:
+      type: object
+      properties:
+        project:
+          type: string
+          title: project
+        area:
+          type: string
+          title: area
+        text:
+          type: string
+          title: text
+      title: AddTweakRequest
+      additionalProperties: false
+    barnraise.v1.AddTweakResponse:
+      type: object
+      properties:
+        tweak:
+          title: tweak
+          $ref: '#/components/schemas/barnraise.v1.Tweak'
+        item:
+          title: item
+          $ref: '#/components/schemas/barnraise.v1.Item'
+      title: AddTweakResponse
+      additionalProperties: false
+    barnraise.v1.Anchors:
+      type: object
+      properties:
+        files:
+          type: array
+          items:
+            type: string
+          title: files
+        symbols:
+          type: array
+          items:
+            type: string
+          title: symbols
+        areas:
+          type: array
+          items:
+            type: string
+          title: areas
+        screens:
+          type: array
+          items:
+            type: string
+          title: screens
+        contracts:
+          type: array
+          items:
+            type: string
+          title: contracts
+        decisions:
+          type: array
+          items:
+            type: string
+          title: decisions
+        specs:
+          type: array
+          items:
+            type: string
+          title: specs
+        base:
+          type: string
+          title: base
+      title: Anchors
+      additionalProperties: false
+    barnraise.v1.AnswerRequest:
+      type: object
+      properties:
+        project:
+          type: string
+          title: project
+        id:
+          type: string
+          title: id
+        answer:
+          type: string
+          title: answer
+        note:
+          type: string
+          title: note
+      title: AnswerRequest
+      additionalProperties: false
+    barnraise.v1.ApproveRequest:
+      type: object
+      properties:
+        project:
+          type: string
+          title: project
+        target:
+          type: string
+          title: target
+          description: I-42 or P-7.
+        what:
+          type: string
+          title: what
+          description: 'plan, delivery or proposal: never approve without saying what.'
+        approve:
+          type: boolean
+          title: approve
+        note:
+          type: string
+          title: note
+      title: ApproveRequest
+      additionalProperties: false
+    barnraise.v1.AskOwnerRequest:
+      type: object
+      properties:
+        project:
+          type: string
+          title: project
+        question:
+          title: question
+          $ref: '#/components/schemas/barnraise.v1.Question'
+      title: AskOwnerRequest
+      additionalProperties: false
+    barnraise.v1.Assignment:
+      type: object
+      properties:
+        project:
+          type: string
+          title: project
+        item:
+          title: item
+          $ref: '#/components/schemas/barnraise.v1.Item'
+        step:
+          title: step
+          $ref: '#/components/schemas/google.protobuf.Struct'
+        new:
+          type: boolean
+          title: new
+        none:
+          type: boolean
+          title: none
+        note:
+          type: string
+          title: note
+      title: Assignment
+      additionalProperties: false
+    barnraise.v1.AuditEntry:
+      type: object
+      properties:
+        time:
+          type: string
+          title: time
+        actor:
+          type: string
+          title: actor
+        tokenId:
+          type: string
+          title: token_id
+        action:
+          type: string
+          title: action
+        target:
+          type: string
+          title: target
+        project:
+          type: string
+          title: project
+        detail:
+          type: string
+          title: detail
+      title: AuditEntry
+      additionalProperties: false
+    barnraise.v1.AuditRequest:
+      type: object
+      properties:
+        project:
+          type: string
+          title: project
+        limit:
+          type: integer
+          title: limit
+          format: int32
+      title: AuditRequest
+      additionalProperties: false
+    barnraise.v1.AuditResponse:
+      type: object
+      properties:
+        entries:
+          type: array
+          items:
+            $ref: '#/components/schemas/barnraise.v1.AuditEntry'
+          title: entries
+      title: AuditResponse
+      additionalProperties: false
+    barnraise.v1.CheckResult:
+      type: object
+      properties:
+        id:
+          type: string
+          title: id
+        itemId:
+          type: string
+          title: item_id
+        check:
+          type: string
+          title: check
+        commit:
+          type: string
+          title: commit
+        passed:
+          type: boolean
+          title: passed
+        flaky:
+          type: boolean
+          title: flaky
+        summary:
+          type: string
+          title: summary
+        logPath:
+          type: string
+          title: log_path
+        logHash:
+          type: string
+          title: log_hash
+        artifacts:
+          type: array
+          items:
+            type: string
+          title: artifacts
+        duration:
+          type: string
+          title: duration
+          format: int64
+        criteria:
+          type: array
+          items:
+            type: string
+          title: criteria
+        runsOn:
+          type: string
+          title: runs_on
+        at:
+          type: string
+          title: at
+      title: CheckResult
+      additionalProperties: false
+    barnraise.v1.Claim:
+      type: object
+      properties:
+        machine:
+          type: string
+          title: machine
+        agent:
+          type: string
+          title: agent
+        since:
+          type: string
+          title: since
+      title: Claim
+      additionalProperties: false
+    barnraise.v1.CloseItemRequest:
+      type: object
+      properties:
+        project:
+          type: string
+          title: project
+        id:
+          type: string
+          title: id
+        reason:
+          type: string
+          title: reason
+          description: obsolete, duplicate, done_by, split or abandoned.
+        by:
+          type: string
+          title: by
+        note:
+          type: string
+          title: note
+      title: CloseItemRequest
+      additionalProperties: false
+    barnraise.v1.ContextPart:
+      type: object
+      properties:
+        order:
+          type: integer
+          title: order
+          format: int32
+        id:
+          type: string
+          title: id
+        kind:
+          type: string
+          title: kind
+        title:
+          type: string
+          title: title
+        body:
+          type: string
+          title: body
+        relevance:
+          oneOf:
+            - type: number
+              format: double
+            - type: string
+              enum:
+                - NaN
+                - Infinity
+                - -Infinity
+          title: relevance
+        tokens:
+          type: integer
+          title: tokens
+          format: int32
+      title: ContextPart
+      additionalProperties: false
+    barnraise.v1.ContextRequest:
+      type: object
+      properties:
+        project:
+          type: string
+          title: project
+        id:
+          type: string
+          title: id
+        budget:
+          type: integer
+          title: budget
+          format: int32
+      title: ContextRequest
+      additionalProperties: false
+    barnraise.v1.ContextResponse:
+      type: object
+      properties:
+        itemId:
+          type: string
+          title: item_id
+        parts:
+          type: array
+          items:
+            $ref: '#/components/schemas/barnraise.v1.ContextPart'
+          title: parts
+        cut:
+          type: array
+          items:
+            type: string
+          title: cut
+        tokens:
+          type: integer
+          title: tokens
+          format: int32
+        budget:
+          type: integer
+          title: budget
+          format: int32
+        text:
+          type: string
+          title: text
+      title: ContextResponse
+      additionalProperties: false
+    barnraise.v1.CreateItemRequest:
+      type: object
+      properties:
+        project:
+          type: string
+          title: project
+        title:
+          type: string
+          title: title
+        body:
+          type: string
+          title: body
+        kind:
+          type: string
+          title: kind
+        priority:
+          type: string
+          title: priority
+        area:
+          type: string
+          title: area
+        goalId:
+          type: string
+          title: goal_id
+        size:
+          type: string
+          title: size
+        class:
+          type: string
+          title: class
+        criteria:
+          type: array
+          items:
+            $ref: '#/components/schemas/barnraise.v1.Criterion'
+          title: criteria
+        preserve:
+          type: array
+          items:
+            type: string
+          title: preserve
+        deps:
+          type: array
+          items:
+            type: string
+          title: deps
+        anchors:
+          title: anchors
+          $ref: '#/components/schemas/barnraise.v1.Anchors'
+        checklist:
+          type: array
+          items:
+            type: string
+          title: checklist
+        risky:
+          type: boolean
+          title: risky
+        external:
+          type: boolean
+          title: external
+        trackerRef:
+          type: string
+          title: tracker_ref
+        lane:
+          type: string
+          title: lane
+      title: CreateItemRequest
+      additionalProperties: false
+    barnraise.v1.CreateItemResponse:
+      type: object
+      properties:
+        item:
+          title: item
+          $ref: '#/components/schemas/barnraise.v1.Item'
+        proposal:
+          title: proposal
+          $ref: '#/components/schemas/barnraise.v1.Proposal'
+        note:
+          type: string
+          title: note
+      title: CreateItemResponse
+      additionalProperties: false
+    barnraise.v1.CreateTokenRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          title: name
+        project:
+          type: string
+          title: project
+        scopes:
+          type: array
+          items:
+            type: string
+          title: scopes
+        ttl:
+          type: string
+          title: ttl
+          description: 'Go duration or days: 30d. Empty: no expiry.'
+      title: CreateTokenRequest
+      additionalProperties: false
+    barnraise.v1.CreateTokenResponse:
+      type: object
+      properties:
+        token:
+          title: token
+          $ref: '#/components/schemas/barnraise.v1.Token'
+        secret:
+          type: string
+          title: secret
+          description: Shown once.
+      title: CreateTokenResponse
+      additionalProperties: false
+    barnraise.v1.Criterion:
+      type: object
+      properties:
+        id:
+          type: string
+          title: id
+        text:
+          type: string
+          title: text
+        check:
+          type: string
+          title: check
+        met:
+          type: boolean
+          title: met
+        evidence:
+          type: string
+          title: evidence
+      title: Criterion
+      additionalProperties: false
+    barnraise.v1.CriterionMark:
+      type: object
+      properties:
+        id:
+          type: string
+          title: id
+        met:
+          type: boolean
+          title: met
+        evidence:
+          type: string
+          title: evidence
+      title: CriterionMark
+      additionalProperties: false
+    barnraise.v1.DecideProposalRequest:
+      type: object
+      properties:
+        project:
+          type: string
+          title: project
+        id:
+          type: string
+          title: id
+        decision:
+          type: string
+          title: decision
+          description: approve, reject or later.
+        reason:
+          type: string
+          title: reason
+      title: DecideProposalRequest
+      additionalProperties: false
+    barnraise.v1.DeliverRequest:
+      type: object
+      properties:
+        project:
+          type: string
+          title: project
+        delivery:
+          title: delivery
+          $ref: '#/components/schemas/barnraise.v1.Delivery'
+      title: DeliverRequest
+      additionalProperties: false
+    barnraise.v1.Delivery:
+      type: object
+      properties:
+        itemId:
+          type: string
+          title: item_id
+        step:
+          type: string
+          title: step
+        agent:
+          type: string
+          title: agent
+        status:
+          type: string
+          title: status
+          description: DONE, DONE_WITH_CONCERNS, NEEDS_CONTEXT or BLOCKED.
+        summary:
+          type: string
+          title: summary
+        criteria:
+          type: array
+          items:
+            $ref: '#/components/schemas/barnraise.v1.CriterionMark'
+          title: criteria
+        files:
+          type: array
+          items:
+            type: string
+          title: files
+        concerns:
+          type: array
+          items:
+            type: string
+          title: concerns
+        reason:
+          type: string
+          title: reason
+        commit:
+          type: string
+          title: commit
+        at:
+          type: string
+          title: at
+      title: Delivery
+      additionalProperties: false
+    barnraise.v1.DigestResponse:
+      type: object
+      properties:
+        project:
+          type: string
+          title: project
+        integrated:
+          type: array
+          items:
+            type: string
+          title: integrated
+        goal:
+          type: string
+          title: goal
+        proposals:
+          type: array
+          items:
+            $ref: '#/components/schemas/barnraise.v1.ProposalGroup'
+          title: proposals
+        accounts:
+          type: array
+          items:
+            type: string
+          title: accounts
+        waiting:
+          type: array
+          items:
+            type: string
+          title: waiting
+        alerts:
+          type: array
+          items:
+            type: string
+          title: alerts
+        generatedAt:
+          type: string
+          title: generated_at
+        text:
+          type: string
+          title: text
+      title: DigestResponse
+      additionalProperties: false
+    barnraise.v1.Empty:
+      type: object
+      title: Empty
+      additionalProperties: false
+    barnraise.v1.EstimateResponse:
+      type: object
+      properties:
+        itemId:
+          type: string
+          title: item_id
+        hours:
+          oneOf:
+            - type: number
+              format: double
+            - type: string
+              enum:
+                - NaN
+                - Infinity
+                - -Infinity
+          title: hours
+        tokens:
+          type: string
+          title: tokens
+          format: int64
+        weekPct:
+          oneOf:
+            - type: number
+              format: double
+            - type: string
+              enum:
+                - NaN
+                - Infinity
+                - -Infinity
+          title: week_pct
+        account:
+          type: string
+          title: account
+        basedOnItems:
+          type: integer
+          title: based_on_items
+          format: int32
+      title: EstimateResponse
+      additionalProperties: false
+    barnraise.v1.Event:
+      type: object
+      properties:
+        id:
+          type: string
+          title: id
+        type:
+          type: string
+          title: type
+        project:
+          type: string
+          title: project
+        subject:
+          type: string
+          title: subject
+        machine:
+          type: string
+          title: machine
+        actor:
+          type: string
+          title: actor
+        time:
+          type: string
+          title: time
+        seq:
+          type: string
+          title: seq
+          format: int64
+        data:
+          title: data
+          $ref: '#/components/schemas/google.protobuf.Struct'
+      title: Event
+      additionalProperties: false
+      description: Event is one entry of the log; the CloudEvents form is served by /v1/events.
+    barnraise.v1.EventsRequest:
+      type: object
+      properties:
+        project:
+          type: string
+          title: project
+        subject:
+          type: string
+          title: subject
+        types:
+          type: array
+          items:
+            type: string
+          title: types
+        afterSeq:
+          type: string
+          title: after_seq
+          format: int64
+        limit:
+          type: integer
+          title: limit
+          format: int32
+      title: EventsRequest
+      additionalProperties: false
+    barnraise.v1.EventsResponse:
+      type: object
+      properties:
+        events:
+          type: array
+          items:
+            $ref: '#/components/schemas/barnraise.v1.Event'
+          title: events
+      title: EventsResponse
+      additionalProperties: false
+    barnraise.v1.FindRequest:
+      type: object
+      properties:
+        project:
+          type: string
+          title: project
+        query:
+          type: string
+          title: query
+        kind:
+          type: string
+          title: kind
+        area:
+          type: string
+          title: area
+        status:
+          type: string
+          title: status
+        goal:
+          type: string
+          title: goal
+        limit:
+          type: integer
+          title: limit
+          format: int32
+      title: FindRequest
+      additionalProperties: false
+    barnraise.v1.FindResponse:
+      type: object
+      properties:
+        hits:
+          type: array
+          items:
+            $ref: '#/components/schemas/barnraise.v1.SearchHit'
+          title: hits
+      title: FindResponse
+      additionalProperties: false
+    barnraise.v1.Finding:
+      type: object
+      properties:
+        area:
+          type: string
+          title: area
+        file:
+          type: string
+          title: file
+        line:
+          type: integer
+          title: line
+          format: int32
+        severity:
+          type: string
+          title: severity
+        text:
+          type: string
+          title: text
+      title: Finding
+      additionalProperties: false
+    barnraise.v1.Focus:
+      type: object
+      properties:
+        name:
+          type: string
+          title: name
+        area:
+          type: string
+          title: area
+        items:
+          type: array
+          items:
+            type: string
+          title: items
+        until:
+          type: string
+          title: until
+        share:
+          type: integer
+          title: share
+          format: int32
+        setBy:
+          type: string
+          title: set_by
+        setAt:
+          type: string
+          title: set_at
+        cancelled:
+          type: boolean
+          title: cancelled
+      title: Focus
+      additionalProperties: false
+    barnraise.v1.FocusEffect:
+      type: object
+      properties:
+        focusItems:
+          type: integer
+          title: focus_items
+          format: int32
+        parkedElsewhere:
+          type: array
+          items:
+            type: string
+          title: parked_elsewhere
+        share:
+          type: integer
+          title: share
+          format: int32
+      title: FocusEffect
+      additionalProperties: false
+    barnraise.v1.FocusRequest:
+      type: object
+      properties:
+        project:
+          type: string
+          title: project
+        focus:
+          title: focus
+          $ref: '#/components/schemas/barnraise.v1.Focus'
+        until:
+          type: string
+          title: until
+        preview:
+          type: boolean
+          title: preview
+      title: FocusRequest
+      additionalProperties: false
+    barnraise.v1.FocusResponse:
+      type: object
+      properties:
+        effect:
+          title: effect
+          $ref: '#/components/schemas/barnraise.v1.FocusEffect'
+        applied:
+          type: boolean
+          title: applied
+      title: FocusResponse
+      additionalProperties: false
+    barnraise.v1.Goal:
+      type: object
+      properties:
+        id:
+          type: string
+          title: id
+        name:
+          type: string
+          title: name
+        doneWhen:
+          type: string
+          title: done_when
+        inventory:
+          type: string
+          title: inventory
+        active:
+          type: boolean
+          title: active
+        createdAt:
+          type: string
+          title: created_at
+        finishedAt:
+          type: string
+          title: finished_at
+        budgetPct:
+          type: integer
+          title: budget_pct
+          format: int32
+      title: Goal
+      additionalProperties: false
+    barnraise.v1.GoalProgress:
+      type: object
+      properties:
+        total:
+          type: integer
+          title: total
+          format: int32
+        done:
+          type: integer
+          title: done
+          format: int32
+        perDay:
+          oneOf:
+            - type: number
+              format: double
+            - type: string
+              enum:
+                - NaN
+                - Infinity
+                - -Infinity
+          title: per_day
+        forecast:
+          type: string
+          title: forecast
+        percentage:
+          type: integer
+          title: percentage
+          format: int32
+      title: GoalProgress
+      additionalProperties: false
+    barnraise.v1.HandbackRequest:
+      type: object
+      properties:
+        project:
+          type: string
+          title: project
+        id:
+          type: string
+          title: id
+        note:
+          type: string
+          title: note
+      title: HandbackRequest
+      additionalProperties: false
+    barnraise.v1.InboxRequest:
+      type: object
+      properties:
+        project:
+          type: string
+          title: project
+        agent:
+          type: string
+          title: agent
+        role:
+          type: string
+          title: role
+        itemId:
+          type: string
+          title: item_id
+        mark:
+          type: boolean
+          title: mark
+      title: InboxRequest
+      additionalProperties: false
+    barnraise.v1.InboxResponse:
+      type: object
+      properties:
+        messages:
+          type: array
+          items:
+            $ref: '#/components/schemas/barnraise.v1.Message'
+          title: messages
+      title: InboxResponse
+      additionalProperties: false
+    barnraise.v1.Item:
+      type: object
+      properties:
+        id:
+          type: string
+          title: id
+        version:
+          type: integer
+          title: version
+          format: int32
+        title:
+          type: string
+          title: title
+        body:
+          type: string
+          title: body
+        kind:
+          type: string
+          title: kind
+        priority:
+          type: integer
+          title: priority
+          format: int32
+        lane:
+          type: string
+          title: lane
+        area:
+          type: string
+          title: area
+        goalId:
+          type: string
+          title: goal_id
+        size:
+          type: string
+          title: size
+        class:
+          type: string
+          title: class
+        status:
+          type: string
+          title: status
+        step:
+          type: string
+          title: step
+        criteria:
+          type: array
+          items:
+            $ref: '#/components/schemas/barnraise.v1.Criterion'
+          title: criteria
+        preserve:
+          type: array
+          items:
+            type: string
+          title: preserve
+        clarifications:
+          type: array
+          items:
+            type: string
+          title: clarifications
+        anchors:
+          title: anchors
+          $ref: '#/components/schemas/barnraise.v1.Anchors'
+        deps:
+          type: array
+          items:
+            type: string
+          title: deps
+        tweaks:
+          type: array
+          items:
+            type: string
+          title: tweaks
+        checklist:
+          type: array
+          items:
+            type: string
+          title: checklist
+        rework:
+          type: array
+          items:
+            $ref: '#/components/schemas/barnraise.v1.ReworkRecord'
+          title: rework
+        tier:
+          type: integer
+          title: tier
+          format: int32
+        claim:
+          title: claim
+          $ref: '#/components/schemas/barnraise.v1.Claim'
+        branch:
+          type: string
+          title: branch
+        pr:
+          type: string
+          title: pr
+        trackerRef:
+          type: string
+          title: tracker_ref
+        risky:
+          type: boolean
+          title: risky
+        parked:
+          type: boolean
+          title: parked
+        closedReason:
+          type: string
+          title: closed_reason
+        closedBy:
+          type: string
+          title: closed_by
+        waitingQuestion:
+          type: string
+          title: waiting_question
+        validatedAt:
+          type: string
+          title: validated_at
+        createdAt:
+          type: string
+          title: created_at
+        updatedAt:
+          type: string
+          title: updated_at
+        stepStartedAt:
+          type: string
+          title: step_started_at
+        integratedAt:
+          type: string
+          title: integrated_at
+        mergeCommit:
+          type: string
+          title: merge_commit
+        filesTouched:
+          type: array
+          items:
+            type: string
+          title: files_touched
+        runs:
+          type: object
+          title: runs
+          additionalProperties:
+            title: value
+            $ref: '#/components/schemas/barnraise.v1.StepRun'
+        attempts:
+          type: integer
+          title: attempts
+          format: int32
+      title: Item
+      additionalProperties: false
+    barnraise.v1.ItemRef:
+      type: object
+      properties:
+        project:
+          type: string
+          title: project
+        id:
+          type: string
+          title: id
+      title: ItemRef
+      additionalProperties: false
+    barnraise.v1.ItemResponse:
+      type: object
+      properties:
+        item:
+          title: item
+          $ref: '#/components/schemas/barnraise.v1.Item'
+      title: ItemResponse
+      additionalProperties: false
+    barnraise.v1.ItemsResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/barnraise.v1.Item'
+          title: items
+      title: ItemsResponse
+      additionalProperties: false
+    barnraise.v1.JournalRequest:
+      type: object
+      properties:
+        project:
+          type: string
+          title: project
+        text:
+          type: string
+          title: text
+      title: JournalRequest
+      additionalProperties: false
+    barnraise.v1.KnowledgeRequest:
+      type: object
+      properties:
+        project:
+          type: string
+          title: project
+        target:
+          type: string
+          title: target
+          description: An id (I-142, D-12), a path, path:line or a symbol, depending on the call.
+      title: KnowledgeRequest
+      additionalProperties: false
+    barnraise.v1.KnowledgeResponse:
+      type: object
+      properties:
+        result:
+          title: result
+          $ref: '#/components/schemas/google.protobuf.Struct'
+        text:
+          type: string
+          title: text
+      title: KnowledgeResponse
+      additionalProperties: false
+    barnraise.v1.LeaveResponse:
+      type: object
+      properties:
+        returned:
+          type: array
+          items:
+            type: string
+          title: returned
+      title: LeaveResponse
+      additionalProperties: false
+    barnraise.v1.ListItemsRequest:
+      type: object
+      properties:
+        project:
+          type: string
+          title: project
+        status:
+          type: string
+          title: status
+        area:
+          type: string
+          title: area
+        lane:
+          type: string
+          title: lane
+        goal:
+          type: string
+          title: goal
+        kind:
+          type: string
+          title: kind
+        all:
+          type: boolean
+          title: all
+      title: ListItemsRequest
+      additionalProperties: false
+    barnraise.v1.ListProposalsRequest:
+      type: object
+      properties:
+        project:
+          type: string
+          title: project
+        all:
+          type: boolean
+          title: all
+      title: ListProposalsRequest
+      additionalProperties: false
+    barnraise.v1.ListProposalsResponse:
+      type: object
+      properties:
+        proposals:
+          type: array
+          items:
+            $ref: '#/components/schemas/barnraise.v1.Proposal'
+          title: proposals
+        groups:
+          type: array
+          items:
+            $ref: '#/components/schemas/barnraise.v1.ProposalGroup'
+          title: groups
+      title: ListProposalsResponse
+      additionalProperties: false
+    barnraise.v1.Machine:
+      type: object
+      properties:
+        name:
+          type: string
+          title: name
+        version:
+          type: string
+          title: version
+        address:
+          type: string
+          title: address
+        cpus:
+          type: integer
+          title: cpus
+          format: int32
+        memGb:
+          oneOf:
+            - type: number
+              format: double
+            - type: string
+              enum:
+                - NaN
+                - Infinity
+                - -Infinity
+          title: mem_gb
+        freeCpu:
+          oneOf:
+            - type: number
+              format: double
+            - type: string
+              enum:
+                - NaN
+                - Infinity
+                - -Infinity
+          title: free_cpu
+        emulators:
+          type: integer
+          title: emulators
+          format: int32
+        gpu:
+          type: boolean
+          title: gpu
+        labels:
+          type: array
+          items:
+            type: string
+          title: labels
+        slots:
+          type: integer
+          title: slots
+          format: int32
+        busy:
+          type: integer
+          title: busy
+          format: int32
+        accounts:
+          type: array
+          items:
+            type: string
+          title: accounts
+        lastSeen:
+          type: string
+          title: last_seen
+        leaving:
+          type: boolean
+          title: leaving
+        left:
+          type: boolean
+          title: left
+        health:
+          type: string
+          title: health
+          description: green, yellow, red (gray when it left).
+      title: Machine
+      additionalProperties: false
+    barnraise.v1.MachinesResponse:
+      type: object
+      properties:
+        machines:
+          type: array
+          items:
+            $ref: '#/components/schemas/barnraise.v1.Machine'
+          title: machines
+        sessions:
+          type: array
+          items:
+            $ref: '#/components/schemas/google.protobuf.Struct'
+          title: sessions
+      title: MachinesResponse
+      additionalProperties: false
+    barnraise.v1.Message:
+      type: object
+      properties:
+        id:
+          type: string
+          title: id
+        from:
+          type: string
+          title: from
+        to:
+          type: string
+          title: to
+        itemId:
+          type: string
+          title: item_id
+        text:
+          type: string
+          title: text
+        at:
+          type: string
+          title: at
+        delivered:
+          type: boolean
+          title: delivered
+      title: Message
+      additionalProperties: false
+    barnraise.v1.MessageResponse:
+      type: object
+      properties:
+        message:
+          title: message
+          $ref: '#/components/schemas/barnraise.v1.Message'
+      title: MessageResponse
+      additionalProperties: false
+    barnraise.v1.MetricsRequest:
+      type: object
+      properties:
+        project:
+          type: string
+          title: project
+        window:
+          type: string
+          title: window
+          description: 'Go duration or days: 7d.'
+      title: MetricsRequest
+      additionalProperties: false
+    barnraise.v1.MetricsResponse:
+      type: object
+      properties:
+        window:
+          type: string
+          title: window
+        integratedPerDay:
+          oneOf:
+            - type: number
+              format: double
+            - type: string
+              enum:
+                - NaN
+                - Infinity
+                - -Infinity
+          title: integrated_per_day
+        integratedByKind:
+          type: object
+          title: integrated_by_kind
+          additionalProperties:
+            type: integer
+            title: value
+            format: int32
+        reworkAvg:
+          oneOf:
+            - type: number
+              format: double
+            - type: string
+              enum:
+                - NaN
+                - Infinity
+                - -Infinity
+          title: rework_avg
+        reworkCauses:
+          type: object
+          title: rework_causes
+          additionalProperties:
+            type: integer
+            title: value
+            format: int32
+        tokensByModel:
+          type: object
+          title: tokens_by_model
+          additionalProperties:
+            type: string
+            title: value
+            format: int64
+        tokensByRole:
+          type: object
+          title: tokens_by_role
+          additionalProperties:
+            type: string
+            title: value
+            format: int64
+        tokensByItem:
+          type: object
+          title: tokens_by_item
+          additionalProperties:
+            type: string
+            title: value
+            format: int64
+        stepSeconds:
+          type: object
+          title: step_seconds
+          additionalProperties:
+            oneOf:
+              - type: number
+                format: double
+              - type: string
+                enum:
+                  - NaN
+                  - Infinity
+                  - -Infinity
+            title: value
+        cacheHitRate:
+          oneOf:
+            - type: number
+              format: double
+            - type: string
+              enum:
+                - NaN
+                - Infinity
+                - -Infinity
+          title: cache_hit_rate
+        proposalsMade:
+          type: integer
+          title: proposals_made
+          format: int32
+        proposalsApproved:
+          type: integer
+          title: proposals_approved
+          format: int32
+        waitingOwnerMax:
+          type: string
+          title: waiting_owner_max
+        violations:
+          type: integer
+          title: violations
+          format: int32
+        flakyQuarantined:
+          type: integer
+          title: flaky_quarantined
+          format: int32
+        exploreReadsByArea:
+          type: object
+          title: explore_reads_by_area
+          additionalProperties:
+            type: integer
+            title: value
+            format: int32
+        fixedCostRatioByArea:
+          type: object
+          title: fixed_cost_ratio_by_area
+          additionalProperties:
+            oneOf:
+              - type: number
+                format: double
+              - type: string
+                enum:
+                  - NaN
+                  - Infinity
+                  - -Infinity
+            title: value
+        alerts:
+          type: array
+          items:
+            type: string
+          title: alerts
+      title: MetricsResponse
+      additionalProperties: false
+    barnraise.v1.NextItemRequest:
+      type: object
+      properties:
+        project:
+          type: string
+          title: project
+      title: NextItemRequest
+      additionalProperties: false
+    barnraise.v1.Option:
+      type: object
+      properties:
+        label:
+          type: string
+          title: label
+        recommended:
+          type: boolean
+          title: recommended
+      title: Option
+      additionalProperties: false
+    barnraise.v1.PauseRequest:
+      type: object
+      properties:
+        project:
+          type: string
+          title: project
+        why:
+          type: string
+          title: why
+      title: PauseRequest
+      additionalProperties: false
+    barnraise.v1.PolicyViolationRequest:
+      type: object
+      properties:
+        project:
+          type: string
+          title: project
+        itemId:
+          type: string
+          title: item_id
+        agent:
+          type: string
+          title: agent
+        tool:
+          type: string
+          title: tool
+        rule:
+          type: string
+          title: rule
+        reason:
+          type: string
+          title: reason
+        excerpt:
+          type: string
+          title: excerpt
+      title: PolicyViolationRequest
+      additionalProperties: false
+    barnraise.v1.ProjectRef:
+      type: object
+      properties:
+        project:
+          type: string
+          title: project
+      title: ProjectRef
+      additionalProperties: false
+    barnraise.v1.ProjectsResponse:
+      type: object
+      properties:
+        projects:
+          type: array
+          items:
+            type: string
+          title: projects
+        machine:
+          type: string
+          title: machine
+        version:
+          type: string
+          title: version
+      title: ProjectsResponse
+      additionalProperties: false
+    barnraise.v1.Proposal:
+      type: object
+      properties:
+        id:
+          type: string
+          title: id
+        version:
+          type: integer
+          title: version
+          format: int32
+        title:
+          type: string
+          title: title
+        problem:
+          type: string
+          title: problem
+        evidence:
+          type: string
+          title: evidence
+        impact:
+          type: string
+          title: impact
+        size:
+          type: string
+          title: size
+        area:
+          type: string
+          title: area
+        goalLink:
+          type: string
+          title: goal_link
+        kind:
+          type: string
+          title: kind
+        priority:
+          type: integer
+          title: priority
+          format: int32
+        by:
+          type: string
+          title: by
+        status:
+          type: string
+          title: status
+        comments:
+          type: array
+          items:
+            type: string
+          title: comments
+        reason:
+          type: string
+          title: reason
+        itemId:
+          type: string
+          title: item_id
+        createdAt:
+          type: string
+          title: created_at
+        decidedAt:
+          type: string
+          title: decided_at
+        decidedBy:
+          type: string
+          title: decided_by
+        laterUntil:
+          type: string
+          title: later_until
+      title: Proposal
+      additionalProperties: false
+    barnraise.v1.ProposalGroup:
+      type: object
+      properties:
+        area:
+          type: string
+          title: area
+        proposals:
+          type: array
+          items:
+            $ref: '#/components/schemas/barnraise.v1.Proposal'
+          title: proposals
+      title: ProposalGroup
+      additionalProperties: false
+    barnraise.v1.ProposalResponse:
+      type: object
+      properties:
+        proposal:
+          title: proposal
+          $ref: '#/components/schemas/barnraise.v1.Proposal'
+      title: ProposalResponse
+      additionalProperties: false
+    barnraise.v1.ProposeRequest:
+      type: object
+      properties:
+        project:
+          type: string
+          title: project
+        proposal:
+          title: proposal
+          $ref: '#/components/schemas/barnraise.v1.Proposal'
+      title: ProposeRequest
+      additionalProperties: false
+    barnraise.v1.ProposeResponse:
+      type: object
+      properties:
+        proposal:
+          title: proposal
+          $ref: '#/components/schemas/barnraise.v1.Proposal'
+        duplicate:
+          type: string
+          title: duplicate
+      title: ProposeResponse
+      additionalProperties: false
+    barnraise.v1.Question:
+      type: object
+      properties:
+        id:
+          type: string
+          title: id
+        version:
+          type: integer
+          title: version
+          format: int32
+        itemId:
+          type: string
+          title: item_id
+        context:
+          type: string
+          title: context
+        decision:
+          type: string
+          title: decision
+        options:
+          type: array
+          items:
+            $ref: '#/components/schemas/barnraise.v1.Option'
+          title: options
+        ifNoAnswer:
+          type: string
+          title: if_no_answer
+        askedBy:
+          type: string
+          title: asked_by
+        askedAt:
+          type: string
+          title: asked_at
+        deadline:
+          type: string
+          title: deadline
+        answer:
+          type: string
+          title: answer
+        answeredBy:
+          type: string
+          title: answered_by
+        answeredAt:
+          type: string
+          title: answered_at
+        urgent:
+          type: boolean
+          title: urgent
+      title: Question
+      additionalProperties: false
+    barnraise.v1.QuestionResponse:
+      type: object
+      properties:
+        question:
+          title: question
+          $ref: '#/components/schemas/barnraise.v1.Question'
+      title: QuestionResponse
+      additionalProperties: false
+    barnraise.v1.QuestionsResponse:
+      type: object
+      properties:
+        questions:
+          type: array
+          items:
+            $ref: '#/components/schemas/barnraise.v1.Question'
+          title: questions
+      title: QuestionsResponse
+      additionalProperties: false
+    barnraise.v1.QueueResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/barnraise.v1.Item'
+          title: items
+        integrated:
+          type: integer
+          title: integrated
+          format: int32
+      title: QueueResponse
+      additionalProperties: false
+    barnraise.v1.RedoRequest:
+      type: object
+      properties:
+        project:
+          type: string
+          title: project
+        id:
+          type: string
+          title: id
+        step:
+          type: string
+          title: step
+        why:
+          type: string
+          title: why
+      title: RedoRequest
+      additionalProperties: false
+    barnraise.v1.RegisterProjectRequest:
+      type: object
+      properties:
+        root:
+          type: string
+          title: root
+          description: Absolute path of a repository with a barnraise.yaml.
+      title: RegisterProjectRequest
+      additionalProperties: false
+    barnraise.v1.ReportCheckRequest:
+      type: object
+      properties:
+        project:
+          type: string
+          title: project
+        result:
+          title: result
+          $ref: '#/components/schemas/barnraise.v1.CheckResult'
+      title: ReportCheckRequest
+      additionalProperties: false
+    barnraise.v1.ReportUsageRequest:
+      type: object
+      properties:
+        project:
+          type: string
+          title: project
+        account:
+          type: string
+          title: account
+        usage:
+          title: usage
+          $ref: '#/components/schemas/barnraise.v1.Usage'
+      title: ReportUsageRequest
+      additionalProperties: false
+    barnraise.v1.RevalidateRequest:
+      type: object
+      properties:
+        project:
+          type: string
+          title: project
+        change:
+          title: change
+          $ref: '#/components/schemas/google.protobuf.Struct'
+      title: RevalidateRequest
+      additionalProperties: false
+    barnraise.v1.RevalidateResponse:
+      type: object
+      properties:
+        result:
+          title: result
+          $ref: '#/components/schemas/google.protobuf.Struct'
+      title: RevalidateResponse
+      additionalProperties: false
+    barnraise.v1.Review:
+      type: object
+      properties:
+        itemId:
+          type: string
+          title: item_id
+        step:
+          type: string
+          title: step
+        reviewer:
+          type: string
+          title: reviewer
+        criteriaVerdict:
+          type: string
+          title: criteria_verdict
+          description: 'pass or fail: does it meet the criteria?'
+        codeVerdict:
+          type: string
+          title: code_verdict
+          description: 'pass or fail: is the code good?'
+        decision:
+          type: string
+          title: decision
+          description: APPROVE, REWORK or REJECT.
+        findings:
+          type: array
+          items:
+            $ref: '#/components/schemas/barnraise.v1.Finding'
+          title: findings
+        summary:
+          type: string
+          title: summary
+        family:
+          type: string
+          title: family
+        at:
+          type: string
+          title: at
+      title: Review
+      additionalProperties: false
+    barnraise.v1.ReviewRequest:
+      type: object
+      properties:
+        project:
+          type: string
+          title: project
+        review:
+          title: review
+          $ref: '#/components/schemas/barnraise.v1.Review'
+      title: ReviewRequest
+      additionalProperties: false
+    barnraise.v1.RevokeTokenRequest:
+      type: object
+      properties:
+        id:
+          type: string
+          title: id
+      title: RevokeTokenRequest
+      additionalProperties: false
+    barnraise.v1.ReworkRecord:
+      type: object
+      properties:
+        from:
+          type: string
+          title: from
+        to:
+          type: string
+          title: to
+        by:
+          type: string
+          title: by
+        reason:
+          type: string
+          title: reason
+        outcome:
+          type: string
+          title: outcome
+        tier:
+          type: integer
+          title: tier
+          format: int32
+        at:
+          type: string
+          title: at
+      title: ReworkRecord
+      additionalProperties: false
+    barnraise.v1.SearchHit:
+      type: object
+      properties:
+        id:
+          type: string
+          title: id
+        kind:
+          type: string
+          title: kind
+        title:
+          type: string
+          title: title
+        summary:
+          type: string
+          title: summary
+        area:
+          type: string
+          title: area
+        path:
+          type: string
+          title: path
+        date:
+          type: string
+          title: date
+        tokens:
+          type: integer
+          title: tokens
+          format: int32
+        score:
+          oneOf:
+            - type: number
+              format: double
+            - type: string
+              enum:
+                - NaN
+                - Infinity
+                - -Infinity
+          title: score
+        layer:
+          type: string
+          title: layer
+      title: SearchHit
+      additionalProperties: false
+    barnraise.v1.SendMessageRequest:
+      type: object
+      properties:
+        project:
+          type: string
+          title: project
+        message:
+          title: message
+          $ref: '#/components/schemas/barnraise.v1.Message'
+      title: SendMessageRequest
+      additionalProperties: false
+    barnraise.v1.SessionInfo:
+      type: object
+      properties:
+        agent:
+          type: string
+          title: agent
+        role:
+          type: string
+          title: role
+        account:
+          type: string
+          title: account
+        provider:
+          type: string
+          title: provider
+        model:
+          type: string
+          title: model
+        effort:
+          type: string
+          title: effort
+        itemId:
+          type: string
+          title: item_id
+        step:
+          type: string
+          title: step
+        sessionId:
+          type: string
+          title: session_id
+        state:
+          type: string
+          title: state
+        detail:
+          type: string
+          title: detail
+        at:
+          type: string
+          title: at
+      title: SessionInfo
+      additionalProperties: false
+    barnraise.v1.SetGoalRequest:
+      type: object
+      properties:
+        project:
+          type: string
+          title: project
+        goal:
+          title: goal
+          $ref: '#/components/schemas/barnraise.v1.Goal'
+      title: SetGoalRequest
+      additionalProperties: false
+    barnraise.v1.SetGoalResponse:
+      type: object
+      properties:
+        goal:
+          title: goal
+          $ref: '#/components/schemas/barnraise.v1.Goal'
+        inventory:
+          type: array
+          items:
+            $ref: '#/components/schemas/barnraise.v1.Item'
+          title: inventory
+      title: SetGoalResponse
+      additionalProperties: false
+    barnraise.v1.StatusResponse:
+      type: object
+      properties:
+        project:
+          type: string
+          title: project
+        machine:
+          type: string
+          title: machine
+        paused:
+          type: boolean
+          title: paused
+        pausedWhy:
+          type: string
+          title: paused_why
+        goal:
+          title: goal
+          $ref: '#/components/schemas/barnraise.v1.Goal'
+        progress:
+          title: progress
+          $ref: '#/components/schemas/barnraise.v1.GoalProgress'
+        focus:
+          title: focus
+          $ref: '#/components/schemas/barnraise.v1.Focus'
+        focusDone:
+          type: integer
+          title: focus_done
+          format: int32
+        focusAll:
+          type: integer
+          title: focus_all
+          format: int32
+        counts:
+          type: object
+          title: counts
+          additionalProperties:
+            type: integer
+            title: value
+            format: int32
+        queue:
+          type: array
+          items:
+            $ref: '#/components/schemas/barnraise.v1.Item'
+          title: queue
+        waitingOwner:
+          type: array
+          items:
+            $ref: '#/components/schemas/barnraise.v1.Question'
+          title: waiting_owner
+        agents:
+          type: array
+          items:
+            $ref: '#/components/schemas/barnraise.v1.SessionInfo'
+          title: agents
+        accounts:
+          type: array
+          items:
+            $ref: '#/components/schemas/barnraise.v1.Account'
+          title: accounts
+        machines:
+          type: array
+          items:
+            $ref: '#/components/schemas/barnraise.v1.Machine'
+          title: machines
+        openProposals:
+          type: integer
+          title: open_proposals
+          format: int32
+        alerts:
+          type: array
+          items:
+            type: string
+          title: alerts
+      title: StatusResponse
+      additionalProperties: false
+    barnraise.v1.StepRun:
+      type: object
+      properties:
+        agent:
+          type: string
+          title: agent
+        account:
+          type: string
+          title: account
+        provider:
+          type: string
+          title: provider
+        model:
+          type: string
+          title: model
+        family:
+          type: string
+          title: family
+      title: StepRun
+      additionalProperties: false
+    barnraise.v1.TakeoverResponse:
+      type: object
+      properties:
+        item:
+          title: item
+          $ref: '#/components/schemas/barnraise.v1.Item'
+        worktree:
+          type: string
+          title: worktree
+      title: TakeoverResponse
+      additionalProperties: false
+    barnraise.v1.TimelineEntry:
+      type: object
+      properties:
+        seq:
+          type: string
+          title: seq
+          format: int64
+        time:
+          type: string
+          title: time
+        type:
+          type: string
+          title: type
+        actor:
+          type: string
+          title: actor
+        machine:
+          type: string
+          title: machine
+        step:
+          type: string
+          title: step
+        summary:
+          type: string
+          title: summary
+        payload:
+          title: payload
+          $ref: '#/components/schemas/google.protobuf.Struct'
+      title: TimelineEntry
+      additionalProperties: false
+    barnraise.v1.TimelineResponse:
+      type: object
+      properties:
+        entries:
+          type: array
+          items:
+            $ref: '#/components/schemas/barnraise.v1.TimelineEntry'
+          title: entries
+      title: TimelineResponse
+      additionalProperties: false
+    barnraise.v1.Token:
+      type: object
+      properties:
+        id:
+          type: string
+          title: id
+        name:
+          type: string
+          title: name
+        project:
+          type: string
+          title: project
+        scopes:
+          type: array
+          items:
+            type: string
+          title: scopes
+        expires:
+          type: string
+          title: expires
+        revoked:
+          type: boolean
+          title: revoked
+        created:
+          type: string
+          title: created
+      title: Token
+      additionalProperties: false
+    barnraise.v1.TokensResponse:
+      type: object
+      properties:
+        tokens:
+          type: array
+          items:
+            $ref: '#/components/schemas/barnraise.v1.Token'
+          title: tokens
+      title: TokensResponse
+      additionalProperties: false
+    barnraise.v1.Tweak:
+      type: object
+      properties:
+        id:
+          type: string
+          title: id
+        area:
+          type: string
+          title: area
+        text:
+          type: string
+          title: text
+        by:
+          type: string
+          title: by
+        createdAt:
+          type: string
+          title: created_at
+        itemId:
+          type: string
+          title: item_id
+      title: Tweak
+      additionalProperties: false
+    barnraise.v1.UpdateItemRequest:
+      type: object
+      properties:
+        project:
+          type: string
+          title: project
+        id:
+          type: string
+          title: id
+        patch:
+          title: patch
+          $ref: '#/components/schemas/google.protobuf.Struct'
+      title: UpdateItemRequest
+      additionalProperties: false
+      description: |-
+        UpdateItemRequest uses a JSON patch of the item fields to change
+         (title, body, priority, area, size, class, criteria, preserve, deps,
+         anchors, clarifications, checklist, risky, kind, reason).
+    barnraise.v1.Usage:
+      type: object
+      properties:
+        fiveHourPct:
+          oneOf:
+            - type: number
+              format: double
+            - type: string
+              enum:
+                - NaN
+                - Infinity
+                - -Infinity
+          title: five_hour_pct
+        weeklyPct:
+          oneOf:
+            - type: number
+              format: double
+            - type: string
+              enum:
+                - NaN
+                - Infinity
+                - -Infinity
+          title: weekly_pct
+        weeklyTopPct:
+          oneOf:
+            - type: number
+              format: double
+            - type: string
+              enum:
+                - NaN
+                - Infinity
+                - -Infinity
+          title: weekly_top_pct
+        fiveHourResets:
+          type: string
+          title: five_hour_resets
+        weeklyResets:
+          type: string
+          title: weekly_resets
+        contextPct:
+          oneOf:
+            - type: number
+              format: double
+            - type: string
+              enum:
+                - NaN
+                - Infinity
+                - -Infinity
+          title: context_pct
+        updatedAt:
+          type: string
+          title: updated_at
+        source:
+          type: string
+          title: source
+      title: Usage
+      additionalProperties: false
+    connect-protocol-version:
+      type: number
+      examples:
+        - 1
+      title: Connect-Protocol-Version
+      description: Define the version of the Connect protocol
+      const: 1
+    connect-timeout-header:
+      type: number
+      examples:
+        - 1000
+      title: Connect-Timeout-Ms
+      description: Define the timeout, in ms
+    connect.error:
+      type: object
+      properties:
+        code:
+          type: string
+          examples:
+            - not_found
+          enum:
+            - canceled
+            - unknown
+            - invalid_argument
+            - deadline_exceeded
+            - not_found
+            - already_exists
+            - permission_denied
+            - resource_exhausted
+            - failed_precondition
+            - aborted
+            - out_of_range
+            - unimplemented
+            - internal
+            - unavailable
+            - data_loss
+            - unauthenticated
+          description: The status code, which should be an enum value of [google.rpc.Code][google.rpc.Code].
+        message:
+          type: string
+          description: A developer-facing error message, which should be in English. Any user-facing error message should be localized and sent in the [google.rpc.Status.details][google.rpc.Status.details] field, or localized by the client.
+        details:
+          type: array
+          items:
+            $ref: '#/components/schemas/connect.error_details.Any'
+          description: A list of messages that carry the error details. There is no limit on the number of messages.
+      title: Connect Error
+      additionalProperties: true
+      description: 'Error type returned by Connect: https://connectrpc.com/docs/go/errors/#http-representation'
+    connect.error_details.Any:
+      type: object
+      properties:
+        type:
+          type: string
+          description: 'A URL that acts as a globally unique identifier for the type of the serialized message. For example: `type.googleapis.com/google.rpc.ErrorInfo`.'
+        value:
+          type: string
+          format: byte
+          description: The Protobuf message, serialized as bytes and base64-encoded. The specific message type is identified by the `type` field.
+        debug:
+          type: object
+          title: Debug
+          additionalProperties: true
+          description: Deserialized error detail payload. The 'type' field indicates the schema. This field is for easier debugging and should not be relied upon for application logic.
+      additionalProperties: true
+      description: Contains an arbitrary serialized message along with a @type that describes the type of the serialized message, with an additional debug field for ConnectRPC error details.
+    google.protobuf.ListValue:
+      type: array
+      items:
+        $ref: '#/components/schemas/google.protobuf.Value'
+      description: A JSON array whose elements may be any JSON value.
+    google.protobuf.NullValue:
+      type: "null"
+      title: NullValue
+      description: The JSON `null` value.
+    google.protobuf.Struct:
+      type: object
+      additionalProperties:
+        $ref: '#/components/schemas/google.protobuf.Value'
+      description: A JSON object whose property values may be any JSON value.
+    google.protobuf.Value:
+      oneOf:
+        - type: "null"
+        - type: number
+        - type: string
+        - type: boolean
+        - type: array
+        - type: object
+          additionalProperties: true
+      description: 'Any JSON value: `null`, number, string, boolean, array, or object.'
+security: []
+tags:
+  - name: barnraise.v1.BarnraiseService
+    description: |-
+      BarnraiseService is the daemon's whole API. The CLI, the MCP server, the
+       panel and any other interface use it.

@@ -1,0 +1,5 @@
+/barnraise
+/dist/
+*.test
+*.out
+coverage.*
