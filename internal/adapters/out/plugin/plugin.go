@@ -405,7 +405,7 @@ func (h *Host) start(ctx context.Context) (*proc, error) {
 		case p.info.Name == "":
 			err = errors.New("its answer to initialize has no name")
 		case len(p.info.Kinds) == 0:
-			err = errors.New("its answer to initialize declares no kinds (tracker, check, notifier, hook)")
+			err = errors.New("its answer to initialize declares no kinds (tracker, check, notifier, hook, network)")
 		}
 	}
 	if err != nil {

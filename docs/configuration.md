@@ -664,18 +664,24 @@ Send a share of the items to a change before the whole fleet gets it.
 
 ## Machine configuration (`daemon.yaml`)
 
-The machine's own configuration is not part of any repository. It lives in `~/.config/barnraise/daemon.yaml` (mode 0600) and is written by `barnraise up`, `barnraise machine invite/join/leave` and `barnraise machine network`; people do not edit it by hand. The Tailscale auth key is never in it (see [operations.md](operations.md#machines-on-a-tailnet)).
+The machine's own configuration is not part of any repository. It lives in `~/.config/barnraise/daemon.yaml` (mode 0600) and is written by `barnraise up`, `barnraise machine invite/join/leave` and `barnraise machine network`; people do not edit it by hand, except for `network_plugin.options`. The Tailscale auth key is never in it (see [operations.md](operations.md#machines-on-a-tailnet)).
 
 | Key | Default | Meaning |
 | --- | --- | --- |
 | `machine` | the short hostname | Machine name (`barnraise daemon --machine`) |
 | `projects` | none | Repository roots this daemon drives (`barnraise up` adds the current one) |
 | `listen` | `127.0.0.1:7420` | TCP address of the API (`--listen`); `off` disables TCP; non-loopback needs `--tls-cert` and `--tls-key` |
-| `nats_host` | `127.0.0.1` | NATS address; with peers it moves to the Tailscale address or `0.0.0.0`. With the embedded Tailscale it stays on loopback and peers come through the tailnet device |
+| `nats_host` | `127.0.0.1` | NATS address; with peers it moves to the Tailscale address (or the address the network plugin reports) or `0.0.0.0`. With the embedded Tailscale it stays on loopback and peers come through the tailnet device |
 | `nats_port` | `4222` | NATS port (`--nats-port`) |
 | `nkey_seed`, `nkey_public` | generated | This machine's NATS key |
 | `peers` | none | Paired machines: `name`, `url`, `public_key`, `seed`, `added` |
-| `network` | auto | `tailscale` (the installed command), `tsnet` (the embedded Tailscale), `lan` (no tailnet), or empty: the installed command, then the embedded one when it has an auth key or logged in before, then `lan`. Set with `barnraise machine network` |
+| `network` | auto | `tailscale` (the installed command), `tsnet` (the embedded Tailscale), `plugin` (the network plugin below), `lan` (no tailnet), or empty: the installed command, then the embedded one when it has an auth key or logged in before, then `lan` (never `plugin`). Set with `barnraise machine network` |
 | `tsnet.control_url` | Tailscale's | Coordination server of the embedded Tailscale; a Headscale URL self-hosts it (`barnraise machine network tsnet --control-url <url>`) |
 | `tsnet.tags` | `[tag:barnraise]` | Tags the embedded device advertises |
+| `network_plugin.command` | none | The [network plugin](plugins.md#network) of `network: plugin`: a name on the `PATH`, an absolute path or `~/…` (`--command`; a relative path is made absolute) |
+| `network_plugin.args` | none | Its arguments (`--arg`, repeated) |
+| `network_plugin.env` | none | **Names** of environment variables passed to it (`--env`) |
+| `network_plugin.secrets` | none | Variable name to secret reference, `keychain:<key>` or `env:<NAME>`, never a value (`--secret NAME=keychain:<key>`) |
+| `network_plugin.timeout` | `10s` | How long each `network.status` may take (`--timeout`) |
+| `network_plugin.options` | none | The plugin's own settings, sent in `initialize` (edit `daemon.yaml`) |
 | `notify` | none | Machine-level notification channels (`type`, `target`, `secret`) |

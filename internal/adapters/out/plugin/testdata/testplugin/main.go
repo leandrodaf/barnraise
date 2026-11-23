@@ -30,7 +30,9 @@ type rpcErr struct {
 
 var (
 	mode  = flag.String("mode", "", "badjson, oldproto, silent, noname")
-	kinds = flag.String("kinds", "tracker,check,notifier,hook", "kinds to declare")
+	kinds = flag.String("kinds", "tracker,check,notifier,hook,network", "kinds to declare")
+	netw  = flag.String("network", "", "how network.status answers: noself, badaddr, hang, error, or empty for a good answer")
+	self  = flag.String("self", "127.0.0.1", "this machine's address in network.status")
 
 	wmu sync.Mutex
 	smu sync.Mutex
@@ -146,6 +148,9 @@ func handle(m msg, cancel chan struct{}) (any, *rpcErr) {
 	if m.Method == "check.run" {
 		return runCheck(m, cancel)
 	}
+	if m.Method == "network.status" {
+		return networkStatus(cancel)
+	}
 	smu.Lock()
 	defer smu.Unlock()
 	switch m.Method {
@@ -202,6 +207,35 @@ func handle(m msg, cancel chan struct{}) (any, *rpcErr) {
 		return map[string]any{"env": os.Environ()}, nil
 	}
 	return nil, &rpcErr{Code: -32601, Message: "method not found: " + m.Method}
+}
+
+func networkStatus(cancel chan struct{}) (any, *rpcErr) {
+	tag := []string{"tag:barnraise"}
+	switch *netw {
+	case "noself":
+		return map[string]any{"self": map[string]any{"name": "alpha"}, "peers": []any{}}, nil
+	case "badaddr":
+		return map[string]any{
+			"self":  map[string]any{"name": "alpha", "addresses": []string{*self}},
+			"peers": []any{map[string]any{"name": "beta", "addresses": []string{"beta.example"}, "online": true}},
+		}, nil
+	case "hang":
+		select {
+		case <-cancel:
+		case <-time.After(time.Minute):
+		}
+		time.Sleep(time.Minute) // answer neither the call nor the cancellation
+	case "error":
+		return nil, &rpcErr{Code: -32002, Message: "the overlay is down"}
+	}
+	return map[string]any{
+		"self": map[string]any{"name": "alpha", "addresses": []string{*self, "fd00::1"}, "tags": tag},
+		"peers": []any{
+			map[string]any{"name": "gamma", "addresses": []string{"10.147.17.3"}, "online": false, "tags": tag},
+			map[string]any{"name": "beta", "addresses": []string{"fd00::2", "10.147.17.2"}, "online": true, "tags": tag},
+			map[string]any{"name": "printer", "addresses": []string{"10.147.17.9"}, "online": true},
+		},
+	}, nil
 }
 
 func runCheck(m msg, cancel chan struct{}) (any, *rpcErr) {

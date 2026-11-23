@@ -13,6 +13,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/leandrodaf/barnraise/internal/adapters/out/plugin"
 )
 
 // Mode is how this machine reaches the tailnet (`network:` in daemon.yaml).
@@ -28,6 +30,9 @@ const (
 	ModeTsnet Mode = "tsnet"
 	// ModeLAN uses no tailnet: the local network or a direct address.
 	ModeLAN Mode = "lan"
+	// ModePlugin asks a network plugin (network_plugin in daemon.yaml) for
+	// the addresses of any other overlay network. Never chosen by auto.
+	ModePlugin Mode = "plugin"
 )
 
 // Errors of the selection and of the embedded tailnet.
@@ -48,12 +53,12 @@ var AuthKeyEnv = []string{"BARNRAISE_TS_AUTHKEY", "TS_AUTHKEY", "TS_AUTH_KEY"}
 // ParseMode validates the `network:` value of daemon.yaml.
 func ParseMode(s string) (Mode, error) {
 	switch m := Mode(strings.ToLower(strings.TrimSpace(s))); m {
-	case ModeAuto, ModeTailscale, ModeTsnet, ModeLAN:
+	case ModeAuto, ModeTailscale, ModeTsnet, ModeLAN, ModePlugin:
 		return m, nil
 	case "auto":
 		return ModeAuto, nil
 	default:
-		return "", fmt.Errorf("tailnet: unknown network %q (use tailscale, tsnet or lan)", s)
+		return "", fmt.Errorf("tailnet: unknown network %q (use tailscale, tsnet, plugin or lan)", s)
 	}
 }
 
@@ -87,6 +92,11 @@ type Config struct {
 	LookPath func(string) (string, error)
 	// Bin is the tailscale command (default "tailscale").
 	Bin string
+	// Plugin runs the network plugin of `network: plugin` (network_plugin
+	// in daemon.yaml); Plugin.Def.Command is empty when none is declared.
+	Plugin plugin.Options
+	// PluginErr says why network_plugin cannot be used (a bad definition).
+	PluginErr error
 }
 
 func (c Config) tags() []string {
@@ -117,9 +127,10 @@ func HasState(dir string) bool {
 }
 
 // Resolve picks the mode. An explicit mode is kept (tsnet fails when the
-// binary lacks it). Auto prefers the installed tailscale command, then the
-// embedded tailnet when it can come up on its own (an auth key, or a state
-// from an earlier login), and otherwise the local network.
+// binary lacks it, plugin when no valid plugin is declared). Auto prefers
+// the installed tailscale command, then the embedded tailnet when it can
+// come up on its own (an auth key, or a state from an earlier login), and
+// otherwise the local network; it never picks the plugin.
 func (c Config) Resolve() (Mode, error) {
 	if c.Disabled {
 		return ModeLAN, nil
@@ -132,6 +143,14 @@ func (c Config) Resolve() (Mode, error) {
 			return "", ErrNotBuiltIn
 		}
 		return ModeTsnet, nil
+	case ModePlugin:
+		if c.PluginErr != nil {
+			return "", fmt.Errorf("tailnet: %w", c.PluginErr)
+		}
+		if strings.TrimSpace(c.Plugin.Def.Command) == "" {
+			return "", ErrNoPlugin
+		}
+		return ModePlugin, nil
 	case ModeAuto:
 	default:
 		return "", fmt.Errorf("tailnet: unknown network %q", c.Mode)
@@ -151,7 +170,9 @@ func (c Config) Resolve() (Mode, error) {
 
 // Open joins the tailnet the way Resolve says. It returns nil and ModeLAN
 // when no tailnet is used. A Network is returned even when the installed
-// Tailscale is not running: callers check Available.
+// Tailscale is not running: callers check Available. A network plugin that
+// cannot start or does not answer network.status is an error, with the
+// mode: callers carry on with the local network.
 func Open(ctx context.Context, c Config) (Tailnet, Mode, error) {
 	m, err := c.Resolve()
 	if err != nil {
@@ -162,6 +183,12 @@ func Open(ctx context.Context, c Config) (Tailnet, Mode, error) {
 		return &Network{Bin: c.Bin}, m, nil
 	case ModeTsnet:
 		t, err := openEmbedded(ctx, c)
+		if err != nil {
+			return nil, m, err
+		}
+		return t, m, nil
+	case ModePlugin:
+		t, err := openPlugin(ctx, c)
 		if err != nil {
 			return nil, m, err
 		}

@@ -306,6 +306,8 @@ func ownerToken() (string, error) {
 // the pairing port are served on it, and peers are dialed through it.
 func (d *daemon) openTailnet(ctx context.Context) {
 	cfg := cli.TailnetConfig(d.df, func(format string, args ...any) { d.log.Info("tailscale: " + fmt.Sprintf(format, args...)) })
+	cfg.Plugin.Version, cfg.Plugin.Log = version, d.log
+	cfg.Plugin.Secret = func(ref string) (string, error) { return notify.SecretRef(d.secrets, ref) }
 	tn, mode, err := tailnet.Open(ctx, cfg)
 	if err != nil {
 		d.log.Warn("tailnet not available; other machines reach this one over the local network", "network", mode, "err", err)
@@ -315,6 +317,10 @@ func (d *daemon) openTailnet(ctx context.Context) {
 		return
 	}
 	d.tn = tn
+	if mode == tailnet.ModePlugin {
+		self, peers, _ := tn.Status(ctx)
+		d.log.Info("network plugin up", "name", self.Name, "ip", tailnet.IPv4(self.IPs), "peers", len(peers), "barnraise_peers", len(tailnet.BarnraisePeers(peers)))
+	}
 	if !d.embedded() {
 		return
 	}

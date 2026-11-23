@@ -92,3 +92,19 @@ func TestDefaultPolicyDeniesEveryProjectFile(t *testing.T) {
 		}
 	}
 }
+
+func TestPluginDefValidate(t *testing.T) {
+	if errs := (PluginDef{Command: "zt-plugin", Env: []string{"ZT_NETWORK"}, Secrets: map[string]string{"ZT_TOKEN": "keychain:zerotier"}}).Validate("network_plugin"); len(errs) != 0 {
+		t.Fatal(errs)
+	}
+	errs := (PluginDef{Secrets: map[string]string{"ZT_TOKEN": "abc"}, Timeout: -1}).Validate("network_plugin")
+	var b strings.Builder
+	for _, err := range errs {
+		b.WriteString(err.Error() + "\n")
+	}
+	for _, want := range []string{"network_plugin has no command", "network_plugin: secret ZT_TOKEN must be a reference", "network_plugin: timeout must be positive"} {
+		if !strings.Contains(b.String(), want) {
+			t.Errorf("missing %q in:\n%s", want, b.String())
+		}
+	}
+}

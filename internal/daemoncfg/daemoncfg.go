@@ -1,5 +1,6 @@
 // Package daemoncfg is the machine's own configuration: which projects the
-// daemon drives, the cluster peers and the machine key. It lives in the
+// daemon drives, the cluster peers, the machine key and how it reaches the
+// other machines. It lives in the
 // config dir (0600), never in a repository; people do not edit it by hand —
 // `barnraise up`, `machine invite/join/leave` write it.
 package daemoncfg
@@ -17,6 +18,7 @@ import (
 
 	"gopkg.in/yaml.v3"
 
+	"github.com/leandrodaf/barnraise/internal/domain"
 	"github.com/leandrodaf/barnraise/internal/paths"
 )
 
@@ -39,6 +41,45 @@ type TSNet struct {
 	Tags []string `yaml:"tags,omitempty"`
 }
 
+// NetworkPlugin is the network plugin of `network: plugin`: a program that
+// tells Barnraise where this machine and the others are on another overlay
+// network (docs/plugins.md, kind network). Same keys and rules as a
+// project's plugins; secrets are references, never values.
+type NetworkPlugin struct {
+	Command string            `yaml:"command"`
+	Args    []string          `yaml:"args,omitempty"`
+	Env     []string          `yaml:"env,omitempty"`     // names of variables passed through
+	Secrets map[string]string `yaml:"secrets,omitempty"` // variable -> keychain:<key> or env:<NAME>
+	Timeout string            `yaml:"timeout,omitempty"` // each call (default 10s)
+	Options map[string]any    `yaml:"options,omitempty"` // sent in initialize
+}
+
+// NetworkPluginTimeout is a network plugin's default call timeout.
+const NetworkPluginTimeout = 10 * time.Second
+
+// Def returns the plugin's definition, checked. A relative command must
+// be absolute or start with ~/: the machine has no repository to anchor it.
+func (n *NetworkPlugin) Def() (domain.PluginDef, error) {
+	if n == nil {
+		return domain.PluginDef{}, errors.New("network_plugin is not set in daemon.yaml")
+	}
+	d := domain.PluginDef{Command: strings.TrimSpace(n.Command), Args: n.Args, Env: n.Env, Secrets: n.Secrets, Options: n.Options, Timeout: NetworkPluginTimeout}
+	var errs []error
+	if n.Timeout != "" {
+		t, err := domain.ParseDuration(n.Timeout)
+		if err != nil {
+			errs = append(errs, fmt.Errorf("network_plugin.timeout: %w", err))
+		} else {
+			d.Timeout = t
+		}
+	}
+	errs = append(errs, d.Validate("network_plugin")...)
+	if c := d.Command; strings.Contains(c, "/") && !filepath.IsAbs(c) && !strings.HasPrefix(c, "~/") {
+		errs = append(errs, fmt.Errorf("network_plugin: command %q must be a name on the PATH, an absolute path or ~/…", c))
+	}
+	return d, errors.Join(errs...)
+}
+
 // File is daemon.yaml.
 type File struct {
 	Machine    string   `yaml:"machine"`
@@ -49,9 +90,11 @@ type File struct {
 	NKeySeed   string   `yaml:"nkey_seed,omitempty"`
 	NKeyPublic string   `yaml:"nkey_public,omitempty"`
 	Peers      []Peer   `yaml:"peers,omitempty"`
-	Network    string   `yaml:"network,omitempty"` // empty (auto), tailscale, tsnet, lan
+	Network    string   `yaml:"network,omitempty"` // empty (auto), tailscale, tsnet, plugin, lan
 	TSNet      TSNet    `yaml:"tsnet,omitempty"`
-	Notify     []struct {
+	// NetworkPlugin is used with `network: plugin`.
+	NetworkPlugin *NetworkPlugin `yaml:"network_plugin,omitempty"`
+	Notify        []struct {
 		Type   string `yaml:"type"`
 		Target string `yaml:"target"`
 		Secret string `yaml:"secret,omitempty"`

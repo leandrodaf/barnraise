@@ -5,8 +5,10 @@ import (
 	"io"
 	"log/slog"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -86,5 +88,57 @@ func TestNotifierRoutesPluginChannels(t *testing.T) {
 	}
 	if pn, ok := m[0].(*pluginNotifier); !ok || pn.target != "#ops" || pn.project != "shop" {
 		t.Fatalf("channel = %#v", m[0])
+	}
+}
+
+// syncLog is a log sink safe for the plugin's reader goroutines.
+type syncLog struct {
+	mu sync.Mutex
+	b  strings.Builder
+}
+
+func (s *syncLog) Write(p []byte) (int, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.b.Write(p)
+}
+
+func (s *syncLog) String() string {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.b.String()
+}
+
+// A network plugin that cannot start leaves the daemon on the local
+// network, as an embedded Tailscale that cannot log in does; one that
+// answers gives the daemon its address.
+func TestNetworkPluginInTheDaemon(t *testing.T) {
+	dir := t.TempDir()
+	t.Setenv("BARNRAISE_CONFIG_DIR", filepath.Join(dir, "cfg"))
+	t.Setenv("BARNRAISE_DATA_DIR", filepath.Join(dir, "data"))
+	t.Setenv("BARNRAISE_NO_TAILSCALE", "")
+	logs := &syncLog{}
+	d := pluginDaemon(t)
+	d.log = slog.New(slog.NewTextHandler(logs, nil))
+	d.df = &daemoncfg.File{Machine: "alpha", Network: "plugin", NetworkPlugin: &daemoncfg.NetworkPlugin{Command: filepath.Join(dir, "no-such-network-plugin")}}
+	d.openTailnet(context.Background())
+	if d.tn != nil || !strings.Contains(logs.String(), "tailnet not available") || !strings.Contains(logs.String(), "network plugin is not available") {
+		t.Fatal(d.tn, logs.String())
+	}
+
+	py, err := exec.LookPath("python3")
+	if err != nil {
+		t.Skip("python3 is not installed")
+	}
+	script, _ := filepath.Abs("../../docs/examples/plugins/network-static.py")
+	peers := filepath.Join(dir, "peers")
+	if err := os.WriteFile(peers, []byte("127.0.0.1 alpha tag:barnraise\n10.8.0.2 beta tag:barnraise\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	d.df.NetworkPlugin = &daemoncfg.NetworkPlugin{Command: py, Args: []string{script}, Options: map[string]any{"file": peers, "self": "alpha"}}
+	d.openTailnet(context.Background())
+	defer d.closeTailnet()
+	if d.tn == nil || d.embedded() || !d.tn.Available() || !strings.Contains(logs.String(), "network plugin up") {
+		t.Fatal(logs.String())
 	}
 }

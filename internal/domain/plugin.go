@@ -15,6 +15,10 @@ const (
 	PluginCheck    = "check"
 	PluginNotifier = "notifier"
 	PluginHook     = "hook"
+	// PluginNetwork tells the daemon how machines reach each other (a VPN
+	// or an overlay network). It is machine-level: daemon.yaml declares it
+	// as network_plugin, never barnraise.yaml.
+	PluginNetwork = "network"
 )
 
 // PluginDef is an external plugin: a program the owner configured, which
@@ -61,6 +65,38 @@ func PluginFile(command string) string {
 
 var envNameRe = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_]*$`)
 
+// Validate checks a definition wherever it is declared; what names it in
+// the messages ("plugin youtrack", "network_plugin").
+func (d PluginDef) Validate(what string) []error {
+	var errs []error
+	if strings.TrimSpace(d.Command) == "" {
+		errs = append(errs, fmt.Errorf("%s has no command", what))
+	}
+	for _, e := range d.Env {
+		if !envNameRe.MatchString(e) {
+			errs = append(errs, fmt.Errorf("%s: env lists %q, which is not a variable name (list names only; values stay out of the configuration)", what, e))
+		}
+	}
+	keys := make([]string, 0, len(d.Secrets))
+	for k := range d.Secrets {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	for _, k := range keys {
+		ref := d.Secrets[k]
+		if !envNameRe.MatchString(k) {
+			errs = append(errs, fmt.Errorf("%s: secret %q is not a variable name", what, k))
+		}
+		if !strings.HasPrefix(ref, "keychain:") && !strings.HasPrefix(ref, "env:") {
+			errs = append(errs, fmt.Errorf("%s: secret %s must be a reference (keychain:<key> or env:<NAME>), never the value itself", what, k))
+		}
+	}
+	if d.Timeout < 0 {
+		errs = append(errs, fmt.Errorf("%s: timeout must be positive", what))
+	}
+	return errs
+}
+
 func (c *ProjectConfig) validatePlugins() []error {
 	var errs []error
 	names := make([]string, 0, len(c.Plugins))
@@ -69,29 +105,10 @@ func (c *ProjectConfig) validatePlugins() []error {
 	}
 	sort.Strings(names)
 	for _, name := range names {
-		d := c.Plugins[name]
 		if Slug(name, 40) != name {
 			errs = append(errs, fmt.Errorf("plugin name %q must be lower case letters, digits and dashes", name))
 		}
-		if strings.TrimSpace(d.Command) == "" {
-			errs = append(errs, fmt.Errorf("plugin %s has no command", name))
-		}
-		for _, e := range d.Env {
-			if !envNameRe.MatchString(e) {
-				errs = append(errs, fmt.Errorf("plugin %s: env lists %q, which is not a variable name (list names only; values stay out of barnraise.yaml)", name, e))
-			}
-		}
-		for k, ref := range d.Secrets {
-			if !envNameRe.MatchString(k) {
-				errs = append(errs, fmt.Errorf("plugin %s: secret %q is not a variable name", name, k))
-			}
-			if !strings.HasPrefix(ref, "keychain:") && !strings.HasPrefix(ref, "env:") {
-				errs = append(errs, fmt.Errorf("plugin %s: secret %s must be a reference (keychain:<key> or env:<NAME>), never the value itself", name, k))
-			}
-		}
-		if d.Timeout < 0 {
-			errs = append(errs, fmt.Errorf("plugin %s: timeout must be positive", name))
-		}
+		errs = append(errs, c.Plugins[name].Validate("plugin "+name)...)
 	}
 	known := func(what, ref string) {
 		if name, ok := PluginRef(ref); ok {

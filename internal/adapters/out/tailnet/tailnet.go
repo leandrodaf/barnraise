@@ -1,7 +1,7 @@
 // Package tailnet finds this machine and its peers on the Tailscale network,
 // listens on it and dials through it.
 //
-// Two implementations share the Tailnet interface:
+// Three implementations share the Tailnet interface:
 //
 //   - Network drives the installed `tailscale` command. The operating
 //     system routes the Tailscale addresses, so listening and dialing are
@@ -10,6 +10,10 @@
 //     device of the tailnet with tailscale.com/tsnet: nothing else to
 //     install. Its addresses exist only inside the process, so every
 //     listener and every connection to a peer must go through it.
+//   - Plugin asks a network plugin (docs/plugins.md, kind network) where
+//     this machine and its peers are on any other overlay: ZeroTier,
+//     Nebula, WireGuard, a company VPN. The overlay routes its addresses,
+//     so listening and dialing are plain TCP, as with Network.
 //
 // tsnet pulls the whole tailscale.com module (hundreds of packages, about
 // 13 MB of binary) in, so the default build leaves it out; release builds
@@ -35,7 +39,8 @@ const Tag = "tag:barnraise"
 // PairingPort is the TCP port of `barnraise machine invite`.
 const PairingPort = 47900
 
-// ErrUnavailable means Tailscale is not installed or not running.
+// ErrUnavailable means Tailscale is not installed or not running, or the
+// network plugin does not answer.
 var ErrUnavailable = errors.New("tailnet: tailscale is not available")
 
 // Self is this machine on the tailnet.
@@ -73,10 +78,11 @@ func IPv4(ips []string) string {
 	return ""
 }
 
-// Tailnet is this machine's view of the Tailscale network, whichever way it
-// is joined.
+// Tailnet is this machine's view of the network between machines (a
+// Tailscale network, or the overlay a network plugin describes), whichever
+// way it is joined.
 type Tailnet interface {
-	// Mode says which implementation this is (ModeTailscale or ModeTsnet).
+	// Mode says which implementation this is (ModeTailscale, ModeTsnet or ModePlugin).
 	Mode() Mode
 	// Available reports whether the tailnet is up and this machine has an address.
 	Available() bool
@@ -160,18 +166,24 @@ func (n *Network) Available() bool {
 // empty host (":4222") binds the machine's Tailscale IPv4, so the port is
 // not exposed on other interfaces; an explicit host is used as given.
 func (n *Network) Listen(ctx context.Context, addr string) (net.Listener, error) {
+	return listenOn(ctx, addr, n.Status)
+}
+
+// listenOn listens on addr; an empty host is this machine's address as
+// status reports it (its IPv4, else its first address).
+func listenOn(ctx context.Context, addr string, status func(context.Context) (Self, []Peer, error)) (net.Listener, error) {
 	host, port, err := net.SplitHostPort(addr)
 	if err != nil {
 		return nil, err
 	}
 	if host == "" {
-		self, _, err := n.Status(ctx)
+		self, _, err := status(ctx)
 		if err != nil {
 			return nil, err
 		}
 		if host = IPv4(self.IPs); host == "" {
 			if len(self.IPs) == 0 {
-				return nil, fmt.Errorf("%w: no tailscale address", ErrUnavailable)
+				return nil, fmt.Errorf("%w: this machine has no address on it", ErrUnavailable)
 			}
 			host = self.IPs[0]
 		}

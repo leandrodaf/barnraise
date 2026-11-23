@@ -142,16 +142,17 @@ Where no headless login exists, log in on a machine with a browser and copy that
 
 ## Machines on a tailnet
 
-Machines in different places reach each other over a Tailscale network (a tailnet) without opening router ports. `network:` in `daemon.yaml` (`barnraise machine network [auto|tailscale|tsnet|lan]`) says how:
+Machines in different places reach each other over a Tailscale network (a tailnet), or any other VPN or overlay through a network plugin, without opening router ports. `network:` in `daemon.yaml` (`barnraise machine network [auto|tailscale|tsnet|plugin|lan]`) says how:
 
 | Network | What happens |
 | --- | --- |
 | `tailscale` | The installed `tailscale` command. NATS listens on the machine's Tailscale address |
 | `tsnet` | The embedded Tailscale: Barnraise itself is a device of the tailnet, named after the machine and advertising `tag:barnraise`. NATS stays on loopback and peers arrive through the device; the daemon also relays the device's pairing port (47900) to `machine invite` |
+| `plugin` | A [network plugin](plugins.md#network) (`network_plugin:`) says where this machine and the others are on another overlay: ZeroTier, Nebula, a Headscale client, plain WireGuard, a company VPN. NATS listens on the address the plugin reports for this machine |
 | `lan` | No tailnet: the local network or a direct address, with the same pairing code |
-| auto (empty) | `tailscale` when the command is installed, else `tsnet` when it has an auth key or logged in before, else `lan` |
+| auto (empty) | `tailscale` when the command is installed, else `tsnet` when it has an auth key or logged in before, else `lan`. Never `plugin`: that one is chosen explicitly |
 
-`BARNRAISE_NO_TAILSCALE=1` turns every tailnet off. The embedded Tailscale is in the release binaries and in `make build-tsnet`; plain `make build` leaves it out (about 13 MB lighter) and `network: tsnet` then fails with a message saying so.
+`BARNRAISE_NO_TAILSCALE=1` turns every tailnet off, the network plugin included. The embedded Tailscale is in the release binaries and in `make build-tsnet`; plain `make build` leaves it out (about 13 MB lighter) and `network: tsnet` then fails with a message saying so.
 
 The first time, the embedded device logs in with an auth key. Create one in the Tailscale admin console (or `headscale preauthkeys create`), tagged `tag:barnraise`, reusable when several machines share it, and give it to Barnraise:
 
@@ -176,6 +177,18 @@ barnraise machine join 482913          # joins the tailnet, finds A among the ta
 `machine join` without `--addr` tries the online `tag:barnraise` machines of the tailnet on port 47900, then invite beacons on the local network. When the daemon already holds the embedded device, `machine invite` listens on loopback and the daemon relays the tailnet's pairing port to it; `machine join` opens a short-lived ephemeral device (`<machine>-pairing`, needs the auth key) or falls back to the local network.
 
 **Headscale.** `barnraise machine network tsnet --control-url https://headscale.example.com` points the embedded device at a self-hosted control server; nothing then goes to Tailscale's servers. The embedded device never uploads logs to Tailscale either way.
+
+**Other networks.** Any overlay that gives the machines IP addresses works through a network plugin: a small program, in any language, that answers `network.status` with this machine's addresses and the peers' names, addresses, online state and tags ([plugins.md](plugins.md#network)). Barnraise carries no traffic through it; the overlay routes it.
+
+```sh
+# plain WireGuard or a LAN with fixed addresses: the machines in a file
+cp docs/examples/plugins/network-static.py ~/bin/ && chmod +x ~/bin/network-static.py
+printf '10.8.0.1 desk tag:barnraise\n10.8.0.2 laptop tag:barnraise\n' > ~/.config/barnraise/network-peers   # read from the config dir by default
+barnraise machine network plugin --command ~/bin/network-static.py
+barnraise machine network               # this machine's address and the peers the plugin reports
+```
+
+The plugin runs in the config dir as the owner, with only the environment variables and secrets `network_plugin` lists (secrets as `keychain:` or `env:` references). Pairing works the same: `machine join` without `--addr` tries the online `tag:barnraise` peers the plugin reports. A plugin that is missing, answers badly or too late leaves the daemon on the local network with a warning in its log; `barnraise machine network` shows why. A ZeroTier sketch is in [plugins.md](plugins.md#zerotier-sketch).
 
 **ACL.** `barnraise cluster acl` prints a policy where only `tag:barnraise` reaches the Barnraise ports (NATS 4222 and pairing 47900) and owns nothing else; paste it into the tailnet's policy (Headscale: its policy file).
 
