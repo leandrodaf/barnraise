@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/leandrodaf/barnraise/internal/domain"
+	"github.com/leandrodaf/barnraise/internal/testkit"
 )
 
 func TestMatchType(t *testing.T) {
@@ -231,5 +232,37 @@ func TestIngestKeepsEventsOfAProjectLoadedLater(t *testing.T) {
 	}
 	if n, _ := beta.store.Load(beta.ctx, "later", 0); len(n) != len(evs) {
 		t.Fatal("own event stored")
+	}
+}
+
+// An item this machine worked on and another machine finished (a takeover)
+// leaves no worktree behind here.
+func TestIngestDropsTheWorktreeOfAnItemFinishedElsewhere(t *testing.T) {
+	g := &testkit.FakeGit{}
+	e := newEnv(t, withFakeGit(g))
+	it := e.ready("simple", "taken over", "x")
+	e.start(it.ID)
+	dir := e.workspace(it.ID, map[string]string{"a.txt": "a"})
+	done := e.item(it.ID)
+	done.Status, done.Claim, done.Version = domain.StatusIntegrated, nil, done.Version+5
+	ev := domain.NewEvent("m2-done", domain.EvItemIntegrated, "demo", it.ID, "m2", "merge-queue", e.clock.Now(), domain.Payload{Item: done})
+	if err := e.svc.Ingest(e.ctx, ev); err != nil {
+		t.Fatal(err)
+	}
+	e.wantStatus(it.ID, domain.StatusIntegrated, "")
+	if !g.Called("RemoveWorktree " + dir) {
+		t.Fatalf("the stale worktree must be removed: %v", g.Calls())
+	}
+	// An item still in progress elsewhere keeps its worktree.
+	other := e.ready("simple", "still going", "x")
+	e.start(other.ID)
+	odir := e.workspace(other.ID, nil)
+	cur := e.item(other.ID)
+	cur.Version += 5
+	if err := e.svc.Ingest(e.ctx, domain.NewEvent("m2-upd", domain.EvItemUpdated, "demo", other.ID, "m2", "x", e.clock.Now(), domain.Payload{Item: cur})); err != nil {
+		t.Fatal(err)
+	}
+	if g.Called("RemoveWorktree " + odir) {
+		t.Fatal("only finished items lose their worktree")
 	}
 }

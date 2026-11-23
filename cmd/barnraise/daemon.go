@@ -341,7 +341,14 @@ func (d *daemon) startNATS(ctx context.Context) error {
 			}
 			return d.svc.Ingest(context.Background(), e)
 		}, cursors)
-		d.repl.Logf = func(format string, args ...any) { d.log.Warn("replication: " + fmt.Sprintf(format, args...)) }
+		d.repl.Logf = func(format string, args ...any) {
+			msg := fmt.Sprintf(format, args...)
+			if strings.HasSuffix(msg, ": connected") {
+				d.log.Info("replication: " + msg)
+				return
+			}
+			d.log.Warn("replication: " + msg)
+		}
 	}
 	return nil
 }

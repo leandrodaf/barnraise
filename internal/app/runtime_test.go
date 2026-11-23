@@ -261,11 +261,21 @@ func TestRuntimeStartFailures(t *testing.T) {
 	if _, busy := e.p.running[it.ID]; busy {
 		t.Fatal("the item is free again")
 	}
-	// Every free implementer slot tried the item once in that pass.
+	// One try per pass: the other implementer slots do not repeat a failure
+	// that belongs to the machine.
 	failed := len(e.prov.Specs())
-	if failed == 0 {
-		t.Fatal("the provider was never asked")
+	if failed != 1 {
+		t.Fatalf("the item is tried once per pass, got %d", failed)
 	}
+	states := len(e.store.Types("implementer-m1-1"))
+	e.fill() // the same failure again: tried, but not reported twice
+	if got := len(e.prov.Specs()); got != 2 {
+		t.Fatalf("the next pass tries again: %d", got)
+	}
+	if got := len(e.store.Types("implementer-m1-1")); got != states {
+		t.Fatalf("a repeated failure must not be recorded again: %d events, want %d", got, states)
+	}
+	failed = 2
 	e.prov.FailOpen(nil)
 	RoleText = func(*domain.ProjectConfig, string) (string, error) { return "", errors.New("no role file") }
 	e.fill()

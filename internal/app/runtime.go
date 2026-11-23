@@ -40,6 +40,10 @@ type Runtime struct {
 	lastSweep   map[string]time.Time
 	lastDigest  map[string]time.Time
 	lastWeekly  map[string]time.Time
+	// startErrs remembers the last start failure of each agent, so a
+	// failure that repeats every pass (accounts out of limits, a missing
+	// binary) is logged once, not every few seconds.
+	startErrs map[string]string
 	// Sandbox turns on the provider's native sandbox in session settings.
 	Sandbox bool
 	// EgressProxy routes agent traffic through the allow-list proxy (host:port).
@@ -195,6 +199,7 @@ func (r *Runtime) fillSlots(ctx context.Context, p *Project, m domain.Machine) {
 	if limit <= 0 {
 		limit = 1
 	}
+	failed := map[string]bool{} // items whose start failed in this pass
 	for _, slot := range r.slotsFor(p, m) {
 		r.mu.Lock()
 		_, busy := r.running[slot.Agent]
@@ -211,6 +216,12 @@ func (r *Runtime) fillSlots(ctx context.Context, p *Project, m domain.Machine) {
 			// No authorized work: the agent records nothing and ends its turn.
 			continue
 		}
+		if failed[a.Item.ID] {
+			// Another slot just failed to start this item for a reason that
+			// is the machine's, not the slot's: do not try again this pass.
+			r.s.doneRunning(p, a.Item.ID, slot.Agent)
+			continue
+		}
 		dual := false
 		if dualEligible(a.Item, a.Step) && !r.s.hasAlt(p, a.Item.ID, a.Step.Name) {
 			if _, err := r.s.ensureWorkspace(ctx, p, a.Item.ID); err == nil {
@@ -222,11 +233,15 @@ func (r *Runtime) fillSlots(ctx context.Context, p *Project, m domain.Machine) {
 			}
 		}
 		if err := r.start(ctx, p, slot, a, ""); err != nil {
-			r.s.d.Log.Warn("start session", "agent", slot.Agent, "item", a.Item.ID, "err", err)
+			failed[a.Item.ID] = true
 			r.s.doneRunning(p, a.Item.ID, slot.Agent)
-			r.s.sessionState(ctx, p, slot, a, "failed", err.Error(), "", "", "")
+			if r.newStartErr(p.Name+"/"+a.Item.ID, err.Error()) {
+				r.s.d.Log.Warn("start session", "agent", slot.Agent, "item", a.Item.ID, "err", err)
+				r.s.sessionState(ctx, p, slot, a, "failed", err.Error(), "", "", "")
+			}
 			continue
 		}
+		r.newStartErr(p.Name+"/"+a.Item.ID, "")
 		if dual {
 			slotB := Slot{Agent: slot.Agent + "-b", Role: slot.Role, Machine: slot.Machine, Reviewer: slot.Reviewer}
 			p.mu.Lock()
@@ -241,6 +256,25 @@ func (r *Runtime) fillSlots(ctx context.Context, p *Project, m domain.Machine) {
 			}
 		}
 	}
+}
+
+// newStartErr records the start failure of an item ("" = it started) and
+// reports whether it differs from the previous one.
+func (r *Runtime) newStartErr(key, msg string) bool {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if r.startErrs == nil {
+		r.startErrs = map[string]string{}
+	}
+	if r.startErrs[key] == msg {
+		return false
+	}
+	if msg == "" {
+		delete(r.startErrs, key)
+	} else {
+		r.startErrs[key] = msg
+	}
+	return true
 }
 
 // start opens a provider session for an assignment.

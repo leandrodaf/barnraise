@@ -11,6 +11,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"os"
 	"sort"
 	"sync"
 	"sync/atomic"
@@ -369,8 +370,29 @@ func (s *Service) Ingest(ctx context.Context, e domain.Event) error {
 	if err == nil {
 		s.hub.Publish(stored[0])
 		s.runtime.Poke()
+		s.dropFinishedWorkspace(ctx, p, stored[0])
 	}
 	return err
+}
+
+// dropFinishedWorkspace removes the local worktree of an item that another
+// machine finished (for example after taking it over from this one).
+func (s *Service) dropFinishedWorkspace(ctx context.Context, p *Project, e domain.Event) {
+	g := p.Ports().Git
+	if g == nil {
+		return
+	}
+	pl, err := e.DecodePayload()
+	if err != nil || pl.Item == nil || !pl.Item.Status.Terminal() {
+		return
+	}
+	for _, dir := range []string{s.WorktreeDir(p.Name, pl.Item.ID), s.altDir(p.Name, pl.Item.ID)} {
+		if _, err := os.Stat(dir); err == nil {
+			if err := g.RemoveWorktree(ctx, dir); err != nil {
+				s.d.Log.Warn("remove the worktree of a finished item", "item", pl.Item.ID, "err", err)
+			}
+		}
+	}
 }
 
 // mutateItem clones an item, applies fn, bumps its version and emits typ.

@@ -11,6 +11,8 @@
 # Environment:
 #   BARNRAISE_BIN   binary to test (default ./barnraise)
 #   SMOKE_TIMEOUT   seconds to wait for the item (default 120 fake, 1800 claude)
+#   SMOKE_CLAUDE_CONFIG_DIR  logged-in Claude config dir (default: the CLI's own)
+#   SMOKE_MODEL     model for every class with `claude` (default haiku)
 #   SMOKE_KEEP=1    keep the work directory for inspection
 set -eu
 
@@ -73,6 +75,12 @@ git checkout -q -B main
 
 printf '# smoke\n\nA tiny repository for the Barnraise smoke test.\n' >README.md
 "$bin" init -y --force --no-accounts --template blank --name smoke --approves analyst --check "test -f README.md" >/dev/null
+if [ "$provider" = claude ]; then
+	# One cheap model for every class keeps the nightly run small.
+	m="claude/${SMOKE_MODEL:-haiku}"
+	printf '\nmodels:\n  classes:\n    simple: [%s]\n    normal: [%s]\n    complex: [%s]\n    native: [%s]\n    cheap: [%s]\n' "$m" "$m" "$m" "$m" "$m" >>barnraise.yaml
+	"$bin" check >/dev/null
+fi
 git add -A
 git commit -qm "init"
 git push -q origin main
@@ -93,7 +101,7 @@ until "$bin" status >/dev/null 2>&1; do
 done
 
 if [ "$provider" = claude ]; then
-	"$bin" account add claude --id claude-1 --config-dir default --skip-login
+	"$bin" account add claude --id claude-1 --config-dir "${SMOKE_CLAUDE_CONFIG_DIR:-default}" --skip-login
 fi
 
 "$bin" item add "Add a greeting file" --area docs \
