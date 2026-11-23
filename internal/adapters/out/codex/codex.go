@@ -22,8 +22,20 @@ import (
 	"github.com/leandrodaf/barnraise/internal/ports"
 )
 
-// Sandbox is the only sandbox mode the adapter uses.
+// Sandbox is the sandbox mode of every session on the machine itself.
 const Sandbox = "workspace-write"
+
+// ContainerSandbox is the mode inside a container: there the container is
+// the boundary (it sees only the item's worktree), and Codex's own sandbox,
+// bubblewrap, cannot nest in it.
+const ContainerSandbox = "danger-full-access"
+
+func sandboxFor(spec ports.SessionSpec) string {
+	if spec.Container != nil {
+		return ContainerSandbox
+	}
+	return Sandbox
+}
 
 // Options configure the adapter.
 type Options struct {
@@ -269,9 +281,9 @@ func (p *Provider) Args(spec ports.SessionSpec, schemaFile string) ([]string, er
 	if spec.ResumeID != "" {
 		// `exec resume` takes neither --sandbox nor --cd: the sandbox goes in as
 		// a config override and the working directory is the process cwd.
-		args = []string{"exec", "resume", "--json", "-c", "sandbox_mode=" + tomlString(Sandbox)}
+		args = []string{"exec", "resume", "--json", "-c", "sandbox_mode=" + tomlString(sandboxFor(spec))}
 	} else {
-		args = []string{"exec", "--json", "--sandbox", Sandbox}
+		args = []string{"exec", "--json", "--sandbox", sandboxFor(spec)}
 		if spec.Workdir != "" {
 			args = append(args, "--cd", spec.Workdir)
 		}

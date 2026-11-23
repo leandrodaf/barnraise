@@ -214,9 +214,12 @@ type ProviderEvent struct {
 	Tool      string             `json:"tool,omitempty"`
 	Input     json.RawMessage    `json:"input,omitempty"`
 	Usage     *domain.TokenUsage `json:"usage,omitempty"`
-	IsError   bool               `json:"is_error,omitempty"`
-	ResetsAt  time.Time          `json:"resets_at,omitzero"`
-	Raw       json.RawMessage    `json:"raw,omitempty"`
+	// Limits is the account's own usage of its windows (5 hours, week), when
+	// the provider reports it during the session.
+	Limits   *domain.Usage   `json:"limits,omitempty"`
+	IsError  bool            `json:"is_error,omitempty"`
+	ResetsAt time.Time       `json:"resets_at,omitzero"`
+	Raw      json.RawMessage `json:"raw,omitempty"`
 }
 
 // SessionResult is what a finished session reports.

@@ -184,3 +184,10 @@ Restore: stop the daemon, put the files back with the same owner and modes (0700
 - `GET /healthz` (no token): `{"ok": true, "machine": …, "version": …, "projects": […]}`.
 - `barnraise status`, `barnraise cluster status`, `barnraise machine list`, `barnraise account list`.
 - `barnraise events -f` and the panel for the live stream; `barnraise audit` for who did what.
+
+## Capacity
+
+A machine runs as many sessions as its CPUs and total memory allow (`barnraise cluster status` shows `busy n/slots`). On top of that, **no new session starts while the machine has less than 3 GB of memory available, or no idle CPU**: the builds, tests and emulators of the items in progress keep the memory instead of being killed by the kernel. Sessions already running are never stopped for it, and work resumes by itself when the pressure passes. The daemon logs the reason once.
+
+Each account's usage of its 5-hour and weekly windows comes from the sessions themselves (Claude Code reports it after every request) and from the status line of interactive sessions. `barnraise account list` shows the numbers and the reset times; an account at its ceiling is skipped until its window resets.
+

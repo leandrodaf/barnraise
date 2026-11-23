@@ -18,12 +18,12 @@ import (
 var t0 = time.Date(2026, 1, 2, 3, 4, 5, 0, time.UTC)
 
 func testEvent() domain.Event {
-	return domain.NewEvent("ev-1", domain.EvItemCreated, "nobira", "I-42", "laptop", "owner", t0, domain.Payload{Note: "hi"})
+	return domain.NewEvent("ev-1", domain.EvItemCreated, "shop", "I-42", "laptop", "owner", t0, domain.Payload{Note: "hi"})
 }
 
 func TestToCloudEvent(t *testing.T) {
 	ce := ToCloudEvent(testEvent(), "")
-	if ce.SpecVersion != "1.0" || ce.ID != "ev-1" || ce.Source != "barnraise://laptop/nobira" ||
+	if ce.SpecVersion != "1.0" || ce.ID != "ev-1" || ce.Source != "barnraise://laptop/shop" ||
 		ce.Type != "dev.barnraise.item.created" || ce.Subject != "I-42" || !ce.Time.Equal(t0) ||
 		ce.DataContentType != "application/json" {
 		t.Fatalf("%+v", ce)
@@ -31,7 +31,7 @@ func TestToCloudEvent(t *testing.T) {
 	b, _ := json.Marshal(ce)
 	var m map[string]any
 	json.Unmarshal(b, &m)
-	if m["specversion"] != "1.0" || m["data"].(map[string]any)["note"] != "hi" || m["barnraiseproject"] != "nobira" {
+	if m["specversion"] != "1.0" || m["data"].(map[string]any)["note"] != "hi" || m["barnraiseproject"] != "shop" {
 		t.Fatalf("%s", b)
 	}
 	if ToCloudEvent(testEvent(), "x://y").Source != "x://y" {

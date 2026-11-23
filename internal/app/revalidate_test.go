@@ -238,7 +238,7 @@ func TestProviderTriage(t *testing.T) {
 }
 
 func TestTrackerImportAndSync(t *testing.T) {
-	e := newEnv(t, withTracker(), withCfg(func(c *domain.ProjectConfig) { c.Tracker.Trusted = []string{"leandro", "label:accepted"} }))
+	e := newEnv(t, withTracker(), withCfg(func(c *domain.ProjectConfig) { c.Tracker.Trusted = []string{"ana", "label:accepted"} }))
 	mine := e.ready("feature", "Mine", "")
 	eventually(t, "item created in the tracker", func() bool { return e.item(mine.ID).TrackerRef == "mem#1" })
 	if _, err := e.svc.UpdateItem(e.ctx, "demo", owner(), mine.ID, ItemPatch{Size: new("2h")}); err != nil {
@@ -246,7 +246,7 @@ func TestTrackerImportAndSync(t *testing.T) {
 	}
 	eventually(t, "item updated in the tracker", func() bool { return len(e.tracker.Updated()) > 0 })
 	e.tracker.Items = []ports.TrackerItem{
-		{Ref: "gh#10", Title: "Dark mode", Body: "please", Author: "leandro"},
+		{Ref: "gh#10", Title: "Dark mode", Body: "please", Author: "ana"},
 		{Ref: "gh#11", Title: "Crash on start", Body: "trace", Author: "stranger", Labels: []string{"bug"}, URL: "https://x/11"},
 		{Ref: "gh#12", Title: "Accepted idea", Body: "ok", Author: "stranger", Labels: []string{"accepted", "bug"}},
 		{Ref: "gh#13", Title: "Closed one", Closed: true},

@@ -57,7 +57,7 @@ goal: Personal finance app, Android first, matching docs/prototipo-mobile
 approves: owner
 tracker:
   type: github
-  repo: leandrodaf/financas-pluggy
+  repo: acme/shop
   project: 3
 checks:
   main: scripts/verificar.py
@@ -447,7 +447,7 @@ Owner notification channels. Each entry has `type`, `target`, `secret` (a secret
 ```yaml
 notifications:
   - type: ntfy
-    target: barnraise-leandro
+    target: barnraise-owner
   - type: telegram
     target: "123456789"
     secret: keychain:telegram-bot
@@ -472,6 +472,8 @@ container:
 ```
 
 Mounted by Barnraise, each at its own path: the item's worktree, the repository's `.git` (a worktree commits there), the agent's account folder, the daemon's socket and the `barnraise` binary (read-only). Not mounted: the owner's home, the daemon's state, other items' worktrees. The session runs as the daemon's uid, with `HOME` inside the session folder. Inside a container the provider's native sandbox is off (bubblewrap does not nest); the container is the boundary, and the blocking hook and the policy still apply.
+
+With `gpu` other than `none`, `/dev/kvm` is passed in too when the machine has it, so an Android emulator can run inside the container. Codex runs there with its own sandbox off (bubblewrap cannot nest in a container, and the container is the boundary); on the machine itself it always runs in `workspace-write`.
 
 A machine with an NVIDIA GPU needs the NVIDIA Container Toolkit for containers to see it; the daemon warns when the GPU is there and the engine's runtime is not.
 

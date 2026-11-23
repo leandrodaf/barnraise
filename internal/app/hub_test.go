@@ -157,7 +157,7 @@ func TestValidateScopes(t *testing.T) {
 }
 
 func TestActorNameAndItemAccess(t *testing.T) {
-	if actorName(Actor{Kind: ActorSystem}) != string(ActorSystem) || actorName(owner()) != "leandro" {
+	if actorName(Actor{Kind: ActorSystem}) != string(ActorSystem) || actorName(owner()) != "ana" {
 		t.Fatal("actor name")
 	}
 	a := agent("implementer", "I-1", "implement")

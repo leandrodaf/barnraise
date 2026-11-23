@@ -120,6 +120,7 @@ type Machine struct {
 	CPUs      int       `json:"cpus"`
 	MemGB     float64   `json:"mem_gb"`
 	FreeCPU   float64   `json:"free_cpu"`
+	FreeMemGB float64   `json:"free_mem_gb,omitempty"` // memory available right now; 0 = unknown
 	Emulators int       `json:"emulators"`
 	GPU       bool      `json:"gpu"`
 	Labels    []string  `json:"labels,omitempty"`

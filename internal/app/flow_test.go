@@ -263,7 +263,7 @@ func TestAnswerPaths(t *testing.T) {
 
 	it, q = e.exhaust("abandon")
 	got, err := e.svc.Answer(e.ctx, "demo", owner(), q.ID, "4", "not worth it")
-	if err != nil || got.Answer != "Abandon the item — not worth it" || got.AnsweredBy != "leandro" {
+	if err != nil || got.Answer != "Abandon the item — not worth it" || got.AnsweredBy != "ana" {
 		t.Fatalf("answer %+v %v", got, err)
 	}
 	if got := e.wantStatus(it.ID, domain.StatusClosed, ""); got.ClosedReason != "abandoned" {

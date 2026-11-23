@@ -250,7 +250,7 @@ func crit(text string) []domain.Criterion {
 
 const ears = "WHEN the user opens the screen, THE SYSTEM SHALL show the list"
 
-func owner() Actor { return Owner("leandro") }
+func owner() Actor { return Owner("ana") }
 
 // agent is an agent actor of a role working on an item step.
 func agent(role, item, step string) Actor {

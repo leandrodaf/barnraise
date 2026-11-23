@@ -71,6 +71,7 @@ func Probe(ctx context.Context, opts ...Option) domain.Machine {
 		m.Name = h
 	}
 	m.MemGB = p.memGB()
+	m.FreeMemGB = p.memAvailableGB()
 	if load, ok := p.load1(); ok {
 		m.FreeCPU = math.Max(0, float64(m.CPUs)-load)
 	} else {
@@ -101,11 +102,22 @@ func (p *prober) memGB() float64 {
 	return parseMemTotal(data)
 }
 
-func parseMemTotal(data []byte) float64 {
+// memAvailableGB is what the kernel estimates new work can use without swapping.
+func (p *prober) memAvailableGB() float64 {
+	data, err := os.ReadFile(p.path("proc/meminfo"))
+	if err != nil {
+		return 0
+	}
+	return parseMemField(data, "MemAvailable:")
+}
+
+func parseMemTotal(data []byte) float64 { return parseMemField(data, "MemTotal:") }
+
+func parseMemField(data []byte, field string) float64 {
 	sc := bufio.NewScanner(bytes.NewReader(data))
 	for sc.Scan() {
 		f := strings.Fields(sc.Text())
-		if len(f) >= 2 && f[0] == "MemTotal:" {
+		if len(f) >= 2 && f[0] == field {
 			kb, err := strconv.ParseFloat(f[1], 64)
 			if err != nil {
 				return 0

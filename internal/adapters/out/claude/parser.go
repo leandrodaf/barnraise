@@ -108,6 +108,54 @@ type line struct {
 	} `json:"request"`
 }
 
+// accountUsage turns the windows of a rate_limit_event into the account's
+// usage. Claude sends one after each request, so a headless session keeps
+// the account's limits current without the status line.
+func (ri *RateLimitInfo) accountUsage() *domain.Usage {
+	if ri == nil {
+		return nil
+	}
+	u := &domain.Usage{Source: "session"}
+	known := false
+	at := func(sec int64) time.Time {
+		if sec <= 0 {
+			return time.Time{}
+		}
+		return time.Unix(sec, 0).UTC()
+	}
+	for name, w := range ri.Windows {
+		pct := w.Utilization * 100
+		switch {
+		case name == "five_hour":
+			u.FiveHourPct, u.FiveHourResets, known = pct, at(w.ResetsAt), true
+		case name == "seven_day":
+			u.WeeklyPct, u.WeeklyResets, known = pct, at(w.ResetsAt), true
+		case strings.HasPrefix(name, "seven_day"):
+			// The weekly window of one model family (the top model's is the tightest).
+			if pct > u.WeeklyTopPct {
+				u.WeeklyTopPct = pct
+			}
+			known = true
+		}
+	}
+	if !known {
+		// Older shape: one window per event.
+		pct := ri.Utilization * 100
+		switch ri.RateLimitType {
+		case "five_hour":
+			u.FiveHourPct, u.FiveHourResets = pct, at(ri.ResetsAt)
+		case "seven_day":
+			u.WeeklyPct, u.WeeklyResets = pct, at(ri.ResetsAt)
+		default:
+			return nil
+		}
+		if ri.Utilization == 0 {
+			return nil // carries no number: not worth overwriting what is known
+		}
+	}
+	return u
+}
+
 // RateLimit decodes the rate-limit status carried by an event, if any.
 // Claude sends a rate_limit_event after each request with the utilization
 // of the 5-hour and weekly windows.
@@ -204,7 +252,9 @@ func (p *Parser) Parse(b []byte) []ports.ProviderEvent {
 			out = append(out, p.limit(raw, "rate limit "+ri.RateLimitType+" rejected", at))
 		} else {
 			// Utilization report: usage information without token counts.
-			out = append(out, ev(ports.PEUsage))
+			e := ev(ports.PEUsage)
+			e.Limits = l.RateLimitInfo.accountUsage()
+			out = append(out, e)
 		}
 	case "control_request":
 		if l.Request != nil && l.Request.Subtype == "can_use_tool" {

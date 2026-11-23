@@ -16,6 +16,7 @@ import (
 	"strings"
 	"sync"
 	"sync/atomic"
+	"syscall"
 	"time"
 
 	"github.com/leandrodaf/barnraise/internal/domain"
@@ -50,6 +51,11 @@ type Runtime struct {
 	Sandbox bool
 	// EgressProxy routes agent traffic through the allow-list proxy (host:port).
 	EgressProxy string
+	// MinFreeMemGB holds new sessions while the machine has less memory
+	// available than this (default 3 GB). Sessions already running are never
+	// stopped for it: builds, tests and emulators of the items in progress
+	// get the memory first, instead of being killed by the kernel.
+	MinFreeMemGB float64
 	// NoSandboxProviders lists providers that cannot run a command on this
 	// machine because their mandatory sandbox does not work here (Codex on
 	// Linux needs bubblewrap). They get no work instead of failing every command.
@@ -214,6 +220,13 @@ func (r *Runtime) fillSlots(ctx context.Context, p *Project, m domain.Machine) {
 	if limit <= 0 {
 		limit = 1
 	}
+	if why := r.underPressure(m); why != "" {
+		if r.newStartErr(p.Name+"/machine", why) {
+			r.s.d.Log.Warn("holding new sessions: "+why, "machine", m.Name)
+		}
+		return
+	}
+	r.newStartErr(p.Name+"/machine", "")
 	failed := map[string]bool{} // items whose start failed in this pass
 	for _, slot := range r.slotsFor(p, m) {
 		r.mu.Lock()
@@ -279,6 +292,61 @@ func (r *Runtime) fillSlots(ctx context.Context, p *Project, m domain.Machine) {
 	}
 }
 
+// underPressure says why this machine should not start another session
+// right now ("" when it may). Only what is measured counts: a machine
+// that reports nothing is not held.
+func (r *Runtime) underPressure(m domain.Machine) string {
+	min := r.MinFreeMemGB
+	if min == 0 {
+		min = 3
+	}
+	if min > 0 && m.FreeMemGB > 0 && m.FreeMemGB < min {
+		return fmt.Sprintf("%.1f GB of memory available, under the %.0f GB kept free for the work in progress", m.FreeMemGB, min)
+	}
+	r.mu.Lock()
+	running := len(r.running)
+	r.mu.Unlock()
+	if running > 0 && m.CPUs > 0 && m.FreeCPU > 0 && m.FreeCPU < 0.5 {
+		return fmt.Sprintf("the %d CPUs are busy (%.1f free)", m.CPUs, m.FreeCPU)
+	}
+	return ""
+}
+
+// accountLimits records the usage of an account's windows as the provider
+// reports it during a session. Providers repeat it after every request, so
+// only a real change (a point of a window, a new reset time) is recorded.
+func (r *Runtime) accountLimits(ctx context.Context, p *Project, accountID string, u domain.Usage) {
+	p.mu.Lock()
+	cur, ok := p.state.Accounts[accountID]
+	var old domain.Usage
+	if ok {
+		old = cur.Usage
+	}
+	p.mu.Unlock()
+	if !ok {
+		return
+	}
+	// A report may carry only some windows: keep what it does not mention.
+	if u.FiveHourResets.IsZero() && u.FiveHourPct == 0 {
+		u.FiveHourPct, u.FiveHourResets = old.FiveHourPct, old.FiveHourResets
+	}
+	if u.WeeklyResets.IsZero() && u.WeeklyPct == 0 {
+		u.WeeklyPct, u.WeeklyResets = old.WeeklyPct, old.WeeklyResets
+	}
+	if u.WeeklyTopPct == 0 {
+		u.WeeklyTopPct = old.WeeklyTopPct
+	}
+	u.ContextPct = old.ContextPct
+	moved := func(a, b float64) bool { d := a - b; return d >= 1 || d <= -1 }
+	if !moved(u.FiveHourPct, old.FiveHourPct) && !moved(u.WeeklyPct, old.WeeklyPct) && !moved(u.WeeklyTopPct, old.WeeklyTopPct) &&
+		u.FiveHourResets.Equal(old.FiveHourResets) && u.WeeklyResets.Equal(old.WeeklyResets) && !old.UpdatedAt.IsZero() {
+		return
+	}
+	if err := r.s.ReportUsage(ctx, p.Name, System(), accountID, u); err != nil {
+		r.s.d.Log.Debug("account limits", "account", accountID, "err", err)
+	}
+}
+
 // newStartErr records the start failure of an item ("" = it started) and
 // reports whether it differs from the previous one.
 func (r *Runtime) newStartErr(key, msg string) bool {
@@ -338,7 +406,8 @@ func (r *Runtime) start(ctx context.Context, p *Project, slot Slot, a *Assignmen
 		if _, ok := s.d.Providers[provider]; !ok {
 			return false
 		}
-		if why, no := r.NoSandboxProviders[provider]; no {
+		// Inside a container the provider's own sandbox is not used: the container is the boundary.
+		if why, no := r.NoSandboxProviders[provider]; no && p.Cfg().Container.Image == "" {
 			if domain.PickAccount(accounts, provider, s.d.Machine, p.Name, now) != nil {
 				blocked = why // an account is ready, only the sandbox stops it
 			}
@@ -551,6 +620,19 @@ var GPUProbe = func(engine string) (nvidia bool, dri string, renderGID string) {
 	return nvidia, dri, renderGID
 }
 
+// KVMProbe reports the hardware virtualization device and the group that
+// may use it ("" when the machine has none). Replaceable in tests.
+var KVMProbe = func() (dev, gid string) {
+	st, err := os.Stat("/dev/kvm")
+	if err != nil {
+		return "", ""
+	}
+	if sys, ok := st.Sys().(*syscall.Stat_t); ok {
+		gid = strconv.FormatUint(uint64(sys.Gid), 10)
+	}
+	return "/dev/kvm", gid
+}
+
 // gpuArgs gives the container the machine's GPU. It is on by default:
 // building a game, a 3D scene or a model needs it to test the result.
 func (r *Runtime) gpuArgs(engine, mode string) []string {
@@ -570,6 +652,13 @@ func (r *Runtime) gpuArgs(engine, mode string) []string {
 		}
 		if dri != "" {
 			args = append(args, "--device", dri)
+			if gid != "" {
+				args = append(args, "--group-add", gid)
+			}
+		}
+		// Hardware virtualization, for Android emulators inside the container.
+		if dev, gid := KVMProbe(); dev != "" {
+			args = append(args, "--device", dev)
 			if gid != "" {
 				args = append(args, "--group-add", gid)
 			}
@@ -705,6 +794,9 @@ loop:
 			}
 			switch ev.Kind {
 			case ports.PEUsage:
+				if ev.Limits != nil {
+					r.accountLimits(ctx, p, acc.ID, *ev.Limits)
+				}
 				if ev.Usage != nil {
 					usage.Input = maxI(usage.Input, ev.Usage.Input)
 					usage.Output = maxI(usage.Output, ev.Usage.Output)
@@ -946,6 +1038,12 @@ func (r *Runtime) renewLeases(ctx context.Context, p *Project) {
 			}
 			p.mu.Unlock()
 		case errors.Is(err, ports.ErrLost) || errors.Is(err, ports.ErrNotHeld):
+			p.mu.Lock()
+			_, still := p.leases[id]
+			p.mu.Unlock()
+			if !still {
+				continue // released meanwhile (the item was integrated): nothing was lost
+			}
 			r.s.d.Log.Warn("lease lost; another machine took the item", "item", id)
 			r.s.stopItemSessions(id)
 			p.mu.Lock()

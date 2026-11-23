@@ -8,6 +8,10 @@ First version: one Go binary that is the daemon, the CLI, the MCP server and the
 
 ### Added
 
+- **Account limits from the sessions themselves**: Claude Code reports the 5-hour and weekly windows after every request, and Barnraise records them, so headless sessions keep each account's real usage and reset times current without the status line.
+- **Machine pressure**: no new session starts while the machine has less than 3 GB of memory available or no idle CPU; running sessions are never stopped for it.
+- Containers get `/dev/kvm` (Android emulators), and Codex runs inside them without its nested sandbox; `scripts/smoke.sh codex` has Codex write and Claude Code review.
+
 - **Sessions in containers**: `container:` in `barnraise.yaml` runs every agent session inside a container that sees only the item's worktree, the repository's `.git`, the agent's account and the daemon's socket; the machine's GPU is passed in by default (`gpu: auto`). `deploy/agent.Dockerfile` is a starting image.
 
 - **Several parts in one repository**: each part (a backend, a web app, a mobile app) carries its own `barnraise.yaml`, found automatically; `barnraise init` detects the parts and writes the files. Checks run inside the part's folder and only for changes that touch it; a part may choose the flow of its items (`kinds`).

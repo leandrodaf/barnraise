@@ -18,7 +18,7 @@ goal: Personal finance app, Android first, matching docs/prototipo-mobile
 approves: owner
 tracker:
   type: github
-  repo: leandrodaf/financas-pluggy
+  repo: acme/shop
   project: 3
 checks:
   main: scripts/verificar.py
@@ -30,7 +30,7 @@ checks:
 	if errs := cfg.Validate(); len(errs) > 0 {
 		t.Fatal(errs)
 	}
-	if cfg.Language != "pt-BR" || cfg.Tracker.Project != "3" || cfg.CodeHost.Type != "github" || cfg.CodeHost.Repo != "leandrodaf/financas-pluggy" {
+	if cfg.Language != "pt-BR" || cfg.Tracker.Project != "3" || cfg.CodeHost.Type != "github" || cfg.CodeHost.Repo != "acme/shop" {
 		t.Fatalf("%+v %+v", cfg.Tracker, cfg.CodeHost)
 	}
 	if cfg.Checks["main"].Run != "scripts/verificar.py" || cfg.Checks["main"].RunsOn != "local" {

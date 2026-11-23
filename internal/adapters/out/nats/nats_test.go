@@ -24,9 +24,9 @@ func TestSubject(t *testing.T) {
 		e    domain.Event
 		want string
 	}{
-		{domain.Event{Type: domain.EvItemCreated, Project: "nobira", Subject: "I-42"}, "br.nobira.item.I-42.created"},
-		{domain.Event{Type: domain.EvItemStepStarted, Project: "nobira", Subject: "I-42"}, "br.nobira.item.I-42.step.started"},
-		{domain.Event{Type: "machine.heartbeat", Project: "p", Machine: "pc leandro"}, "br.p.machine.pc_leandro.heartbeat"},
+		{domain.Event{Type: domain.EvItemCreated, Project: "shop", Subject: "I-42"}, "br.shop.item.I-42.created"},
+		{domain.Event{Type: domain.EvItemStepStarted, Project: "shop", Subject: "I-42"}, "br.shop.item.I-42.step.started"},
+		{domain.Event{Type: "machine.heartbeat", Project: "p", Machine: "pc ana"}, "br.p.machine.pc_ana.heartbeat"},
 		{domain.Event{Type: domain.EvCheckCompleted, Project: "p", Subject: "C.1"}, "br.p.check.C_1.completed"},
 		{domain.Event{Type: domain.EvOwnerQuestionAsked, Project: "p", Subject: "Q-1"}, "br.p.owner.question.asked.Q-1"},
 		{domain.Event{Type: domain.EvGoalSet, Project: "my proj*"}, "br.my_proj_.goal.set._"},
@@ -123,7 +123,7 @@ func waitFor(t *testing.T, what string, d time.Duration, cond func() bool) {
 }
 
 func ev(id, machine, item string, n int) domain.Event {
-	return domain.NewEvent(id, domain.EvItemUpdated, "nobira", item, machine, "test", time.Now(), domain.Payload{Note: fmt.Sprint(n)})
+	return domain.NewEvent(id, domain.EvItemUpdated, "shop", item, machine, "test", time.Now(), domain.Payload{Note: fmt.Sprint(n)})
 }
 
 func TestBusPublishSubscribe(t *testing.T) {
@@ -133,7 +133,7 @@ func TestBusPublishSubscribe(t *testing.T) {
 
 	var mu sync.Mutex
 	var got []domain.Event
-	if err := m.bus.Subscribe(ctx, "nobira", func(e domain.Event) {
+	if err := m.bus.Subscribe(ctx, "shop", func(e domain.Event) {
 		mu.Lock()
 		got = append(got, e)
 		mu.Unlock()

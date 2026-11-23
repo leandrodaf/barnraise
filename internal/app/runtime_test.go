@@ -553,7 +553,9 @@ func TestRuntimeGivesNoWorkToAProviderWhoseSandboxCannotRun(t *testing.T) {
 func TestRuntimeSessionInAContainer(t *testing.T) {
 	old := GPUProbe
 	GPUProbe = func(string) (bool, string, string) { return true, "/dev/dri", "992" }
-	defer func() { GPUProbe = old }()
+	oldKVM := KVMProbe
+	KVMProbe = func() (string, string) { return "/dev/kvm", "993" }
+	defer func() { GPUProbe, KVMProbe = old, oldKVM }()
 	acct := t.TempDir()
 	cache := t.TempDir()
 	e := newEnv(t, withGit(), withCfg(func(c *domain.ProjectConfig) {
@@ -584,7 +586,7 @@ func TestRuntimeSessionInAContainer(t *testing.T) {
 			t.Fatalf("the daemon's state must not be mounted: %s", m)
 		}
 	}
-	if got := strings.Join(c.Extra, " "); got != "--gpus all --device /dev/dri --group-add 992" {
+	if got := strings.Join(c.Extra, " "); got != "--gpus all --device /dev/dri --group-add 992 --device /dev/kvm --group-add 993" {
 		t.Fatalf("gpu args %q", got)
 	}
 	data, _ := os.ReadFile(specs[0].SettingsFile)
@@ -605,4 +607,81 @@ func TestRuntimeSessionInAContainer(t *testing.T) {
 		t.Fatalf("gpu none: %+v", s)
 	}
 	off.idle()
+}
+
+// A headless session reports the account's windows as it goes: the account
+// shows its real usage without the status line, and repeats are not recorded.
+func TestRuntimeRecordsAccountLimitsReportedByTheSession(t *testing.T) {
+	e := newEnv(t)
+	e.account("fake-1")
+	e.ready("simple", "limits", "x")
+	reset := e.clock.Now().Add(3 * time.Hour).UTC()
+	e.prov.Handle(func(_ context.Context, _ ports.SessionSpec, emit func(ports.ProviderEvent)) (ports.SessionResult, error) {
+		for i := 0; i < 5; i++ { // one report per request, the same numbers
+			emit(ports.ProviderEvent{Kind: ports.PEUsage, Limits: &domain.Usage{FiveHourPct: 42, WeeklyPct: 17, FiveHourResets: reset, Source: "session"}})
+		}
+		emit(ports.ProviderEvent{Kind: ports.PEUsage, Limits: &domain.Usage{FiveHourPct: 42.4, WeeklyPct: 17}}) // under a point: noise
+		emit(ports.ProviderEvent{Kind: ports.PEUsage, Limits: &domain.Usage{FiveHourPct: 45, FiveHourResets: reset}})
+		return ports.SessionResult{}, nil
+	})
+	e.fill()
+	e.idle()
+	acc := e.p.Snapshot().Accounts["fake-1"]
+	if acc.Usage.FiveHourPct != 45 || acc.Usage.WeeklyPct != 17 || !acc.Usage.FiveHourResets.Equal(reset) || acc.Usage.UpdatedAt.IsZero() {
+		t.Fatalf("usage %+v", acc.Usage)
+	}
+	updates := 0
+	for _, typ := range e.store.Types("fake-1") {
+		if typ == domain.EvAccountUpdated {
+			updates++
+		}
+	}
+	// Added, 42%, 45%, and at most one more from the session's own bookkeeping:
+	// never one per report (seven were sent).
+	if updates < 3 || updates > 4 {
+		t.Fatalf("%d account updates; repeated reports must not be recorded", updates)
+	}
+	// At the ceiling the account stops being offered.
+	e.prov.Handle(func(_ context.Context, _ ports.SessionSpec, emit func(ports.ProviderEvent)) (ports.SessionResult, error) {
+		emit(ports.ProviderEvent{Kind: ports.PEUsage, Limits: &domain.Usage{FiveHourPct: 100, FiveHourResets: reset}})
+		return ports.SessionResult{}, nil
+	})
+	e.fill()
+	e.idle()
+	if e.p.Snapshot().Accounts["fake-1"].Available(e.clock.Now()) {
+		t.Fatal("an account at 100% of the 5-hour window is not available")
+	}
+}
+
+// A machine short of memory starts nothing new: the builds and emulators of
+// the items in progress keep the memory instead of being killed.
+func TestRuntimeHoldsNewSessionsUnderMemoryPressure(t *testing.T) {
+	e := newEnv(t)
+	e.account("fake-1")
+	e.ready("simple", "waits for memory", "x")
+	r := e.svc.Runtime()
+	m := r.machine()
+	m.MemGB, m.FreeMemGB = 16, 1.2
+	r.fillSlots(e.ctx, e.p, m)
+	if len(e.prov.Specs()) != 0 {
+		t.Fatal("no session may start with 1.2 GB available")
+	}
+	if why := r.underPressure(m); !strings.Contains(why, "1.2 GB of memory available") {
+		t.Fatalf("reason %q", why)
+	}
+	m.FreeMemGB = 9
+	r.fillSlots(e.ctx, e.p, m)
+	if len(e.prov.Specs()) != 1 {
+		t.Fatalf("with memory back the item starts: %d", len(e.prov.Specs()))
+	}
+	e.idle()
+	// Unknown is not pressure, and the owner may turn the floor off.
+	m.FreeMemGB = 0
+	if why := r.underPressure(m); why != "" {
+		t.Fatalf("unknown memory: %q", why)
+	}
+	r.MinFreeMemGB, m.FreeMemGB = -1, 0.5
+	if why := r.underPressure(m); why != "" {
+		t.Fatalf("floor off: %q", why)
+	}
 }

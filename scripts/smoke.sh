@@ -4,6 +4,7 @@
 #
 #   scripts/smoke.sh fake      scripted provider, no account, no tokens spent
 #   scripts/smoke.sh claude    real Claude Code (spends tokens of the account)
+#   scripts/smoke.sh codex     real Codex writes, real Claude Code reviews (two model families)
 #
 # With `claude` the account is the one the `claude` CLI is already logged in
 # to (in CI: the CLAUDE_CODE_OAUTH_TOKEN environment variable).
@@ -12,6 +13,7 @@
 #   BARNRAISE_BIN   binary to test (default ./barnraise)
 #   SMOKE_TIMEOUT   seconds to wait for the item (default 120 fake, 1800 claude)
 #   SMOKE_CLAUDE_CONFIG_DIR  logged-in Claude config dir (default: the CLI's own)
+#   SMOKE_CODEX_CONFIG_DIR, SMOKE_CODEX_MODEL  the Codex login and model (default ~/.codex, gpt-6-luna)
 #   SMOKE_MODEL     model for every class with `claude` (default haiku)
 #   SMOKE_REVIEW_MODEL  second model, for the review (default sonnet@low)
 #   SMOKE_CONTAINER_IMAGE  run every session inside this container image (see deploy/agent.Dockerfile)
@@ -21,9 +23,9 @@ set -eu
 provider="${1:-fake}"
 case "$provider" in
 fake) default_timeout=120 ;;
-claude) default_timeout=1800 ;;
+claude | codex) default_timeout=1800 ;;
 *)
-	echo "usage: $0 <fake|claude>" >&2
+	echo "usage: $0 <fake|claude|codex>" >&2
 	exit 2
 	;;
 esac
@@ -77,10 +79,14 @@ git checkout -q -B main
 
 printf '# smoke\n\nA tiny repository for the Barnraise smoke test.\n' >README.md
 "$bin" init -y --force --no-accounts --template blank --name smoke --approves analyst --check "test -f README.md" >/dev/null
-if [ "$provider" = claude ]; then
+if [ "$provider" != fake ]; then
 	# Cheap models for every class keep the nightly run small. Two of them,
 	# because a review must run on a different model from the implementation.
 	m="claude/${SMOKE_MODEL:-haiku}, claude/${SMOKE_REVIEW_MODEL:-sonnet@low}"
+	if [ "$provider" = codex ]; then
+		# Codex first for every class; the review then goes to the other family.
+		m="codex/${SMOKE_CODEX_MODEL:-gpt-6-luna}, claude/${SMOKE_MODEL:-haiku}"
+	fi
 	printf '\nmodels:\n  classes:\n    simple: [%s]\n    normal: [%s]\n    complex: [%s]\n    native: [%s]\n    cheap: [%s]\n' "$m" "$m" "$m" "$m" "$m" >>barnraise.yaml
 	"$bin" check >/dev/null
 fi
@@ -108,8 +114,11 @@ until "$bin" status >/dev/null 2>&1; do
 	sleep 0.2
 done
 
-if [ "$provider" = claude ]; then
+if [ "$provider" != fake ]; then
 	"$bin" account add claude --id claude-1 --config-dir "${SMOKE_CLAUDE_CONFIG_DIR:-default}" --skip-login
+fi
+if [ "$provider" = codex ]; then
+	"$bin" account add codex --id codex-1 --config-dir "${SMOKE_CODEX_CONFIG_DIR:-$HOME/.codex}" --skip-login
 fi
 
 "$bin" item add "Add a greeting file" --area docs \
@@ -166,5 +175,9 @@ if printf '%s\n' "$files" | grep -qx -e 'plan.md' -e 'criteria.json'; then
 	exit 1
 fi
 
+if [ "$provider" != fake ]; then
+	echo "smoke: accounts after the run (the windows come from the sessions themselves):"
+	"$bin" account list
+fi
 echo "smoke: integrated in $(($(date +%s) - start))s. Usage:"
 "$bin" metrics --window 24h --json

@@ -143,14 +143,14 @@ Events leave the daemon as [CloudEvents 1.0](https://cloudevents.io/) in structu
 {
   "specversion": "1.0",
   "id": "01JD3…",
-  "source": "barnraise://leandro-pc/demo",
+  "source": "barnraise://laptop/demo",
   "type": "dev.barnraise.item.integrated",
   "subject": "I-42",
   "time": "2026-11-23T12:57:44Z",
   "datacontenttype": "application/json",
   "data": { "item": { "id": "I-42", "status": "integrated", "…": "…" } },
   "barnraiseproject": "demo",
-  "barnraisemachine": "leandro-pc",
+  "barnraisemachine": "laptop",
   "barnraiseactor": "barnraise"
 }
 ```
