@@ -191,3 +191,14 @@ A machine runs as many sessions as its CPUs and total memory allow (`barnraise c
 
 Each account's usage of its 5-hour and weekly windows comes from the sessions themselves (Claude Code reports it after every request) and from the status line of interactive sessions. `barnraise account list` shows the numbers and the reset times; an account at its ceiling is skipped until its window resets.
 
+## Readings and moving checks between machines
+
+Every machine reports, with each heartbeat, its 1-minute load, the memory it has available, the temperature of its processor and, for each GPU, how busy it is, its memory and its temperature (NVIDIA through `nvidia-smi`, AMD through the kernel's counters). A reading a machine cannot take is simply absent.
+
+- `barnraise cluster status` shows the current readings of every machine; the panel shows them in each machine's box; `machine.updated` events on `GET /v1/events` carry them live.
+- `barnraise machine history [machine] [--window 30m]` draws the recent past as small charts; with `--json` (or the `MachineHistory` call of the API) the samples come as numbers, ready to plot.
+
+Readings are live state, not history. They travel on a separate channel that keeps only the latest value of each machine, in memory; they never enter the event log or the database, and a machine that joins later receives one value per machine, not the past. Each daemon keeps a few hours of samples in memory for charts (a few kilobytes per machine), gone on restart.
+
+**A loaded machine hands its checks to an idle one.** When the machine that works on an item has 85% of its CPUs or of its memory in use (or less than 3 GB available), and another machine of the cluster on the same platform is alive, staying, at most half busy and at least 25 points less busy, the item's check runs there: that machine fetches the item's commit, checks it out in a scratch worktree, runs the command and removes the worktree. The result comes back to the item as usual, and the timeline says where the check ran and why. If the other machine cannot do it, the check runs here after all: moving work is an optimization, never a reason for a check to fail. Checks of the merge queue stay on the machine that integrates. `offload: false` on a check keeps it home.
+

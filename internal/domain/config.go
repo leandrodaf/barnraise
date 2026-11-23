@@ -32,11 +32,12 @@ type CheckDef struct {
 	Timeout      time.Duration `json:"timeout"`
 	FlakyRetries int           `json:"flaky_retries"` // up to 3 runs on branch and main
 	Criteria     bool          `json:"criteria,omitempty"`
-	Areas        []string      `json:"areas,omitempty"`  // only for these areas
-	Paths        []string      `json:"paths,omitempty"`  // …or when a touched file matches one of these globs
-	Dir          string        `json:"dir,omitempty"`    // folder the command runs in, relative to the repository root
-	Covers       []string      `json:"covers,omitempty"` // checks this one makes redundant when both apply
-	Order        int           `json:"order,omitempty"`  // lower runs first (cheap before expensive); ties by name
+	Areas        []string      `json:"areas,omitempty"`      // only for these areas
+	Paths        []string      `json:"paths,omitempty"`      // …or when a touched file matches one of these globs
+	Dir          string        `json:"dir,omitempty"`        // folder the command runs in, relative to the repository root
+	NoOffload    bool          `json:"no_offload,omitempty"` // never moved to an idle machine (it needs something only this machine has)
+	Covers       []string      `json:"covers,omitempty"`     // checks this one makes redundant when both apply
+	Order        int           `json:"order,omitempty"`      // lower runs first (cheap before expensive); ties by name
 }
 
 // ContainerDef makes every agent session of the project run inside a

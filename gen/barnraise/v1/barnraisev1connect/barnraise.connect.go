@@ -187,6 +187,9 @@ const (
 	// BarnraiseServiceListMachinesProcedure is the fully-qualified name of the BarnraiseService's
 	// ListMachines RPC.
 	BarnraiseServiceListMachinesProcedure = "/barnraise.v1.BarnraiseService/ListMachines"
+	// BarnraiseServiceMachineHistoryProcedure is the fully-qualified name of the BarnraiseService's
+	// MachineHistory RPC.
+	BarnraiseServiceMachineHistoryProcedure = "/barnraise.v1.BarnraiseService/MachineHistory"
 	// BarnraiseServiceLeaveMachineProcedure is the fully-qualified name of the BarnraiseService's
 	// LeaveMachine RPC.
 	BarnraiseServiceLeaveMachineProcedure = "/barnraise.v1.BarnraiseService/LeaveMachine"
@@ -267,6 +270,9 @@ type BarnraiseServiceClient interface {
 	ListAccounts(context.Context, *connect.Request[v1.ProjectRef]) (*connect.Response[v1.AccountsResponse], error)
 	ReportUsage(context.Context, *connect.Request[v1.ReportUsageRequest]) (*connect.Response[v1.Empty], error)
 	ListMachines(context.Context, *connect.Request[v1.ProjectRef]) (*connect.Response[v1.MachinesResponse], error)
+	// Recent readings of the machines (CPU, memory, temperature, GPU), kept in
+	// memory by each daemon for charts. Never stored.
+	MachineHistory(context.Context, *connect.Request[v1.MachineHistoryRequest]) (*connect.Response[v1.MachineHistoryResponse], error)
 	LeaveMachine(context.Context, *connect.Request[v1.ProjectRef]) (*connect.Response[v1.LeaveResponse], error)
 	// Tokens and audit
 	CreateToken(context.Context, *connect.Request[v1.CreateTokenRequest]) (*connect.Response[v1.CreateTokenResponse], error)
@@ -604,6 +610,12 @@ func NewBarnraiseServiceClient(httpClient connect.HTTPClient, baseURL string, op
 			connect.WithSchema(barnraiseServiceMethods.ByName("ListMachines")),
 			connect.WithClientOptions(opts...),
 		),
+		machineHistory: connect.NewClient[v1.MachineHistoryRequest, v1.MachineHistoryResponse](
+			httpClient,
+			baseURL+BarnraiseServiceMachineHistoryProcedure,
+			connect.WithSchema(barnraiseServiceMethods.ByName("MachineHistory")),
+			connect.WithClientOptions(opts...),
+		),
 		leaveMachine: connect.NewClient[v1.ProjectRef, v1.LeaveResponse](
 			httpClient,
 			baseURL+BarnraiseServiceLeaveMachineProcedure,
@@ -692,6 +704,7 @@ type barnraiseServiceClient struct {
 	listAccounts    *connect.Client[v1.ProjectRef, v1.AccountsResponse]
 	reportUsage     *connect.Client[v1.ReportUsageRequest, v1.Empty]
 	listMachines    *connect.Client[v1.ProjectRef, v1.MachinesResponse]
+	machineHistory  *connect.Client[v1.MachineHistoryRequest, v1.MachineHistoryResponse]
 	leaveMachine    *connect.Client[v1.ProjectRef, v1.LeaveResponse]
 	createToken     *connect.Client[v1.CreateTokenRequest, v1.CreateTokenResponse]
 	listTokens      *connect.Client[v1.Empty, v1.TokensResponse]
@@ -964,6 +977,11 @@ func (c *barnraiseServiceClient) ListMachines(ctx context.Context, req *connect.
 	return c.listMachines.CallUnary(ctx, req)
 }
 
+// MachineHistory calls barnraise.v1.BarnraiseService.MachineHistory.
+func (c *barnraiseServiceClient) MachineHistory(ctx context.Context, req *connect.Request[v1.MachineHistoryRequest]) (*connect.Response[v1.MachineHistoryResponse], error) {
+	return c.machineHistory.CallUnary(ctx, req)
+}
+
 // LeaveMachine calls barnraise.v1.BarnraiseService.LeaveMachine.
 func (c *barnraiseServiceClient) LeaveMachine(ctx context.Context, req *connect.Request[v1.ProjectRef]) (*connect.Response[v1.LeaveResponse], error) {
 	return c.leaveMachine.CallUnary(ctx, req)
@@ -1052,6 +1070,9 @@ type BarnraiseServiceHandler interface {
 	ListAccounts(context.Context, *connect.Request[v1.ProjectRef]) (*connect.Response[v1.AccountsResponse], error)
 	ReportUsage(context.Context, *connect.Request[v1.ReportUsageRequest]) (*connect.Response[v1.Empty], error)
 	ListMachines(context.Context, *connect.Request[v1.ProjectRef]) (*connect.Response[v1.MachinesResponse], error)
+	// Recent readings of the machines (CPU, memory, temperature, GPU), kept in
+	// memory by each daemon for charts. Never stored.
+	MachineHistory(context.Context, *connect.Request[v1.MachineHistoryRequest]) (*connect.Response[v1.MachineHistoryResponse], error)
 	LeaveMachine(context.Context, *connect.Request[v1.ProjectRef]) (*connect.Response[v1.LeaveResponse], error)
 	// Tokens and audit
 	CreateToken(context.Context, *connect.Request[v1.CreateTokenRequest]) (*connect.Response[v1.CreateTokenResponse], error)
@@ -1385,6 +1406,12 @@ func NewBarnraiseServiceHandler(svc BarnraiseServiceHandler, opts ...connect.Han
 		connect.WithSchema(barnraiseServiceMethods.ByName("ListMachines")),
 		connect.WithHandlerOptions(opts...),
 	)
+	barnraiseServiceMachineHistoryHandler := connect.NewUnaryHandler(
+		BarnraiseServiceMachineHistoryProcedure,
+		svc.MachineHistory,
+		connect.WithSchema(barnraiseServiceMethods.ByName("MachineHistory")),
+		connect.WithHandlerOptions(opts...),
+	)
 	barnraiseServiceLeaveMachineHandler := connect.NewUnaryHandler(
 		BarnraiseServiceLeaveMachineProcedure,
 		svc.LeaveMachine,
@@ -1523,6 +1550,8 @@ func NewBarnraiseServiceHandler(svc BarnraiseServiceHandler, opts ...connect.Han
 			barnraiseServiceReportUsageHandler.ServeHTTP(w, r)
 		case BarnraiseServiceListMachinesProcedure:
 			barnraiseServiceListMachinesHandler.ServeHTTP(w, r)
+		case BarnraiseServiceMachineHistoryProcedure:
+			barnraiseServiceMachineHistoryHandler.ServeHTTP(w, r)
 		case BarnraiseServiceLeaveMachineProcedure:
 			barnraiseServiceLeaveMachineHandler.ServeHTTP(w, r)
 		case BarnraiseServiceCreateTokenProcedure:
@@ -1752,6 +1781,10 @@ func (UnimplementedBarnraiseServiceHandler) ReportUsage(context.Context, *connec
 
 func (UnimplementedBarnraiseServiceHandler) ListMachines(context.Context, *connect.Request[v1.ProjectRef]) (*connect.Response[v1.MachinesResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("barnraise.v1.BarnraiseService.ListMachines is not implemented"))
+}
+
+func (UnimplementedBarnraiseServiceHandler) MachineHistory(context.Context, *connect.Request[v1.MachineHistoryRequest]) (*connect.Response[v1.MachineHistoryResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("barnraise.v1.BarnraiseService.MachineHistory is not implemented"))
 }
 
 func (UnimplementedBarnraiseServiceHandler) LeaveMachine(context.Context, *connect.Request[v1.ProjectRef]) (*connect.Response[v1.LeaveResponse], error) {

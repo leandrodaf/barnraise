@@ -8,6 +8,10 @@ First version: one Go binary that is the daemon, the CLI, the MCP server and the
 
 ### Added
 
+- **Machine readings**: load, available memory, processor temperature and each GPU's use, memory and temperature, reported with every heartbeat; shown by `barnraise cluster status` and the panel, with `barnraise machine history` and the `MachineHistory` call for charts. Live state now travels on a last-value channel (`BR_LIVE`): never stored, never replayed as history.
+- **Checks move to idle machines**: a loaded machine hands an item's check to an idle machine of the cluster, which checks the commit out, runs it and cleans up; it falls back to running here when the other machine cannot. `offload: false` on a check opts out.
+- Real GitHub: the draft pull request opens with the item's first commit, is closed (and its branch removed) when the squash lands, tracker updates are serialized, and a delivery that changes nothing is sent back instead of landing as an empty commit.
+
 - **Account limits from the sessions themselves**: Claude Code reports the 5-hour and weekly windows after every request, and Barnraise records them, so headless sessions keep each account's real usage and reset times current without the status line.
 - **Machine pressure**: no new session starts while the machine has less than 3 GB of memory available or no idle CPU; running sessions are never stopped for it.
 - Containers get `/dev/kvm` (Android emulators), and Codex runs inside them without its nested sandbox; `scripts/smoke.sh codex` has Codex write and Claude Code review.

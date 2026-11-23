@@ -575,6 +575,53 @@ func (e *env) checkCmd() *cobra.Command {
 	return c
 }
 
+// spark draws values (0..top) as a row of block characters, at most 60 wide
+// (the newest readings when there are more).
+func spark(vals []float64, top float64) string {
+	const blocks = "▁▂▃▄▅▆▇█"
+	if len(vals) > 60 {
+		vals = vals[len(vals)-60:]
+	}
+	var b strings.Builder
+	for _, v := range vals {
+		i := int(v / top * 8)
+		if i < 0 {
+			i = 0
+		}
+		if i > 7 {
+			i = 7
+		}
+		b.WriteString(string([]rune(blocks)[i]))
+	}
+	return b.String()
+}
+
+// machineLive is the line of live readings of a machine: load, memory,
+// temperature and each GPU. Readings a machine does not report are left out.
+func machineLive(m *pb.Machine) string {
+	var parts []string
+	if m.Load1 > 0 && m.Cpus > 0 {
+		parts = append(parts, fmt.Sprintf("load %.1f (%.0f%% of %d CPUs)", m.Load1, min(100, m.Load1/float64(m.Cpus)*100), m.Cpus))
+	}
+	if m.FreeMemGb > 0 && m.MemGb > 0 {
+		parts = append(parts, fmt.Sprintf("memory %.1f of %.0f GB used", m.MemGb-m.FreeMemGb, m.MemGb))
+	}
+	if m.TempC > 0 {
+		parts = append(parts, fmt.Sprintf("cpu %.0f°C", m.TempC))
+	}
+	for _, g := range m.Gpus {
+		s := fmt.Sprintf("gpu %s %.0f%%", g.Name, g.UtilPct)
+		if g.MemTotalGb > 0 {
+			s += fmt.Sprintf(" %.1f/%.1f GB", g.MemUsedGb, g.MemTotalGb)
+		}
+		if g.TempC > 0 {
+			s += fmt.Sprintf(" %.0f°C", g.TempC)
+		}
+		parts = append(parts, s)
+	}
+	return strings.Join(parts, " · ")
+}
+
 func orDash(s string) string {
 	if s == "" {
 		return "- (no area)"
@@ -1194,7 +1241,55 @@ func (e *env) machineCmd() *cobra.Command {
 			return nil
 		}}
 	list := &cobra.Command{Use: "list", Short: "Machines with health, load and slots", Args: cobra.NoArgs, RunE: e.clusterStatus}
-	c.AddCommand(invite, join, leave, list)
+	var window string
+	history := &cobra.Command{Use: "history [machine]", Short: "Recent CPU, memory, temperature and GPU of the machines, as small charts", Args: cobra.MaximumNArgs(1),
+		Long: "Shows the recent readings of one machine, or of every machine of the cluster.\n" +
+			"The readings are live state: each daemon keeps a few hours of them in memory, nothing is stored.\n" +
+			"With --json the samples come as numbers, ready to plot.",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			ctx, cancel := e.ctx()
+			defer cancel()
+			machine := ""
+			if len(args) == 1 {
+				machine = args[0]
+			}
+			res, err := e.client().MachineHistory(ctx, req(&pb.MachineHistoryRequest{Project: e.proj(ctx), Machine: machine, Window: window}))
+			if err != nil {
+				return err
+			}
+			e.print(res.Msg, func(w io.Writer) {
+				if len(res.Msg.Series) == 0 {
+					fmt.Fprintln(w, "No readings yet: the first ones arrive with the next heartbeat.")
+				}
+				for _, s := range res.Msg.Series {
+					n := len(s.Samples)
+					if n == 0 {
+						continue
+					}
+					last := s.Samples[n-1]
+					fmt.Fprintf(w, "%s  (%d readings since %s)\n", s.Machine, n, when(s.Samples[0].At))
+					col := func(f func(*pb.MachineSample) float64) []float64 {
+						out := make([]float64, n)
+						for i, x := range s.Samples {
+							out[i] = f(x)
+						}
+						return out
+					}
+					fmt.Fprintf(w, "  cpu     %s %5.1f%%\n", spark(col(func(x *pb.MachineSample) float64 { return x.CpuPct }), 100), last.CpuPct)
+					fmt.Fprintf(w, "  memory  %s %5.1f%%\n", spark(col(func(x *pb.MachineSample) float64 { return x.MemPct }), 100), last.MemPct)
+					if last.TempC > 0 {
+						fmt.Fprintf(w, "  temp    %s %5.1f°C\n", spark(col(func(x *pb.MachineSample) float64 { return x.TempC }), 100), last.TempC)
+					}
+					if last.GpuPct > 0 || last.GpuTempC > 0 {
+						fmt.Fprintf(w, "  gpu     %s %5.1f%%  %.0f°C\n", spark(col(func(x *pb.MachineSample) float64 { return x.GpuPct }), 100), last.GpuPct, last.GpuTempC)
+					}
+					fmt.Fprintf(w, "  busy    %d of %d\n", last.Busy, last.Slots)
+				}
+			})
+			return nil
+		}}
+	history.Flags().StringVar(&window, "window", "", "how far back: 15m, 2h (default: everything kept)")
+	c.AddCommand(invite, join, leave, list, history)
 	return c
 }
 
@@ -1219,6 +1314,9 @@ func (e *env) clusterStatus(cmd *cobra.Command, _ []string) error {
 	e.print(res.Msg, func(w io.Writer) {
 		for _, m := range res.Msg.Machines {
 			fmt.Fprintf(w, "%-6s %-20s cpu %d mem %.0fGB emulators %d busy %d/%d version %s seen %s\n", m.Health, m.Name, m.Cpus, m.MemGb, m.Emulators, m.Busy, m.Slots, m.Version, when(m.LastSeen))
+			if live := machineLive(m); live != "" {
+				fmt.Fprintf(w, "       %s\n", live)
+			}
 		}
 		for _, s := range res.Msg.Sessions {
 			fmt.Fprintf(w, "  session %s on %s %s\n", s.Fields["agent"].GetStringValue(), s.Fields["item"].GetStringValue(), s.Fields["step"].GetStringValue())

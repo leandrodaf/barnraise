@@ -673,7 +673,73 @@ func (r *checkRouter) Run(ctx context.Context, spec ports.CheckSpec) (domain.Che
 			spec.Def.RunsOn = "local"
 		}
 	}
+	if target, why := r.d.offloadTarget(project, spec); target != "" {
+		r.d.offload(project, target, why, spec, run)
+		return domain.CheckResult{}, true, nil // the result comes through ReportCheck
+	}
 	return run.Run(ctx, spec)
+}
+
+// offloadTarget picks an idle machine for a local check when this one is
+// loaded ("" = run it here). Only a check of an item's pushed commit can
+// move: the other machine checks that commit out by itself.
+func (d *daemon) offloadTarget(project string, spec ports.CheckSpec) (target, why string) {
+	def := spec.Def
+	if (def.RunsOn != "local" && def.RunsOn != "") || def.NoOffload || spec.Main || spec.Commit == "" || spec.Branch == "" || d.repl == nil {
+		return "", ""
+	}
+	p, err := d.svc.Project(project)
+	if err != nil {
+		return "", ""
+	}
+	self := d.probe()
+	snap := p.Snapshot()
+	peers := make([]*domain.Machine, 0, len(snap.Machines))
+	for _, m := range snap.Machines {
+		if _, connected := d.repl.Conn(m.Name); connected {
+			peers = append(peers, m)
+		}
+	}
+	return domain.ChooseOffload(self, peers, time.Now(), p.Cfg().Lease.TTL)
+}
+
+// offload runs a check on another machine and reports its result. If that
+// machine cannot do it (unreachable, the commit is not there, it is leaving),
+// the check runs here after all: moving work is an optimization, never a
+// reason for a check to fail.
+func (d *daemon) offload(project, target, why string, spec ports.CheckSpec, local *checks.Runner) {
+	d.log.Info("check moved to an idle machine", "check", spec.Def.Name, "item", spec.ItemID, "to", target, "why", why)
+	remote := spec
+	remote.Def.NoOffload = true // the other machine runs it; it does not pass it on
+	body, _ := json.Marshal(remoteCheck{Project: project, Spec: remote})
+	go func() {
+		ctx, cancel := context.WithTimeout(context.Background(), spec.Def.Timeout+5*time.Minute)
+		defer cancel()
+		var res domain.CheckResult
+		out, err := d.repl.Request(ctx, target, natsx.RPCSubject(target, "check"), body, spec.Def.Timeout+2*time.Minute, 0)
+		if err == nil {
+			err = json.Unmarshal(out, &res)
+		}
+		if err == nil {
+			res.RunsOn = "machine:" + target
+			res.Summary = strings.TrimSpace("ran on " + target + " (" + why + "). " + res.Summary)
+		} else {
+			d.log.Warn("the idle machine could not run the check; running it here", "check", spec.Def.Name, "item", spec.ItemID, "machine", target, "err", err)
+			here := spec
+			here.Def.NoOffload = true
+			var pending bool
+			res, pending, err = local.Run(ctx, here)
+			if err != nil {
+				res = domain.CheckResult{Passed: false, Summary: "check could not run: " + err.Error()}
+			} else if pending {
+				return
+			}
+		}
+		res.ItemID, res.Check, res.Commit = spec.ItemID, spec.Def.Name, spec.Commit
+		if _, err := d.svc.ReportCheck(context.Background(), project, app.System(), res); err != nil {
+			d.log.Warn("report the moved check", "err", err)
+		}
+	}()
 }
 
 func (d *daemon) projectOfDir(dir string) string {
@@ -748,6 +814,21 @@ func (d *daemon) serveRemoteChecks(ctx context.Context) {
 	if b == nil {
 		return
 	}
+	// Leftovers of a daemon that died in the middle of a check for another machine.
+	d.mu.Lock()
+	roots := make(map[string]string, len(d.roots))
+	for name, root := range d.roots {
+		roots[name] = root
+	}
+	d.mu.Unlock()
+	for name := range roots {
+		stale, _ := filepath.Glob(filepath.Join(d.dataDir, "worktrees", name, "_remote-*"))
+		if p, err := d.svc.Project(name); err == nil && p.Ports().Git != nil {
+			for _, dir := range stale {
+				_ = p.Ports().Git.RemoveWorktree(ctx, dir)
+			}
+		}
+	}
 	_ = natsx.Serve(ctx, b.Conn(), natsx.RPCSubject(d.df.Machine, "check"), func(ctx context.Context, data []byte) ([]byte, error) {
 		var rc remoteCheck
 		if err := json.Unmarshal(data, &rc); err != nil {
@@ -771,6 +852,7 @@ func (d *daemon) serveRemoteChecks(ctx context.Context) {
 		defer func() { _ = g.RemoveWorktree(context.Background(), dir) }()
 		rc.Spec.Dir = dir
 		rc.Spec.Def.RunsOn = "local"
+		rc.Spec.Def.NoOffload = true // asked to run it here: never passed on again
 		res, _, err := (&checkRouter{d: d}).Run(ctx, rc.Spec)
 		if err != nil {
 			return nil, err
@@ -787,6 +869,11 @@ func (d *daemon) probe() domain.Machine {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	m := sysinfo.Probe(ctx)
+	// For tests of what a loaded machine does: BARNRAISE_TEST_LOAD_PCT=95
+	// makes this machine report that share of its CPUs busy.
+	if v, err := strconv.ParseFloat(os.Getenv("BARNRAISE_TEST_LOAD_PCT"), 64); err == nil && v > 0 {
+		m.Load1 = float64(m.CPUs) * v / 100
+	}
 	m.Name = d.df.Machine
 	m.Slots = sysinfo.Slots(m, 4, m.Emulators)
 	m.Version = version

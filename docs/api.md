@@ -115,7 +115,7 @@ gRPC clients use the same service with HTTP/2; generated clients in Go are in `g
 | Views | `Status`, `Metrics`, `Digest`, `Queue`, `ProcessQueue`, `ListEvents` |
 | Messaging | `SendMessage`, `Inbox`, `Journal`, `ReportViolation` |
 | Knowledge | `Context`, `Find`, `Get`, `Related`, `Why`, `History`, `Rules`, `Revalidate`, `Sweep` |
-| Accounts and machines | `UpsertAccount`, `ListAccounts`, `ReportUsage`, `ListMachines`, `LeaveMachine` |
+| Accounts and machines | `UpsertAccount`, `ListAccounts`, `ReportUsage`, `ListMachines`, `MachineHistory`, `LeaveMachine` |
 | Tokens and audit | `CreateToken`, `ListTokens`, `RevokeToken`, `ListAudit` |
 
 ## Events

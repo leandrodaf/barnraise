@@ -184,7 +184,7 @@ func NkeyOption(seed string) (nats.Option, error) {
 // peer cannot publish events into this machine's stream.
 func PeerPermissions(publicKey, localMachine string) UserPerm {
 	var pub []string
-	for _, st := range []string{StreamName, blobStream} {
+	for _, st := range []string{StreamName, LiveStreamName, blobStream} {
 		pub = append(pub,
 			"$JS.API.STREAM.INFO."+st,
 			"$JS.API.CONSUMER.CREATE."+st,

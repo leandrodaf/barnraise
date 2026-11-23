@@ -271,6 +271,9 @@ func (r *Replicator) run(ctx context.Context, p *peerLink, max time.Duration) {
 		p.setErr(err)
 		return
 	}
+	var live sync.WaitGroup
+	live.Go(func() { r.runLive(ctx, js, p, max) })
+	defer live.Wait() // before done is closed: the connection outlives both loops
 	for attempt := 0; ctx.Err() == nil; attempt++ {
 		progressed, err := r.consume(ctx, js, p)
 		if ctx.Err() != nil {
@@ -287,6 +290,64 @@ func (r *Replicator) run(ctx context.Context, p *peerLink, max time.Duration) {
 		case <-ctx.Done():
 			return
 		case <-time.After(Backoff(attempt, 250*time.Millisecond, max)):
+		}
+	}
+}
+
+// runLive follows the peer's live state: the latest value of each subject
+// first, then every change. No cursor is kept: after a restart the latest
+// values are simply read again.
+func (r *Replicator) runLive(ctx context.Context, js jetstream.JetStream, p *peerLink, max time.Duration) {
+	for attempt := 0; ctx.Err() == nil; attempt++ {
+		if err := r.consumeLive(ctx, js, p); err != nil && ctx.Err() == nil {
+			r.logf("replica %s: live state: %v", p.name, err)
+		} else {
+			attempt = 0
+		}
+		select {
+		case <-ctx.Done():
+			return
+		case <-time.After(Backoff(attempt, 250*time.Millisecond, max)):
+		}
+	}
+}
+
+func (r *Replicator) consumeLive(ctx context.Context, js jetstream.JetStream, p *peerLink) error {
+	ictx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	cons, err := js.OrderedConsumer(ictx, LiveStreamName, jetstream.OrderedConsumerConfig{
+		DeliverPolicy: jetstream.DeliverLastPerSubjectPolicy,
+		NamePrefix:    fmt.Sprintf("live_%s_%x", Token(r.machine), rand.Uint64()),
+	})
+	cancel()
+	if err != nil {
+		if errors.Is(err, jetstream.ErrStreamNotFound) {
+			// An older peer without the live stream: nothing to follow, try again later.
+			select {
+			case <-ctx.Done():
+			case <-time.After(time.Minute):
+			}
+			return nil
+		}
+		return fmt.Errorf("live consumer: %w", err)
+	}
+	it, err := cons.Messages(jetstream.PullMaxMessages(64))
+	if err != nil {
+		return fmt.Errorf("live messages: %w", err)
+	}
+	stop := context.AfterFunc(ctx, it.Stop)
+	defer stop()
+	defer it.Stop()
+	for {
+		msg, err := it.Next()
+		if err != nil {
+			if errors.Is(err, jetstream.ErrMsgIteratorClosed) {
+				return ctx.Err()
+			}
+			return err
+		}
+		var e domain.Event
+		if json.Unmarshal(msg.Data(), &e) == nil && e.Machine == p.name && e.LiveOnly() {
+			_ = r.apply(e) // a lost reading is replaced by the next one
 		}
 	}
 }

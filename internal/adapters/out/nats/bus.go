@@ -24,7 +24,28 @@ const (
 	DedupeWindow = 2 * time.Minute
 	// HeaderMachine carries the origin machine so replication can filter without decoding.
 	HeaderMachine = "Br-Machine"
+	// LiveStreamName is the stream of live state (machine heartbeats and
+	// readings, session progress). It keeps the latest message of each
+	// subject only, in memory, for a few minutes: a last-value cache, not a
+	// log. Readings arrive every few seconds and nobody needs yesterday's.
+	LiveStreamName = "BR_LIVE"
+	// LiveSubjectRoot is the root of live subjects (outside "br.>", so live
+	// state never enters the event stream).
+	LiveSubjectRoot = "brlive"
+	// LiveMaxAge is how long a live value stays without being replaced.
+	LiveMaxAge = 5 * time.Minute
 )
+
+// LiveSubject maps a live event to its subject: one per project, type and
+// subject (the machine, the agent), so a new value replaces the old one.
+func LiveSubject(e domain.Event) string {
+	who := e.Subject
+	if who == "" {
+		who = e.Machine
+	}
+	parts := append([]string{LiveSubjectRoot, Token(e.Project)}, typeTokens(e.Type)...)
+	return strings.Join(append(parts, Token(who)), ".")
+}
 
 // Subject maps an event to its subject:
 //
@@ -120,6 +141,19 @@ func NewBus(ctx context.Context, nc *nats.Conn, opts BusOptions) (*Bus, error) {
 	if err != nil {
 		return nil, fmt.Errorf("nats: create stream: %w", err)
 	}
+	_, err = js.CreateOrUpdateStream(ctx, jetstream.StreamConfig{
+		Name:              LiveStreamName,
+		Description:       "latest live state of this machine: heartbeats, readings, sessions",
+		Subjects:          []string{LiveSubjectRoot + ".>"},
+		Storage:           jetstream.MemoryStorage,
+		MaxMsgsPerSubject: 1,
+		MaxAge:            LiveMaxAge,
+		Retention:         jetstream.LimitsPolicy,
+		Discard:           jetstream.DiscardOld,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("nats: create live stream: %w", err)
+	}
 	return &Bus{nc: nc, js: js}, nil
 }
 
@@ -146,7 +180,11 @@ func (b *Bus) Publish(ctx context.Context, e domain.Event) error {
 	if err != nil {
 		return err
 	}
-	m := nats.NewMsg(Subject(e))
+	subject := Subject(e)
+	if e.LiveOnly() {
+		subject = LiveSubject(e) // replaces the previous value; never part of the log
+	}
+	m := nats.NewMsg(subject)
 	m.Data = data
 	m.Header.Set(nats.MsgIdHdr, e.ID)
 	if e.Machine != "" {

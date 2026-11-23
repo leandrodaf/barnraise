@@ -105,6 +105,7 @@ Toda máquina roda o mesmo binário e puxa o próprio próximo item. Não há co
 - **Os eventos são espelhados.** Cada máquina tem seu NATS JetStream embutido; os eventos correm entre as máquinas sempre que elas se enxergam, e cada uma continua trabalhando quando fica isolada.
 - **Parear leva um código de 6 dígitos.** `barnraise machine invite` numa máquina, `barnraise machine join <código>` na outra. Pelo Tailscale quando ele está instalado; cada máquina tem sua nkey e só pode ler os eventos da outra.
 - **Uma versão só.** A máquina que vê outra com versão mais nova baixa o binário, confere o hash e reinicia quando não há sessão rodando.
+- **As máquinas conhecem a carga umas das outras.** Cada uma informa CPU, memória, temperatura e GPU, como estado ao vivo que nunca é gravado. A máquina carregada passa as verificações para uma ociosa, que limpa o que criou; `barnraise machine history` desenha as leituras recentes.
 
 ![Falha: a máquina A pega um item com uma ref no git e renova; quando A cai, a máquina B toma a ref depois do prazo e continua da última etapa enviada](img/failover.svg)
 

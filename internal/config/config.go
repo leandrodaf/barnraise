@@ -374,6 +374,7 @@ type checkField struct {
 	Paths        []string `yaml:"paths"`
 	Covers       []string `yaml:"covers"`
 	Order        int      `yaml:"order"`
+	Offload      *bool    `yaml:"offload"`
 }
 
 func (c *checkField) UnmarshalYAML(n *yaml.Node) error {
@@ -424,7 +425,7 @@ func (r *rawConfig) compile(root, tmpl string) (*domain.ProjectConfig, error) {
 
 	c.Checks = map[string]domain.CheckDef{}
 	for name, cf := range r.Checks {
-		d := domain.CheckDef{Name: name, Run: cf.Run, RunsOn: def(cf.RunsOn, "local"), Workflow: cf.Workflow, URL: cf.URL, Scope: def(cf.Scope, "touched"), Areas: cf.Areas, Paths: cf.Paths, Covers: cf.Covers, Order: cf.Order, FlakyRetries: 3}
+		d := domain.CheckDef{Name: name, Run: cf.Run, RunsOn: def(cf.RunsOn, "local"), Workflow: cf.Workflow, URL: cf.URL, Scope: def(cf.Scope, "touched"), Areas: cf.Areas, Paths: cf.Paths, Covers: cf.Covers, Order: cf.Order, NoOffload: cf.Offload != nil && !*cf.Offload, FlakyRetries: 3}
 		if cf.FlakyRetries != nil {
 			d.FlakyRetries = *cf.FlakyRetries
 		}

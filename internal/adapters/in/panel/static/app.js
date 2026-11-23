@@ -710,9 +710,15 @@ async function viewMachines() {
         bar(m.slots ? ((m.busy || 0) * 100) / m.slots : 0, { label: t('slots', m.busy || 0, m.slots || 0) })),
       kv([
         ['CPU', t('cpus', m.cpus || 0, free <= 1 && free > 0 ? pct(free * 100) : num(free))],
-        [t('memoryLabel'), t('memory', num(m.mem_gb))],
+        [t('memoryLabel'), Number(m.free_mem_gb) > 0
+          ? t('memoryUsed', num(Math.max(0, (Number(m.mem_gb) || 0) - Number(m.free_mem_gb))), num(m.mem_gb))
+          : t('memory', num(m.mem_gb))],
+        [t('loadLabel'), Number(m.load1) > 0 ? num(m.load1) : null],
+        [t('tempLabel'), Number(m.temp_c) > 0 ? t('degrees', num(m.temp_c)) : null],
+        ...(m.gpus || []).map((g) => [t('gpu'), t('gpuLive', g.name, num(g.util_pct || 0), num(g.mem_used_gb || 0), num(g.mem_total_gb || 0))
+          + (Number(g.temp_c) > 0 ? ' · ' + t('degrees', num(g.temp_c)) : '')]),
         [t('emulatorsLabel'), t('emulators', m.emulators || 0)],
-        [t('gpu'), m.gpu ? '✓' : ''],
+        [t('gpu'), (m.gpus || []).length ? null : (m.gpu ? '✓' : '')],
         [t('versionLabel'), m.version],
         [t('lastSeenLabel'), ago(m.last_seen)],
         [t('accounts'), (m.accounts || []).join(', ')],

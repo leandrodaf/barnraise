@@ -112,15 +112,56 @@ func NewEvent(id, typ, project, subject, machine, actor string, at time.Time, p 
 	return Event{ID: id, Type: typ, Project: project, Subject: subject, Machine: machine, Actor: actor, Time: at.UTC(), Data: data}
 }
 
+// LiveOnly reports whether an event carries live state (a machine's
+// heartbeat and readings, an agent session's progress): only its latest
+// value matters, so it is never stored and never kept as history.
+func (e Event) LiveOnly() bool {
+	return e.Type == EvMachineUpdated || e.Type == EvAgentSession
+}
+
+// GPUStat is the live state of one GPU of a machine.
+type GPUStat struct {
+	Name       string  `json:"name"`
+	UtilPct    float64 `json:"util_pct"`
+	MemUsedGB  float64 `json:"mem_used_gb"`
+	MemTotalGB float64 `json:"mem_total_gb"`
+	TempC      float64 `json:"temp_c,omitempty"`
+}
+
+// MemUsedPct is the share of memory in use (0 when unknown).
+func (m Machine) MemUsedPct() float64 {
+	if m.MemGB <= 0 || m.FreeMemGB <= 0 {
+		return 0
+	}
+	return (1 - m.FreeMemGB/m.MemGB) * 100
+}
+
+// CPUUsedPct is the share of the CPUs in use by the 1-minute load (0 when unknown).
+func (m Machine) CPUUsedPct() float64 {
+	if m.CPUs <= 0 || m.Load1 <= 0 {
+		return 0
+	}
+	p := m.Load1 / float64(m.CPUs) * 100
+	if p > 100 {
+		p = 100
+	}
+	return p
+}
+
 // Machine is a computer of the cluster; all are equal, none is central.
 type Machine struct {
-	Name      string    `json:"name"`
-	Version   string    `json:"version"`
-	Address   string    `json:"address,omitempty"`
-	CPUs      int       `json:"cpus"`
-	MemGB     float64   `json:"mem_gb"`
-	FreeCPU   float64   `json:"free_cpu"`
-	FreeMemGB float64   `json:"free_mem_gb,omitempty"` // memory available right now; 0 = unknown
+	Name      string  `json:"name"`
+	Version   string  `json:"version"`
+	Address   string  `json:"address,omitempty"`
+	CPUs      int     `json:"cpus"`
+	MemGB     float64 `json:"mem_gb"`
+	FreeCPU   float64 `json:"free_cpu"`
+	FreeMemGB float64 `json:"free_mem_gb,omitempty"` // memory available right now; 0 = unknown
+	// Live readings, refreshed with every heartbeat. Zero means the machine
+	// does not report that reading.
+	Load1     float64   `json:"load1,omitempty"`  // 1-minute load average
+	TempC     float64   `json:"temp_c,omitempty"` // CPU temperature, °C
+	GPUs      []GPUStat `json:"gpus,omitempty"`
 	Emulators int       `json:"emulators"`
 	GPU       bool      `json:"gpu"`
 	Labels    []string  `json:"labels,omitempty"`

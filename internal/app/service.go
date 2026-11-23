@@ -90,6 +90,8 @@ type Service struct {
 	tokens   *TokenRegistry
 	sessions *sessionRegistry
 	runtime  *Runtime
+	// telemetry is the short in-memory window of machine readings.
+	telemetry telemetry
 	// trackerMu serializes the tracker updates of each item (project/item -> *sync.Mutex).
 	trackerMu sync.Map
 }
@@ -337,7 +339,7 @@ func (s *Service) Ingest(ctx context.Context, e domain.Event) error {
 	if e.Machine == s.d.Machine {
 		return nil
 	}
-	liveOnly := e.Type == domain.EvMachineUpdated || e.Type == domain.EvAgentSession
+	liveOnly := e.LiveOnly()
 	s.mu.RLock()
 	p := s.projects[e.Project]
 	if p == nil {
@@ -360,6 +362,9 @@ func (s *Service) Ingest(ctx context.Context, e domain.Event) error {
 		p.mu.Unlock()
 		if err == nil {
 			s.hub.Publish(e)
+			if pl, perr := e.DecodePayload(); perr == nil && pl.MachineI != nil {
+				s.telemetry.add(pl.MachineI, e.Time)
+			}
 		}
 		return err
 	}

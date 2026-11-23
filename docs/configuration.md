@@ -129,6 +129,7 @@ Each check is a command string or a mapping:
 | `covers` | none | Checks this one makes redundant: when both apply, the covered one is skipped (an integration run that already runs the unit tests) |
 | `order` | `0` | Lower runs first, cheap before expensive; the step stops at the first failure |
 | `dir` | root | Folder the command runs in (set by itself for the checks of a part's own file) |
+| `offload` | `true` | `false` keeps the check on the machine that works on the item, even when that machine is loaded and another is idle (for a check that needs something only this machine has) |
 
 ```yaml
 checks:

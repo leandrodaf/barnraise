@@ -103,6 +103,7 @@ Every machine runs the same binary and pulls its own next item. There is no coor
 - **Events are mirrored.** Each machine has its own embedded NATS JetStream; events flow between machines whenever they can see each other, and each machine keeps working when isolated.
 - **Pairing takes a 6-digit code.** `barnraise machine invite` on one machine, `barnraise machine join <code>` on the other. Over Tailscale when it is installed; each machine has its own nkey and may only read the other's events.
 - **One version.** A machine that sees a peer with a newer version fetches the binary, verifies its hash and restarts while no session runs.
+- **Machines know each other's load.** Each one reports CPU, memory, temperature and GPU, as live state that is never stored. A loaded machine hands its checks to an idle one, which cleans up after itself; `barnraise machine history` draws the recent readings.
 
 ![Failover: machine A claims an item with a git ref and renews it; when A dies, machine B takes the ref after the deadline and continues from the last pushed step](docs/img/failover.svg)
 

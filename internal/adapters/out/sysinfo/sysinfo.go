@@ -73,11 +73,14 @@ func Probe(ctx context.Context, opts ...Option) domain.Machine {
 	m.MemGB = p.memGB()
 	m.FreeMemGB = p.memAvailableGB()
 	if load, ok := p.load1(); ok {
+		m.Load1 = load
 		m.FreeCPU = math.Max(0, float64(m.CPUs)-load)
 	} else {
 		m.FreeCPU = float64(m.CPUs)
 	}
-	m.GPU = p.gpu(ctx)
+	m.TempC = p.cpuTemp()
+	m.GPUs = p.gpus(ctx)
+	m.GPU = len(m.GPUs) > 0 || p.gpu(ctx)
 	if p.emuSlots >= 0 {
 		m.Emulators = p.emuSlots
 	} else {
@@ -139,6 +142,104 @@ func (p *prober) load1() (float64, bool) {
 	}
 	v, err := strconv.ParseFloat(f[0], 64)
 	return v, err == nil
+}
+
+// cpuSensors are the hwmon drivers that report the processor's own temperature.
+var cpuSensors = map[string]bool{"k10temp": true, "coretemp": true, "zenpower": true, "cpu_thermal": true, "cpu-thermal": true, "soc_thermal": true}
+
+// cpuTemp is the processor's temperature in °C: the hottest reading of its
+// own sensor, or of the thermal zones when no such sensor is known. 0 = unknown.
+func (p *prober) cpuTemp() float64 {
+	read := func(path string) (float64, bool) {
+		data, err := os.ReadFile(path)
+		if err != nil {
+			return 0, false
+		}
+		v, err := strconv.ParseFloat(strings.TrimSpace(string(data)), 64)
+		if err != nil {
+			return 0, false
+		}
+		c := v / 1000
+		return c, c > 0 && c < 150
+	}
+	best := 0.0
+	dirs, _ := filepath.Glob(p.path("sys/class/hwmon/hwmon*"))
+	for _, d := range dirs {
+		name, _ := os.ReadFile(filepath.Join(d, "name"))
+		if !cpuSensors[strings.TrimSpace(string(name))] {
+			continue
+		}
+		inputs, _ := filepath.Glob(filepath.Join(d, "temp*_input"))
+		for _, in := range inputs {
+			if c, ok := read(in); ok && c > best {
+				best = c
+			}
+		}
+	}
+	if best == 0 {
+		zones, _ := filepath.Glob(p.path("sys/class/thermal/thermal_zone*/temp"))
+		for _, z := range zones {
+			if c, ok := read(z); ok && c > best {
+				best = c
+			}
+		}
+	}
+	return math.Round(best*10) / 10
+}
+
+// gpus reads the live state of each GPU: NVIDIA through nvidia-smi, AMD
+// through the kernel's own counters.
+func (p *prober) gpus(ctx context.Context) []domain.GPUStat {
+	var out []domain.GPUStat
+	if bin, err := p.look("nvidia-smi"); err == nil {
+		c, cancel := context.WithTimeout(ctx, p.cmdBudget)
+		defer cancel()
+		if data, err := p.run(c, bin, "--query-gpu=name,utilization.gpu,memory.used,memory.total,temperature.gpu", "--format=csv,noheader,nounits"); err == nil {
+			out = append(out, ParseNvidiaSMI(string(data))...)
+		}
+	}
+	// A device shows up under more than one name there (its display entry and
+	// its render entry): each physical device is read once.
+	entries, _ := filepath.Glob(p.path("sys/class/drm/*/device/gpu_busy_percent"))
+	seen := map[string]bool{}
+	for _, busy := range entries {
+		dir := filepath.Dir(busy)
+		real, err := filepath.EvalSymlinks(dir)
+		if err != nil {
+			real = dir
+		}
+		if seen[real] {
+			continue
+		}
+		seen[real] = true
+		num := func(name string) float64 {
+			data, err := os.ReadFile(filepath.Join(dir, name))
+			if err != nil {
+				return 0
+			}
+			v, _ := strconv.ParseFloat(strings.TrimSpace(string(data)), 64)
+			return v
+		}
+		const gb = 1 << 30
+		out = append(out, domain.GPUStat{Name: filepath.Base(filepath.Dir(dir)), UtilPct: num("gpu_busy_percent"),
+			MemUsedGB: math.Round(num("mem_info_vram_used")/gb*10) / 10, MemTotalGB: math.Round(num("mem_info_vram_total")/gb*10) / 10})
+	}
+	return out
+}
+
+// ParseNvidiaSMI reads `nvidia-smi --query-gpu=name,utilization.gpu,memory.used,memory.total,temperature.gpu --format=csv,noheader,nounits`.
+func ParseNvidiaSMI(out string) []domain.GPUStat {
+	var gpus []domain.GPUStat
+	for _, line := range strings.Split(strings.TrimSpace(out), "\n") {
+		f := strings.Split(line, ",")
+		if len(f) < 5 {
+			continue
+		}
+		num := func(s string) float64 { v, _ := strconv.ParseFloat(strings.TrimSpace(s), 64); return v }
+		gpus = append(gpus, domain.GPUStat{Name: strings.TrimSpace(f[0]), UtilPct: num(f[1]),
+			MemUsedGB: math.Round(num(f[2])/1024*10) / 10, MemTotalGB: math.Round(num(f[3])/1024*10) / 10, TempC: num(f[4])})
+	}
+	return gpus
 }
 
 func (p *prober) gpu(ctx context.Context) bool {

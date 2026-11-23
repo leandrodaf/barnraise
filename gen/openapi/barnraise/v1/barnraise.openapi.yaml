@@ -1152,6 +1152,47 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/barnraise.v1.TokensResponse'
+  /barnraise.v1.BarnraiseService/MachineHistory:
+    post:
+      tags:
+        - barnraise.v1.BarnraiseService
+      summary: MachineHistory
+      description: |-
+        Recent readings of the machines (CPU, memory, temperature, GPU), kept in
+         memory by each daemon for charts. Never stored.
+      operationId: barnraise.v1.BarnraiseService.MachineHistory
+      parameters:
+        - name: Connect-Protocol-Version
+          in: header
+          description: Define the version of the Connect protocol
+          schema:
+            $ref: '#/components/schemas/connect-protocol-version'
+          example: 1
+        - name: Connect-Timeout-Ms
+          in: header
+          description: Define the timeout, in ms
+          schema:
+            $ref: '#/components/schemas/connect-timeout-header'
+          example: 1000
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/barnraise.v1.MachineHistoryRequest'
+        required: true
+      responses:
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.error'
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/barnraise.v1.MachineHistoryResponse'
   /barnraise.v1.BarnraiseService/Metrics:
     post:
       tags:
@@ -3223,6 +3264,55 @@ components:
           format: int32
       title: GoalProgress
       additionalProperties: false
+    barnraise.v1.GpuStat:
+      type: object
+      properties:
+        name:
+          type: string
+          title: name
+        utilPct:
+          oneOf:
+            - type: number
+              format: double
+            - type: string
+              enum:
+                - NaN
+                - Infinity
+                - -Infinity
+          title: util_pct
+        memUsedGb:
+          oneOf:
+            - type: number
+              format: double
+            - type: string
+              enum:
+                - NaN
+                - Infinity
+                - -Infinity
+          title: mem_used_gb
+        memTotalGb:
+          oneOf:
+            - type: number
+              format: double
+            - type: string
+              enum:
+                - NaN
+                - Infinity
+                - -Infinity
+          title: mem_total_gb
+        tempC:
+          oneOf:
+            - type: number
+              format: double
+            - type: string
+              enum:
+                - NaN
+                - Infinity
+                - -Infinity
+          title: temp_c
+      title: GpuStat
+      additionalProperties: false
+      description: GpuStat is the live state of one GPU of a machine.
     barnraise.v1.HandbackRequest:
       type: object
       properties:
@@ -3621,7 +3711,152 @@ components:
           type: string
           title: binary
           description: sha256 of the machine's barnraise binary (single version across the cluster).
+        freeMemGb:
+          oneOf:
+            - type: number
+              format: double
+            - type: string
+              enum:
+                - NaN
+                - Infinity
+                - -Infinity
+          title: free_mem_gb
+          description: Live readings, refreshed with every heartbeat; 0 = the machine does not report it.
+        load1:
+          oneOf:
+            - type: number
+              format: double
+            - type: string
+              enum:
+                - NaN
+                - Infinity
+                - -Infinity
+          title: load1
+          description: 1-minute load average.
+        tempC:
+          oneOf:
+            - type: number
+              format: double
+            - type: string
+              enum:
+                - NaN
+                - Infinity
+                - -Infinity
+          title: temp_c
+          description: CPU temperature in degrees Celsius.
+        gpus:
+          type: array
+          items:
+            $ref: '#/components/schemas/barnraise.v1.GpuStat'
+          title: gpus
       title: Machine
+      additionalProperties: false
+    barnraise.v1.MachineHistoryRequest:
+      type: object
+      properties:
+        project:
+          type: string
+          title: project
+        machine:
+          type: string
+          title: machine
+          description: One machine, or every machine when empty.
+        window:
+          type: string
+          title: window
+          description: How far back, as a duration ("15m", "2h"); empty = everything kept.
+      title: MachineHistoryRequest
+      additionalProperties: false
+    barnraise.v1.MachineHistoryResponse:
+      type: object
+      properties:
+        series:
+          type: array
+          items:
+            $ref: '#/components/schemas/barnraise.v1.MachineSeries'
+          title: series
+      title: MachineHistoryResponse
+      additionalProperties: false
+    barnraise.v1.MachineSample:
+      type: object
+      properties:
+        at:
+          type: string
+          title: at
+        cpuPct:
+          oneOf:
+            - type: number
+              format: double
+            - type: string
+              enum:
+                - NaN
+                - Infinity
+                - -Infinity
+          title: cpu_pct
+        memPct:
+          oneOf:
+            - type: number
+              format: double
+            - type: string
+              enum:
+                - NaN
+                - Infinity
+                - -Infinity
+          title: mem_pct
+        tempC:
+          oneOf:
+            - type: number
+              format: double
+            - type: string
+              enum:
+                - NaN
+                - Infinity
+                - -Infinity
+          title: temp_c
+        gpuPct:
+          oneOf:
+            - type: number
+              format: double
+            - type: string
+              enum:
+                - NaN
+                - Infinity
+                - -Infinity
+          title: gpu_pct
+          description: The busiest GPU.
+        gpuTempC:
+          oneOf:
+            - type: number
+              format: double
+            - type: string
+              enum:
+                - NaN
+                - Infinity
+                - -Infinity
+          title: gpu_temp_c
+          description: The hottest GPU.
+        busy:
+          type: integer
+          title: busy
+          format: int32
+        slots:
+          type: integer
+          title: slots
+          format: int32
+      title: MachineSample
+      additionalProperties: false
+    barnraise.v1.MachineSeries:
+      type: object
+      properties:
+        machine:
+          type: string
+          title: machine
+        samples:
+          type: array
+          items:
+            $ref: '#/components/schemas/barnraise.v1.MachineSample'
+          title: samples
+      title: MachineSeries
       additionalProperties: false
     barnraise.v1.MachinesResponse:
       type: object

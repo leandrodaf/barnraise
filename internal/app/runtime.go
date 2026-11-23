@@ -954,6 +954,9 @@ func (s *Service) emitEphemeral(p *Project, typ, subject, actor string, pl domai
 	_ = p.state.Apply(e)
 	delete(p.state.Seen, e.ID)
 	p.mu.Unlock()
+	if pl.MachineI != nil {
+		s.telemetry.add(pl.MachineI, e.Time)
+	}
 	s.fanout(p, e)
 }
 

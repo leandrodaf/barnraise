@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"sort"
 	"strings"
 	"time"
 
@@ -613,6 +614,36 @@ func (h *Handler) ListMachines(ctx context.Context, r *connect.Request[pb.Projec
 		if st, err := ToStruct(s); err == nil {
 			out.Sessions = append(out.Sessions, st)
 		}
+	}
+	return connect.NewResponse(out), nil
+}
+
+func (h *Handler) MachineHistory(ctx context.Context, r *connect.Request[pb.MachineHistoryRequest]) (*connect.Response[pb.MachineHistoryResponse], error) {
+	var window time.Duration
+	if w := strings.TrimSpace(r.Msg.Window); w != "" {
+		d, err := domain.ParseDuration(w)
+		if err != nil {
+			return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("window: %w", err))
+		}
+		window = d
+	}
+	hist, err := h.svc().MachineHistory(ctx, r.Msg.Project, actorFrom(ctx), r.Msg.Machine, window)
+	if err != nil {
+		return nil, connectErr(err)
+	}
+	names := make([]string, 0, len(hist))
+	for n := range hist {
+		names = append(names, n)
+	}
+	sort.Strings(names)
+	out := &pb.MachineHistoryResponse{}
+	for _, n := range names {
+		series := &pb.MachineSeries{Machine: n}
+		for _, s := range hist[n] {
+			series.Samples = append(series.Samples, &pb.MachineSample{At: s.At.Format(time.RFC3339), CpuPct: s.CPUPct, MemPct: s.MemPct,
+				TempC: s.TempC, GpuPct: s.GPUPct, GpuTempC: s.GPUTempC, Busy: int32(s.Busy), Slots: int32(s.Slots)})
+		}
+		out.Series = append(out.Series, series)
 	}
 	return connect.NewResponse(out), nil
 }

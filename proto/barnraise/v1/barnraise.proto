@@ -314,6 +314,22 @@ message Machine {
   string platform = 17;
   // sha256 of the machine's barnraise binary (single version across the cluster).
   string binary = 18;
+  // Live readings, refreshed with every heartbeat; 0 = the machine does not report it.
+  double free_mem_gb = 19;
+  // 1-minute load average.
+  double load1 = 20;
+  // CPU temperature in degrees Celsius.
+  double temp_c = 21;
+  repeated GpuStat gpus = 22;
+}
+
+// GpuStat is the live state of one GPU of a machine.
+message GpuStat {
+  string name = 1;
+  double util_pct = 2;
+  double mem_used_gb = 3;
+  double mem_total_gb = 4;
+  double temp_c = 5;
 }
 
 message SessionInfo {
@@ -776,6 +792,36 @@ message MachinesResponse {
   repeated google.protobuf.Struct sessions = 2;
 }
 
+message MachineHistoryRequest {
+  string project = 1;
+  // One machine, or every machine when empty.
+  string machine = 2;
+  // How far back, as a duration ("15m", "2h"); empty = everything kept.
+  string window = 3;
+}
+
+message MachineSample {
+  string at = 1;
+  double cpu_pct = 2;
+  double mem_pct = 3;
+  double temp_c = 4;
+  // The busiest GPU.
+  double gpu_pct = 5;
+  // The hottest GPU.
+  double gpu_temp_c = 6;
+  int32 busy = 7;
+  int32 slots = 8;
+}
+
+message MachineSeries {
+  string machine = 1;
+  repeated MachineSample samples = 2;
+}
+
+message MachineHistoryResponse {
+  repeated MachineSeries series = 1;
+}
+
 message LeaveResponse {
   repeated string returned = 1;
 }
@@ -935,6 +981,9 @@ service BarnraiseService {
   rpc ListAccounts(ProjectRef) returns (AccountsResponse);
   rpc ReportUsage(ReportUsageRequest) returns (Empty);
   rpc ListMachines(ProjectRef) returns (MachinesResponse);
+  // Recent readings of the machines (CPU, memory, temperature, GPU), kept in
+  // memory by each daemon for charts. Never stored.
+  rpc MachineHistory(MachineHistoryRequest) returns (MachineHistoryResponse);
   rpc LeaveMachine(ProjectRef) returns (LeaveResponse);
 
   // Tokens and audit
