@@ -850,6 +850,9 @@ func (d *daemon) serveRemoteChecks(ctx context.Context) {
 			return nil, fmt.Errorf("checkout %s: %w", rc.Spec.Commit, err)
 		}
 		defer func() { _ = g.RemoveWorktree(context.Background(), dir) }()
+		if err := d.svc.SetupWorktree(ctx, p, dir); err != nil {
+			return nil, err // the asking machine runs the check itself
+		}
 		rc.Spec.Dir = dir
 		rc.Spec.Def.RunsOn = "local"
 		rc.Spec.Def.NoOffload = true // asked to run it here: never passed on again

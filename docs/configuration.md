@@ -538,6 +538,10 @@ Send a share of the items to a change before the whole fleet gets it.
 | `include` | `[.env, .env.local]` | Files copied from the repository into each item worktree |
 | `port_base` | `4100` | Base of the per-item server port (`PORT` in the agent's environment) |
 | `safety_commit` | `15m` | Pending changes are committed and pushed at least this often |
+| `setup` | none | Command run once in each new worktree, before any work or check there: install dependencies, generate code (`make install`, `pnpm install --frozen-lockfile`). Also run in the scratch checkouts of checks moved to another machine |
+| `setup_timeout` | `30m` | How long `setup` may take |
+
+`include` copies files that are not in git into every worktree. Leave it empty (`include: []`) when those files hold what an agent must not have, such as the address of a real database.
 
 ## Machine configuration (`daemon.yaml`)
 

@@ -339,6 +339,8 @@ type rawConfig struct {
 		Include      []string `yaml:"include"`
 		PortBase     int      `yaml:"port_base"`
 		SafetyCommit string   `yaml:"safety_commit"`
+		Setup        string   `yaml:"setup"`
+		SetupTimeout string   `yaml:"setup_timeout"`
 	} `yaml:"worktree"`
 
 	flowsNode *yaml.Node
@@ -620,6 +622,15 @@ func (r *rawConfig) compile(root, tmpl string) (*domain.ProjectConfig, error) {
 		c.Experiments = append(c.Experiments, domain.ExperimentDef{Name: e.Name, Share: share, Role: e.Role, Model: e.Model, Prompt: e.Prompt, Env: e.Env})
 	}
 	c.EnvFiles = r.Worktree.Include
+	c.WorktreeSetup = strings.TrimSpace(r.Worktree.Setup)
+	c.WorktreeSetupTimeout = 30 * time.Minute
+	if r.Worktree.SetupTimeout != "" {
+		d, err := domain.ParseDuration(r.Worktree.SetupTimeout)
+		if err != nil {
+			return nil, fmt.Errorf("worktree.setup_timeout: %w", err)
+		}
+		c.WorktreeSetupTimeout = d
+	}
 	c.PortBase = r.Worktree.PortBase
 	if c.PortBase == 0 {
 		c.PortBase = 4100
@@ -834,7 +845,7 @@ func Explain(cfg *domain.ProjectConfig) (string, error) {
 		"lease":  map[string]string{"renew": cfg.Lease.Renew.String(), "ttl": cfg.Lease.TTL.String()},
 		"budget": cfg.Budget, "revalidation": map[string]string{"stale_after": cfg.StaleAfter.String()},
 		"notifications": cfg.Notifications, "webhooks": cfg.Webhooks, "mcp": cfg.MCP, "experiments": cfg.Experiments,
-		"worktree": map[string]any{"include": cfg.EnvFiles, "port_base": cfg.PortBase, "safety_commit": cfg.SafetyCommit.String()},
+		"worktree": map[string]any{"include": cfg.EnvFiles, "port_base": cfg.PortBase, "safety_commit": cfg.SafetyCommit.String(), "setup": cfg.WorktreeSetup},
 	}
 	var buf bytes.Buffer
 	enc := yaml.NewEncoder(&buf)

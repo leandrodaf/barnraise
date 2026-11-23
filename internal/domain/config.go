@@ -373,9 +373,13 @@ type ProjectConfig struct {
 	KindFlows       map[string]string       `json:"kind_flows,omitempty"` // item kind -> flow
 	SafetyCommit    time.Duration           `json:"safety_commit"`
 	EnvFiles        []string                `json:"env_files,omitempty"` // copied into worktrees (.worktreeinclude)
-	PortBase        int                     `json:"port_base"`
-	Standards       map[string]string       `json:"standards,omitempty"`
-	Extra           map[string]any          `json:"extra,omitempty"`
+	// WorktreeSetup is a command run once in each new worktree before any
+	// work or check happens there (install dependencies, generate code).
+	WorktreeSetup        string            `json:"worktree_setup,omitempty"`
+	WorktreeSetupTimeout time.Duration     `json:"worktree_setup_timeout,omitempty"`
+	PortBase             int               `json:"port_base"`
+	Standards            map[string]string `json:"standards,omitempty"`
+	Extra                map[string]any    `json:"extra,omitempty"`
 }
 
 // FlowFor returns the flow of an item kind.

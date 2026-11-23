@@ -223,6 +223,10 @@ func (s *Service) maybeDone(ctx context.Context, p *Project, v domain.TriageResu
 		return
 	}
 	defer func() { _ = p.Ports().Git.RemoveWorktree(ctx, dir) }()
+	if err := s.SetupWorktree(ctx, p, dir); err != nil {
+		s.d.Log.Warn("setup of the main worktree", "err", err)
+		return
+	}
 	checks := map[string]bool{}
 	for _, c := range it.Criteria {
 		checks[domain.TrimChecks(c.Check)] = true

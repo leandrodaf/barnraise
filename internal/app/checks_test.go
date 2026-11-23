@@ -494,3 +494,43 @@ func TestFinishedItemsDoNotKeepTheirClaim(t *testing.T) {
 		t.Fatal("the claim of an item in progress stays")
 	}
 }
+
+// worktree.setup runs once in a new worktree, before work or checks there,
+// and again only if it never finished.
+func TestWorktreeSetupRunsOncePerWorktree(t *testing.T) {
+	e := newEnv(t, withGit(), withExec(), withCfg(func(c *domain.ProjectConfig) { c.WorktreeSetup = "make install" }))
+	it := e.ready("simple", "needs its dependencies", "x")
+	e.start(it.ID)
+	dir := e.workspace(it.ID, map[string]string{"a.txt": "a\n"})
+	setups := func() int {
+		n := 0
+		for _, c := range e.exec.Cmds() {
+			if len(c.Args) == 2 && strings.Contains(c.Args[1], "make install") && c.Dir == dir {
+				n++
+			}
+		}
+		return n
+	}
+	if setups() != 1 {
+		t.Fatalf("setup ran %d times in the new worktree", setups())
+	}
+	e.workspace(it.ID, nil)
+	e.workspace(it.ID, nil)
+	if setups() != 1 {
+		t.Fatalf("setup must run once per worktree, ran %d times", setups())
+	}
+	if _, err := os.Stat(filepath.Join(dir, ".barnraise-session", "setup-done")); err != nil {
+		t.Fatal("the marker of a finished setup is missing")
+	}
+	if out := testkit.RunGit(t, dir, "status", "--porcelain"); strings.Contains(out, "barnraise-session") {
+		t.Fatalf("nothing of the setup is offered to git: %q", out)
+	}
+	// A setup that never finished runs again on the next use.
+	if err := os.Remove(filepath.Join(dir, ".barnraise-session", "setup-done")); err != nil {
+		t.Fatal(err)
+	}
+	e.workspace(it.ID, nil)
+	if setups() != 2 {
+		t.Fatalf("an unfinished setup must run again: %d", setups())
+	}
+}

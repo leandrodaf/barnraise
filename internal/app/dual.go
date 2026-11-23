@@ -73,6 +73,9 @@ func (s *Service) prepareAlt(ctx context.Context, p *Project, id string, st doma
 	}
 	s.excludeFromGit(dirB, "/.barnraise-session/")
 	s.excludeFromGit(dirB, "/criteria.json")
+	if err := s.SetupWorktree(ctx, p, dirB); err != nil {
+		return "", err
+	}
 	for _, f := range p.Cfg().EnvFiles {
 		if data, err := os.ReadFile(filepath.Join(p.Cfg().Root, f)); err == nil {
 			_ = os.WriteFile(filepath.Join(dirB, f), data, 0o600)
