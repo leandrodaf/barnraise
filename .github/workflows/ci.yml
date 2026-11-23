@@ -26,7 +26,7 @@ jobs:
       - name: golangci-lint (with the depguard architecture rules)
         uses: golangci/golangci-lint-action@v8
         with:
-          version: v2.13
+          version: v2.15
       - name: govulncheck
         run: go run golang.org/x/vuln/cmd/govulncheck@latest ./...
 

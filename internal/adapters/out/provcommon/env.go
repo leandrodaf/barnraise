@@ -15,7 +15,8 @@ var BaseEnvKeys = []string{
 }
 
 // identityKeys belong to the user that runs the process; under sudo the target user's apply.
-var identityKeys = map[string]bool{"HOME": true, "USER": true, "LOGNAME": true, "PATH": true, "SHELL": true, "XDG_RUNTIME_DIR": true}
+var identityKeys = map[string]bool{"HOME": true, "USER": true, "LOGNAME": true, "PATH": true, "SHELL": true, "TMPDIR": true,
+	"XDG_RUNTIME_DIR": true, "XDG_CONFIG_HOME": true, "XDG_CACHE_HOME": true, "XDG_DATA_HOME": true, "XDG_STATE_HOME": true}
 
 // Env is an ordered set of environment variables.
 type Env struct {

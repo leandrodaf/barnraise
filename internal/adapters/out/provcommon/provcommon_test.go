@@ -60,7 +60,7 @@ func TestEnvAndSudo(t *testing.T) {
 		t.Fatalf("env = %v", l)
 	}
 	name, args := SudoArgs("agent1", e, "claude", []string{"-p"})
-	if name != "sudo" || args[0] != "-n" || args[2] != "agent1" || !strings.HasPrefix(args[3], "--preserve-env=") || !strings.HasSuffix(args[3], ",A,B") || strings.Contains(args[3], "HOME") ||
+	if name != "sudo" || args[0] != "-n" || args[2] != "agent1" || !strings.HasPrefix(args[3], "--preserve-env=") || !strings.HasSuffix(args[3], "A,B") || strings.Contains(args[3], "HOME") ||
 		!slices.Equal(args[4:], []string{"--", "claude", "-p"}) {
 		t.Fatalf("sudo = %s %q", name, args)
 	}
