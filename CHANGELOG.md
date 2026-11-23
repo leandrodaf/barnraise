@@ -8,6 +8,8 @@ First version: one Go binary that is the daemon, the CLI, the MCP server and the
 
 ### Added
 
+- **Sessions in containers**: `container:` in `barnraise.yaml` runs every agent session inside a container that sees only the item's worktree, the repository's `.git`, the agent's account and the daemon's socket; the machine's GPU is passed in by default (`gpu: auto`). `deploy/agent.Dockerfile` is a starting image.
+
 - **Several parts in one repository**: each part (a backend, a web app, a mobile app) carries its own `barnraise.yaml`, found automatically; `barnraise init` detects the parts and writes the files. Checks run inside the part's folder and only for changes that touch it; a part may choose the flow of its items (`kinds`).
 - **Check selection**: `selection.all_when` and `selection.none_when`, check `paths`, `covers` and `order`, fail-fast check steps, skipped checks recorded with the reason, `barnraise check --touched <file>` to preview, and a merge queue that only checks what the batch touches and never repeats checks on a tree already checked.
 

@@ -225,7 +225,9 @@ func (p *Provider) OpenSession(ctx context.Context, spec ports.SessionSpec) (*pr
 	}
 	name, args := p.opts.Binary, p.Args(spec)
 	env := p.Env(spec)
-	if spec.RunAsUser != "" {
+	if spec.Container != nil {
+		name, args = provcommon.ContainerArgs(spec.Container, env, spec.Workdir, name, args)
+	} else if spec.RunAsUser != "" {
 		name, args = provcommon.SudoArgs(spec.RunAsUser, env, name, args)
 	}
 	cmd := p.opts.Command(ctx, name, args...)

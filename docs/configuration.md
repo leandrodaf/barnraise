@@ -453,6 +453,28 @@ notifications:
     secret: keychain:telegram-bot
 ```
 
+## container
+
+Runs every agent session of the project inside a container. Agents never wait for a permission prompt (they do not outside a container either); what changes is what they can reach: only what is mounted.
+
+| Key | Default | Meaning |
+| --- | --- | --- |
+| `image` | none | Image with the AI CLIs and the project's toolchain; [`deploy/agent.Dockerfile`](../deploy/agent.Dockerfile) is a starting point |
+| `engine` | `docker` | `docker` or `podman` |
+| `network` | the engine's default | `bridge`, `host`, `none` or a named network. Use `host` together with the egress proxy, which listens on the machine |
+| `mounts` | none | Extra host paths, mounted at the same path: caches, SDKs (`~/.gradle`, `/opt/android-sdk:ro`) |
+| `gpu` | `auto` | `auto` passes whatever the machine has (the NVIDIA runtime of the engine, `/dev/dri` render devices); `all` asks for the NVIDIA GPUs and fails loudly without them; `none` keeps the GPU out |
+
+```yaml
+container:
+  image: ghcr.io/acme/shop-agent:latest
+  mounts: ["~/.cache/go-build", "/opt/android-sdk:ro"]
+```
+
+Mounted by Barnraise, each at its own path: the item's worktree, the repository's `.git` (a worktree commits there), the agent's account folder, the daemon's socket and the `barnraise` binary (read-only). Not mounted: the owner's home, the daemon's state, other items' worktrees. The session runs as the daemon's uid, with `HOME` inside the session folder. Inside a container the provider's native sandbox is off (bubblewrap does not nest); the container is the boundary, and the blocking hook and the policy still apply.
+
+A machine with an NVIDIA GPU needs the NVIDIA Container Toolkit for containers to see it; the daemon warns when the GPU is there and the engine's runtime is not.
+
 ## mcp
 
 MCP servers the agents may use besides Barnraise's own. A session loads **only** Barnraise's server and the ones listed here for its role: the servers, plugins and personal settings of the account's own configuration are never loaded (`--strict-mcp-config`), so an agent cannot reach the owner's mail, ads or cloud tools, and their tool lists do not cost tokens in every session.

@@ -289,6 +289,13 @@ type rawConfig struct {
 		Tag          bool   `yaml:"tag"`
 		UseHostQueue bool   `yaml:"use_host_queue"`
 	} `yaml:"merge"`
+	Container struct {
+		Image   string   `yaml:"image"`
+		Engine  string   `yaml:"engine"`
+		Network string   `yaml:"network"`
+		Mounts  []string `yaml:"mounts"`
+		GPU     string   `yaml:"gpu"`
+	} `yaml:"container"`
 	Selection struct {
 		AllWhen  []string `yaml:"all_when"`
 		NoneWhen []string `yaml:"none_when"`
@@ -531,6 +538,7 @@ func (r *rawConfig) compile(root, tmpl string) (*domain.ProjectConfig, error) {
 		c.Areas[domain.AreaName(name)] = domain.AreaDef{Name: domain.AreaName(name), Paths: a.Paths, Screens: a.Screens, Contracts: a.Contracts, Standard: a.Standard, KindFlows: a.Kinds}
 	}
 
+	c.Container = domain.ContainerDef{Image: strings.TrimSpace(r.Container.Image), Engine: r.Container.Engine, Network: r.Container.Network, Mounts: r.Container.Mounts, GPU: r.Container.GPU}
 	c.Selection = domain.SelectionDef{AllWhen: r.Selection.AllWhen, NoneWhen: r.Selection.NoneWhen}
 	c.Merge = domain.MergeDef{Mode: def(r.Merge.Mode, "squash"), Batch: r.Merge.Batch, Changelog: r.Merge.Changelog, Tag: r.Merge.Tag, UseHostQueue: r.Merge.UseHostQueue}
 	if c.Merge.Batch <= 0 {

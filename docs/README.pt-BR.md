@@ -17,7 +17,7 @@ Este arquivo está em português porque a regra é a do próprio Barnraise: o qu
 - **Verificação que o modelo não contorna na conversa.** Os critérios são ligados a verificações (build, testes, CI). A revisão roda num modelo diferente do que implementou. Só a fila de integração escreve na main.
 - **Suas assinaturas, bem usadas.** Várias contas por provedor com os limites reais, modelo barato nas etapas baratas e só o contexto de que cada etapa precisa.
 - **Várias máquinas sem servidor.** Toda máquina é igual. O git decide quem fica com um item; se uma máquina cai, outra continua da última etapa enviada.
-- **Seguro por construção.** A barreira é o sistema operacional e o daemon: hook que bloqueia, sandbox, usuário Linux separado, rede restrita. Não é uma frase no prompt.
+- **Seguro por construção, então os agentes nunca pedem permissão.** A barreira é o sistema operacional e o daemon: hook que bloqueia, sandbox ou container, usuário Linux separado, rede restrita. Não é uma frase no prompt, nem uma pergunta na sua tela.
 
 ## De/para: como se compara
 
@@ -152,7 +152,7 @@ Os agentes leem texto não confiável, poderiam alcançar dados privados e poder
 1. **Segredos** ficam no chaveiro do sistema, nunca no yaml nem no repositório.
 2. **Um usuário Linux por conta de agente** (`barnraise account add --isolate`), sem acesso à home do dono.
 3. **Um hook que bloqueia** antes de cada chamada de ferramenta, decidido localmente por uma política compilada: nada de escrever em workflows, `.barnraise/`, `.env*` ou testes existentes; nada de push na main, `sudo` ou `curl | sh`. Funciona mesmo quando a CLI roda sem pedir permissão.
-4. **Sandbox nativo**: o do Claude Code quando o `bwrap` funciona na máquina; o Codex em `workspace-write`.
+4. **Sandbox ou container**: o sandbox nativo do Claude Code quando o `bwrap` funciona na máquina e o Codex em `workspace-write`; ou, com `container:` no `barnraise.yaml`, cada sessão dentro de um container que só enxerga o worktree do item, com a GPU da máquina repassada por padrão.
 5. **Rede restrita**: proxy com lista de permissões e regras de `nftables` por usuário de agente.
 6. **Só as ferramentas que você libera na sessão**: o servidor MCP do Barnraise e os que estiverem em `mcp:` no `barnraise.yaml`, por papel. Os servidores MCP, plugins e configurações pessoais do dono da conta não são carregados.
 7. **Permissão por papel no daemon**: o implementador não tem o escopo `approve` e nem enxerga a ferramenta.

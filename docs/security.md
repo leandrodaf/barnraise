@@ -93,7 +93,11 @@ Before each step's commit and push, the diff and the changed files are scanned w
 - **Tailscale** (recommended) encrypts and identifies each machine; `barnraise cluster acl` prints an ACL where only `tag:barnraise` reaches the Barnraise ports.
 - Other people's machines use the same isolated-user model, with their own tokens and no deploy rights.
 
-### 11. Only the tools the owner allowed
+### 11. Containers, when the project asks for them
+
+With [`container:`](configuration.md#container) in `barnraise.yaml`, every session runs inside a container that sees the item's worktree, the repository's `.git`, the agent's own account, the daemon's socket and the `barnraise` binary, and nothing else of the machine. This is the strongest isolation on a machine where separate Linux users are not set up, and the one to prefer when agents are meant to work fully on their own. The session's token and the account's credentials are passed by name through the engine's environment, never on a command line.
+
+### 12. Only the tools the owner allowed
 
 A Claude Code session is started with `--strict-mcp-config` and `--setting-sources project,local`: it loads Barnraise's MCP server, the servers listed under [`mcp:`](configuration.md#mcp) for its role, and the settings Barnraise wrote for the session. The MCP servers, plugins, hooks and personal settings of the account's own configuration are not loaded, so an agent never inherits the owner's mail, ads or cloud tools.
 

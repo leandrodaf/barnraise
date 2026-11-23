@@ -14,6 +14,7 @@
 #   SMOKE_CLAUDE_CONFIG_DIR  logged-in Claude config dir (default: the CLI's own)
 #   SMOKE_MODEL     model for every class with `claude` (default haiku)
 #   SMOKE_REVIEW_MODEL  second model, for the review (default sonnet@low)
+#   SMOKE_CONTAINER_IMAGE  run every session inside this container image (see deploy/agent.Dockerfile)
 #   SMOKE_KEEP=1    keep the work directory for inspection
 set -eu
 
@@ -81,6 +82,11 @@ if [ "$provider" = claude ]; then
 	# because a review must run on a different model from the implementation.
 	m="claude/${SMOKE_MODEL:-haiku}, claude/${SMOKE_REVIEW_MODEL:-sonnet@low}"
 	printf '\nmodels:\n  classes:\n    simple: [%s]\n    normal: [%s]\n    complex: [%s]\n    native: [%s]\n    cheap: [%s]\n' "$m" "$m" "$m" "$m" "$m" >>barnraise.yaml
+	"$bin" check >/dev/null
+fi
+if [ -n "${SMOKE_CONTAINER_IMAGE:-}" ]; then
+	# Every session inside a container that sees only the item's worktree.
+	printf '\ncontainer:\n  image: %s\n' "$SMOKE_CONTAINER_IMAGE" >>barnraise.yaml
 	"$bin" check >/dev/null
 fi
 git add -A

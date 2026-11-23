@@ -39,6 +39,18 @@ type CheckDef struct {
 	Order        int           `json:"order,omitempty"`  // lower runs first (cheap before expensive); ties by name
 }
 
+// ContainerDef makes every agent session of the project run inside a
+// container, so agents work without permission prompts and still reach
+// only what is mounted: the item's worktree, the repository's .git, the
+// agent's own account and the daemon's socket.
+type ContainerDef struct {
+	Image   string   `json:"image,omitempty"`   // has the AI CLI and the project's toolchain
+	Engine  string   `json:"engine,omitempty"`  // docker (default) or podman
+	Network string   `json:"network,omitempty"` // engine network: bridge (default), host, none, or a named one
+	Mounts  []string `json:"mounts,omitempty"`  // extra host paths (caches, SDKs); "path:ro" is read-only
+	GPU     string   `json:"gpu,omitempty"`     // auto (default: whatever the machine has), all, none
+}
+
 // SelectionDef tunes which checks run for a change, beyond areas and paths.
 type SelectionDef struct {
 	AllWhen  []string `json:"all_when,omitempty"`  // globs: a change to one of these runs every check
@@ -349,6 +361,7 @@ type ProjectConfig struct {
 	Policy          Policy                  `json:"policy"`
 	Merge           MergeDef                `json:"merge"`
 	Selection       SelectionDef            `json:"selection,omitzero"`
+	Container       ContainerDef            `json:"container,omitzero"`
 	Lease           LeaseDef                `json:"lease"`
 	Budget          BudgetDef               `json:"budget"`
 	StaleAfter      time.Duration           `json:"stale_after"`
@@ -428,6 +441,13 @@ func (c *ProjectConfig) Validate() []error {
 		errs = append(errs, err)
 	}
 	errs = append(errs, c.validateMCP()...)
+	if ct := c.Container; ct.Image == "" && (ct.Engine != "" || ct.Network != "" || len(ct.Mounts) > 0) {
+		errs = append(errs, fmt.Errorf("container needs an image (one with the AI CLI and the project's tools)"))
+	} else if ct.Engine != "" && ct.Engine != "docker" && ct.Engine != "podman" {
+		errs = append(errs, fmt.Errorf("container.engine %q is not docker or podman", ct.Engine))
+	} else if ct.GPU != "" && ct.GPU != "auto" && ct.GPU != "all" && ct.GPU != "none" {
+		errs = append(errs, fmt.Errorf("container.gpu %q is not auto, all or none", ct.GPU))
+	}
 	for an, a := range c.Areas {
 		for kind, flow := range a.KindFlows {
 			if _, ok := c.Flows[flow]; !ok {

@@ -45,6 +45,7 @@ type Runtime struct {
 	// failure that repeats every pass (accounts out of limits, a missing
 	// binary) is logged once, not every few seconds.
 	startErrs map[string]string
+	gpu       *[]string // engine arguments for the machine's GPU, probed once
 	// Sandbox turns on the provider's native sandbox in session settings.
 	Sandbox bool
 	// EgressProxy routes agent traffic through the allow-list proxy (host:port).
@@ -425,6 +426,15 @@ func (r *Runtime) start(ctx context.Context, p *Project, slot Slot, a *Assignmen
 	spec := ports.SessionSpec{Agent: slot.Agent, Role: role, Account: *acc, Model: choice.Model, Effort: choice.Effort, Workdir: dir,
 		Prompt: prompt.Prompt, SystemPrompt: prompt.System, Env: env, MCPConfig: mcpPath, SettingsFile: settingsPath,
 		Timeout: r.SessionTimeout, RunAsUser: acc.LinuxUser}
+	if ct := p.Cfg().Container; ct.Image != "" {
+		cs, err := r.containerSpec(p, ct, dir, sessDir, acc, choice.Provider, env)
+		if err != nil {
+			s.tokens.Revoke(token)
+			cancel()
+			return err
+		}
+		spec.Container = cs
+	}
 	sess, err := prov.Open(sctx, spec)
 	if err != nil {
 		cancel()
@@ -454,6 +464,125 @@ func inShare(key string, share int) bool {
 	h := fnv.New32a()
 	_, _ = h.Write([]byte(key))
 	return int(h.Sum32()%100) < share
+}
+
+// containerSpec says what a session's container may see: the item's
+// worktree, the repository's .git (a worktree's commits live there), the
+// agent's own account, the daemon's socket and the barnraise binary the
+// hooks call. Nothing else of the machine: not the owner's home, not the
+// daemon's state, not other items.
+func (r *Runtime) containerSpec(p *Project, ct domain.ContainerDef, worktree, sessDir string, acc *domain.Account, provider string, env map[string]string) (*ports.ContainerSpec, error) {
+	home := filepath.Join(sessDir, "home")
+	if err := os.MkdirAll(home, 0o700); err != nil {
+		return nil, err
+	}
+	cs := &ports.ContainerSpec{Engine: def(ct.Engine, "docker"), Image: ct.Image, Network: ct.Network, Home: home,
+		User: fmt.Sprintf("%d:%d", os.Getuid(), os.Getgid())}
+	add := func(path string, ro bool) {
+		if path == "" {
+			return
+		}
+		if _, err := os.Stat(path); err != nil {
+			return
+		}
+		if ro {
+			path += ":ro"
+		}
+		if !domain.Contains(cs.Mounts, path) {
+			cs.Mounts = append(cs.Mounts, path)
+		}
+	}
+	add(worktree, false)
+	add(filepath.Join(p.Cfg().Root, ".git"), false)
+	add(r.s.d.SocketPath, false)
+	add(r.s.d.BinaryPath, true)
+	cfgDir := acc.ConfigDir
+	if cfgDir == "" {
+		// The CLI's own login: its folder under the owner's home, and only that.
+		host, _ := os.UserHomeDir()
+		switch provider {
+		case "claude":
+			cfgDir = filepath.Join(host, ".claude")
+			env["CLAUDE_CONFIG_DIR"] = cfgDir
+		case "codex":
+			cfgDir = filepath.Join(host, ".codex")
+			env["CODEX_HOME"] = cfgDir
+		}
+	}
+	add(cfgDir, false)
+	host, _ := os.UserHomeDir()
+	for _, m := range ct.Mounts {
+		path, ro := m, false
+		if p, ok := strings.CutSuffix(m, ":ro"); ok {
+			path, ro = p, true
+		}
+		if rest, ok := strings.CutPrefix(path, "~/"); ok {
+			path = filepath.Join(host, rest)
+		}
+		if !filepath.IsAbs(path) {
+			return nil, fmt.Errorf("container.mounts: %q must be an absolute path (or start with ~/)", m)
+		}
+		add(path, ro)
+	}
+	cs.Extra = r.gpuArgs(cs.Engine, ct.GPU)
+	return cs, nil
+}
+
+// GPUProbe reports what the machine offers a container: whether the engine
+// has the NVIDIA runtime, and the render devices under /dev/dri with the
+// group that may use them. Replaceable in tests.
+var GPUProbe = func(engine string) (nvidia bool, dri string, renderGID string) {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	if out, err := exec.CommandContext(ctx, engine, "info", "--format", "{{json .Runtimes}}").Output(); err == nil && strings.Contains(string(out), "nvidia") {
+		nvidia = true
+	}
+	if ents, err := os.ReadDir("/dev/dri"); err == nil && len(ents) > 0 {
+		dri = "/dev/dri"
+		for _, e := range ents {
+			if strings.HasPrefix(e.Name(), "renderD") {
+				if out, err := exec.CommandContext(ctx, "stat", "-c", "%g", filepath.Join(dri, e.Name())).Output(); err == nil {
+					renderGID = strings.TrimSpace(string(out))
+				}
+				break
+			}
+		}
+	}
+	return nvidia, dri, renderGID
+}
+
+// gpuArgs gives the container the machine's GPU. It is on by default:
+// building a game, a 3D scene or a model needs it to test the result.
+func (r *Runtime) gpuArgs(engine, mode string) []string {
+	if mode == "none" {
+		return nil
+	}
+	r.mu.Lock()
+	if r.gpu == nil {
+		r.mu.Unlock()
+		nv, dri, gid := GPUProbe(engine)
+		var args []string
+		if nv {
+			args = append(args, "--gpus", "all")
+		}
+		if _, err := exec.LookPath("nvidia-smi"); err == nil && !nv {
+			r.s.d.Log.Warn("this machine has an NVIDIA GPU but the container engine has no nvidia runtime: containers will not see it (install the NVIDIA Container Toolkit)", "engine", engine)
+		}
+		if dri != "" {
+			args = append(args, "--device", dri)
+			if gid != "" {
+				args = append(args, "--group-add", gid)
+			}
+		}
+		r.mu.Lock()
+		r.gpu = &args
+	}
+	args := *r.gpu
+	r.mu.Unlock()
+	if mode == "all" && !domain.Contains(args, "--gpus") {
+		args = append([]string{"--gpus", "all"}, args...) // asked for explicitly: let the engine say so if it cannot
+	}
+	return args
 }
 
 // writeSessionFiles writes the MCP config, the provider settings with the
@@ -528,7 +657,8 @@ func (r *Runtime) writeSessionFiles(p *Project, sessDir, worktree string, env ma
 		"permissions": map[string]any{"defaultMode": "bypassPermissions", "deny": []string{"Read(~/.ssh/**)", "Read(~/.config/gh/**)", "Read(~/.aws/**)", "Edit(.github/workflows/**)", "Edit(.barnraise/**)", "Edit(barnraise.yaml)", "Edit(criteria.json)"}},
 		"env":         map[string]string{"DISABLE_AUTOUPDATER": "1"},
 	}
-	if r.Sandbox {
+	// Inside a container the container is the sandbox (bubblewrap cannot nest there).
+	if r.Sandbox && p.Cfg().Container.Image == "" {
 		settings["sandbox"] = map[string]any{"enabled": true, "failIfUnavailable": true, "allowUnsandboxedCommands": false,
 			"network": map[string]any{"allowedDomains": pol.AllowHosts}}
 	}

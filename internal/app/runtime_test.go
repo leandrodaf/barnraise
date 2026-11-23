@@ -546,3 +546,63 @@ func TestRuntimeGivesNoWorkToAProviderWhoseSandboxCannotRun(t *testing.T) {
 	}
 	ok.idle()
 }
+
+// With container: in barnraise.yaml a session runs inside a container that
+// sees the worktree, the repository's .git, the account, the socket and the
+// binary — and the GPU of the machine unless the project says otherwise.
+func TestRuntimeSessionInAContainer(t *testing.T) {
+	old := GPUProbe
+	GPUProbe = func(string) (bool, string, string) { return true, "/dev/dri", "992" }
+	defer func() { GPUProbe = old }()
+	acct := t.TempDir()
+	cache := t.TempDir()
+	e := newEnv(t, withGit(), withCfg(func(c *domain.ProjectConfig) {
+		c.Container = domain.ContainerDef{Image: "agent:test", Network: "host", Mounts: []string{cache + ":ro"}}
+	}))
+	if _, err := e.svc.UpsertAccount(e.ctx, "demo", owner(), domain.Account{ID: "fake-1", Provider: "fake", CeilingPct: 100, ConfigDir: acct}); err != nil {
+		t.Fatal(err)
+	}
+	e.svc.Runtime().Sandbox = true // a working bubblewrap on the host must not be nested in the container
+	it := e.ready("simple", "in a box", "x")
+	e.fill()
+	specs := e.prov.Specs()
+	if len(specs) != 1 || specs[0].Container == nil {
+		t.Fatalf("specs %+v", specs)
+	}
+	c := specs[0].Container
+	wt := e.svc.WorktreeDir("demo", it.ID)
+	if c.Engine != "docker" || c.Image != "agent:test" || c.Network != "host" || !strings.Contains(c.User, ":") || !strings.HasPrefix(c.Home, wt) {
+		t.Fatalf("container %+v", c)
+	}
+	for _, want := range []string{wt, filepath.Join(e.root, ".git"), acct, cache + ":ro"} {
+		if !contains(c.Mounts, want) {
+			t.Fatalf("mounts %v lack %s", c.Mounts, want)
+		}
+	}
+	for _, m := range c.Mounts {
+		if strings.HasPrefix(m, e.svc.d.DataDir) && !strings.HasPrefix(m, wt) && !strings.HasPrefix(m, e.svc.d.SocketPath) {
+			t.Fatalf("the daemon's state must not be mounted: %s", m)
+		}
+	}
+	if got := strings.Join(c.Extra, " "); got != "--gpus all --device /dev/dri --group-add 992" {
+		t.Fatalf("gpu args %q", got)
+	}
+	data, _ := os.ReadFile(specs[0].SettingsFile)
+	if strings.Contains(string(data), `"sandbox"`) {
+		t.Fatal("the container is the sandbox: the native one is not nested inside it")
+	}
+	if !strings.Contains(string(data), "bypassPermissions") {
+		t.Fatal("agents never wait for a permission prompt")
+	}
+	e.idle()
+
+	// gpu: none keeps the GPU out.
+	off := newEnv(t, withGit(), withCfg(func(c *domain.ProjectConfig) { c.Container = domain.ContainerDef{Image: "agent:test", GPU: "none"} }))
+	off.account("fake-1")
+	off.ready("simple", "no gpu", "x")
+	off.fill()
+	if s := off.prov.Specs(); len(s) != 1 || len(s[0].Container.Extra) != 0 {
+		t.Fatalf("gpu none: %+v", s)
+	}
+	off.idle()
+}

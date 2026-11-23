@@ -157,6 +157,18 @@ type Capabilities struct {
 	Images       bool   `json:"images"`
 }
 
+// ContainerSpec runs a session inside a container: the agent sees only the
+// mounted paths, so it can work without asking for permission.
+type ContainerSpec struct {
+	Engine  string   `json:"engine"`            // docker or podman
+	Image   string   `json:"image"`             // has the AI CLI and the project's toolchain
+	Network string   `json:"network,omitempty"` // engine network; "" is the engine's default
+	User    string   `json:"user,omitempty"`    // uid:gid inside the container
+	Home    string   `json:"home,omitempty"`    // HOME inside the container (a mounted, writable path)
+	Mounts  []string `json:"mounts"`            // host paths mounted at the same path; "path:ro" is read-only
+	Extra   []string `json:"extra,omitempty"`   // more engine arguments (GPU devices)
+}
+
 // SessionSpec opens an agent session.
 type SessionSpec struct {
 	Agent        string            `json:"agent"`
@@ -175,6 +187,8 @@ type SessionSpec struct {
 	JSONSchema   string            `json:"json_schema,omitempty"`
 	Timeout      time.Duration     `json:"timeout,omitempty"`
 	RunAsUser    string            `json:"run_as_user,omitempty"`
+	// Container, when set, runs the session's CLI inside a container.
+	Container *ContainerSpec `json:"container,omitempty"`
 }
 
 // ProviderEventKind is the normalized event kind.

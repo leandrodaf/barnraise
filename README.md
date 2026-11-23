@@ -15,7 +15,7 @@ The name comes from "barn raising": neighbours building a barn together in a day
 - **Verification that a model cannot talk its way past.** Criteria are tied to checks (build, tests, CI). A review runs on a different model from the implementation. Only the merge queue writes to main.
 - **Your subscriptions, used well.** Several accounts per provider with their real limits, a cheap model for cheap steps, and only the context each step needs.
 - **Several machines without a server.** Every machine is equal. Git decides who holds an item; when a machine dies, another continues from the last pushed step.
-- **Safe by construction.** The barrier is the operating system and the daemon: a blocking hook, a sandbox, a separate Linux user, a restricted network. Not a sentence in a prompt.
+- **Safe by construction, so agents never ask for permission.** The barrier is the operating system and the daemon: a blocking hook, a sandbox or a container, a separate Linux user, a restricted network. Not a sentence in a prompt, and not a prompt on your screen.
 
 ## How it compares
 
@@ -150,7 +150,7 @@ Agents read untrusted text, could reach private data and could send data out. Ba
 1. **Secrets** live in the system keychain, never in YAML or in the repository.
 2. **One Linux user per agent account** (`barnraise account add --isolate`), without access to the owner's home.
 3. **A blocking hook** before every tool call, decided locally from a compiled policy: no writes to workflows, `.barnraise/`, `.env*` or existing tests; no push to main, `sudo` or `curl | sh`. It works even when the CLI runs without permission prompts.
-4. **Native sandbox**: Claude Code's sandbox when `bwrap` works on the machine; Codex in `workspace-write`.
+4. **A sandbox or a container**: Claude Code's native sandbox when `bwrap` works on the machine and Codex in `workspace-write`; or, with `container:` in `barnraise.yaml`, every session inside a container that sees only the item's worktree, with the machine's GPU passed in by default.
 5. **Restricted network**: an allow-list proxy and `nftables` rules per agent user.
 6. **Only the tools you allow in a session**: Barnraise's own MCP server plus the ones listed under `mcp:` in `barnraise.yaml`, per role. The account owner's own MCP servers, plugins and personal settings are not loaded.
 7. **Permission by role in the daemon**: an implementer has no `approve` scope and never sees the tool.
