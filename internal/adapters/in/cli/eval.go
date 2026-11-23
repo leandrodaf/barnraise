@@ -23,12 +23,12 @@ func signalContext() (context.Context, context.CancelFunc) {
 // EvalReport measures the knowledge pack against what integrated items
 // really touched, and compares items in an experiment with the rest.
 type EvalReport struct {
-	Items        int                     `json:"items"`
-	RecallAvg    float64                 `json:"recall_avg"`
-	TokensAvg    float64                 `json:"pack_tokens_avg"`
-	PerItem      []EvalItem              `json:"per_item"`
-	Experiments  map[string]EvalCohort   `json:"experiments,omitempty"`
-	Decision     string                  `json:"decision"`
+	Items       int                   `json:"items"`
+	RecallAvg   float64               `json:"recall_avg"`
+	TokensAvg   float64               `json:"pack_tokens_avg"`
+	PerItem     []EvalItem            `json:"per_item"`
+	Experiments map[string]EvalCohort `json:"experiments,omitempty"`
+	Decision    string                `json:"decision"`
 }
 
 // EvalItem is one old item replayed as if it were new.

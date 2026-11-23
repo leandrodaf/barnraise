@@ -278,6 +278,12 @@ func (r *Repo) PushRev(ctx context.Context, rev, branch string) error {
 	return err
 }
 
+// ResetBranch points branch at rev and checks it out in dir, discarding local changes.
+func (r *Repo) ResetBranch(ctx context.Context, dir, branch, rev string) error {
+	_, err := r.git(ctx, dir, "checkout", "--force", "-B", branch, rev)
+	return err
+}
+
 // Checkout moves the worktree in dir to rev, detached, discarding changes.
 func (r *Repo) Checkout(ctx context.Context, dir, rev string) error {
 	_, err := r.git(ctx, dir, "checkout", "--force", "--detach", rev)

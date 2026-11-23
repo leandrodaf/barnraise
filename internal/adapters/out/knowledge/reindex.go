@@ -275,9 +275,10 @@ func (ix *Index) loadAreas(ctx context.Context, project string) (map[string]area
 		if err := rows.Scan(&name, &paths, &screens, &contracts, &spec.Standard); err != nil {
 			return nil, err
 		}
-		json.Unmarshal([]byte(paths), &spec.Paths)
-		json.Unmarshal([]byte(screens), &spec.Screens)
-		json.Unmarshal([]byte(contracts), &spec.Contracts)
+		// The lists are written by this package; a malformed one reads as empty.
+		_ = json.Unmarshal([]byte(paths), &spec.Paths)
+		_ = json.Unmarshal([]byte(screens), &spec.Screens)
+		_ = json.Unmarshal([]byte(contracts), &spec.Contracts)
 		out[name] = spec
 	}
 	return out, rows.Err()

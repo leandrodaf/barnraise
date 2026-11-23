@@ -8,8 +8,8 @@ import (
 	"fmt"
 	"image"
 	"image/color"
-	"image/jpeg"
 	_ "image/gif" // decoders
+	"image/jpeg"
 	"image/png"
 	"io"
 	"os"

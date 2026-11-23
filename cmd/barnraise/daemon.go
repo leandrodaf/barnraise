@@ -68,24 +68,24 @@ func (b *swapBus) Subscribe(ctx context.Context, project string, fn func(domain.
 
 // daemon holds the wiring.
 type daemon struct {
-	log      *slog.Logger
-	df       *daemoncfg.File
-	dfMod    time.Time
-	svc      *app.Service
-	store    *sqlite.Store
-	secrets  *keychain.Store
-	bus      swapBus
-	natsSrv  *natsx.Server
-	repl     *natsx.Replicator
-	blobs    *natsx.ObjectStore
-	sender   *webhook.Sender
-	mu       sync.Mutex
-	roots    map[string]string // project -> root
-	runners  map[string]*checks.Runner
-	machine  atomic.Pointer[domain.Machine]
-	dataDir  string
-	opts     cli.DaemonOptions
-	fake     *fakeAgent
+	log     *slog.Logger
+	df      *daemoncfg.File
+	dfMod   time.Time
+	svc     *app.Service
+	store   *sqlite.Store
+	secrets *keychain.Store
+	bus     swapBus
+	natsSrv *natsx.Server
+	repl    *natsx.Replicator
+	blobs   *natsx.ObjectStore
+	sender  *webhook.Sender
+	mu      sync.Mutex
+	roots   map[string]string // project -> root
+	runners map[string]*checks.Runner
+	machine atomic.Pointer[domain.Machine]
+	dataDir string
+	opts    cli.DaemonOptions
+	fake    *fakeAgent
 }
 
 func runDaemon(ctx context.Context, opts cli.DaemonOptions) error {
@@ -217,9 +217,12 @@ func runDaemon(ctx context.Context, opts cli.DaemonOptions) error {
 			}
 			return nil
 		},
-		Reload:        d.reloadProject,
-		WebhookSecret: func(project, source string) string { v, _ := d.secrets.Get("webhook/" + project + "/" + source); return v },
-		Log:           log,
+		Reload: d.reloadProject,
+		WebhookSecret: func(project, source string) string {
+			v, _ := d.secrets.Get("webhook/" + project + "/" + source)
+			return v
+		},
+		Log: log,
 	})
 	unixL, err := httpapi.ListenUnix(paths.Socket())
 	if err != nil {
@@ -621,7 +624,9 @@ func (d *daemon) projectPorts(cfg *domain.ProjectConfig) (app.ProjectPorts, erro
 func (d *daemon) newRunner(cfg *domain.ProjectConfig, ch ports.CodeHost) *checks.Runner {
 	project := cfg.Name
 	o := checks.Options{Exec: execx.New(), LogDir: filepath.Join(d.dataDir, "logs", project), Blobs: blobsOrNil(d.blobs), AreaOf: cfg.AreaOfFile,
-		Remote: func(ctx context.Context, label string, spec ports.CheckSpec) error { return d.dispatchRemote(project, label, spec) },
+		Remote: func(ctx context.Context, label string, spec ports.CheckSpec) error {
+			return d.dispatchRemote(project, label, spec)
+		},
 	}
 	if ch != nil {
 		o.Dispatch = func(ctx context.Context, workflow, branch string, inputs map[string]string) error {
@@ -680,8 +685,8 @@ func (d *daemon) projectOfDir(dir string) string {
 
 // remoteCheck is the RPC body to run a check on another machine.
 type remoteCheck struct {
-	Project string           `json:"project"`
-	Spec    ports.CheckSpec  `json:"spec"`
+	Project string          `json:"project"`
+	Spec    ports.CheckSpec `json:"spec"`
 }
 
 // dispatchRemote sends a machine:<label> check to a peer that has the label;

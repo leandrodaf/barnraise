@@ -67,7 +67,7 @@ type Event struct {
 	Subject string          `json:"subject,omitempty"` // I-42, P-7, account id…
 	Machine string          `json:"machine"`
 	Actor   string          `json:"actor,omitempty"` // agent, owner, token name
-	Time    time.Time       `json:"time"`
+	Time    time.Time       `json:"time,omitzero"`
 	Seq     int64           `json:"seq,omitempty"` // local position in the log
 	Data    json.RawMessage `json:"data,omitempty"`
 }
@@ -126,7 +126,7 @@ type Machine struct {
 	Slots     int       `json:"slots"`
 	Busy      int       `json:"busy"`
 	Accounts  []string  `json:"accounts,omitempty"`
-	LastSeen  time.Time `json:"last_seen"`
+	LastSeen  time.Time `json:"last_seen,omitzero"`
 	Leaving   bool      `json:"leaving,omitempty"`
 	Left      bool      `json:"left,omitempty"`
 }
@@ -169,7 +169,7 @@ type SessionInfo struct {
 	SessionID string    `json:"session_id,omitempty"`
 	State     string    `json:"state"` // starting, working, waiting, idle, done, failed
 	Detail    string    `json:"detail,omitempty"`
-	At        time.Time `json:"at"`
+	At        time.Time `json:"at,omitzero"`
 }
 
 // TokenUsage is counted per step.
@@ -199,7 +199,7 @@ type JournalEntry struct {
 	ItemID string    `json:"item_id,omitempty"`
 	Step   string    `json:"step,omitempty"`
 	Text   string    `json:"text"`
-	At     time.Time `json:"at"`
+	At     time.Time `json:"at,omitzero"`
 }
 
 // State is the projection of the event log for one project.

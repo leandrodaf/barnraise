@@ -145,19 +145,26 @@ func (s *Service) writeCriteria(dir string, it *domain.Item) error {
 
 // commitStep commits and pushes the worktree with the item trailer, after a secret scan.
 func (s *Service) commitStep(ctx context.Context, p *Project, itemID, msg string) (string, error) {
+	p.mu.Lock()
+	branch := ""
+	if it := p.state.Items[itemID]; it != nil {
+		branch = it.Branch
+	}
+	p.mu.Unlock()
+	return s.commitIn(ctx, p, itemID, s.WorktreeDir(p.Name, itemID), branch, msg)
+}
+
+// commitIn commits and pushes a given worktree of an item (the second attempt has its own).
+func (s *Service) commitIn(ctx context.Context, p *Project, itemID, dir, branch, msg string) (string, error) {
 	g := p.Ports.Git
 	if g == nil {
 		return "", nil
 	}
-	dir := s.WorktreeDir(p.Name, itemID)
 	if _, err := os.Stat(dir); err != nil {
 		return "", nil
 	}
 	p.mu.Lock()
-	it := p.state.Items[itemID]
-	branch := ""
-	if it != nil {
-		branch = it.Branch
+	if it := p.state.Items[itemID]; it != nil {
 		_ = s.writeCriteria(dir, it)
 	}
 	p.mu.Unlock()

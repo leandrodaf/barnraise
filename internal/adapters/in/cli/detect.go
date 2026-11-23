@@ -18,8 +18,8 @@ type Detected struct {
 	Lint      string   `json:"lint,omitempty"`
 	CI        []string `json:"ci,omitempty"`
 	Sensitive []string `json:"sensitive,omitempty"`
-	Remote    string   `json:"remote,omitempty"`  // owner/name on GitHub or GitLab
-	Host      string   `json:"host,omitempty"`    // github, gitlab
+	Remote    string   `json:"remote,omitempty"` // owner/name on GitHub or GitLab
+	Host      string   `json:"host,omitempty"`   // github, gitlab
 	Mockup    string   `json:"mockup,omitempty"`
 	Readme    string   `json:"readme,omitempty"`
 }

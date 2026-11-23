@@ -61,7 +61,7 @@ type Lease struct {
 	Key     string    `json:"key"`
 	Holder  string    `json:"holder"`
 	Version string    `json:"version"` // opaque compare-and-swap token (ref sha)
-	Renewed time.Time `json:"renewed"`
+	Renewed time.Time `json:"renewed,omitzero"`
 }
 
 // LeaseInfo is what anyone can see about a lease.
@@ -100,6 +100,8 @@ type Git interface {
 	AddDetachedWorktree(ctx context.Context, dir, rev string) error
 	// PushRev sets branch to rev locally and on the remote (forced: item branches are rebased).
 	PushRev(ctx context.Context, rev, branch string) error
+	// ResetBranch points branch at rev and checks it out in dir (discarding local changes).
+	ResetBranch(ctx context.Context, dir, branch, rev string) error
 	// Checkout moves a worktree to rev (detached).
 	Checkout(ctx context.Context, dir, rev string) error
 	RemoveWorktree(ctx context.Context, dir string) error
@@ -126,7 +128,7 @@ type Commit struct {
 	Subject  string            `json:"subject"`
 	Body     string            `json:"body"`
 	Author   string            `json:"author"`
-	Time     time.Time         `json:"time"`
+	Time     time.Time         `json:"time,omitzero"`
 	Files    []string          `json:"files,omitempty"`
 	Trailers map[string]string `json:"trailers,omitempty"`
 }
@@ -199,7 +201,7 @@ type ProviderEvent struct {
 	Input     json.RawMessage    `json:"input,omitempty"`
 	Usage     *domain.TokenUsage `json:"usage,omitempty"`
 	IsError   bool               `json:"is_error,omitempty"`
-	ResetsAt  time.Time          `json:"resets_at,omitempty"`
+	ResetsAt  time.Time          `json:"resets_at,omitzero"`
 	Raw       json.RawMessage    `json:"raw,omitempty"`
 }
 
@@ -210,7 +212,7 @@ type SessionResult struct {
 	Usage     domain.TokenUsage `json:"usage"`
 	ExitCode  int               `json:"exit_code"`
 	Limited   bool              `json:"limited"`
-	ResetsAt  time.Time         `json:"resets_at,omitempty"`
+	ResetsAt  time.Time         `json:"resets_at,omitzero"`
 	Duration  time.Duration     `json:"duration"`
 }
 
@@ -239,7 +241,7 @@ type TrackerItem struct {
 	Labels  []string  `json:"labels,omitempty"`
 	Author  string    `json:"author,omitempty"`
 	URL     string    `json:"url,omitempty"`
-	Updated time.Time `json:"updated"`
+	Updated time.Time `json:"updated,omitzero"`
 	Closed  bool      `json:"closed,omitempty"`
 }
 
@@ -382,7 +384,7 @@ type SearchHit struct {
 	Summary string    `json:"summary"`
 	Area    string    `json:"area,omitempty"`
 	Path    string    `json:"path,omitempty"`
-	Date    time.Time `json:"date,omitempty"`
+	Date    time.Time `json:"date,omitzero"`
 	Tokens  int       `json:"tokens"`
 	Score   float64   `json:"score"`
 	Layer   string    `json:"layer"` // exact, filter, text, vector
@@ -399,8 +401,8 @@ type Doc struct {
 	Areas     []string          `json:"areas,omitempty"`
 	Links     []string          `json:"links,omitempty"`
 	Meta      map[string]string `json:"meta,omitempty"`
-	Updated   time.Time         `json:"updated,omitempty"`
-	ReviewBy  time.Time         `json:"review_by,omitempty"`
+	Updated   time.Time         `json:"updated,omitzero"`
+	ReviewBy  time.Time         `json:"review_by,omitzero"`
 	SourceSHA string            `json:"source_sha,omitempty"`
 }
 

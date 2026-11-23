@@ -51,7 +51,7 @@ type Delivery struct {
 	Concerns []string        `json:"concerns,omitempty"`
 	Reason   string          `json:"reason,omitempty"` // for NEEDS_CONTEXT and BLOCKED
 	Commit   string          `json:"commit,omitempty"`
-	At       time.Time       `json:"at"`
+	At       time.Time       `json:"at,omitzero"`
 }
 
 // Validate enforces the fields: loose text does not move an item.
@@ -124,7 +124,7 @@ type Review struct {
 	Findings []Finding      `json:"findings,omitempty"`
 	Summary  string         `json:"summary"`
 	Family   string         `json:"family,omitempty"`
-	At       time.Time      `json:"at"`
+	At       time.Time      `json:"at,omitzero"`
 }
 
 // Validate refuses reviews without both verdicts or inconsistent decisions.
@@ -218,7 +218,7 @@ type CheckResult struct {
 	Duration  time.Duration `json:"duration"`
 	Criteria  []string      `json:"criteria,omitempty"` // criteria ids verified
 	RunsOn    string        `json:"runs_on"`
-	At        time.Time     `json:"at"`
+	At        time.Time     `json:"at,omitzero"`
 }
 
 // CriteriaCoverage returns criteria whose check is not among the available checks.

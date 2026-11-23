@@ -68,6 +68,7 @@ type Actor struct {
 	TokenID string    `json:"token_id,omitempty"`
 	Family  string    `json:"family,omitempty"`
 	Model   string    `json:"model,omitempty"`
+	Attempt string    `json:"attempt,omitempty"` // "b" for the second attempt of a risky item
 }
 
 // Owner returns the owner actor.

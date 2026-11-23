@@ -379,12 +379,12 @@ func (ix *Index) loadDoc(ctx context.Context, project, id string) (*ports.Doc, e
 		return nil, err
 	}
 	var as []string
-	json.Unmarshal([]byte(areas), &as)
+	_ = json.Unmarshal([]byte(areas), &as) // written by this package; malformed reads as none
 	for _, a := range as {
 		d.Areas = append(d.Areas, domain.AreaID(a))
 	}
 	d.Meta = map[string]string{}
-	json.Unmarshal([]byte(meta), &d.Meta)
+	_ = json.Unmarshal([]byte(meta), &d.Meta)
 	d.Meta["summary"] = summary
 	if commit != "" {
 		d.Meta["commit"] = commit

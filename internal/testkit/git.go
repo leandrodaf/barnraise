@@ -17,12 +17,12 @@ import (
 // IsolateGit keeps the developer's git configuration out of a test run.
 // Call it from TestMain (it sets process environment variables).
 func IsolateGit() {
-	os.Setenv("GIT_CONFIG_GLOBAL", os.DevNull)
-	os.Setenv("GIT_CONFIG_NOSYSTEM", "1")
-	os.Setenv("GIT_AUTHOR_NAME", "Test")
-	os.Setenv("GIT_AUTHOR_EMAIL", "test@example.com")
-	os.Setenv("GIT_COMMITTER_NAME", "Test")
-	os.Setenv("GIT_COMMITTER_EMAIL", "test@example.com")
+	_ = os.Setenv("GIT_CONFIG_GLOBAL", os.DevNull)
+	_ = os.Setenv("GIT_CONFIG_NOSYSTEM", "1")
+	_ = os.Setenv("GIT_AUTHOR_NAME", "Test")
+	_ = os.Setenv("GIT_AUTHOR_EMAIL", "test@example.com")
+	_ = os.Setenv("GIT_COMMITTER_NAME", "Test")
+	_ = os.Setenv("GIT_COMMITTER_EMAIL", "test@example.com")
 }
 
 // RunGit runs git in dir and returns its trimmed output; it fails the test on error.
@@ -296,6 +296,12 @@ func (g *FakeGit) PushRev(_ context.Context, rev, branch string) error {
 // Checkout implements ports.Git.
 func (g *FakeGit) Checkout(_ context.Context, dir, rev string) error {
 	g.record("Checkout %s %s", dir, rev)
+	return nil
+}
+
+// ResetBranch implements ports.Git.
+func (g *FakeGit) ResetBranch(_ context.Context, dir, branch, rev string) error {
+	g.record("ResetBranch %s %s %s", dir, branch, rev)
 	return nil
 }
 

@@ -105,3 +105,28 @@ func must[T any](v T, err error) (T, error) {
 	}
 	return v, nil
 }
+
+// snakeJSON is the Connect JSON codec with the proto field names (snake_case),
+// the same names the daemon uses everywhere (CLI --json, events, docs).
+type snakeJSON struct{}
+
+func (snakeJSON) Name() string { return "json" }
+
+func (snakeJSON) Marshal(m any) ([]byte, error) {
+	pm, ok := m.(proto.Message)
+	if !ok {
+		return nil, fmt.Errorf("json codec: %T is not a proto message", m)
+	}
+	return protojson.MarshalOptions{UseProtoNames: true}.Marshal(pm)
+}
+
+func (snakeJSON) Unmarshal(data []byte, m any) error {
+	pm, ok := m.(proto.Message)
+	if !ok {
+		return fmt.Errorf("json codec: %T is not a proto message", m)
+	}
+	if len(data) == 0 {
+		return nil
+	}
+	return protojson.UnmarshalOptions{DiscardUnknown: true}.Unmarshal(data, pm)
+}

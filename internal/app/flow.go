@@ -267,6 +267,9 @@ func (s *Service) Deliver(ctx context.Context, project string, a Actor, d domain
 	d.At = s.d.Clock.Now().UTC()
 	outcome, _ := d.Status.Outcome()
 
+	if s.hasAlt(p, d.ItemID, d.Step) {
+		return s.deliverAttempt(ctx, p, a, d)
+	}
 	// Commit and push the step's work before the transition: if this
 	// machine dies, nothing is lost.
 	if sha, err := s.commitStep(ctx, p, d.ItemID, fmt.Sprintf("%s: %s step %s", d.ItemID, strings.ToLower(string(d.Status)), d.Step)); err == nil && sha != "" {

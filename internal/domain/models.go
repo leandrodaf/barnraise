@@ -164,10 +164,10 @@ type Usage struct {
 	FiveHourPct    float64   `json:"five_hour_pct"`
 	WeeklyPct      float64   `json:"weekly_pct"`
 	WeeklyTopPct   float64   `json:"weekly_top_pct,omitempty"` // weekly window of the top model (Fable)
-	FiveHourResets time.Time `json:"five_hour_resets,omitempty"`
-	WeeklyResets   time.Time `json:"weekly_resets,omitempty"`
+	FiveHourResets time.Time `json:"five_hour_resets,omitzero"`
+	WeeklyResets   time.Time `json:"weekly_resets,omitzero"`
 	ContextPct     float64   `json:"context_pct,omitempty"`
-	UpdatedAt      time.Time `json:"updated_at"`
+	UpdatedAt      time.Time `json:"updated_at,omitzero"`
 	Source         string    `json:"source,omitempty"` // statusline, estimate
 }
 
@@ -183,7 +183,7 @@ type Account struct {
 	Status     AccountStatus `json:"status"`
 	Usage      Usage         `json:"usage"`
 	Projects   []string      `json:"projects,omitempty"` // empty: all
-	AddedAt    time.Time     `json:"added_at"`
+	AddedAt    time.Time     `json:"added_at,omitzero"`
 }
 
 // Available reports whether the account can take a step now.

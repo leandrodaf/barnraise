@@ -5,8 +5,15 @@ run:
   tests: true
 
 linters:
+  # standard is errcheck, govet, ineffassign, staticcheck and unused; in v2
+  # staticcheck also carries the former gosimple and stylecheck checks.
   default: standard
   enable:
+    - errcheck
+    - govet
+    - ineffassign
+    - staticcheck
+    - unused
     - depguard
   settings:
     errcheck:
@@ -26,6 +33,25 @@ linters:
         - fmt.Fprintf
         - fmt.Fprintln
         - fmt.Sscan
+        - (net.PacketConn).Close
+        - (*database/sql.DB).Close
+        - (*database/sql.Rows).Close
+        - (*database/sql.Stmt).Close
+        - (*database/sql.Tx).Rollback
+        - (*github.com/leandrodaf/barnraise/internal/adapters/out/sqlite.Store).Close
+        - (*github.com/leandrodaf/barnraise/internal/adapters/out/webhook.Sender).Close
+    staticcheck:
+      checks:
+        # The default set, without the style quick fix that rewrites
+        # conditions with De Morgan's law: the original reads closer to the rule.
+        - all
+        - -ST1000
+        - -ST1003
+        - -ST1016
+        - -ST1020
+        - -ST1021
+        - -ST1022
+        - -QF1001
     depguard:
       # The hexagonal dependency rule (docs/adr/0002-hexagonal-architecture.md):
       # the domain depends on nothing but the standard library, ports only on
@@ -59,6 +85,22 @@ linters:
             - github.com/leandrodaf/barnraise/internal/domain
             - github.com/leandrodaf/barnraise/internal/ports
             - github.com/leandrodaf/barnraise/internal/app
+          deny:
+            - pkg: net/http
+              desc: HTTP clients are adapters; the application reaches them through ports
+            - pkg: net/rpc
+              desc: network clients are adapters
+            - pkg: net/smtp
+              desc: network clients are adapters
+            - pkg: database/sql
+              desc: storage is an adapter; use the ports
+        adapters:
+          list-mode: lax
+          files:
+            - "**/internal/adapters/**"
+          deny:
+            - pkg: github.com/leandrodaf/barnraise/cmd
+              desc: adapters never import the binary
         outbound-adapters:
           list-mode: lax
           files:
@@ -85,3 +127,8 @@ formatters:
     generated: strict
     paths:
       - gen/
+
+issues:
+  # Report everything: a hidden finding is a finding nobody fixes.
+  max-issues-per-linter: 0
+  max-same-issues: 0

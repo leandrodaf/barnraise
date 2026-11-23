@@ -12,23 +12,23 @@ import (
 
 // Status is what `barnraise status`, the MCP status tool and the panel's home show.
 type Status struct {
-	Project   string                     `json:"project"`
-	Machine   string                     `json:"machine"`
-	Paused    bool                       `json:"paused"`
-	PausedWhy string                     `json:"paused_why,omitempty"`
-	Goal      *domain.Goal               `json:"goal,omitempty"`
-	Progress  *domain.GoalProgress       `json:"progress,omitempty"`
-	Focus     *domain.Focus              `json:"focus,omitempty"`
-	FocusDone int                        `json:"focus_done"`
-	FocusAll  int                        `json:"focus_all"`
-	Counts    map[string]int             `json:"counts"`
-	Queue     []*domain.Item             `json:"queue"`
-	Waiting   []*domain.Question         `json:"waiting_owner"`
-	Agents    []*domain.SessionInfo      `json:"agents"`
-	Accounts  []*domain.Account          `json:"accounts"`
-	Machines  []MachineView              `json:"machines"`
-	Proposals int                        `json:"open_proposals"`
-	Alerts    []string                   `json:"alerts,omitempty"`
+	Project   string                `json:"project"`
+	Machine   string                `json:"machine"`
+	Paused    bool                  `json:"paused"`
+	PausedWhy string                `json:"paused_why,omitempty"`
+	Goal      *domain.Goal          `json:"goal,omitempty"`
+	Progress  *domain.GoalProgress  `json:"progress,omitempty"`
+	Focus     *domain.Focus         `json:"focus,omitempty"`
+	FocusDone int                   `json:"focus_done"`
+	FocusAll  int                   `json:"focus_all"`
+	Counts    map[string]int        `json:"counts"`
+	Queue     []*domain.Item        `json:"queue"`
+	Waiting   []*domain.Question    `json:"waiting_owner"`
+	Agents    []*domain.SessionInfo `json:"agents"`
+	Accounts  []*domain.Account     `json:"accounts"`
+	Machines  []MachineView         `json:"machines"`
+	Proposals int                   `json:"open_proposals"`
+	Alerts    []string              `json:"alerts,omitempty"`
 }
 
 // MachineView adds health to a machine.

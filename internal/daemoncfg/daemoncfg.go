@@ -22,8 +22,8 @@ import (
 // Peer is another machine of the cluster.
 type Peer struct {
 	Name      string    `yaml:"name"`
-	URL       string    `yaml:"url"`        // nats://host:4222
-	PublicKey string    `yaml:"public_key"` // its NATS nkey
+	URL       string    `yaml:"url"`            // nats://host:4222
+	PublicKey string    `yaml:"public_key"`     // its NATS nkey
 	Seed      string    `yaml:"seed,omitempty"` // our credential on its server (its server authorizes our key)
 	Added     time.Time `yaml:"added"`
 }

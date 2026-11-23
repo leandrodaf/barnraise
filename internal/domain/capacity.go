@@ -109,8 +109,8 @@ type Goal struct {
 	DoneWhen   string    `json:"done_when"`
 	Inventory  string    `json:"inventory,omitempty"` // "screens docs/prototipo-mobile"
 	Active     bool      `json:"active"`
-	CreatedAt  time.Time `json:"created_at"`
-	FinishedAt time.Time `json:"finished_at,omitempty"`
+	CreatedAt  time.Time `json:"created_at,omitzero"`
+	FinishedAt time.Time `json:"finished_at,omitzero"`
 	BudgetPct  int       `json:"budget_pct,omitempty"` // max share of the weekly account window
 }
 
@@ -119,7 +119,7 @@ type GoalProgress struct {
 	Total      int       `json:"total"`
 	Done       int       `json:"done"`
 	PerDay     float64   `json:"per_day"`
-	Forecast   time.Time `json:"forecast,omitempty"`
+	Forecast   time.Time `json:"forecast,omitzero"`
 	Percentage int       `json:"percentage"`
 }
 
@@ -161,10 +161,10 @@ type Focus struct {
 	Name      string    `json:"name"`
 	Area      string    `json:"area,omitempty"`
 	Items     []string  `json:"items,omitempty"`
-	Until     time.Time `json:"until,omitempty"` // zero means until done
-	Share     int       `json:"share"`           // share of capacity, default 80
+	Until     time.Time `json:"until,omitzero"` // zero means until done
+	Share     int       `json:"share"`          // share of capacity, default 80
 	SetBy     string    `json:"set_by"`
-	SetAt     time.Time `json:"set_at"`
+	SetAt     time.Time `json:"set_at,omitzero"`
 	Cancelled bool      `json:"cancelled,omitempty"`
 }
 

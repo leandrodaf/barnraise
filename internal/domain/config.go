@@ -109,7 +109,7 @@ type ExperimentDef struct {
 	Model   string            `json:"model,omitempty"`
 	Prompt  string            `json:"prompt,omitempty"`
 	Env     map[string]string `json:"env,omitempty"`
-	Started time.Time         `json:"started,omitempty"`
+	Started time.Time         `json:"started,omitzero"`
 }
 
 // ProjectConfig is barnraise.yaml compiled with template defaults.

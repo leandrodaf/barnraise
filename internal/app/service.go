@@ -21,31 +21,31 @@ import (
 
 // Errors exposed to adapters (mapped to HTTP/MCP codes).
 var (
-	ErrNotFound     = errors.New("not found")
-	ErrForbidden    = errors.New("forbidden")
-	ErrInvalid      = errors.New("invalid request")
-	ErrConflict     = errors.New("conflict")
-	ErrUnknownProj  = errors.New("unknown project")
-	ErrPaused       = errors.New("barnraise is paused")
-	ErrNoWork       = errors.New("no authorized work")
+	ErrNotFound    = errors.New("not found")
+	ErrForbidden   = errors.New("forbidden")
+	ErrInvalid     = errors.New("invalid request")
+	ErrConflict    = errors.New("conflict")
+	ErrUnknownProj = errors.New("unknown project")
+	ErrPaused      = errors.New("barnraise is paused")
+	ErrNoWork      = errors.New("no authorized work")
 )
 
 // Deps are the ports shared by all projects of a daemon.
 type Deps struct {
-	Clock     ports.Clock
-	IDs       ports.IDGen
-	Store     ports.EventStore
-	Bus       ports.EventBus // optional
-	Checks    ports.CheckRunner
-	Notifier  ports.Notifier // optional
-	Providers map[string]ports.Provider
-	Blobs     ports.BlobStore // optional
-	Knowledge ports.Knowledge // optional
-	Exec      ports.Exec      // optional
-	Log       *slog.Logger
-	Machine   string
-	Version   string
-	DataDir   string // worktrees, logs, policy files
+	Clock      ports.Clock
+	IDs        ports.IDGen
+	Store      ports.EventStore
+	Bus        ports.EventBus // optional
+	Checks     ports.CheckRunner
+	Notifier   ports.Notifier // optional
+	Providers  map[string]ports.Provider
+	Blobs      ports.BlobStore // optional
+	Knowledge  ports.Knowledge // optional
+	Exec       ports.Exec      // optional
+	Log        *slog.Logger
+	Machine    string
+	Version    string
+	DataDir    string // worktrees, logs, policy files
 	SocketPath string
 	BinaryPath string // the barnraise binary, for hooks and MCP config
 }

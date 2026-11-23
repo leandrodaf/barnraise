@@ -188,8 +188,8 @@ func (s *Service) applyVerdicts(ctx context.Context, p *Project, ch domain.Chang
 		case domain.TriageConflict:
 			p.mu.Lock()
 			q := &domain.Question{ItemID: v.ItemID, Context: fmt.Sprintf("%s contradicts %s: %s", v.ItemID, ch.Cause, v.Reason),
-				Decision: "Keep the item as it is, update it, or close it?",
-				Options:  []domain.Option{{Label: "Update the item", Recommended: true}, {Label: "Keep as is"}, {Label: "Abandon the item"}},
+				Decision:   "Keep the item as it is, update it, or close it?",
+				Options:    []domain.Option{{Label: "Update the item", Recommended: true}, {Label: "Keep as is"}, {Label: "Abandon the item"}},
 				IfNoAnswer: "The item stays out of the queue."}
 			if qid, err := s.askLocked(ctx, p, q, "triage"); err == nil {
 				_, _ = s.mutateItemLocked(ctx, p, v.ItemID, domain.EvItemWaitingOwner, "triage", func(x *domain.Item) error {

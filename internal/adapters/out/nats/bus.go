@@ -90,9 +90,8 @@ type BusOptions struct {
 
 // Bus implements ports.EventBus over a connection to the local server.
 type Bus struct {
-	nc      *nats.Conn
-	js      jetstream.JetStream
-	machine string
+	nc *nats.Conn
+	js jetstream.JetStream
 }
 
 var _ ports.EventBus = (*Bus)(nil)

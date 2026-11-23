@@ -98,14 +98,14 @@ type ReworkRecord struct {
 	Reason  string    `json:"reason"`  // why, in the reader's words
 	Outcome string    `json:"outcome"` // fail, reject, rework
 	Tier    int       `json:"tier"`    // model escalation tier used for the next attempt
-	At      time.Time `json:"at"`
+	At      time.Time `json:"at,omitzero"`
 }
 
 // Claim records who holds the item.
 type Claim struct {
 	Machine string    `json:"machine"`
 	Agent   string    `json:"agent,omitempty"`
-	Since   time.Time `json:"since"`
+	Since   time.Time `json:"since,omitzero"`
 }
 
 // Item is a deliverable unit of work of 2 to 6 agent hours.
@@ -141,15 +141,27 @@ type Item struct {
 	ClosedReason    string             `json:"closed_reason,omitempty"`
 	ClosedBy        string             `json:"closed_by,omitempty"`
 	WaitingQuestion string             `json:"waiting_question,omitempty"`
-	ValidatedAt     time.Time          `json:"validated_at,omitempty"`
-	CreatedAt       time.Time          `json:"created_at"`
-	UpdatedAt       time.Time          `json:"updated_at"`
-	StepStartedAt   time.Time          `json:"step_started_at,omitempty"`
-	IntegratedAt    time.Time          `json:"integrated_at,omitempty"`
+	ValidatedAt     time.Time          `json:"validated_at,omitzero"`
+	CreatedAt       time.Time          `json:"created_at,omitzero"`
+	UpdatedAt       time.Time          `json:"updated_at,omitzero"`
+	StepStartedAt   time.Time          `json:"step_started_at,omitzero"`
+	IntegratedAt    time.Time          `json:"integrated_at,omitzero"`
 	MergeCommit     string             `json:"merge_commit,omitempty"`
 	FilesTouched    []string           `json:"files_touched,omitempty"`
 	Runs            map[string]StepRun `json:"runs,omitempty"`     // last run per step
 	Attempts        int                `json:"attempts,omitempty"` // runs of the current step without a delivery
+	Alt             *AltAttempt        `json:"alt,omitempty"`
+}
+
+// AltAttempt is the second, parallel attempt of a risky item's step: the
+// checks and the reviewers choose; never by default, because it doubles usage.
+type AltAttempt struct {
+	Step   string    `json:"step"`
+	Branch string    `json:"branch"`
+	A      *Delivery `json:"a,omitempty"` // first attempt's delivery, held until B ends
+	B      *Delivery `json:"b,omitempty"`
+	BEnded bool      `json:"b_ended"`
+	Winner string    `json:"winner,omitempty"`
 }
 
 // StepRun records who ran a step last, used for model_family rules.
@@ -280,6 +292,10 @@ func (it *Item) Clone() *Item {
 		for k, v := range it.Runs {
 			c.Runs[k] = v
 		}
+	}
+	if it.Alt != nil {
+		alt := *it.Alt
+		c.Alt = &alt
 	}
 	if it.Claim != nil {
 		cl := *it.Claim

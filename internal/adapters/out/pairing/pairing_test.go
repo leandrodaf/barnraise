@@ -142,7 +142,7 @@ func TestSilentConnection(t *testing.T) {
 	}
 	c.Close()
 	got, err := Join(context.Background(), addr, "123456", []byte("ok"))
-	if err != nil || got != nil && len(got) != 0 {
+	if err != nil || len(got) != 0 {
 		t.Fatalf("%q %v", got, err)
 	}
 	if info, err := wait(); err != nil || string(info) != "ok" {

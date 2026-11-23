@@ -68,7 +68,7 @@ func New(svc *app.Service, opts Options) *Server {
 		opts.Log = slog.Default()
 	}
 	s := &Server{svc: svc, opts: opts, mux: http.NewServeMux()}
-	path, handler := barnraisev1connect.NewBarnraiseServiceHandler(&Handler{srv: s}, connect.WithReadMaxBytes(8<<20))
+	path, handler := barnraisev1connect.NewBarnraiseServiceHandler(&Handler{srv: s}, connect.WithReadMaxBytes(8<<20), connect.WithCodec(snakeJSON{}))
 	s.mux.Handle(path, s.auth(handler))
 	s.mux.Handle("GET /v1/events", s.auth(http.HandlerFunc(s.handleSSE)))
 	s.mux.HandleFunc("POST /v1/webhooks/github", s.handleGitHub)
@@ -111,7 +111,9 @@ func actorFrom(ctx context.Context) app.Actor {
 }
 
 // WithActor is for tests and in-process callers.
-func WithActor(ctx context.Context, a app.Actor) context.Context { return context.WithValue(ctx, actorKey{}, a) }
+func WithActor(ctx context.Context, a app.Actor) context.Context {
+	return context.WithValue(ctx, actorKey{}, a)
+}
 
 // auth resolves the bearer token: owner, agent session, or scoped API token.
 func (s *Server) auth(next http.Handler) http.Handler {

@@ -218,6 +218,32 @@ func TestEndToEnd(t *testing.T) {
 		}
 	})
 
+	t.Run("risky item: two attempts, the checks choose", func(t *testing.T) {
+		it := h.create(&pb.CreateItemRequest{Title: "Payments", Area: "payments", Risky: true, Body: "fake: write app/pay.txt charge",
+			Criteria: crit("WHEN the user pays, THE SYSTEM SHALL charge the card")})
+		h.waitStatus(it.Id, "integrated")
+		tl, err := h.cl.Timeline(ctx, connect.NewRequest(&pb.ItemRef{Project: "demo", Id: it.Id}))
+		if err != nil {
+			t.Fatal(err)
+		}
+		var attempts, chosen int
+		for _, e := range tl.Msg.Entries {
+			if strings.Contains(e.Summary, "attempt") {
+				attempts++
+			}
+			if strings.Contains(e.Summary, "chosen") {
+				chosen++
+			}
+		}
+		if chosen == 0 || attempts < 3 {
+			t.Fatalf("expected two attempts and a choice; attempts=%d chosen=%d", attempts, chosen)
+		}
+		branches := git(t, h.root, "--git-dir", h.remote, "branch", "--list", "*-b")
+		if strings.Contains(branches, strings.ToLower(it.Id)) || strings.Contains(branches, it.Id) {
+			t.Fatalf("the second attempt's branch must be deleted: %s", branches)
+		}
+	})
+
 	t.Run("blocked goes to the owner with a question", func(t *testing.T) {
 		it := h.create(&pb.CreateItemRequest{Title: "Export CSV", Area: "export", Body: "fake: block",
 			Criteria: crit("WHEN the user exports, THE SYSTEM SHALL write a CSV file")})

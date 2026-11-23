@@ -61,17 +61,17 @@ func (a *asker) confirm(q string) bool {
 
 // InitAnswers are what the conversation (or the flags) decides.
 type InitAnswers struct {
-	Project   string
-	Template  string
-	Language  string
-	Goal      string
-	DoneWhen  string
-	Approves  string
-	Tracker   string
-	Repo      string
-	TrackerP  string
-	Check     string
-	Mockup    string
+	Project  string
+	Template string
+	Language string
+	Goal     string
+	DoneWhen string
+	Approves string
+	Tracker  string
+	Repo     string
+	TrackerP string
+	Check    string
+	Mockup   string
 }
 
 func (e *env) initCmd() *cobra.Command {
@@ -88,10 +88,7 @@ func (e *env) initCmd() *cobra.Command {
 				e.initAccounts(q)
 			}
 			d := Detect(root)
-			found := []string{}
-			for _, l := range d.Languages {
-				found = append(found, l)
-			}
+			found := append([]string{}, d.Languages...)
 			if len(d.CI) > 0 {
 				found = append(found, "CI "+strings.Join(d.CI, ", "))
 			}
@@ -373,8 +370,8 @@ func (e *env) upCmd() *cobra.Command {
 			fmt.Fprintf(e.out, "✔ Barnraise is up on machine %s with projects: %s\n", res.Msg.Machine, strings.Join(res.Msg.Projects, ", "))
 			if df.Listen != "off" && df.Listen != "" {
 				if df.Listen != "off" && df.Listen != "" {
-			fmt.Fprintf(e.out, "  Panel: http://%s/?token=$(cat %s)\n", df.Listen, paths.OwnerTokenFile())
-			}
+					fmt.Fprintf(e.out, "  Panel: http://%s/?token=$(cat %s)\n", df.Listen, paths.OwnerTokenFile())
+				}
 			}
 			return nil
 		}}

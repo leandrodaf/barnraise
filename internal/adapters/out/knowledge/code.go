@@ -99,7 +99,7 @@ func extractGo(src []byte) ([]codeSymbol, bool) {
 			sig := *d
 			sig.Body, sig.Doc = nil, nil
 			var buf bytes.Buffer
-			printer.Fprint(&buf, token.NewFileSet(), &sig)
+			_ = printer.Fprint(&buf, token.NewFileSet(), &sig)
 			start := d.Pos()
 			if d.Doc != nil {
 				start = d.Doc.Pos()
@@ -126,7 +126,7 @@ func extractGo(src []byte) ([]codeSymbol, bool) {
 					kind, sig = "interface", "type "+ts.Name.Name+" interface"
 				default:
 					var buf bytes.Buffer
-					printer.Fprint(&buf, token.NewFileSet(), ts)
+					_ = printer.Fprint(&buf, token.NewFileSet(), ts)
 					sig = "type " + buf.String()
 				}
 				start, end := ts.Pos(), ts.End()

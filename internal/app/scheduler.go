@@ -130,6 +130,9 @@ func (s *Service) heldWorkLocked(p *Project, slot Slot) *Assignment {
 		if _, busy := p.running[it.ID]; busy {
 			continue
 		}
+		if it.Alt != nil && it.Alt.A != nil {
+			continue // attempt a delivered; the second attempt decides when it ends
+		}
 		f, err := p.Cfg.FlowFor(it.Kind)
 		if err != nil {
 			continue
@@ -222,9 +225,7 @@ func (s *Service) candidatesLocked(p *Project, slot Slot) []*domain.Item {
 		if overlap {
 			continue
 		}
-		if it.Lane == domain.LaneSelf {
-			// Self-improvement only runs with the owner's approval (it came from an approved proposal).
-		}
+		// Self-improvement only runs with the owner's approval (it came from an approved proposal).
 		byLane[it.Lane] = append(byLane[it.Lane], it)
 		if it.Lane == domain.LaneBugs && it.Priority == domain.P0 {
 			hasP0 = true
@@ -233,9 +234,7 @@ func (s *Service) candidatesLocked(p *Project, slot Slot) []*domain.Item {
 	usage := domain.LaneUsage{}
 	selfWeek := 0
 	for _, it := range items {
-		if it.StepStartedAt.IsZero() || it.Claim == nil && it.IntegratedAt.IsZero() && it.Status != domain.StatusQueued {
-			// count only items that actually started
-		}
+		// Count only items that actually started.
 		started := firstStart(it)
 		if started.IsZero() || now.Sub(started) > laneWindow {
 			continue

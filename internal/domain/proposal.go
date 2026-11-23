@@ -39,10 +39,10 @@ type Proposal struct {
 	Comments   []string       `json:"comments,omitempty"`
 	Reason     string         `json:"reason,omitempty"`
 	ItemID     string         `json:"item_id,omitempty"` // item created on approval
-	CreatedAt  time.Time      `json:"created_at"`
-	DecidedAt  time.Time      `json:"decided_at,omitempty"`
+	CreatedAt  time.Time      `json:"created_at,omitzero"`
+	DecidedAt  time.Time      `json:"decided_at,omitzero"`
 	DecidedBy  string         `json:"decided_by,omitempty"`
-	LaterUntil time.Time      `json:"later_until,omitempty"`
+	LaterUntil time.Time      `json:"later_until,omitzero"`
 }
 
 // ProposalRules come from `proposals:` in barnraise.yaml.
@@ -229,7 +229,7 @@ type Tweak struct {
 	Area      string    `json:"area"`
 	Text      string    `json:"text"`
 	By        string    `json:"by"`
-	CreatedAt time.Time `json:"created_at"`
+	CreatedAt time.Time `json:"created_at,omitzero"`
 	ItemID    string    `json:"item_id,omitempty"` // item it was attached to
 }
 
@@ -263,11 +263,11 @@ type Question struct {
 	Options    []Option  `json:"options"`  // 2 to 4, one recommended
 	IfNoAnswer string    `json:"if_no_answer"`
 	AskedBy    string    `json:"asked_by"`
-	AskedAt    time.Time `json:"asked_at"`
-	Deadline   time.Time `json:"deadline,omitempty"`
+	AskedAt    time.Time `json:"asked_at,omitzero"`
+	Deadline   time.Time `json:"deadline,omitzero"`
 	Answer     string    `json:"answer,omitempty"`
 	AnsweredBy string    `json:"answered_by,omitempty"`
-	AnsweredAt time.Time `json:"answered_at,omitempty"`
+	AnsweredAt time.Time `json:"answered_at,omitzero"`
 	Urgent     bool      `json:"urgent,omitempty"`
 }
 
@@ -339,7 +339,7 @@ type Message struct {
 	To        string    `json:"to"` // agent name, role:<role> or item:<id> (whoever holds it)
 	ItemID    string    `json:"item_id,omitempty"`
 	Text      string    `json:"text"`
-	At        time.Time `json:"at"`
+	At        time.Time `json:"at,omitzero"`
 	Delivered bool      `json:"delivered,omitempty"`
 }
 

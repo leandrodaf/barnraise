@@ -193,20 +193,46 @@ func (r *Runtime) fillSlots(ctx context.Context, p *Project, m domain.Machine) {
 			// No authorized work: the agent records nothing and ends its turn.
 			continue
 		}
-		if err := r.start(ctx, p, slot, a); err != nil {
+		dual := false
+		if dualEligible(a.Item, a.Step) && !r.s.hasAlt(p, a.Item.ID, a.Step.Name) {
+			if _, err := r.s.ensureWorkspace(ctx, p, a.Item.ID); err == nil {
+				if _, err := r.s.prepareAlt(ctx, p, a.Item.ID, a.Step); err == nil {
+					dual = true
+				} else {
+					r.s.d.Log.Warn("second attempt not prepared", "item", a.Item.ID, "err", err)
+				}
+			}
+		}
+		if err := r.start(ctx, p, slot, a, ""); err != nil {
 			r.s.d.Log.Warn("start session", "agent", slot.Agent, "item", a.Item.ID, "err", err)
 			r.s.doneRunning(p, a.Item.ID, slot.Agent)
 			r.s.sessionState(ctx, p, slot, a, "failed", err.Error(), "", "", "")
+			continue
+		}
+		if dual {
+			slotB := Slot{Agent: slot.Agent + "-b", Role: slot.Role, Machine: slot.Machine, Reviewer: slot.Reviewer}
+			p.mu.Lock()
+			p.running[altKey(a.Item.ID)] = slotB.Agent
+			p.mu.Unlock()
+			if err := r.start(ctx, p, slotB, a, "b"); err != nil {
+				r.s.d.Log.Warn("second attempt", "item", a.Item.ID, "err", err)
+				r.s.doneRunning(p, altKey(a.Item.ID), slotB.Agent)
+				if r.s.hasAlt(p, a.Item.ID, a.Step.Name) {
+					r.s.altEnded(ctx, p, a.Item.ID)
+				}
+			}
 		}
 	}
 }
 
 // start opens a provider session for an assignment.
-func (r *Runtime) start(ctx context.Context, p *Project, slot Slot, a *Assignment) error {
+func (r *Runtime) start(ctx context.Context, p *Project, slot Slot, a *Assignment, attempt string) error {
 	s := r.s
 	var dir string
 	var err error
-	if a.Step.Name == RefineStep {
+	if attempt == "b" {
+		dir, err = s.prepareAlt(ctx, p, a.Item.ID, a.Step)
+	} else if a.Step.Name == RefineStep {
 		dir, err = s.refineWorkspace(ctx, p, a.Item.ID)
 	} else {
 		dir, err = s.ensureWorkspace(ctx, p, a.Item.ID)
@@ -267,7 +293,7 @@ func (r *Runtime) start(ctx context.Context, p *Project, slot Slot, a *Assignmen
 	}
 	family := p.Cfg.Models.Family(choice.Provider)
 	actor := Actor{Kind: ActorAgent, Name: slot.Agent, Role: role, Project: p.Name, ItemID: it.ID, Step: a.Step.Name, Account: acc.ID,
-		Scopes: RoleScopes(role, a.Step.Review || a.Step.Type == domain.StepApproval), Family: family, Model: choice.Model}
+		Scopes: RoleScopes(role, a.Step.Review || a.Step.Type == domain.StepApproval), Family: family, Model: choice.Model, Attempt: attempt}
 	token := s.tokens.Issue(actor, r.SessionTimeout+time.Hour)
 	prompt, err := s.BuildStepPrompt(ctx, p, it, a.Step, role, slot.Agent)
 	if err != nil {
@@ -292,6 +318,9 @@ func (r *Runtime) start(ctx context.Context, p *Project, slot Slot, a *Assignmen
 		proxy := "http://" + r.EgressProxy
 		env["HTTPS_PROXY"], env["HTTP_PROXY"], env["https_proxy"], env["http_proxy"] = proxy, proxy, proxy, proxy
 		env["NO_PROXY"], env["no_proxy"] = "localhost,127.0.0.1", "localhost,127.0.0.1"
+	}
+	if attempt != "" {
+		env["BARNRAISE_ATTEMPT"] = attempt
 	}
 	if experiment != "" {
 		env["BARNRAISE_EXPERIMENT"] = experiment
@@ -323,7 +352,7 @@ func (r *Runtime) start(ctx context.Context, p *Project, slot Slot, a *Assignmen
 	r.running[slot.Agent] = ls
 	r.mu.Unlock()
 	s.sessionState(ctx, p, slot, a, "starting", experiment, acc.ID, choice.Provider, choice.String())
-	go r.watch(p, slot, a, ls, *acc, choice, token, it.Version)
+	go r.watch(p, slot, a, ls, *acc, choice, token, it.Version, attempt)
 	return nil
 }
 
@@ -403,16 +432,20 @@ func (r *Runtime) writeSessionFiles(p *Project, sessDir, worktree string, env ma
 }
 
 // watch follows a session's events until it ends, then decides what the end means.
-func (r *Runtime) watch(p *Project, slot Slot, a *Assignment, ls *liveSession, acc domain.Account, choice domain.ModelChoice, token string, startVersion int) {
+func (r *Runtime) watch(p *Project, slot Slot, a *Assignment, ls *liveSession, acc domain.Account, choice domain.ModelChoice, token string, startVersion int, attempt string) {
 	s := r.s
 	ctx := context.Background()
+	runKey := a.Item.ID
+	if attempt == "b" {
+		runKey = altKey(a.Item.ID)
+	}
 	defer func() {
 		ls.cancel()
 		s.tokens.Revoke(token)
 		r.mu.Lock()
 		delete(r.running, slot.Agent)
 		r.mu.Unlock()
-		s.doneRunning(p, a.Item.ID, slot.Agent)
+		s.doneRunning(p, runKey, slot.Agent)
 		r.Poke()
 	}()
 	var usage domain.TokenUsage
@@ -480,9 +513,24 @@ loop:
 		state, detail = "failed", err.Error()
 	}
 	s.sessionState(ctx, p, slot, a, state, detail, acc.ID, choice.Provider, choice.String())
+	if attempt == "b" {
+		// The second attempt ends either way: if it did not deliver, attempt a alone decides.
+		p.mu.Lock()
+		cur := p.state.Items[a.Item.ID]
+		pending := cur != nil && cur.Alt != nil && !cur.Alt.BEnded
+		p.mu.Unlock()
+		if pending {
+			s.altEnded(ctx, p, a.Item.ID)
+		}
+		return
+	}
 	// Did the step end with a delivery or review?
 	p.mu.Lock()
 	cur := p.state.Items[a.Item.ID]
+	if cur != nil && cur.Alt != nil && cur.Alt.A != nil {
+		p.mu.Unlock()
+		return // delivered; waiting for the second attempt
+	}
 	moved := cur == nil || cur.Step != a.Step.Name || cur.Status != domain.StatusInProgress || cur.Version > startVersion && hasStepEvent(cur, a.Step.Name)
 	attempts := 0
 	if cur != nil {
