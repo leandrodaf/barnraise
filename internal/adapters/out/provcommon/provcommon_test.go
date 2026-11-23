@@ -33,7 +33,8 @@ func TestParseResetsAt(t *testing.T) {
 }
 
 func TestIsLimitText(t *testing.T) {
-	for _, s := range []string{"Claude AI usage limit reached|1", "You've hit your limit", "429 Too Many Requests", "insufficient_quota"} {
+	for _, s := range []string{"Claude AI usage limit reached|1", "You've hit your limit", "429 Too Many Requests", "insufficient_quota",
+		"unexpected status 402 Payment Required: {\"error\":{\"message\":\"Insufficient credits\"}}"} {
 		if !IsLimitText(s) {
 			t.Errorf("%q not a limit", s)
 		}

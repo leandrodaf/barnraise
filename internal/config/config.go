@@ -8,8 +8,11 @@ import (
 	"fmt"
 	"io/fs"
 	"maps"
+	"net"
+	"net/url"
 	"os"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -269,6 +272,9 @@ type rawConfig struct {
 		Ladders  map[string][]string `yaml:"ladders"`
 		Families map[string]string   `yaml:"families"`
 	} `yaml:"models"`
+	Providers map[string]struct {
+		BaseURL string `yaml:"base_url"`
+	} `yaml:"providers"`
 	Policy struct {
 		DenyWrite    []string `yaml:"deny_write"`
 		LockExisting []string `yaml:"lock_existing"`
@@ -532,6 +538,15 @@ func (r *rawConfig) compile(root, tmpl string) (*domain.ProjectConfig, error) {
 	maps.Copy(c.Models.Ladders, r.Models.Ladders)
 	maps.Copy(c.Models.Families, r.Models.Families)
 
+	c.APIProviders = domain.DefaultAPIProviders()
+	for name, d := range r.Providers {
+		base := strings.TrimSpace(d.BaseURL)
+		if err := checkBaseURL(name, base); err != nil {
+			return nil, err
+		}
+		c.APIProviders[name] = domain.APIProviderDef{BaseURL: base}
+	}
+
 	c.Policy = domain.DefaultPolicy().Merge(domain.Policy{
 		DenyWrite: r.Policy.DenyWrite, LockExisting: r.Policy.LockExisting, DenyRead: r.Policy.DenyRead,
 		DenyCommands: r.Policy.DenyCommands, AllowHosts: r.Policy.AllowHosts, MainBranch: c.MainBranch,
@@ -645,6 +660,44 @@ func (r *rawConfig) compile(root, tmpl string) (*domain.ProjectConfig, error) {
 		c.SafetyCommit = d
 	}
 	return c, nil
+}
+
+// checkBaseURL refuses an endpoint the API key should not travel to. An
+// empty one is left to Validate, which says what is missing.
+func checkBaseURL(name, base string) error {
+	if base == "" {
+		return nil
+	}
+	u, err := url.Parse(base)
+	switch {
+	case err != nil || u.Host == "" || (u.Scheme != "https" && u.Scheme != "http"):
+		return fmt.Errorf("providers.%s: base_url %q is not an http(s) URL", name, base)
+	case u.User != nil:
+		return fmt.Errorf("providers.%s: base_url must not carry credentials; the key goes in the keychain with `barnraise account add %s`", name, name)
+	case u.Scheme == "http" && !isLoopback(u.Hostname()):
+		return fmt.Errorf("providers.%s: base_url %q must use https (plain http only for localhost), the API key travels in it", name, base)
+	}
+	return nil
+}
+
+func isLoopback(host string) bool {
+	if host == "localhost" {
+		return true
+	}
+	ip := net.ParseIP(host)
+	return ip != nil && ip.IsLoopback()
+}
+
+// APIHosts are the hosts of the key-based providers, for the network allow list.
+func APIHosts(cfg *domain.ProjectConfig) []string {
+	var out []string
+	for _, d := range cfg.APIProviders {
+		if u, err := url.Parse(d.BaseURL); err == nil && u.Hostname() != "" && !slices.Contains(out, u.Hostname()) {
+			out = append(out, u.Hostname())
+		}
+	}
+	sort.Strings(out)
+	return out
 }
 
 // ParseModelChoice parses "claude/opus@high".
@@ -870,7 +923,8 @@ func Explain(cfg *domain.ProjectConfig) (string, error) {
 		"lease":  map[string]string{"renew": cfg.Lease.Renew.String(), "ttl": cfg.Lease.TTL.String()},
 		"budget": cfg.Budget, "revalidation": map[string]string{"stale_after": cfg.StaleAfter.String()},
 		"notifications": cfg.Notifications, "webhooks": cfg.Webhooks, "mcp": cfg.MCP, "experiments": cfg.Experiments,
-		"worktree": map[string]any{"include": cfg.EnvFiles, "port_base": cfg.PortBase, "safety_commit": cfg.SafetyCommit.String(), "setup": cfg.WorktreeSetup},
+		"providers": cfg.APIProviders,
+		"worktree":  map[string]any{"include": cfg.EnvFiles, "port_base": cfg.PortBase, "safety_commit": cfg.SafetyCommit.String(), "setup": cfg.WorktreeSetup},
 	}
 	var buf bytes.Buffer
 	enc := yaml.NewEncoder(&buf)

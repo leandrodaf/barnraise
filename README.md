@@ -60,6 +60,7 @@ barnraise status               # goal, focus, queue, agents, accounts and machin
 | `barnraise events -f` | Follow every event live |
 | `barnraise pause` / `barnraise resume` | Emergency button for every agent |
 | `barnraise account add claude` | Add another subscription account to the rotation |
+| `barnraise account add openrouter` | Add an API-key account (OpenRouter, or a provider under `providers:`) for cheap steps and research; the key goes to the keychain |
 
 Every command prints text for people by default and JSON with `--json`. The web panel is served by the daemon at `http://127.0.0.1:7420/`.
 

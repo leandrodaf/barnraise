@@ -426,11 +426,12 @@ func (r *Runtime) start(ctx context.Context, p *Project, slot Slot, a *Assignmen
 	now := s.d.Clock.Now()
 	blocked := ""
 	usable := func(provider string) bool {
-		if _, ok := s.d.Providers[provider]; !ok {
+		_, cli, _, ok := s.providerFor(p.Cfg(), provider)
+		if !ok {
 			return false
 		}
 		// Inside a container the provider's own sandbox is not used: the container is the boundary.
-		if why, no := r.NoSandboxProviders[provider]; no && p.Cfg().Container.Image == "" {
+		if why, no := r.NoSandboxProviders[cli]; no && p.Cfg().Container.Image == "" {
 			if domain.PickAccount(accounts, provider, s.d.Machine, p.Name, now) != nil {
 				blocked = why // an account is ready, only the sandbox stops it
 			}
@@ -461,7 +462,13 @@ func (r *Runtime) start(ctx context.Context, p *Project, slot Slot, a *Assignmen
 	if acc == nil {
 		return errors.New("no account available")
 	}
-	prov := s.d.Providers[choice.Provider]
+	prov, cli, endpoint, _ := s.providerFor(p.Cfg(), choice.Provider)
+	apiKey := ""
+	if endpoint != nil {
+		if apiKey, err = s.apiKey(acc); err != nil {
+			return err
+		}
+	}
 	experiment := ""
 	for _, ex := range p.Cfg().Experiments {
 		if (ex.Role == "" || ex.Role == role) && inShare(it.ID+ex.Name, ex.Share) {
@@ -520,15 +527,20 @@ func (r *Runtime) start(ctx context.Context, p *Project, slot Slot, a *Assignmen
 	sctx, cancel := context.WithTimeout(context.Background(), r.SessionTimeout)
 	spec := ports.SessionSpec{Agent: slot.Agent, Role: role, Account: *acc, Model: choice.Model, Effort: choice.Effort, Workdir: dir,
 		Prompt: prompt.Prompt, SystemPrompt: prompt.System, Env: env, MCPConfig: mcpPath, SettingsFile: settingsPath,
-		Timeout: r.SessionTimeout, RunAsUser: acc.LinuxUser}
+		Timeout: r.SessionTimeout, RunAsUser: acc.LinuxUser, Endpoint: endpoint}
 	if ct := p.Cfg().Container; ct.Image != "" {
-		cs, err := r.containerSpec(p, ct, dir, sessDir, acc, choice.Provider, env)
+		cs, err := r.containerSpec(p, ct, dir, sessDir, acc, cli, env)
 		if err != nil {
 			s.tokens.Revoke(token)
 			cancel()
 			return err
 		}
 		spec.Container = cs
+	}
+	if endpoint != nil {
+		// Last, after every file of the session is written: the key lives
+		// only in the CLI's environment.
+		env[ports.EndpointKeyEnv] = apiKey
 	}
 	sess, err := prov.Open(sctx, spec)
 	if err != nil {

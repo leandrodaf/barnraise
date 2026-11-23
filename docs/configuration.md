@@ -37,6 +37,7 @@ Formats used below:
 | `items` | mapping | see [items](#items) | Item size and tweaks |
 | `self_improvement` | mapping | `{budget: 1/week, approves: owner}` | See [self_improvement](#self_improvement) |
 | `models` | mapping | built-in router | See [models](#models) |
+| `providers` | mapping | `{openrouter: {base_url: https://openrouter.ai/api/v1}}` | Key-based providers; see [providers](#providers) |
 | `policy` | mapping | built-in policy | Extra security rules, appended to the built-in ones; see [policy](#policy) |
 | `areas` | mapping | none (plus `.barnraise/areas.yaml`) | See [areas](#areas) |
 | `merge` | mapping | `{mode: squash, batch: 4}` | See [merge](#merge) |
@@ -184,7 +185,7 @@ roles:
 | --- | --- | --- |
 | `prompt` | `.barnraise/roles/<role>.md` | Path of the role core, or inline text; falls back to the template's role file |
 | `class` | none | Default model class: `simple`, `normal`, `complex`, `native`, `cheap`, or `auto` (the item's class) |
-| `providers` | any | Allowed providers, in order (`claude`, `codex`, `gemini`) |
+| `providers` | any | Allowed providers, in order (`claude`, `codex`, `gemini`, `openrouter` or another key-based provider) |
 | `count` | `1` | Agents of this role per machine |
 | `tools` | by role | MCP tools the role sees (defaults follow its scopes) |
 | `needs` | none | Machine labels it requires, e.g. `[emulators]` |
@@ -347,6 +348,31 @@ models:
   classes:
     cheap: [gemini/gemini-2.5-flash, claude/haiku]
 ```
+
+## providers
+
+Providers reached with an **API key** instead of a subscription login: OpenRouter, and any other endpoint that speaks the OpenAI Responses API. Their sessions are as agentic as any other: Barnraise runs the Codex CLI against the endpoint (a custom `model_provider` given to `codex exec` with `-c` overrides), with the same sandbox, hooks, MCP servers and policy as a Codex session. Barnraise has no agent loop of its own over an API.
+
+| Key | Default | Meaning |
+| --- | --- | --- |
+| `<name>.base_url` | none | The endpoint, e.g. `https://openrouter.ai/api/v1`. `https` is required, except for `localhost` and loopback addresses (a local vLLM or Ollama) |
+
+`openrouter` is built in. A provider's name is lower-case letters and digits, and cannot be `claude`, `codex`, `gemini` or `fake`. Its hosts join the egress proxy's allow list.
+
+```yaml
+providers:
+  local:
+    base_url: http://127.0.0.1:8000/v1   # a vLLM server on this machine
+models:
+  classes:
+    cheap: [openrouter/deepseek/deepseek-chat, claude/haiku]   # cheap steps and research go to OpenRouter first
+```
+
+The model is everything after the provider: `openrouter/<vendor>/<model>`, e.g. `openrouter/deepseek/deepseek-chat` or `openrouter/qwen/qwen3-coder@low`. Nothing is sent to a key-based provider until the owner names it in a model class, in a step's `model`, or in a role's `providers`. A provider has no ladder unless you add one under `models.ladders`, so rework stays on the same model; its family is `mixed` for `openrouter` (any vendor) and its own name otherwise.
+
+Accounts: `barnraise account add openrouter` asks for the key on standard input (never as a flag, so it stays out of the shell history and the process list) and keeps it in the system keychain as `account/<id>/api-key`. `--test-model deepseek/deepseek-chat` asks that model one minimal question to check the key. The account is bound to the machine whose keychain holds the key (`--machine` to choose another); `barnraise account relogin <id>` replaces the key. An API account has no 5-hour or weekly window, so Barnraise sends it work until the endpoint refuses: a rate limit (429) or the key running out of credits (402) marks the account limited and it is tried again an hour later. **Set the spending limit on the key itself**, at the provider (OpenRouter keys take a credit limit); that is the ceiling, and `--ceiling` does not apply.
+
+The endpoint must speak the Responses API: current Codex CLIs refuse `wire_api = "chat"`. OpenRouter does. A provider that only offers Chat Completions (DeepSeek's own API at `https://api.deepseek.com`, for example) cannot run sessions this way; reach its models through OpenRouter instead (`openrouter/deepseek/deepseek-chat`).
 
 ## policy
 

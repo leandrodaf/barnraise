@@ -1,6 +1,7 @@
 // Package codex is the provider adapter for the OpenAI Codex CLI running
-// `codex exec --json` with a ChatGPT login. Commands always run in the
-// workspace-write sandbox; the bypass flags are never used.
+// `codex exec --json` with a ChatGPT login, or with an API key against a
+// key-based endpoint (OpenRouter and others; see EndpointArgs). Commands
+// always run in the workspace-write sandbox; the bypass flags are never used.
 package codex
 
 import (
@@ -273,6 +274,28 @@ func mcpOverrides(cfg string) ([]string, error) {
 	return out, nil
 }
 
+// EndpointArgs are the config overrides that point codex at a key-based
+// provider: a custom model provider speaking the Responses API (the only
+// wire protocol current codex versions accept), whose key codex reads from
+// the variable named ports.EndpointKeyEnv. The key's value is never here;
+// only its name is. The same variable is kept out of the shells codex
+// starts for the agent's commands.
+func EndpointArgs(e ports.Endpoint) []string {
+	key := "model_providers." + tomlKey(endpointID(e.Name))
+	return []string{
+		"-c", "model_provider=" + tomlString(endpointID(e.Name)),
+		"-c", key + ".name=" + tomlString(e.Name),
+		"-c", key + ".base_url=" + tomlString(e.BaseURL),
+		"-c", key + ".env_key=" + tomlString(ports.EndpointKeyEnv),
+		"-c", key + ".wire_api=" + tomlString("responses"),
+		"-c", "shell_environment_policy.exclude=[" + tomlString(ports.EndpointKeyEnv) + "]",
+	}
+}
+
+// endpointID keeps Barnraise's providers apart from codex's built-in ones
+// (openai, oss…), whatever the owner names them.
+func endpointID(name string) string { return "barnraise-" + name }
+
 // Args builds the command line of a session (without the binary). schemaFile
 // is the path of the output schema, if any. The prompt is read from stdin ("-").
 // SettingsFile and MaxTurns have no codex equivalent and are ignored.
@@ -297,6 +320,9 @@ func (p *Provider) Args(spec ports.SessionSpec, schemaFile string) ([]string, er
 	}
 	if spec.SystemPrompt != "" {
 		args = append(args, "-c", "developer_instructions="+tomlString(spec.SystemPrompt))
+	}
+	if spec.Endpoint != nil {
+		args = append(args, EndpointArgs(*spec.Endpoint)...)
 	}
 	if spec.MCPConfig != "" {
 		mcp, err := mcpOverrides(spec.MCPConfig)
@@ -334,6 +360,16 @@ func (p *Provider) Open(ctx context.Context, spec ports.SessionSpec) (ports.Sess
 func (p *Provider) OpenSession(ctx context.Context, spec ports.SessionSpec) (*provcommon.Session, error) {
 	if spec.Workdir == "" {
 		return nil, fmt.Errorf("codex: workdir is required")
+	}
+	provider := "codex"
+	if spec.Endpoint != nil {
+		if spec.Endpoint.Name == "" || spec.Endpoint.BaseURL == "" {
+			return nil, fmt.Errorf("codex: the endpoint needs a name and a base URL")
+		}
+		if spec.Env[ports.EndpointKeyEnv] == "" {
+			return nil, fmt.Errorf("codex: no API key for %s (account %s)", spec.Endpoint.Name, spec.Account.ID)
+		}
+		provider = spec.Endpoint.Name
 	}
 	var cleanup func()
 	schemaFile := ""
@@ -377,7 +413,7 @@ func (p *Provider) OpenSession(ctx context.Context, spec ports.SessionSpec) (*pr
 	parser := NewParser(domain.TokenUsage{
 		Agent:    spec.Agent,
 		Account:  spec.Account.ID,
-		Provider: "codex",
+		Provider: provider,
 		Model:    spec.Model,
 		Role:     spec.Role,
 	})

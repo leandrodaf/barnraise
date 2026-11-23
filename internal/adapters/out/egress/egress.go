@@ -20,6 +20,7 @@ import (
 var DefaultAllow = []string{
 	"api.anthropic.com", "claude.ai", "statsig.anthropic.com", "console.anthropic.com",
 	"api.openai.com", "chatgpt.com", "auth.openai.com",
+	"openrouter.ai", // the built-in key-based provider; others come from `providers:`
 	"github.com", "api.github.com", "codeload.github.com", "objects.githubusercontent.com", "raw.githubusercontent.com",
 	"proxy.golang.org", "sum.golang.org", "registry.npmjs.org", "repo.maven.apache.org", "dl.google.com",
 	"plugins.gradle.org", "services.gradle.org", "pypi.org", "files.pythonhosted.org", "crates.io", "static.crates.io",

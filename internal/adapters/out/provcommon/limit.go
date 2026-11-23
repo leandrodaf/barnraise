@@ -22,6 +22,10 @@ var limitMarkers = []string{
 	"insufficient_quota",
 	"too many requests",
 	"out of extra usage",
+	// Key-based providers (OpenRouter and others) refuse with 402 when the
+	// key's credits or its spending limit run out.
+	"insufficient credits",
+	"payment required",
 	"resets at",
 	"try again at",
 	"try again in",

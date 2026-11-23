@@ -189,6 +189,22 @@ type SessionSpec struct {
 	RunAsUser    string            `json:"run_as_user,omitempty"`
 	// Container, when set, runs the session's CLI inside a container.
 	Container *ContainerSpec `json:"container,omitempty"`
+	// Endpoint, when set, points the CLI at a key-based provider instead
+	// of the account's subscription login. The key itself travels only in
+	// Env, under EndpointKeyEnv.
+	Endpoint *Endpoint `json:"endpoint,omitempty"`
+}
+
+// EndpointKeyEnv is the environment variable that carries the API key of
+// a session on a key-based provider. The CLI is told this name, never the
+// value: the key is not on any command line and not in any file.
+const EndpointKeyEnv = "BARNRAISE_PROVIDER_KEY"
+
+// Endpoint is a key-based provider (OpenRouter, or another endpoint that
+// speaks the OpenAI Responses API).
+type Endpoint struct {
+	Name    string `json:"name"`     // provider name: openrouter
+	BaseURL string `json:"base_url"` // https://openrouter.ai/api/v1
 }
 
 // ProviderEventKind is the normalized event kind.

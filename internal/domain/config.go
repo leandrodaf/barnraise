@@ -2,6 +2,7 @@ package domain
 
 import (
 	"fmt"
+	"regexp"
 	"sort"
 	"strings"
 	"time"
@@ -282,6 +283,48 @@ func (c *ProjectConfig) validateMCP() []error {
 	return errs
 }
 
+// APIProviderDef is a provider reached with an API key instead of a
+// subscription login: an endpoint that speaks the OpenAI Responses API,
+// such as OpenRouter. Its sessions run the Codex CLI against the endpoint,
+// so they read, edit and run commands like any other session.
+type APIProviderDef struct {
+	BaseURL string `json:"base_url" yaml:"base_url"`
+}
+
+// DefaultAPIProviders are the key-based providers known without
+// configuration. `providers:` in barnraise.yaml adds others or changes these.
+func DefaultAPIProviders() map[string]APIProviderDef {
+	return map[string]APIProviderDef{"openrouter": {BaseURL: "https://openrouter.ai/api/v1"}}
+}
+
+// APIKeySecret is the keychain key that holds the API key of an account of
+// a key-based provider (`barnraise account add openrouter` stores it).
+func APIKeySecret(accountID string) string { return "account/" + accountID + "/api-key" }
+
+// CLIProviders are the providers with a CLI of their own and a login; their
+// names cannot be taken by a key-based provider.
+var CLIProviders = []string{"claude", "codex", "gemini", "fake"}
+
+var reAPIProviderName = regexp.MustCompile(`^[a-z][a-z0-9]*$`)
+
+func (c *ProjectConfig) validateAPIProviders() []error {
+	var errs []error
+	for name, d := range c.APIProviders {
+		if !reAPIProviderName.MatchString(name) {
+			errs = append(errs, fmt.Errorf("providers.%s: a provider name is lower-case letters and digits, starting with a letter", name))
+			continue
+		}
+		if Contains(CLIProviders, name) {
+			errs = append(errs, fmt.Errorf("providers: the name %s is taken by the provider with its own CLI", name))
+			continue
+		}
+		if d.BaseURL == "" {
+			errs = append(errs, fmt.Errorf("providers.%s needs a base_url (an endpoint that speaks the OpenAI Responses API, e.g. https://openrouter.ai/api/v1)", name))
+		}
+	}
+	return errs
+}
+
 // TrackerDef configures where people see items.
 type TrackerDef struct {
 	Type    string            `json:"type"` // local, github, gitlab, jira, linear
@@ -380,6 +423,9 @@ type ProjectConfig struct {
 	PortBase             int               `json:"port_base"`
 	Standards            map[string]string `json:"standards,omitempty"`
 	Extra                map[string]any    `json:"extra,omitempty"`
+	// APIProviders are the providers reached with an API key (OpenRouter
+	// and other endpoints), by provider name.
+	APIProviders map[string]APIProviderDef `json:"api_providers,omitempty"`
 }
 
 // FlowFor returns the flow of an item kind.
@@ -446,6 +492,7 @@ func (c *ProjectConfig) Validate() []error {
 		errs = append(errs, err)
 	}
 	errs = append(errs, c.validateMCP()...)
+	errs = append(errs, c.validateAPIProviders()...)
 	if ct := c.Container; ct.Image == "" && (ct.Engine != "" || ct.Network != "" || len(ct.Mounts) > 0) {
 		errs = append(errs, fmt.Errorf("container needs an image (one with the AI CLI and the project's tools)"))
 	} else if ct.Engine != "" && ct.Engine != "docker" && ct.Engine != "podman" {

@@ -176,6 +176,7 @@ func runDaemon(ctx context.Context, opts cli.DaemonOptions) error {
 		for _, root := range df.Projects {
 			if cfg, err := config.Load(root); err == nil {
 				allow = append(allow, cfg.Policy.AllowHosts...)
+				allow = append(allow, config.APIHosts(cfg)...)
 			}
 		}
 		l, err := net.Listen("tcp", opts.Egress)

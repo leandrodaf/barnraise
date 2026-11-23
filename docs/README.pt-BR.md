@@ -62,6 +62,7 @@ barnraise status               # objetivo, foco, fila, agentes, contas e máquin
 | `barnraise events -f` | Acompanha todos os eventos ao vivo |
 | `barnraise pause` / `barnraise resume` | Botão de emergência para todos os agentes |
 | `barnraise account add claude` | Põe outra conta de assinatura na rotação |
+| `barnraise account add openrouter` | Põe uma conta por chave de API (OpenRouter, ou um provedor em `providers:`) para passos baratos e pesquisa; a chave vai para o chaveiro |
 
 Todo comando imprime texto para pessoas por padrão e JSON com `--json`. O painel web é servido pelo daemon em `http://127.0.0.1:7420/`.
 

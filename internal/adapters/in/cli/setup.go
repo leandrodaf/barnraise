@@ -30,7 +30,9 @@ import (
 	"github.com/leandrodaf/barnraise/internal/app"
 	"github.com/leandrodaf/barnraise/internal/config"
 	"github.com/leandrodaf/barnraise/internal/daemoncfg"
+	"github.com/leandrodaf/barnraise/internal/domain"
 	"github.com/leandrodaf/barnraise/internal/paths"
+	"github.com/leandrodaf/barnraise/internal/ports"
 	"github.com/leandrodaf/barnraise/templates"
 )
 
@@ -755,12 +757,21 @@ func (e *env) accountCmd() *cobra.Command {
 	var id, plan, machine string
 	var ceiling float64
 	var skipLogin, headless, isolate bool
-	var configDir string
-	add := &cobra.Command{Use: "add <claude|codex|gemini>", Short: "Add an account: own config dir, login, test, rotation", Args: cobra.ExactArgs(1),
+	var configDir, testModel string
+	add := &cobra.Command{Use: "add <claude|codex|gemini|openrouter|…>", Short: "Add an account: own config dir, login (or API key), test, rotation",
+		Long: "Adds an account to the rotation.\n" +
+			"claude, codex and gemini log in with their own CLI. A key-based provider (openrouter, or one under `providers:` in barnraise.yaml)\n" +
+			"asks for its API key on standard input and keeps it in the system keychain; its sessions run the Codex CLI against the endpoint.",
+		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			prov := args[0]
-			if prov != "claude" && prov != "codex" && prov != "gemini" {
-				return fmt.Errorf("provider %q: use claude, codex or gemini", prov)
+			apis := apiProviders()
+			api, isAPI := apis[prov]
+			if prov != "claude" && prov != "codex" && prov != "gemini" && !isAPI {
+				return fmt.Errorf("provider %q: use %s (other key-based providers go under `providers:` in barnraise.yaml)", prov, providerChoices(apis))
+			}
+			if isAPI && configDir != "" {
+				return fmt.Errorf("%s uses an API key, not a login folder: leave out --config-dir", prov)
 			}
 			ctx, cancel := e.ctx()
 			defer cancel()
@@ -773,7 +784,31 @@ func (e *env) accountCmd() *cobra.Command {
 				id = nextAccountID(prov)
 			}
 			dir := filepath.Join(paths.DataDir(), "accounts", id)
-			if configDir != "" {
+			var acc *pb.Account
+			if isAPI {
+				key, err := readAPIKey(e.in, e.out, prov)
+				if err != nil {
+					return err
+				}
+				if machine == "" {
+					// The key lives in this machine's keychain: only this machine can run the account.
+					if df, err := daemoncfg.Load(); err == nil {
+						machine = df.Machine
+					}
+				}
+				ks := keychain.New("barnraise", filepath.Join(paths.ConfigDir(), "secrets"))
+				if acc, err = storeAPIAccount(ks, id, prov, key, dir, machine); err != nil {
+					return err
+				}
+				fmt.Fprintf(e.out, "✔ Key stored in the %s.\n", ks.Backend())
+				if testModel != "" {
+					fmt.Fprintf(e.out, "Testing %s with a minimal question to %s… ", id, testModel)
+					if err := testAPIAccount(ports.Endpoint{Name: prov, BaseURL: api.BaseURL}, testModel, dir, key); err != nil {
+						return fmt.Errorf("the key does not answer: %w", err)
+					}
+					fmt.Fprintln(e.out, "✔")
+				}
+			} else if configDir != "" {
 				dir, skipLogin = configDir, true // reuse an existing login
 				if dir == "default" {
 					dir = ""
@@ -781,19 +816,19 @@ func (e *env) accountCmd() *cobra.Command {
 			} else if err := os.MkdirAll(dir, 0o700); err != nil {
 				return err
 			}
-			if !skipLogin {
+			if !skipLogin && !isAPI {
 				if err := loginAccount(prov, dir, headless); err != nil {
 					return fmt.Errorf("login: %w", err)
 				}
-			}
-			if !skipLogin {
 				fmt.Fprintf(e.out, "Testing %s with a minimal question… ", id)
 				if err := testAccount(prov, dir); err != nil {
 					return fmt.Errorf("the account does not answer: %w", err)
 				}
 				fmt.Fprintln(e.out, "✔")
 			}
-			acc := &pb.Account{Id: id, Provider: prov, Plan: plan, ConfigDir: dir, CeilingPct: ceiling, Status: "ok", Machine: machine}
+			if acc == nil {
+				acc = &pb.Account{Id: id, Provider: prov, Plan: plan, ConfigDir: dir, CeilingPct: ceiling, Status: "ok", Machine: machine}
+			}
 			if isolate {
 				user := "barnraise-" + id
 				if err := isolateAccount(e.out, user, dir); err != nil {
@@ -805,12 +840,25 @@ func (e *env) accountCmd() *cobra.Command {
 			if e.project != "" {
 				targets = []string{e.project}
 			}
+			var added []string
 			for _, p := range targets {
 				if _, err := cl.UpsertAccount(ctx, req(&pb.AccountRequest{Project: p, Account: acc})); err != nil {
+					// A provider declared in one project's barnraise.yaml is unknown to the others.
+					if isAPI && len(targets) > 1 {
+						fmt.Fprintf(e.out, "  %s: not added (%v)\n", p, err)
+						continue
+					}
 					return err
 				}
+				added = append(added, p)
 			}
-			fmt.Fprintf(e.out, "✔ %s is in the rotation for %s. Hooks, sandbox and the status line are set per session.\n", id, strings.Join(targets, ", "))
+			if len(added) == 0 {
+				return fmt.Errorf("no project knows the provider %s: declare it under `providers:` in barnraise.yaml", prov)
+			}
+			fmt.Fprintf(e.out, "✔ %s is in the rotation for %s. Hooks, sandbox and the status line are set per session.\n", id, strings.Join(added, ", "))
+			if isAPI {
+				fmt.Fprintf(e.out, "  It has no 5-hour or weekly window: set a spending limit on the key at %s, and send it work with a model class, e.g. `cheap: [%s/<vendor>/<model>, …]`.\n", api.BaseURL, prov)
+			}
 			return nil
 		}}
 	f := add.Flags()
@@ -822,6 +870,7 @@ func (e *env) accountCmd() *cobra.Command {
 	f.StringVar(&configDir, "config-dir", "", "reuse an existing logged-in config dir (\"default\" = the CLI's own)")
 	f.BoolVar(&headless, "headless", false, "server without a browser: use a long-lived token (claude setup-token)")
 	f.BoolVar(&isolate, "isolate", false, "create an isolated Linux user for this account (asks for sudo once)")
+	f.StringVar(&testModel, "test-model", "", "key-based providers: ask this model a minimal question to test the key (e.g. deepseek/deepseek-chat)")
 	list := &cobra.Command{Use: "list", Short: "Accounts with 5-hour and weekly usage and reset times", Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			ctx, cancel := e.ctx()
@@ -835,6 +884,10 @@ func (e *env) accountCmd() *cobra.Command {
 					fmt.Fprintln(w, "No accounts: `barnraise account add claude`.")
 				}
 				for _, a := range res.Msg.Accounts {
+					if a.Plan == APIPlan {
+						fmt.Fprintf(w, "%-12s %-7s %-8s API key, no windows %s\n", a.Id, a.Provider, a.Status, resetText(a.Usage.GetFiveHourResets()))
+						continue
+					}
 					fmt.Fprintf(w, "%-12s %-7s %-8s 5h %-5s %-18s week %-5s %s\n", a.Id, a.Provider, a.Status, pct(a.Usage.GetFiveHourPct()), resetText(a.Usage.GetFiveHourResets()), pct(a.Usage.GetWeeklyPct()), resetText(a.Usage.GetWeeklyResets()))
 				}
 			})
@@ -844,7 +897,16 @@ func (e *env) accountCmd() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			prov, _, _ := strings.Cut(args[0], "-")
 			dir := filepath.Join(paths.DataDir(), "accounts", args[0])
-			if err := loginAccount(prov, dir, headless); err != nil {
+			if _, isAPI := apiProviders()[prov]; isAPI {
+				// A key-based account "logs in again" with a new key.
+				key, err := readAPIKey(e.in, e.out, prov)
+				if err != nil {
+					return err
+				}
+				if err := keychain.New("barnraise", filepath.Join(paths.ConfigDir(), "secrets")).Set(domain.APIKeySecret(args[0]), key); err != nil {
+					return err
+				}
+			} else if err := loginAccount(prov, dir, headless); err != nil {
 				return err
 			}
 			ctx, cancel := e.ctx()

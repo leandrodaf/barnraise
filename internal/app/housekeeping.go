@@ -347,8 +347,12 @@ func (s *Service) UpsertAccount(ctx context.Context, project string, a Actor, ac
 	if acc.ID == "" || acc.Provider == "" {
 		return nil, fmt.Errorf("%w: an account needs an id and a provider", ErrInvalid)
 	}
-	if _, ok := s.d.Providers[acc.Provider]; !ok {
-		return nil, fmt.Errorf("%w: provider %q is not available (known: %s)", ErrInvalid, acc.Provider, strings.Join(sortedKeys(s.d.Providers), ", "))
+	if _, _, _, ok := s.providerFor(p.Cfg(), acc.Provider); !ok {
+		known := sortedKeys(s.d.Providers)
+		if _, ok := s.d.Providers[EndpointCLI]; ok {
+			known = append(known, sortedKeys(p.Cfg().APIProviders)...)
+		}
+		return nil, fmt.Errorf("%w: provider %q is not available (known: %s)", ErrInvalid, acc.Provider, strings.Join(known, ", "))
 	}
 	if acc.Status == "" {
 		acc.Status = domain.AccountOK
