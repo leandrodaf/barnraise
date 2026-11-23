@@ -1,0 +1,4 @@
+{"type":"init","timestamp":"2026-11-23T12:20:00.000Z","session_id":"5c4b3a29-1807-4f6e-8d5c-4b3a29180700","model":"gemini-2.5-pro"}
+{"type":"message","timestamp":"2026-11-23T12:20:00.010Z","role":"user","content":"Review the diff."}
+{"type":"error","timestamp":"2026-11-23T12:20:01.000Z","severity":"error","message":"Usage limit reached for gemini-2.5-pro. Access resets at Nov 24th, 2026 3:05 PM."}
+{"type":"result","timestamp":"2026-11-23T12:20:01.010Z","status":"error","error":{"type":"RESOURCE_EXHAUSTED","message":"Usage limit reached for gemini-2.5-pro. Access resets at Nov 24th, 2026 3:05 PM."},"stats":{"total_tokens":0,"input_tokens":0,"output_tokens":0,"duration_ms":1010,"tool_calls":0}}

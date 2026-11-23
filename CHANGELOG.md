@@ -8,6 +8,7 @@ First version: one Go binary that is the daemon, the CLI, the MCP server and the
 
 ### Added
 
+- **Gemini CLI provider** (`gemini`, family `google`): `barnraise account add gemini` signs in with a Google account, and model choices are written `gemini/<model>`, with the ladder `gemini-2.5-flash`, `gemini-2.5-pro`. Its natural role is cheap review and reading long context. On the machine itself a Gemini session cannot run commands or change files. With `container:` it can.
 - **Standard commits and changelog**: every item lands as one Conventional Commits commit and, for features, fixes and performance, one line under `## [Unreleased]` of a Keep a Changelog file, both written from the delivery's `change` and always in English. A description that is not English is refused.
 - `worktree.setup` runs once in each new worktree; `worktree.include` is empty by default, so files that are not in git (a `.env`) are no longer copied into agents' worktrees.
 - An issue a person wrote in the tracker is adopted: its state and labels follow the item, its title and text are never rewritten.

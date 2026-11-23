@@ -46,7 +46,7 @@ func DefaultModelRouter() ModelRouter {
 		Ladders: map[string][]string{
 			"claude": {"haiku", "sonnet", "opus", "fable"},
 			"codex":  {"gpt-5.5-mini", "gpt-5.5"},
-			"gemini": {"gemini-flash", "gemini-pro"},
+			"gemini": {"gemini-2.5-flash", "gemini-2.5-pro"},
 			"fake":   {"fake-small", "fake-large"},
 		},
 		Families: map[string]string{"claude": "anthropic", "codex": "openai", "gemini": "google", "openrouter": "mixed", "fake": "fake"},

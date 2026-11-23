@@ -113,7 +113,7 @@ docker exec barnraise cat /data/config/owner.token      # the owner token, for A
 
 Without TLS, keep the default command and talk to the daemon with `docker exec` or by mounting the socket. Port 4222 is NATS, for other machines of the cluster.
 
-The image holds the daemon only. Agent sessions need the provider CLIs (`claude`, `codex`): either extend the image with them or let agents run on paired machines, with the container acting as one more machine of the cluster (state, API, merge queue, remote checks).
+The image holds the daemon only. Agent sessions need the provider CLIs (`claude`, `codex`, `gemini`): either extend the image with them or let agents run on paired machines, with the container acting as one more machine of the cluster (state, API, merge queue, remote checks).
 
 ### Restricted network for agents
 
@@ -132,10 +132,11 @@ Subscriptions are logged in with the flow each provider offers for headless mach
 ```sh
 barnraise account add claude --headless   # runs `claude setup-token` for a long-lived token
 barnraise account add codex --headless    # runs `codex login --device-auth`
+barnraise account add gemini --headless   # starts `gemini` with NO_BROWSER=true: open the URL, paste the code, /quit
 barnraise account relogin claude-1 --headless
 ```
 
-Each account gets its own config dir (`CLAUDE_CONFIG_DIR` or `CODEX_HOME`) in `~/.local/share/barnraise/accounts/<id>`. To reuse a CLI that is already logged in, pass `--config-dir <dir>` (or `--config-dir default` for the CLI's own) and `--skip-login`. Other useful flags: `--isolate` (an isolated Linux user, see [security.md](security.md)), `--ceiling 80` (never pass 80% of the weekly window), `--plan Max`, `--machine <name>`.
+Each account gets its own config dir (`CLAUDE_CONFIG_DIR`, `CODEX_HOME` or `GEMINI_CLI_HOME`) in `~/.local/share/barnraise/accounts/<id>`. To reuse a CLI that is already logged in, pass `--config-dir <dir>` (or `--config-dir default` for the CLI's own) and `--skip-login`. Other useful flags: `--isolate` (an isolated Linux user, see [security.md](security.md)), `--ceiling 80` (never pass 80% of the weekly window), `--plan Max`, `--machine <name>`.
 
 Where no headless login exists, log in on a machine with a browser and copy that account's config dir to the server over a secure channel.
 
@@ -178,7 +179,7 @@ Restore: stop the daemon, put the files back with the same owner and modes (0700
 ## Upgrades
 
 - **Barnraise itself.** Install the new release over the old binary (`install.sh` or your package) and restart: `systemctl --user restart barnraise`, or `barnraise down && barnraise up`. Running steps are saved and continue from their last step. In a cluster, a daemon that sees a peer on the same platform running a newer version fetches that binary by hash from the peer, verifies it, replaces its own executable and restarts, only while no agent session is running; set `BARNRAISE_NO_SELF_UPDATE=1` to opt out on a machine.
-- **The AI CLIs.** Barnraise runs every session and the service with `DISABLE_AUTOUPDATER=1`, so a CLI never updates itself under a running fleet. Upgrade `claude` and `codex` on purpose, on one machine first; the provider adapters detect each CLI's version and probe its capabilities before using them. Keep `DISABLE_AUTOUPDATER=1` in your own shell profile on agent machines too.
+- **The AI CLIs.** Barnraise runs every session and the service with `DISABLE_AUTOUPDATER=1`, so a CLI never updates itself under a running fleet. Upgrade `claude`, `codex` and `gemini` on purpose, on one machine first; the provider adapters detect each CLI's version and probe its capabilities before using them. Keep `DISABLE_AUTOUPDATER=1` in your own shell profile on agent machines too.
 - **The API.** The proto is checked with `buf breaking`; incompatible changes only come in a new API version, with deprecation notices first.
 
 ## Health

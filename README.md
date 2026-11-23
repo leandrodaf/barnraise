@@ -1,6 +1,6 @@
 # Barnraise
 
-Barnraise is one Go binary that drives a software project with AI coding agents, from the queue to the commit on main. It runs Claude Code and Codex through their own CLIs and subscriptions and takes care of everything around them: which item comes next, the steps each item goes through, checks, reviews, the merge queue, accounts and limits, several machines, and security.
+Barnraise is one Go binary that drives a software project with AI coding agents, from the queue to the commit on main. It runs Claude Code, Codex and the Gemini CLI through their own CLIs and subscriptions and takes care of everything around them: which item comes next, the steps each item goes through, checks, reviews, the merge queue, accounts and limits, several machines, and security.
 
 The name comes from "barn raising": neighbours building a barn together in a day.
 
@@ -35,7 +35,7 @@ Choose Barnraise when the project is larger than one session: many items, more t
 
 ## Quick start
 
-Requirements: Linux or macOS, `git`, and at least one AI CLI you are logged in to (`claude` or `codex`). Tailscale and `bwrap` (bubblewrap) are used when present.
+Requirements: Linux or macOS, `git`, and at least one AI CLI you are logged in to (`claude`, `codex` or `gemini`). Tailscale and `bwrap` (bubblewrap) are used when present.
 
 ```sh
 curl -fsSL https://raw.githubusercontent.com/leandrodaf/barnraise/main/install.sh | sh
@@ -152,7 +152,7 @@ Agents read untrusted text, could reach private data and could send data out. Ba
 1. **Secrets** live in the system keychain, never in YAML or in the repository.
 2. **One Linux user per agent account** (`barnraise account add --isolate`), without access to the owner's home.
 3. **A blocking hook** before every tool call, decided locally from a compiled policy: no writes to workflows, `.barnraise/`, `.env*` or existing tests; no push to main, `sudo` or `curl | sh`. It works even when the CLI runs without permission prompts.
-4. **A sandbox or a container**: Claude Code's native sandbox when `bwrap` works on the machine and Codex in `workspace-write`; or, with `container:` in `barnraise.yaml`, every session inside a container that sees only the item's worktree, with the machine's GPU passed in by default.
+4. **A sandbox or a container**: Claude Code's native sandbox when `bwrap` works on the machine, Codex in `workspace-write`, and the Gemini CLI as a reader without shell or write tools; or, with `container:` in `barnraise.yaml`, every session inside a container that sees only the item's worktree, with the machine's GPU passed in by default.
 5. **Restricted network**: an allow-list proxy and `nftables` rules per agent user.
 6. **Only the tools you allow in a session**: Barnraise's own MCP server plus the ones listed under `mcp:` in `barnraise.yaml`, per role. The account owner's own MCP servers, plugins and personal settings are not loaded.
 7. **Permission by role in the daemon**: an implementer has no `approve` scope and never sees the tool.
@@ -181,7 +181,7 @@ One word per concept, the same in the CLI, the YAML, the panel and the docs. A t
 | Role | A function: implementer, reviewer, analyst, designer | `roles:` |
 | Agent | A role running on an account, on a machine | `barnraise agents` |
 | Account | A login at a provider | `barnraise account add` |
-| Provider | Claude Code, Codex, … | `models:` |
+| Provider | Claude Code, Codex, Gemini CLI, … | `models:` |
 | Machine | A computer of the cluster; all are equal, none is central | `barnraise machine invite` |
 | Tracker | Where people see items: local, GitHub, GitLab, Jira, Linear | `tracker:` |
 | Template | Ready roles, flows and checks for a kind of project | `template:` |
@@ -206,7 +206,7 @@ internal/domain/          pure rules: item, goal, focus, flow, rework, capacity,
 internal/app/             use cases: claim, deliver, review, integrate, propose, set focus…
 internal/ports/           small interfaces: Provider, Tracker, CodeHost, Arbiter, EventBus, StateStore…
 internal/adapters/in/     httpapi (Connect), mcp, cli, hooks, panel
-internal/adapters/out/    claude, codex, github, gitlab, jira, linear, nats, sqlite, git, tailnet, pairing…
+internal/adapters/out/    claude, codex, gemini, github, gitlab, jira, linear, nats, sqlite, git, tailnet, pairing…
 proto/ · gen/             the API contract (protobuf) and the generated code
 templates/                base defaults and the project templates
 docs/adr/                 architecture decision records

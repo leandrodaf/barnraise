@@ -44,7 +44,7 @@ func DefaultPolicy() Policy {
 		DenyWrite: []string{
 			".github/workflows/**", ".gitlab-ci.yml", ".barnraise/**", "barnraise.yaml",
 			"**/*.keystore", "**/*.jks", "**/.env", "**/.env.*", ".git/**", "**/.git/hooks/**",
-			"criteria.json", ".claude/settings*.json", ".codex/**",
+			"criteria.json", ".claude/settings*.json", ".codex/**", ".gemini/**",
 		},
 		LockExisting: []string{
 			"**/*_test.go", "**/test/**", "**/tests/**", "**/__tests__/**", "**/*.test.*", "**/*.spec.*",
@@ -52,7 +52,7 @@ func DefaultPolicy() Policy {
 		},
 		DenyRead: []string{
 			"~/.config/gh/**", "~/.ssh/**", "~/.aws/**", "~/.netrc", "~/.git-credentials", "~/.claude/.credentials.json",
-			"~/.codex/auth.json", "~/.config/barnraise/**", "~/.local/share/barnraise/**", "~/.docker/config.json",
+			"~/.codex/auth.json", "~/.gemini/oauth_creds.json", "~/.config/barnraise/**", "~/.local/share/barnraise/**", "~/.docker/config.json",
 			"~/.gnupg/**", "~/.kube/**", "**/*.keystore", "**/*.jks",
 		},
 		DenyCommands: []string{

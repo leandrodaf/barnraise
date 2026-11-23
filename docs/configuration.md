@@ -184,7 +184,7 @@ roles:
 | --- | --- | --- |
 | `prompt` | `.barnraise/roles/<role>.md` | Path of the role core, or inline text; falls back to the template's role file |
 | `class` | none | Default model class: `simple`, `normal`, `complex`, `native`, `cheap`, or `auto` (the item's class) |
-| `providers` | any | Allowed providers, in order (`claude`, `codex`) |
+| `providers` | any | Allowed providers, in order (`claude`, `codex`, `gemini`) |
 | `count` | `1` | Agents of this role per machine |
 | `tools` | by role | MCP tools the role sees (defaults follow its scopes) |
 | `needs` | none | Machine labels it requires, e.g. `[emulators]` |
@@ -314,7 +314,7 @@ Built-in classes (each one is replaced whole when you redefine it):
 | `native` | `claude/fable@high`, `claude/opus@high` |
 | `cheap` | `claude/haiku`, `claude/sonnet@low`, `codex/gpt-5.5-mini` |
 
-Built-in ladders (cheap to strong): `claude: [haiku, sonnet, opus, fable]`, `codex: [gpt-5.5-mini, gpt-5.5]`, `gemini: [gemini-flash, gemini-pro]`. Families: `claude: anthropic`, `codex: openai`, `gemini: google`, `openrouter: mixed`.
+Built-in ladders (cheap to strong): `claude: [haiku, sonnet, opus, fable]`, `codex: [gpt-5.5-mini, gpt-5.5]`, `gemini: [gemini-2.5-flash, gemini-2.5-pro]`. Families: `claude: anthropic`, `codex: openai`, `gemini: google`, `openrouter: mixed`.
 
 ```yaml
 models:
@@ -324,6 +324,28 @@ models:
     codex: [gpt-5.5-mini, gpt-5.5]
   families:
     codex: openai
+```
+
+### Providers
+
+| Provider | CLI | Login | Family | On the machine itself | Inside a [container](#container) |
+| --- | --- | --- | --- | --- | --- |
+| `claude` | Claude Code (`claude -p`, stream JSON) | Claude subscription | `anthropic` | Blocking PreToolUse hook, plus the native sandbox when `bwrap` works | Hook; the container is the sandbox |
+| `codex` | Codex CLI (`codex exec --json`) | ChatGPT login | `openai` | `--sandbox workspace-write` (bubblewrap on Linux) | Own sandbox off; the container is the boundary |
+| `gemini` | Gemini CLI (`gemini --output-format stream-json`) | Google account | `google` | A reader: shell, write and edit tools are excluded and the approval mode stays `default` | `--approval-mode yolo`; the container is the boundary |
+
+Accounts are added with `barnraise account add <claude|codex|gemini>`. Each one gets its own config dir: `CLAUDE_CONFIG_DIR`, `CODEX_HOME`, or `GEMINI_CLI_HOME` (the Gemini CLI keeps its login in `$GEMINI_CLI_HOME/.gemini`). For a Gemini account, Barnraise selects the Google login in that folder's settings and starts `gemini` once. You sign in in the browser, or with `--headless` by pasting a code, and type `/quit`.
+
+The Gemini CLI has no hook that Barnraise installs, so Barnraise does not rely on its prompt for policy. Outside a container a Gemini session can read the worktree, search, and call Barnraise's MCP tools, but it cannot run a command or change a file. That suits its natural role, cheap review and reading long context: a large diff, a whole module, a long log. A role that must change code runs on Gemini only with `container:`. Each Gemini session also runs with `--extensions none` and `--allowed-mcp-server-names` limited to Barnraise's server and the role's `mcp:` servers. The session's settings, the trusted MCP servers, the excluded tools and `max_turns`, go in as the CLI's system settings (`GEMINI_CLI_SYSTEM_SETTINGS_PATH`), which take precedence over the account's own. Barnraise's system prompt goes at the start of the prompt, because the CLI can only replace its system prompt, not add to it. Effort and JSON schemas have no Gemini equivalent and are ignored.
+
+A typical use is a cheap critic from another family. A reviewer gets the diff, the criteria and the check results in its prompt, so it needs no shell:
+
+```yaml
+roles:
+  critic: { class: cheap, providers: [gemini, claude] }
+models:
+  classes:
+    cheap: [gemini/gemini-2.5-flash, claude/haiku]
 ```
 
 ## policy
@@ -507,7 +529,7 @@ Every container runs with no Linux capabilities and `no-new-privileges`, a read-
 
 Mounted by Barnraise, each at its own path: the item's worktree, the repository's `.git` (a worktree commits there), the agent's account folder, the daemon's socket and the `barnraise` binary (read-only). Not mounted: the owner's home, the daemon's state, other items' worktrees. The session runs as the daemon's uid, with `HOME` inside the session folder. Inside a container the provider's native sandbox is off (bubblewrap does not nest); the container is the boundary, and the blocking hook and the policy still apply.
 
-With `gpu` other than `none`, `/dev/kvm` is passed in too when the machine has it, so an Android emulator can run inside the container. Codex runs there with its own sandbox off (bubblewrap cannot nest in a container, and the container is the boundary); on the machine itself it always runs in `workspace-write`.
+With `gpu` other than `none`, `/dev/kvm` is passed in too when the machine has it, so an Android emulator can run inside the container. Codex runs there with its own sandbox off (bubblewrap cannot nest in a container, and the container is the boundary); on the machine itself it always runs in `workspace-write`. Gemini runs there with `--approval-mode yolo`; on the machine itself it is a reader (see [Providers](#providers)). A Gemini account that uses the CLI's own login gets only `~/.gemini` mounted.
 
 A machine with an NVIDIA GPU needs the NVIDIA Container Toolkit for containers to see it; the daemon warns when the GPU is there and the engine's runtime is not.
 

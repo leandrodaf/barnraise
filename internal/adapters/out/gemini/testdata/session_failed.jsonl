@@ -1,0 +1,4 @@
+{"type":"init","timestamp":"2026-11-23T12:30:00.000Z","session_id":"7e6d5c4b-3a29-4180-9f6e-5d4c3b2a1908","model":"gemini-2.5-flash"}
+{"type":"message","timestamp":"2026-11-23T12:30:00.010Z","role":"user","content":"Summarize the README."}
+{"type":"error","timestamp":"2026-11-23T12:30:02.000Z","severity":"error","message":"[API Error: request to the model failed: socket hang up]"}
+{"type":"result","timestamp":"2026-11-23T12:30:02.010Z","status":"error","error":{"type":"FatalTurnError","message":"[API Error: request to the model failed: socket hang up]"},"stats":{"total_tokens":0,"input_tokens":0,"output_tokens":0,"duration_ms":2010,"tool_calls":0}}

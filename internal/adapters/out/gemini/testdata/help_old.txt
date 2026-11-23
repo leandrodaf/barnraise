@@ -1,0 +1,8 @@
+Usage: gemini [options]
+
+Options:
+  -m, --model          Model  [string]
+  -p, --prompt         Prompt. Appended to input on stdin (if any).  [string]
+  -y, --yolo           Automatically accept all actions?  [boolean] [default: false]
+  -v, --version        Show version number  [boolean]
+  -h, --help           Show help  [boolean]

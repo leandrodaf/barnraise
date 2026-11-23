@@ -27,6 +27,7 @@ import (
 	"github.com/leandrodaf/barnraise/internal/adapters/out/codex"
 	"github.com/leandrodaf/barnraise/internal/adapters/out/egress"
 	"github.com/leandrodaf/barnraise/internal/adapters/out/execx"
+	"github.com/leandrodaf/barnraise/internal/adapters/out/gemini"
 	gitx "github.com/leandrodaf/barnraise/internal/adapters/out/git"
 	"github.com/leandrodaf/barnraise/internal/adapters/out/github"
 	"github.com/leandrodaf/barnraise/internal/adapters/out/gitlab"
@@ -146,6 +147,7 @@ func runDaemon(ctx context.Context, opts cli.DaemonOptions) error {
 	providers := map[string]ports.Provider{
 		"claude": claude.New(claude.Options{ExtraArgs: []string{"--permission-mode", "bypassPermissions"}}),
 		"codex":  codex.New(codex.Options{}),
+		"gemini": gemini.New(gemini.Options{}),
 	}
 	if opts.Fake {
 		d.fake = newFakeAgent()

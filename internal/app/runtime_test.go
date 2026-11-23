@@ -651,6 +651,47 @@ func TestRuntimeSessionInAContainer(t *testing.T) {
 	off.idle()
 }
 
+// In a container, a Gemini account that uses the CLI's own login gets only
+// ~/.gemini mounted, and the CLI is told where that home is.
+func TestRuntimeGeminiOwnLoginInAContainer(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	if err := os.MkdirAll(filepath.Join(home, ".gemini"), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	e := newEnv(t, withGit(), withCfg(func(c *domain.ProjectConfig) {
+		c.Container = domain.ContainerDef{Image: "agent:test", GPU: "none"}
+		for class := range c.Models.Classes {
+			c.Models.Classes[class] = []domain.ModelChoice{{Provider: "gemini", Model: "gemini-2.5-flash"}}
+		}
+	}))
+	gem := fakeprovider.New("gemini", "google")
+	e.svc.d.Providers["gemini"] = gem
+	if _, err := e.svc.UpsertAccount(e.ctx, "demo", owner(), domain.Account{ID: "gemini-1", Provider: "gemini", CeilingPct: 100}); err != nil {
+		t.Fatal(err)
+	}
+	e.ready("simple", "gemini in a box", "x")
+	hold := make(chan struct{})
+	gem.Handle(func(ctx context.Context, _ ports.SessionSpec, _ func(ports.ProviderEvent)) (ports.SessionResult, error) {
+		select {
+		case <-hold:
+		case <-ctx.Done():
+		}
+		return ports.SessionResult{}, nil
+	})
+	e.fill()
+	specs := gem.Specs()
+	if len(specs) != 1 || specs[0].Container == nil {
+		t.Fatalf("specs %+v", specs)
+	}
+	if specs[0].Env["GEMINI_CLI_HOME"] != home || !contains(specs[0].Container.Mounts, filepath.Join(home, ".gemini")) || contains(specs[0].Container.Mounts, home) {
+		t.Fatalf("env %v mounts %v", specs[0].Env["GEMINI_CLI_HOME"], specs[0].Container.Mounts)
+	}
+	e.svc.Runtime().MaxSessions = -1
+	close(hold)
+	e.idle()
+}
+
 // A headless session reports the account's windows as it goes: the account
 // shows its real usage without the status line, and repeats are not recorded.
 func TestRuntimeRecordsAccountLimitsReportedByTheSession(t *testing.T) {

@@ -593,6 +593,10 @@ func (r *Runtime) containerSpec(p *Project, ct domain.ContainerDef, worktree, se
 		case "codex":
 			cfgDir = filepath.Join(host, ".codex")
 			env["CODEX_HOME"] = cfgDir
+		case "gemini":
+			// The CLI reads $GEMINI_CLI_HOME/.gemini; only that folder is mounted.
+			cfgDir = filepath.Join(host, ".gemini")
+			env["GEMINI_CLI_HOME"] = host
 		}
 	}
 	add(cfgDir, false)

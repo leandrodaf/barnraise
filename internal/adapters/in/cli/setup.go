@@ -218,7 +218,7 @@ func detectLang() string {
 
 func (e *env) initAccounts(q *asker) {
 	fmt.Fprintln(e.out, "Let's connect your AI accounts first.")
-	for _, p := range []struct{ bin, name, label string }{{"claude", "claude", "Claude Code (subscription)"}, {"codex", "codex", "Codex (ChatGPT login)"}} {
+	for _, p := range []struct{ bin, name, label string }{{"claude", "claude", "Claude Code (subscription)"}, {"codex", "codex", "Codex (ChatGPT login)"}, {"gemini", "gemini", "Gemini CLI (Google login)"}} {
 		if _, err := exec.LookPath(p.bin); err != nil {
 			fmt.Fprintf(e.out, "  [ ] %-28s not installed\n", p.label)
 			continue
@@ -756,11 +756,11 @@ func (e *env) accountCmd() *cobra.Command {
 	var ceiling float64
 	var skipLogin, headless, isolate bool
 	var configDir string
-	add := &cobra.Command{Use: "add <claude|codex>", Short: "Add an account: own config dir, login, test, rotation", Args: cobra.ExactArgs(1),
+	add := &cobra.Command{Use: "add <claude|codex|gemini>", Short: "Add an account: own config dir, login, test, rotation", Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			prov := args[0]
-			if prov != "claude" && prov != "codex" {
-				return fmt.Errorf("provider %q: use claude or codex", prov)
+			if prov != "claude" && prov != "codex" && prov != "gemini" {
+				return fmt.Errorf("provider %q: use claude, codex or gemini", prov)
 			}
 			ctx, cancel := e.ctx()
 			defer cancel()
@@ -900,6 +900,19 @@ func loginAccount(prov, dir string, headless bool) error {
 		}
 		cmd = exec.Command("codex", args...)
 		cmd.Env = append(os.Environ(), "CODEX_HOME="+dir)
+	case "gemini":
+		// The Gemini CLI has no login command: its first interactive start
+		// signs in with the auth type of its settings. Barnraise selects the
+		// Google account login, and the owner quits with /quit once signed in.
+		if err := geminiSelectGoogleLogin(dir); err != nil {
+			return err
+		}
+		fmt.Fprintln(os.Stderr, "Sign in with your Google account in the Gemini CLI, then type /quit.")
+		cmd = exec.Command("gemini")
+		cmd.Env = append(os.Environ(), "GEMINI_CLI_HOME="+dir)
+		if headless {
+			cmd.Env = append(cmd.Env, "NO_BROWSER=true") // prints a URL and asks for the code
+		}
 	default:
 		return fmt.Errorf("unknown provider %s", prov)
 	}
@@ -918,6 +931,12 @@ func testAccount(prov, dir string) error {
 	case "codex":
 		cmd = exec.CommandContext(ctx, "codex", "exec", "--skip-git-repo-check", "--sandbox", "read-only", "-")
 		cmd.Env = append(os.Environ(), "CODEX_HOME="+dir)
+	case "gemini":
+		// Piped stdin makes the CLI answer once and exit.
+		cmd = exec.CommandContext(ctx, "gemini", "--output-format", "text")
+		cmd.Env = append(os.Environ(), "GEMINI_CLI_HOME="+dir)
+	default:
+		return fmt.Errorf("unknown provider %s", prov)
 	}
 	cmd.Stdin = strings.NewReader("Reply with the single word OK.")
 	out, err := cmd.CombinedOutput()
@@ -928,6 +947,24 @@ func testAccount(prov, dir string) error {
 		return fmt.Errorf("unexpected answer: %s", tailStr(string(out), 200))
 	}
 	return nil
+}
+
+// geminiSelectGoogleLogin makes the Gemini CLI of dir sign in with a Google
+// account ($GEMINI_CLI_HOME/.gemini/settings.json, security.auth.selectedType).
+// Existing settings are kept.
+func geminiSelectGoogleLogin(dir string) error {
+	if dir == "" {
+		return nil
+	}
+	cfg := filepath.Join(dir, ".gemini")
+	path := filepath.Join(cfg, "settings.json")
+	if _, err := os.Stat(path); err == nil {
+		return nil
+	}
+	if err := os.MkdirAll(cfg, 0o700); err != nil {
+		return err
+	}
+	return os.WriteFile(path, []byte(`{"security":{"auth":{"selectedType":"oauth-personal"}}}`+"\n"), 0o600)
 }
 
 func tailStr(s string, n int) string {
