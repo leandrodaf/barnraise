@@ -101,6 +101,11 @@ func openDB(path string) (*sql.DB, error) {
 // the same file.
 func (s *Store) DB() *sql.DB { return s.db }
 
+// WriteLock is the store's writer lock. An adapter that writes to the same
+// file takes it too, so writers of this process queue instead of failing
+// on SQLite's busy timeout.
+func (s *Store) WriteLock() sync.Locker { return &s.wmu }
+
 // Close closes the database.
 func (s *Store) Close() error { return s.db.Close() }
 

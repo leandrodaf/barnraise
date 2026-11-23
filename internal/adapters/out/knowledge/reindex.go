@@ -156,42 +156,34 @@ func (ix *Index) Reindex(ctx context.Context, project, root, commit string, chan
 		}
 	}
 	now := ix.now().UTC()
+	// The files go in batches, each in its own short transaction, so other
+	// writers of the database wait milliseconds, not the whole reindex.
+	// Each file is dropped, indexed and hashed in one batch: an interrupted
+	// reindex leaves the done files done and the next one does the rest.
+	first := true
+	for len(work) > reindexBatch {
+		batch := work[:reindexBatch]
+		work = work[reindexBatch:]
+		if err := ix.write(ctx, func(tx *txw) error {
+			if first {
+				first = false
+				if err := ix.reindexStart(ctx, tx, project, commit, deleted, areas, areasChanged); err != nil {
+					return err
+				}
+			}
+			return ix.reindexFiles(ctx, tx, project, commit, batch, areas, now)
+		}); err != nil {
+			return err
+		}
+	}
 	return ix.write(ctx, func(tx *txw) error {
-		for _, rel := range deleted {
-			if err := dropOrigin(ctx, tx, project, rel); err != nil {
-				return err
-			}
-			if _, err := tx.exec(ctx, `DELETE FROM file_hashes WHERE project = ? AND path = ?`, project, rel); err != nil {
+		if first {
+			if err := ix.reindexStart(ctx, tx, project, commit, deleted, areas, areasChanged); err != nil {
 				return err
 			}
 		}
-		if areasChanged {
-			if err := writeAreas(ctx, tx, project, commit, areas); err != nil {
-				return err
-			}
-		}
-		for _, w := range work {
-			if w.known && w.rel != areasFile { // areas.yaml was rewritten above
-				if err := dropOrigin(ctx, tx, project, w.rel); err != nil {
-					return err
-				}
-			}
-			switch {
-			case w.rel == areasFile:
-			case strings.HasPrefix(w.rel, docsDir+"/"):
-				if err := indexDoc(ctx, tx, project, commit, w, now); err != nil {
-					return err
-				}
-			default:
-				if err := indexCode(ctx, tx, project, commit, w, areas, now); err != nil {
-					return err
-				}
-			}
-			if _, err := tx.exec(ctx, `INSERT INTO file_hashes(project, path, sha, commit_sha, indexed) VALUES(?, ?, ?, ?, ?)
-				ON CONFLICT(project, path) DO UPDATE SET sha = excluded.sha, commit_sha = excluded.commit_sha, indexed = excluded.indexed`,
-				project, w.rel, w.sha, commit, now.UnixNano()); err != nil {
-				return err
-			}
+		if err := ix.reindexFiles(ctx, tx, project, commit, work, areas, now); err != nil {
+			return err
 		}
 		if areasChanged {
 			if err := reassignCodeAreas(ctx, tx, project, areas); err != nil {
@@ -202,6 +194,56 @@ func (ix *Index) Reindex(ctx context.Context, project, root, commit string, chan
 			ON CONFLICT(project) DO UPDATE SET commit_sha = excluded.commit_sha, indexed = excluded.indexed`, project, commit, now.UnixNano())
 		return err
 	})
+}
+
+// reindexBatch is how many files one reindex transaction takes.
+const reindexBatch = 200
+
+// reindexStart drops the deleted files and rewrites the areas, once, in the
+// first batch.
+func (ix *Index) reindexStart(ctx context.Context, tx *txw, project, commit string, deleted []string, areas map[string]areaSpec, areasChanged bool) error {
+	for _, rel := range deleted {
+		if err := dropOrigin(ctx, tx, project, rel); err != nil {
+			return err
+		}
+		if _, err := tx.exec(ctx, `DELETE FROM file_hashes WHERE project = ? AND path = ?`, project, rel); err != nil {
+			return err
+		}
+	}
+	if areasChanged {
+		if err := writeAreas(ctx, tx, project, commit, areas); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// reindexFiles indexes one batch of changed files.
+func (ix *Index) reindexFiles(ctx context.Context, tx *txw, project, commit string, work []fileWork, areas map[string]areaSpec, now time.Time) error {
+	for _, w := range work {
+		if w.known && w.rel != areasFile { // areas.yaml was rewritten above
+			if err := dropOrigin(ctx, tx, project, w.rel); err != nil {
+				return err
+			}
+		}
+		switch {
+		case w.rel == areasFile:
+		case strings.HasPrefix(w.rel, docsDir+"/"):
+			if err := indexDoc(ctx, tx, project, commit, w, now); err != nil {
+				return err
+			}
+		default:
+			if err := indexCode(ctx, tx, project, commit, w, areas, now); err != nil {
+				return err
+			}
+		}
+		if _, err := tx.exec(ctx, `INSERT INTO file_hashes(project, path, sha, commit_sha, indexed) VALUES(?, ?, ?, ?, ?)
+				ON CONFLICT(project, path) DO UPDATE SET sha = excluded.sha, commit_sha = excluded.commit_sha, indexed = excluded.indexed`,
+			project, w.rel, w.sha, commit, now.UnixNano()); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // readSource reads a file if it is small, regular and not binary.

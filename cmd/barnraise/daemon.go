@@ -132,7 +132,7 @@ func runDaemon(ctx context.Context, opts cli.DaemonOptions) error {
 		return fmt.Errorf("open state: %w", err)
 	}
 	defer d.store.Close()
-	kn, err := knowledge.New(d.store.DB())
+	kn, err := knowledge.New(d.store.DB(), knowledge.WithWriteLock(d.store.WriteLock()))
 	if err != nil {
 		return fmt.Errorf("open knowledge index: %w", err)
 	}

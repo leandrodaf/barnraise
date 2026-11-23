@@ -27,16 +27,30 @@ var ErrNotFound = errors.New("knowledge: not found")
 // Index implements ports.Knowledge on a *sql.DB. It may share the database
 // of the event store; it only touches its own tables.
 type Index struct {
-	db  *sql.DB
-	wmu sync.Mutex // one writer at a time inside this process
+	db *sql.DB
+	// wmu: one writer at a time inside this process. When the index shares
+	// the event store's file it must share its lock too (WithWriteLock):
+	// with two locks a long reindex held SQLite's write lock past the busy
+	// timeout and event writes failed with SQLITE_BUSY.
+	wmu sync.Locker
 	now func() time.Time
 }
 
 var _ ports.Knowledge = (*Index)(nil)
 
+// Option configures New.
+type Option func(*Index)
+
+// WithWriteLock makes the index take the given lock for its writes: the
+// lock of the store whose database it shares.
+func WithWriteLock(l sync.Locker) Option { return func(ix *Index) { ix.wmu = l } }
+
 // New creates the knowledge tables (if needed) and returns the index.
-func New(db *sql.DB) (*Index, error) {
-	ix := &Index{db: db, now: time.Now}
+func New(db *sql.DB, opts ...Option) (*Index, error) {
+	ix := &Index{db: db, wmu: &sync.Mutex{}, now: time.Now}
+	for _, o := range opts {
+		o(ix)
+	}
 	if err := ix.migrate(context.Background()); err != nil {
 		return nil, err
 	}

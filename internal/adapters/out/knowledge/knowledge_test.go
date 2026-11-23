@@ -7,6 +7,8 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
+	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -759,4 +761,67 @@ func BenchmarkReindex(b *testing.B) {
 			}
 		}
 	})
+}
+
+// countingLock counts how many times a writer took the store's lock.
+type countingLock struct {
+	sync.Locker
+	n atomic.Int32
+}
+
+func (c *countingLock) Lock() { c.n.Add(1); c.Locker.Lock() }
+
+// A whole-repository reindex takes the store's own writer lock, in short
+// batches: event writes of the daemon queue behind each batch instead of
+// waiting for the whole reindex and failing on SQLite's busy timeout
+// (Nobira's first import lost 13 issues to SQLITE_BUSY this way).
+func TestReindexInBatchesUnderTheStoreLock(t *testing.T) {
+	ctx := context.Background()
+	st, err := sqlite.Open(filepath.Join(t.TempDir(), "barnraise.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer st.Close()
+	lock := &countingLock{Locker: st.WriteLock()}
+	ix, err := New(st.DB(), WithWriteLock(lock))
+	if err != nil {
+		t.Fatal(err)
+	}
+	files := map[string]string{}
+	for i := range 2*reindexBatch + 50 {
+		files[fmt.Sprintf("app/f%03d.go", i)] = fmt.Sprintf("package app\n\n// Unico%03d does one thing.\nfunc Unico%03d() int { return %d }\n", i, i, i)
+	}
+	root := t.TempDir()
+	writeTree(t, root, files)
+	before := lock.n.Load()
+	if err := ix.Reindex(ctx, "p", root, "c1", nil); err != nil {
+		t.Fatal(err)
+	}
+	if got := lock.n.Load() - before; got < 3 {
+		t.Fatalf("%d files indexed in %d transactions, want at least 3", len(files), got)
+	}
+	if c, _, err := ix.IndexedCommit(ctx, "p"); err != nil || c != "c1" {
+		t.Fatalf("indexed commit %q %v", c, err)
+	}
+	for _, name := range []string{"Unico000", "Unico449"} {
+		if hits, err := ix.Search(ctx, "p", name, ports.SearchFilters{}, 3); err != nil || len(hits) == 0 {
+			t.Fatalf("%s not found: %v %v", name, hits, err)
+		}
+	}
+	// The store writes through the same lock while the index holds it.
+	lock.Lock()
+	appended := make(chan error, 1)
+	go func() {
+		_, err := st.Append(ctx, domain.NewEvent("after", domain.EvJournal, "p", "", "m", "a", now, domain.Payload{}))
+		appended <- err
+	}()
+	select {
+	case err := <-appended:
+		t.Fatalf("the store wrote while the index held the lock: %v", err)
+	case <-time.After(100 * time.Millisecond):
+	}
+	lock.Unlock()
+	if err := <-appended; err != nil {
+		t.Fatal(err)
+	}
 }
