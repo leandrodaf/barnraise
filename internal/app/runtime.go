@@ -227,7 +227,10 @@ func (r *Runtime) fillSlots(ctx context.Context, p *Project, m domain.Machine) {
 		return
 	}
 	r.newStartErr(p.Name+"/machine", "")
-	failed := map[string]bool{} // items whose start failed in this pass
+	// Items already tried in this pass, started or not: a session that ends
+	// at once (or a start that fails) is not tried again by the next free
+	// slot of the same pass. The next pass decides again.
+	failed := map[string]bool{}
 	for _, slot := range r.slotsFor(p, m) {
 		r.mu.Lock()
 		_, busy := r.running[slot.Agent]
@@ -277,6 +280,7 @@ func (r *Runtime) fillSlots(ctx context.Context, p *Project, m domain.Machine) {
 			}
 			continue
 		}
+		failed[a.Item.ID] = true
 		r.newStartErr(p.Name+"/"+slot.Agent+"/"+a.Item.ID, "")
 		if dual {
 			slotB := Slot{Agent: slot.Agent + "-b", Role: slot.Role, Machine: slot.Machine, Reviewer: slot.Reviewer}
