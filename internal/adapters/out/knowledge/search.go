@@ -55,7 +55,7 @@ func (ix *Index) Search(ctx context.Context, project, query string, f ports.Sear
 		return nil, err
 	}
 	lists := make([][]string, 0, exactWeight+2)
-	for i := 0; i < exactWeight; i++ {
+	for range exactWeight {
 		lists = append(lists, exact)
 	}
 	lists = append(lists, filt, text)
@@ -193,7 +193,7 @@ func (ix *Index) exactLayer(ctx context.Context, project, q, fsql string, fargs 
 		add(m)
 	}
 	var paths, idents, dirs []string
-	for _, tok := range strings.Fields(q) {
+	for tok := range strings.FieldsSeq(q) {
 		tok = strings.Trim(tok, "\"'`()[]{},;")
 		if tok == "" {
 			continue

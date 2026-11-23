@@ -76,8 +76,7 @@ func connectErr(err error) error {
 	if err == nil {
 		return nil
 	}
-	var ce *connect.Error
-	if errors.As(err, &ce) {
+	if _, ok := errors.AsType[*connect.Error](err); ok {
 		return err
 	}
 	code := connect.CodeInternal
@@ -96,14 +95,6 @@ func connectErr(err error) error {
 		code = connect.CodeNotFound
 	}
 	return connect.NewError(code, err)
-}
-
-func must[T any](v T, err error) (T, error) {
-	if err != nil {
-		var zero T
-		return zero, fmt.Errorf("convert: %w", err)
-	}
-	return v, nil
 }
 
 // snakeJSON is the Connect JSON codec with the proto field names (snake_case),

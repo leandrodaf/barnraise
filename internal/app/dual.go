@@ -202,11 +202,8 @@ func (s *Service) resolveDual(ctx context.Context, p *Project, id string) (*doma
 			best = c
 		}
 	}
-	reason := ""
-	switch {
-	case best == nil:
-		reason = "neither attempt delivered a usable result"
-	default:
+	reason := "neither attempt delivered a usable result"
+	if best != nil {
 		reason = fmt.Sprintf("attempt %s chosen: %d checks green, %d files changed", best.name, best.passed, best.files)
 		for _, c := range cands {
 			if c != best && c.usable {

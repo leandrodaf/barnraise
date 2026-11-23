@@ -10,9 +10,10 @@ COVER_PKGS := ./internal/domain ./internal/app
 FUZZTIME  ?= 10s
 IMAGE     ?= barnraise:dev
 BUF       ?= buf
+SMOKE_PROVIDER ?= fake
 
 .DEFAULT_GOAL := build
-.PHONY: help build test test-race cover lint vuln proto proto-breaking e2e fuzz-smoke docker clean
+.PHONY: help build test test-race cover lint vuln proto proto-breaking e2e smoke fuzz-smoke docker clean
 
 help: ## Show the targets
 	@awk 'BEGIN {FS = ":.*## "} /^[a-z0-9-]+:.*## / {printf "  %-15s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
@@ -52,6 +53,9 @@ proto-breaking: ## buf breaking against main
 
 e2e: ## End-to-end and cluster tests only (need git)
 	$(GO) test -race -timeout 20m -run 'TestEndToEnd|TestTwoMachines' -v ./cmd/barnraise
+
+smoke: build ## init to one integrated item on a scratch repository (SMOKE_PROVIDER=fake|claude; claude spends tokens)
+	scripts/smoke.sh $(SMOKE_PROVIDER)
 
 fuzz-smoke: ## Run every fuzz target for FUZZTIME (default 10s)
 	@set -e; for pkg in $$($(GO) list ./...); do \

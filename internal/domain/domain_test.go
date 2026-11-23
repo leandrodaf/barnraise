@@ -110,7 +110,7 @@ func TestReworkEscalation(t *testing.T) {
 	it := &Item{ID: "I-1", Tier: 0}
 	var tiers []int
 	var kinds []TransitionKind
-	for i := 0; i < 7; i++ {
+	for range 7 {
 		tr, err := f.Decide(it, "check", OutcomeFail, "red")
 		if err != nil {
 			t.Fatal(err)
@@ -142,7 +142,7 @@ func TestReworkNeverPassesLimit(t *testing.T) {
 		outcomes := []Outcome{OutcomeFail, OutcomePass, OutcomeReject, OutcomeRework, OutcomeDone}
 		steps := []string{"plan", "implement", "quick-look", "check", "design"}
 		n := rapid.IntRange(1, 40).Draw(t, "n")
-		for i := 0; i < n; i++ {
+		for range n {
 			o := rapid.SampledFrom(outcomes).Draw(t, "o")
 			s := rapid.SampledFrom(steps).Draw(t, "s")
 			tr, err := f.Decide(it, s, o, "r")
@@ -219,7 +219,7 @@ func TestPickLane(t *testing.T) {
 	c := DefaultCapacity
 	all := map[Lane]bool{LaneGoal: true, LaneBugs: true, LaneImprovement: true}
 	counts := LaneUsage{}
-	for i := 0; i < 100; i++ {
+	for range 100 {
 		l, ok := PickLane(c, counts, all, 0, false)
 		if !ok {
 			t.Fatal("no lane")
@@ -303,7 +303,7 @@ func TestProposals(t *testing.T) {
 		t.Fatal("missing fields")
 	}
 	var existing []*Proposal
-	for i := 0; i < 3; i++ {
+	for i := range 3 {
 		existing = append(existing, &Proposal{ID: FormatID(KindProposal, i+1), By: "claude2-1", CreatedAt: now.Add(-time.Hour), Area: "home", Status: ProposalOpen, Title: "z"})
 	}
 	if CheckDailyLimit(existing, "claude2-1", now, 3) == nil {
@@ -577,7 +577,7 @@ func TestStateConverges(t *testing.T) {
 		n := rapid.IntRange(1, 20).Draw(t, "n")
 		base := time.Unix(1700000000, 0)
 		var evs []Event
-		for i := 0; i < n; i++ {
+		for i := range n {
 			v := rapid.IntRange(1, 5).Draw(t, "v")
 			it := &Item{ID: "I-1", Version: v, Title: FormatID(KindItem, v), UpdatedAt: base.Add(time.Duration(v) * time.Second)}
 			evs = append(evs, NewEvent(FormatID(KindMemory, i+1), EvItemUpdated, "p", "I-1", "m", "", base, Payload{Item: it}))

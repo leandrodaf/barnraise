@@ -221,7 +221,7 @@ The full reference with every key and default is [docs/configuration.md](docs/co
 
 ## Development
 
-Requirements: Go 1.26, `git`, and for the contract `buf` with `protoc-gen-go`, `protoc-gen-connect-go` and `protoc-gen-connect-openapi` on `PATH`.
+Requirements: Go 1.27, `git`, and for the contract `buf` with `protoc-gen-go`, `protoc-gen-connect-go` and `protoc-gen-connect-openapi` on `PATH`.
 
 | Target | What it runs |
 | --- | --- |

@@ -59,8 +59,7 @@ func Run(ctx context.Context, command []string, logDir string) (summary string, 
 	if ctx.Err() != nil {
 		err = ctx.Err()
 	} else if waitErr != nil {
-		var ee *exec.ExitError
-		if !errors.As(waitErr, &ee) {
+		if _, ok := errors.AsType[*exec.ExitError](waitErr); !ok {
 			err = waitErr
 		}
 	}

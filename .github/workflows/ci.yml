@@ -20,7 +20,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
         with:
-          go-version: "1.26"
+          go-version: "1.27"
       - name: go vet
         run: go vet ./...
       - name: golangci-lint (with the depguard architecture rules)
@@ -66,7 +66,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
         with:
-          go-version: "1.26"
+          go-version: "1.27"
       - name: git identity for the tests
         run: |
           git config --global user.name "barnraise-ci"
@@ -102,7 +102,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
         with:
-          go-version: "1.26"
+          go-version: "1.27"
       - name: git (the e2e tests drive real git)
         run: |
           git --version
@@ -113,6 +113,8 @@ jobs:
         env:
           BARNRAISE_NO_TAILSCALE: "1"
         run: go test -race -timeout 20m -run 'TestEndToEnd|TestTwoMachines' -v ./cmd/barnraise
+      - name: smoke with the built binary (fake provider)
+        run: make smoke
 
   build:
     name: build ${{ matrix.goos }}/${{ matrix.goarch }}
@@ -125,7 +127,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
         with:
-          go-version: "1.26"
+          go-version: "1.27"
       - name: go build
         env:
           CGO_ENABLED: "0"

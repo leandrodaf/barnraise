@@ -114,41 +114,41 @@ type ExperimentDef struct {
 
 // ProjectConfig is barnraise.yaml compiled with template defaults.
 type ProjectConfig struct {
-	Name            string                 `json:"name"`
-	Root            string                 `json:"root"`
-	Template        string                 `json:"template"`
-	Language        string                 `json:"language"`
-	Goal            Goal                   `json:"goal"`
-	Approves        string                 `json:"approves"`
-	MainBranch      string                 `json:"main_branch"`
-	Tracker         TrackerDef             `json:"tracker"`
-	CodeHost        CodeHostDef            `json:"code_host"`
-	Roles           map[string]RoleDef     `json:"roles"`
-	Flows           map[string]*Flow       `json:"flows"`
-	Checks          map[string]CheckDef    `json:"checks"`
-	Areas           map[string]AreaDef     `json:"areas"`
-	Capacity        Capacity               `json:"capacity"`
-	Proposals       ProposalRules          `json:"proposals"`
-	Tweaks          TweakRules             `json:"tweaks"`
-	TargetSize      string                 `json:"target_size"`
-	SmallerBecomes  string                 `json:"smaller_becomes"`
-	SameAreaFinding string                 `json:"same_area_findings"`
-	SelfApproves    string                 `json:"self_approves"`
-	Models          ModelRouter            `json:"models"`
-	Policy          Policy                 `json:"policy"`
-	Merge           MergeDef               `json:"merge"`
-	Lease           LeaseDef               `json:"lease"`
-	Budget          BudgetDef              `json:"budget"`
-	StaleAfter      time.Duration          `json:"stale_after"`
-	Notifications   []NotifierDef          `json:"notifications,omitempty"`
-	Webhooks        []WebhookDef           `json:"webhooks,omitempty"`
-	Experiments     []ExperimentDef        `json:"experiments,omitempty"`
-	KindFlows       map[string]string      `json:"kind_flows,omitempty"` // item kind -> flow
-	SafetyCommit    time.Duration          `json:"safety_commit"`
-	EnvFiles        []string               `json:"env_files,omitempty"` // copied into worktrees (.worktreeinclude)
-	PortBase        int                    `json:"port_base"`
-	Standards       map[string]string      `json:"standards,omitempty"`
-	Extra           map[string]interface{} `json:"extra,omitempty"`
+	Name            string              `json:"name"`
+	Root            string              `json:"root"`
+	Template        string              `json:"template"`
+	Language        string              `json:"language"`
+	Goal            Goal                `json:"goal"`
+	Approves        string              `json:"approves"`
+	MainBranch      string              `json:"main_branch"`
+	Tracker         TrackerDef          `json:"tracker"`
+	CodeHost        CodeHostDef         `json:"code_host"`
+	Roles           map[string]RoleDef  `json:"roles"`
+	Flows           map[string]*Flow    `json:"flows"`
+	Checks          map[string]CheckDef `json:"checks"`
+	Areas           map[string]AreaDef  `json:"areas"`
+	Capacity        Capacity            `json:"capacity"`
+	Proposals       ProposalRules       `json:"proposals"`
+	Tweaks          TweakRules          `json:"tweaks"`
+	TargetSize      string              `json:"target_size"`
+	SmallerBecomes  string              `json:"smaller_becomes"`
+	SameAreaFinding string              `json:"same_area_findings"`
+	SelfApproves    string              `json:"self_approves"`
+	Models          ModelRouter         `json:"models"`
+	Policy          Policy              `json:"policy"`
+	Merge           MergeDef            `json:"merge"`
+	Lease           LeaseDef            `json:"lease"`
+	Budget          BudgetDef           `json:"budget"`
+	StaleAfter      time.Duration       `json:"stale_after"`
+	Notifications   []NotifierDef       `json:"notifications,omitempty"`
+	Webhooks        []WebhookDef        `json:"webhooks,omitempty"`
+	Experiments     []ExperimentDef     `json:"experiments,omitempty"`
+	KindFlows       map[string]string   `json:"kind_flows,omitempty"` // item kind -> flow
+	SafetyCommit    time.Duration       `json:"safety_commit"`
+	EnvFiles        []string            `json:"env_files,omitempty"` // copied into worktrees (.worktreeinclude)
+	PortBase        int                 `json:"port_base"`
+	Standards       map[string]string   `json:"standards,omitempty"`
+	Extra           map[string]any      `json:"extra,omitempty"`
 }
 
 // FlowFor returns the flow of an item kind.

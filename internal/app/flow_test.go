@@ -235,7 +235,7 @@ func (e *env) exhaust(title string) (*domain.Item, *domain.Question) {
 	e.t.Helper()
 	it := e.ready("reviewed", title, "a")
 	e.start(it.ID)
-	for i := 0; i < 3; i++ {
+	for range 3 {
 		e.mustDeliver(it.ID, domain.Delivery{})
 		if _, err := e.review(it.ID, reworkReview("wrong")); err != nil {
 			e.t.Fatal(err)

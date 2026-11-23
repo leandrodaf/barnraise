@@ -69,7 +69,6 @@ lease: { renew: 1s, ttl: 3s }
 type envOpts struct {
 	yaml      string
 	git       bool
-	localGit  bool
 	fakeGit   *testkit.FakeGit
 	cfg       []func(*domain.ProjectConfig)
 	machine   string
@@ -88,23 +87,21 @@ type envOpts struct {
 
 type opt func(*envOpts)
 
-func withGit() opt                                  { return func(o *envOpts) { o.git = true } }
-func withLocalGit() opt                             { return func(o *envOpts) { o.localGit = true } }
-func withFakeGit(g *testkit.FakeGit) opt            { return func(o *envOpts) { o.fakeGit = g } }
-func withCfg(f func(*domain.ProjectConfig)) opt     { return func(o *envOpts) { o.cfg = append(o.cfg, f) } }
-func withMachine(m string) opt                      { return func(o *envOpts) { o.machine = m } }
-func withStore(s *testkit.Store) opt                { return func(o *envOpts) { o.store = s } }
-func withBackend(b *testkit.ArbiterBackend) opt     { return func(o *envOpts) { o.backend = b } }
-func withoutArbiter() opt                           { return func(o *envOpts) { o.noArbiter = true } }
-func withHost() opt                                 { return func(o *envOpts) { o.host = true } }
-func withTracker() opt                              { return func(o *envOpts) { o.tracker = true } }
-func withTriage() opt                               { return func(o *envOpts) { o.triage = true } }
-func withKnowledge() opt                            { return func(o *envOpts) { o.knowledge = true } }
-func withExec() opt                                 { return func(o *envOpts) { o.exec = true } }
-func withClock(c *testkit.Clock) opt                { return func(o *envOpts) { o.clock = c } }
-func withRepo(r *testkit.Repo) opt                  { return func(o *envOpts) { o.repo = r } }
-func withFiles(f map[string]string) opt             { return func(o *envOpts) { o.files = f } }
-func withYAML(extra string) opt                     { return func(o *envOpts) { o.yaml += extra } }
+func withGit() opt                              { return func(o *envOpts) { o.git = true } }
+func withFakeGit(g *testkit.FakeGit) opt        { return func(o *envOpts) { o.fakeGit = g } }
+func withCfg(f func(*domain.ProjectConfig)) opt { return func(o *envOpts) { o.cfg = append(o.cfg, f) } }
+func withMachine(m string) opt                  { return func(o *envOpts) { o.machine = m } }
+func withStore(s *testkit.Store) opt            { return func(o *envOpts) { o.store = s } }
+func withBackend(b *testkit.ArbiterBackend) opt { return func(o *envOpts) { o.backend = b } }
+func withoutArbiter() opt                       { return func(o *envOpts) { o.noArbiter = true } }
+func withHost() opt                             { return func(o *envOpts) { o.host = true } }
+func withTracker() opt                          { return func(o *envOpts) { o.tracker = true } }
+func withTriage() opt                           { return func(o *envOpts) { o.triage = true } }
+func withKnowledge() opt                        { return func(o *envOpts) { o.knowledge = true } }
+func withExec() opt                             { return func(o *envOpts) { o.exec = true } }
+func withClock(c *testkit.Clock) opt            { return func(o *envOpts) { o.clock = c } }
+func withRepo(r *testkit.Repo) opt              { return func(o *envOpts) { o.repo = r } }
+func withFiles(f map[string]string) opt         { return func(o *envOpts) { o.files = f } }
 
 // env is one daemon with one project, wired to fakes.
 type env struct {
@@ -157,8 +154,6 @@ func newEnv(t *testing.T, opts ...opt) *env {
 		e.repo = o.repo
 	case o.git:
 		e.repo = testkit.NewRepo(t, e.clock, o.files)
-	case o.localGit:
-		e.repo = testkit.NewLocalRepo(t, e.clock, o.files)
 	}
 	if e.repo != nil {
 		pp.Git, pp.Arbiter, e.root = e.repo.Git, e.repo.Arbiter, e.repo.Root

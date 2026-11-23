@@ -2,6 +2,7 @@ package provcommon
 
 import (
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -150,8 +151,8 @@ func ParseResetsAt(text string, now time.Time) time.Time {
 // LimitLine returns the last line of text that reads as a limit message.
 func LimitLine(text string) (string, bool) {
 	lines := strings.Split(text, "\n")
-	for i := len(lines) - 1; i >= 0; i-- {
-		if l := strings.TrimSpace(lines[i]); l != "" && IsLimitText(l) {
+	for _, line := range slices.Backward(lines) {
+		if l := strings.TrimSpace(line); l != "" && IsLimitText(l) {
 			return l, true
 		}
 	}

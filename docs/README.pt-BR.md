@@ -223,7 +223,7 @@ A referência completa, com cada chave e padrão, está em [configuration.md](co
 
 ## Desenvolvimento
 
-Requisitos: Go 1.26, `git` e, para o contrato, o `buf` com `protoc-gen-go`, `protoc-gen-connect-go` e `protoc-gen-connect-openapi` no `PATH`.
+Requisitos: Go 1.27, `git` e, para o contrato, o `buf` com `protoc-gen-go`, `protoc-gen-connect-go` e `protoc-gen-connect-openapi` no `PATH`.
 
 | Alvo | O que roda |
 | --- | --- |

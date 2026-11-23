@@ -12,7 +12,7 @@ func lineCount(s string) int { return strings.Count(s, "\n") + 1 }
 
 func noise(n int) string {
 	var b strings.Builder
-	for i := 0; i < n; i++ {
+	for i := range n {
 		fmt.Fprintf(&b, "> Task :lib:compile%d UP-TO-DATE\n", i)
 	}
 	return b.String()
@@ -67,7 +67,7 @@ BUILD FAILED in 3s
 
 func TestGoTest(t *testing.T) {
 	var b strings.Builder
-	for i := 0; i < 30; i++ {
+	for i := range 30 {
 		fmt.Fprintf(&b, "ok  \texample.com/p%d\t0.01s\n", i)
 	}
 	b.WriteString(`--- FAIL: TestAdd (0.00s)
@@ -162,7 +162,7 @@ Element not found: Text matching regex: Welcome
 
 func TestGenericTailAndCap(t *testing.T) {
 	var b strings.Builder
-	for i := 0; i < 1000; i++ {
+	for i := range 1000 {
 		fmt.Fprintf(&b, "\x1b[32mline %d\x1b[0m\n", i)
 	}
 	s := FilterWithLog("make", []byte(b.String()), 2, "/l")
@@ -174,7 +174,7 @@ func TestGenericTailAndCap(t *testing.T) {
 	}
 	// Many failures are capped too.
 	var g strings.Builder
-	for i := 0; i < 500; i++ {
+	for i := range 500 {
 		fmt.Fprintf(&g, "e: /f%d.kt: boom\n", i)
 	}
 	g.WriteString("BUILD FAILED in 1s\n")

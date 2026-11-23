@@ -3,6 +3,7 @@ package testkit
 import (
 	"context"
 	"fmt"
+	"maps"
 	"strings"
 	"sync"
 	"time"
@@ -357,9 +358,7 @@ func (t *Triage) Triage(_ context.Context, ch domain.Change, items []*domain.Ite
 	t.calls = append(t.calls, ids)
 	fn, err, usage := t.Func, t.Err, t.Usage
 	verdicts := map[string]domain.TriageResult{}
-	for k, v := range t.Verdicts {
-		verdicts[k] = v
-	}
+	maps.Copy(verdicts, t.Verdicts)
 	t.mu.Unlock()
 	if err != nil {
 		return nil, domain.TokenUsage{}, err

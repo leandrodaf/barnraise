@@ -39,7 +39,7 @@ func (ix *Index) IndexItems(ctx context.Context, project string, items []*domain
 }
 
 func firstLine(s string) string {
-	for _, ln := range strings.Split(s, "\n") {
+	for ln := range strings.SplitSeq(s, "\n") {
 		if t := strings.TrimSpace(strings.TrimLeft(strings.TrimSpace(ln), "#>-* ")); t != "" {
 			return t
 		}

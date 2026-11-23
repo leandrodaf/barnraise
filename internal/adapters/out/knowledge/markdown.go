@@ -35,7 +35,7 @@ func (s *stringList) UnmarshalYAML(n *yaml.Node) error {
 	switch n.Kind {
 	case yaml.ScalarNode:
 		if v := strings.TrimSpace(n.Value); v != "" && n.Tag != "!!null" {
-			for _, p := range strings.Split(v, ",") {
+			for p := range strings.SplitSeq(v, ",") {
 				if p = strings.TrimSpace(p); p != "" {
 					*s = append(*s, p)
 				}
@@ -86,14 +86,14 @@ func splitFrontMatter(src string) (header, body string) {
 	if strings.HasPrefix(rest, "---\n") {
 		return "", rest[4:]
 	}
-	end := strings.Index(rest, "\n---\n")
-	if end < 0 {
+	before, after, ok := strings.Cut(rest, "\n---\n")
+	if !ok {
 		if strings.HasSuffix(rest, "\n---") {
 			return rest[:len(rest)-4], ""
 		}
 		return "", src
 	}
-	return rest[:end], rest[end+5:]
+	return before, after
 }
 
 var (
@@ -218,7 +218,7 @@ func canonicalID(s string) string {
 // non-heading line as the one-line summary (the answer).
 func titleAndSummary(body string) (title, summary string) {
 	inFence := false
-	for _, ln := range strings.Split(body, "\n") {
+	for ln := range strings.SplitSeq(body, "\n") {
 		t := strings.TrimSpace(ln)
 		if strings.HasPrefix(t, "```") || strings.HasPrefix(t, "~~~") {
 			inFence = !inFence

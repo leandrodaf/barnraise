@@ -284,7 +284,7 @@ func (s *Service) inventory(p *Project, spec string) ([]InventoryEntry, error) {
 		if err != nil {
 			return nil, fmt.Errorf("%w: inventory source %s: %v", ErrInvalid, arg, err)
 		}
-		for _, l := range strings.Split(string(data), "\n") {
+		for l := range strings.SplitSeq(string(data), "\n") {
 			l = strings.TrimSpace(strings.TrimLeft(l, "-*# "))
 			if l == "" {
 				continue

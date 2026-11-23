@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
+	"maps"
 	"os"
 	"path/filepath"
 	"sort"
@@ -491,12 +492,8 @@ func (r *rawConfig) compile(root, tmpl string) (*domain.ProjectConfig, error) {
 		}
 		c.Models.Classes[class] = choices
 	}
-	for p, l := range r.Models.Ladders {
-		c.Models.Ladders[p] = l
-	}
-	for p, f := range r.Models.Families {
-		c.Models.Families[p] = f
-	}
+	maps.Copy(c.Models.Ladders, r.Models.Ladders)
+	maps.Copy(c.Models.Families, r.Models.Families)
 
 	c.Policy = domain.DefaultPolicy().Merge(domain.Policy{
 		DenyWrite: r.Policy.DenyWrite, LockExisting: r.Policy.LockExisting, DenyRead: r.Policy.DenyRead,

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"maps"
 	"time"
 
 	"github.com/leandrodaf/barnraise/internal/domain"
@@ -257,9 +258,7 @@ func (s *Service) candidatesLocked(p *Project, slot Slot) []*domain.Item {
 	}
 	var out []*domain.Item
 	remaining := map[domain.Lane][]*domain.Item{}
-	for l, list := range byLane {
-		remaining[l] = list
-	}
+	maps.Copy(remaining, byLane)
 	for len(remaining) > 0 {
 		avail := map[domain.Lane]bool{}
 		for l, list := range remaining {

@@ -36,7 +36,7 @@ func TestPropertyNeverTwoOwners(t *testing.T) {
 		}
 		seq := 0
 		steps := rapid.IntRange(1, 30).Draw(t, "steps")
-		for i := 0; i < steps; i++ {
+		for range steps {
 			m := ms[rapid.IntRange(0, nm-1).Draw(t, "actor")]
 			switch rapid.IntRange(0, 2).Draw(t, "action") {
 			case 0, 1: // act on the local view
@@ -121,7 +121,7 @@ func TestPropertyCapacityConverges(t *testing.T) {
 		all := map[Lane]bool{LaneGoal: true, LaneBugs: true, LaneImprovement: true, LaneSelf: true}
 		usage := LaneUsage{}
 		n := 1000
-		for i := 0; i < n; i++ {
+		for range n {
 			l, ok := PickLane(c, usage, all, 0, false)
 			if !ok || l == LaneSelf {
 				t.Fatalf("pick %q %v", l, ok)

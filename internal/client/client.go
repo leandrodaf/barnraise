@@ -85,8 +85,7 @@ func Friendly(err error) error {
 	if err == nil {
 		return nil
 	}
-	var ce *connect.Error
-	if errors.As(err, &ce) {
+	if ce, ok := errors.AsType[*connect.Error](err); ok {
 		if ce.Code() == connect.CodeUnavailable && strings.Contains(ce.Message(), "connect") ||
 			strings.Contains(err.Error(), "no such file") || strings.Contains(err.Error(), "connection refused") {
 			return errors.New("the Barnraise daemon is not running: start it with `barnraise up` (or `barnraise daemon`)")

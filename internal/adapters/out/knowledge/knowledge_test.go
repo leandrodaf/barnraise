@@ -688,7 +688,7 @@ func TestSharedFileDatabase(t *testing.T) {
 	writeTree(t, root, tree)
 	done := make(chan error, 1)
 	go func() { // the event store keeps writing while the index is rebuilt
-		for i := 0; i < 50; i++ {
+		for i := range 50 {
 			if _, err := st.Append(ctx, domain.NewEvent(fmt.Sprint("e", i), domain.EvJournal, "p", "", "m", "a", now, domain.Payload{})); err != nil {
 				done <- err
 				return
@@ -713,10 +713,10 @@ func TestSharedFileDatabase(t *testing.T) {
 func BenchmarkReindex(b *testing.B) {
 	root := b.TempDir()
 	files := map[string]string{}
-	for f := 0; f < 300; f++ {
+	for f := range 300 {
 		var src strings.Builder
 		fmt.Fprintf(&src, "package p%d\n\n", f)
-		for i := 0; i < 20; i++ {
+		for i := range 20 {
 			fmt.Fprintf(&src, "// F%d_%d does work.\nfunc F%d_%d(x int) int {\n\treturn F%d_%d(x) + 1\n}\n\n", f, i, f, i, f, (i+1)%20)
 		}
 		files[fmt.Sprintf("pkg%d/f.go", f)] = src.String()

@@ -11,7 +11,7 @@ make test       # fast tests
 make help       # every target
 ```
 
-You need Go 1.26 and `git`. For the API contract also `buf`, `protoc-gen-go`, `protoc-gen-connect-go` and `protoc-gen-connect-openapi`; for linting `golangci-lint` v2.
+You need Go 1.27 and `git`. For the API contract also `buf`, `protoc-gen-go`, `protoc-gen-connect-go` and `protoc-gen-connect-openapi`; for linting `golangci-lint` v2.
 
 ## The hexagonal rules
 

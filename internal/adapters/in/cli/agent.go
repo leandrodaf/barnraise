@@ -54,8 +54,8 @@ func (e *env) deliverCmd() *cobra.Command {
 			for _, cm := range crit {
 				id, ev, ok := strings.Cut(cm, "=")
 				met := true
-				if strings.HasSuffix(id, "!") {
-					id, met = strings.TrimSuffix(id, "!"), false
+				if before, ok0 := strings.CutSuffix(id, "!"); ok0 {
+					id, met = before, false
 				}
 				if !ok && met {
 					return fmt.Errorf("criterion %q: use C1=\"evidence\" (or C1!=\"why not\" for not met)", cm)

@@ -3,6 +3,7 @@ package app
 import (
 	"context"
 	"fmt"
+	"slices"
 	"sort"
 	"time"
 
@@ -385,7 +386,7 @@ func (s *Service) EstimateItem(ctx context.Context, project string, a Actor, id 
 		e.Hours = (lo + hi) / 2
 		return e, nil
 	}
-	sort.Slice(tokens, func(i, j int) bool { return tokens[i] < tokens[j] })
+	slices.Sort(tokens)
 	e.Tokens = tokens[len(tokens)/2]
 	if len(hours) > 0 {
 		sort.Float64s(hours)

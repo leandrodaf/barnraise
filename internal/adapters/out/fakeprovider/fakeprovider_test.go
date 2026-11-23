@@ -163,10 +163,8 @@ func TestConcurrentOpens(t *testing.T) {
 		return ports.SessionResult{Text: spec.Prompt}, nil
 	})
 	var wg sync.WaitGroup
-	for i := 0; i < 20; i++ {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+	for range 20 {
+		wg.Go(func() {
 			s, err := p.Open(context.Background(), ports.SessionSpec{Prompt: "x"})
 			if err != nil {
 				t.Error(err)
@@ -177,7 +175,7 @@ func TestConcurrentOpens(t *testing.T) {
 				t.Error(err)
 			}
 			_ = p.Specs()
-		}()
+		})
 	}
 	wg.Wait()
 	if len(p.Specs()) != 20 {

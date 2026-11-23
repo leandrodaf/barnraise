@@ -7,6 +7,7 @@ import (
 	"math"
 	"path"
 	"regexp"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -152,8 +153,8 @@ func stripComment(v string) string {
 	if strings.HasPrefix(strings.TrimSpace(v), `"`) || strings.HasPrefix(strings.TrimSpace(v), `'`) {
 		return v
 	}
-	if i := strings.Index(v, " #"); i >= 0 {
-		return v[:i]
+	if before, _, ok := strings.Cut(v, " #"); ok {
+		return before
 	}
 	return v
 }
@@ -199,12 +200,7 @@ func isBinary(b []byte) bool {
 	if len(b) > 8000 {
 		b = b[:8000]
 	}
-	for _, c := range b {
-		if c == 0 {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(b, 0)
 }
 
 var hunkHeader = regexp.MustCompile(`^@@ -\d+(?:,\d+)? \+(\d+)(?:,\d+)? @@`)
@@ -216,7 +212,7 @@ func addedLines(diff string) (map[string]map[int]string, []string) {
 	var named []string
 	file, line := "", 0
 	inHunk := false
-	for _, l := range strings.Split(diff, "\n") {
+	for l := range strings.SplitSeq(diff, "\n") {
 		switch {
 		case strings.HasPrefix(l, "diff --git "):
 			inHunk = false

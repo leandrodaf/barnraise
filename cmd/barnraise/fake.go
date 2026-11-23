@@ -94,11 +94,12 @@ func (f *fakeAgent) handle(ctx context.Context, spec ports.SessionSpec, emit fun
 			return ports.SessionResult{Text: text, Usage: usage}, err
 		}
 	case output == "plan.md":
-		plan := fmt.Sprintf("# Plan for %s\n\n## Files\n- FAKE_%s.md\n\n## Steps\n1. Write the change.\n\n## Verification\n", it.Id, it.Id)
+		var plan strings.Builder
+		fmt.Fprintf(&plan, "# Plan for %s\n\n## Files\n- FAKE_%s.md\n\n## Steps\n1. Write the change.\n\n## Verification\n", it.Id, it.Id)
 		for _, c := range it.Criteria {
-			plan += fmt.Sprintf("- %s: check %s\n", c.Id, c.Check)
+			fmt.Fprintf(&plan, "- %s: check %s\n", c.Id, c.Check)
 		}
-		if err := os.WriteFile(filepath.Join(spec.Workdir, "plan.md"), []byte(plan), 0o644); err != nil {
+		if err := os.WriteFile(filepath.Join(spec.Workdir, "plan.md"), []byte(plan.String()), 0o644); err != nil {
 			return ports.SessionResult{}, err
 		}
 		if _, err := cl.Deliver(ctx, connect.NewRequest(&pb.DeliverRequest{Project: project, Delivery: &pb.Delivery{ItemId: it.Id, Step: stepName, Status: "DONE", Summary: "plan.md written", Files: []string{"plan.md"}}})); err != nil {
@@ -115,7 +116,7 @@ func (f *fakeAgent) handle(ctx context.Context, spec ports.SessionSpec, emit fun
 		}
 	default:
 		// "fake: hang-on <machine>" holds the implement step on that machine (failover tests).
-		for _, line := range strings.Split(it.Body, "\n") {
+		for line := range strings.SplitSeq(it.Body, "\n") {
 			if m, ok := strings.CutPrefix(strings.TrimSpace(line), "fake: hang-on "); ok && strings.TrimSpace(m) == os.Getenv("BARNRAISE_FAKE_MACHINE") {
 				_ = os.WriteFile(filepath.Join(spec.Workdir, "partial.txt"), []byte("work in progress\n"), 0o644)
 				<-ctx.Done()
@@ -128,7 +129,7 @@ func (f *fakeAgent) handle(ctx context.Context, spec ports.SessionSpec, emit fun
 		}
 		files := []string{}
 		wrote := false
-		for _, line := range strings.Split(it.Body, "\n") {
+		for line := range strings.SplitSeq(it.Body, "\n") {
 			rest, ok := strings.CutPrefix(strings.TrimSpace(line), "fake: write ")
 			if !ok {
 				continue

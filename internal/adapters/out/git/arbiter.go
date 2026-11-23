@@ -104,7 +104,7 @@ func validKey(key string) error {
 		strings.HasSuffix(key, ".lock") || strings.HasSuffix(key, ".") ||
 		strings.Contains(key, "..") || strings.Contains(key, "//") || strings.Contains(key, "@{") ||
 		strings.ContainsAny(key, " ~^:?*[\\\t\n\r")
-	for _, part := range strings.Split(key, "/") {
+	for part := range strings.SplitSeq(key, "/") {
 		if strings.HasPrefix(part, ".") {
 			bad = true
 		}
@@ -438,7 +438,7 @@ func (a *Arbiter) Next(ctx context.Context, counter string) (int, error) {
 		return 0, err
 	}
 	ref := refRoot + counterPrefix + counter
-	for attempt := 0; attempt < nextRetries; attempt++ {
+	for attempt := range nextRetries {
 		old, msg, ok, err := a.readValue(ctx, ref)
 		if err != nil {
 			return 0, err
@@ -550,7 +550,7 @@ func (a *Arbiter) List(ctx context.Context, prefix string) ([]string, error) {
 		if err != nil {
 			return nil, fmt.Errorf("%w: %v", ports.ErrOffline, err)
 		}
-		for _, line := range strings.Split(out, "\n") {
+		for line := range strings.SplitSeq(out, "\n") {
 			if _, name, ok := strings.Cut(strings.TrimSpace(line), "\t"); ok {
 				refs = append(refs, name)
 			}

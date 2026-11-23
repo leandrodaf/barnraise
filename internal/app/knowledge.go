@@ -85,9 +85,12 @@ func (s *Service) Related(ctx context.Context, project string, a Actor, id strin
 	if err := a.Require(ScopeItemsRead, p.Name); err != nil {
 		return nil, err
 	}
-	out := map[string]any{"id": id}
 	snap := p.Snapshot()
 	if it, ok := snap.Items[strings.ToUpper(id)]; ok {
+		id = it.ID // "i-12" and "I-12" are the same item, in the index too
+	}
+	out := map[string]any{"id": id}
+	if it, ok := snap.Items[id]; ok {
 		var dependents, sameArea []string
 		for _, o := range snap.ItemList() {
 			if domain.Contains(o.Deps, it.ID) {

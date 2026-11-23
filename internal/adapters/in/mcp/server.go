@@ -100,11 +100,9 @@ func Serve(ctx context.Context, in io.Reader, out io.Writer, c API, opts Options
 			}
 			return err
 		case line := <-lines:
-			wg.Add(1)
-			go func() {
-				defer wg.Done()
+			wg.Go(func() {
 				s.handle(ctx, line)
-			}()
+			})
 		}
 	}
 }

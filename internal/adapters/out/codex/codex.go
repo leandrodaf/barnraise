@@ -8,6 +8,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"maps"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -112,9 +113,7 @@ func (p *Provider) Features() map[string]bool {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	out := make(map[string]bool, len(p.features))
-	for k, v := range p.features {
-		out[k] = v
-	}
+	maps.Copy(out, p.features)
 	return out
 }
 

@@ -73,8 +73,8 @@ func RoleNames(template string) []string {
 	for _, dir := range []string{"roles", template + "/roles"} {
 		ents, _ := files.ReadDir(dir)
 		for _, e := range ents {
-			if strings.HasSuffix(e.Name(), ".md") {
-				seen[strings.TrimSuffix(e.Name(), ".md")] = true
+			if before, ok := strings.CutSuffix(e.Name(), ".md"); ok {
+				seen[before] = true
 			}
 		}
 	}

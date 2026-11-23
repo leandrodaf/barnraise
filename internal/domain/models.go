@@ -2,6 +2,7 @@ package domain
 
 import (
 	"fmt"
+	"slices"
 	"sort"
 	"strings"
 	"time"
@@ -248,12 +249,7 @@ func PredictExhaustion(prev, cur Usage) time.Time {
 }
 
 func contains(s []string, v string) bool {
-	for _, x := range s {
-		if x == v {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(s, v)
 }
 
 // Contains is exported for other layers.

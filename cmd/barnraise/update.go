@@ -47,7 +47,7 @@ func (d *daemon) publishBinary(ctx context.Context) string {
 func newerVersion(a, b string) bool {
 	pa, sa := splitVersion(a)
 	pb, sb := splitVersion(b)
-	for i := 0; i < 3; i++ {
+	for i := range 3 {
 		if pa[i] != pb[i] {
 			return pa[i] > pb[i]
 		}

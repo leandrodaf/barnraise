@@ -219,7 +219,7 @@ The project of a GitHub or GitLab webhook is found from the repository in the pa
  "passed": false, "summary": "2 high findings", "log_url": "https://scanner.example/r/91"}
 ```
 
-The secrets are read from the secrets store under the keys `webhook/<project>/github`, `webhook/<project>/gitlab` and `webhook/<project>/inbound`. A webhook without a configured secret is refused. There is no CLI command to set these keys yet; with the Linux Secret Service backend they can be stored with `secret-tool store --label "barnraise webhook" service barnraise username webhook/demo/github`. When `webhook/<project>/inbound` exists, `webhook` checks get the callback URL `http://<listen>/v1/webhooks/inbound/<project>` and sign their requests with it.
+The secrets are read from the secrets store under the keys `webhook/<project>/github`, `webhook/<project>/gitlab` and `webhook/<project>/inbound`. A webhook without a configured secret is refused. Store them with `barnraise webhook secret <github|gitlab|inbound>` (it reads the secret from standard input, or `--generate` creates a random one and prints it once) and remove them with `barnraise webhook forget <source>`. When `webhook/<project>/inbound` exists, `webhook` checks get the callback URL `http://<listen>/v1/webhooks/inbound/<project>` and sign their requests with it.
 
 ### GitHub Actions checks
 

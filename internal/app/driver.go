@@ -281,7 +281,6 @@ func (s *Service) driveHeld(ctx context.Context, p *Project) {
 	}
 	p.mu.Unlock()
 	for _, j := range jobs {
-		j := j
 		go func() {
 			defer s.doneRunning(p, j.it.ID, "driver")
 			if err := s.runDriverStep(ctx, p, j.it, j.st); err != nil {
@@ -554,8 +553,8 @@ func (s *Service) requestOwnerApproval(ctx context.Context, p *Project, it *doma
 		return nil
 	}
 	q := &domain.Question{ItemID: it.ID, Context: fmt.Sprintf("%s (%s) is at step %s.", it.ID, it.Title, st.Name),
-		Decision: fmt.Sprintf("Approve the %s of %s?", what, it.ID),
-		Options:  []domain.Option{{Label: "Approve the " + what, Recommended: true}, {Label: "Send back for rework"}},
+		Decision:   fmt.Sprintf("Approve the %s of %s?", what, it.ID),
+		Options:    []domain.Option{{Label: "Approve the " + what, Recommended: true}, {Label: "Send back for rework"}},
 		IfNoAnswer: "The item waits; agents work on other items.", Urgent: true}
 	qid, err := s.askLocked(ctx, p, q, "barnraise")
 	if err != nil {

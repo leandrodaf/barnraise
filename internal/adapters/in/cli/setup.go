@@ -4,10 +4,13 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"crypto/rand"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
+	"maps"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -572,9 +575,7 @@ func (e *env) templateCmd() *cobra.Command {
 			base, _ := config.TemplateConfig(cfg.Template)
 			var bm map[string]any
 			_ = yaml.Unmarshal(base, &bm)
-			for k, v := range m {
-				bm[k] = v
-			}
+			maps.Copy(bm, m)
 			out, _ := yaml.Marshal(bm)
 			header := fmt.Sprintf("# %s: saved from project %s on %s.\n", args[0], cfg.Name, time.Now().Format("2006-01-02"))
 			if err := os.WriteFile(filepath.Join(dst, "template.yaml"), append([]byte(header), out...), 0o644); err != nil {
@@ -660,7 +661,7 @@ func (e *env) accountCmd() *cobra.Command {
 	f.StringVar(&id, "id", "", "account id (default <provider>-<n>)")
 	f.StringVar(&plan, "plan", "", "plan (Pro, Max, Plus…)")
 	f.StringVar(&machine, "machine", "", "machine where it is logged in (default any)")
-	f.Float64Var(&ceiling, "ceiling", 100, "never pass this %% of the weekly window")
+	f.Float64Var(&ceiling, "ceiling", 100, "never pass this percentage of the weekly window")
 	f.BoolVar(&skipLogin, "skip-login", false, "the config dir is already logged in")
 	f.StringVar(&configDir, "config-dir", "", "reuse an existing logged-in config dir (\"default\" = the CLI's own)")
 	f.BoolVar(&headless, "headless", false, "server without a browser: use a long-lived token (claude setup-token)")
@@ -848,6 +849,93 @@ func (e *env) trackerCmd() *cobra.Command {
 			return nil
 		}}
 	c.AddCommand(connect, migrate)
+	return c
+}
+
+// webhookCmd stores the secrets that verify incoming webhooks. They live in
+// the system keychain, never in barnraise.yaml.
+func (e *env) webhookCmd() *cobra.Command {
+	c := &cobra.Command{Use: "webhook", Short: "Incoming webhooks: store or remove their signing secrets"}
+	sources := "github, gitlab or inbound"
+	target := func(source string) (ks *keychain.Store, name, key string, err error) {
+		switch source {
+		case "github", "gitlab", "inbound":
+		default:
+			return nil, "", "", fmt.Errorf("unknown webhook source %q (use %s)", source, sources)
+		}
+		name = e.project
+		if name == "" {
+			root, err := findRoot()
+			if err != nil {
+				return nil, "", "", err
+			}
+			name = projectNameAt(root)
+		}
+		return keychain.New("barnraise", filepath.Join(paths.ConfigDir(), "secrets")), name, "webhook/" + name + "/" + source, nil
+	}
+	var value string
+	var generate bool
+	secret := &cobra.Command{Use: "secret <github|gitlab|inbound>", Short: "Store the secret that signs an incoming webhook in the system keychain", Args: cobra.ExactArgs(1),
+		Long: "Stores the secret used to verify incoming webhooks of the project.\n" +
+			"Configure the same secret on the sending side (the repository's webhook settings, or your own system for `inbound`).\n" +
+			"Without --value the secret is read from standard input; --generate creates a random one and prints it once.",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			ks, name, key, err := target(args[0])
+			if err != nil {
+				return err
+			}
+			switch {
+			case generate && value != "":
+				return errors.New("use --generate or --value, not both")
+			case generate:
+				var b [32]byte
+				if _, err := rand.Read(b[:]); err != nil {
+					return err
+				}
+				value = hex.EncodeToString(b[:])
+			case value == "":
+				fmt.Fprint(e.out, "Secret: ")
+				sc := bufio.NewScanner(e.in)
+				if sc.Scan() {
+					value = strings.TrimSpace(sc.Text())
+				}
+			}
+			if value == "" {
+				return errors.New("no secret given")
+			}
+			if len(value) < 16 {
+				return errors.New("the secret is too short: use at least 16 characters, or --generate")
+			}
+			if err := ks.Set(key, value); err != nil {
+				return err
+			}
+			if generate {
+				fmt.Fprintf(e.out, "Secret (shown once; configure it on the sending side): %s\n", value)
+			}
+			fmt.Fprintf(e.out, "✔ Secret for %s webhooks of %s stored in the %s.\n", args[0], name, ks.Backend())
+			if args[0] == "inbound" {
+				e.reload(name) // webhook checks get their callback URL from it
+			}
+			return nil
+		}}
+	secret.Flags().StringVar(&value, "value", "", "the secret (asked if empty; prefer standard input, flags show up in the shell history)")
+	secret.Flags().BoolVar(&generate, "generate", false, "create a random secret and print it once")
+	remove := &cobra.Command{Use: "forget <github|gitlab|inbound>", Short: "Remove a stored secret; that source is refused from then on", Args: cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			ks, name, key, err := target(args[0])
+			if err != nil {
+				return err
+			}
+			if err := ks.Delete(key); err != nil {
+				return err
+			}
+			fmt.Fprintf(e.out, "✔ Secret for %s webhooks of %s removed.\n", args[0], name)
+			if args[0] == "inbound" {
+				e.reload(name)
+			}
+			return nil
+		}}
+	c.AddCommand(secret, remove)
 	return c
 }
 

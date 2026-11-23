@@ -115,7 +115,7 @@ func TestRevalidateEdgeCases(t *testing.T) {
 		c.Checks["e2e"] = domain.CheckDef{Name: "e2e", RunsOn: "github-actions", Workflow: "e2e.yml"}
 	}))
 	var items []*domain.Item
-	for i := 0; i < 3; i++ {
+	for range 3 {
 		items = append(items, anchored(e, "budget", "a.go"))
 	}
 	res, err := e.svc.Revalidate(e.ctx, "demo", owner(), domain.Change{Kind: "integration", Files: []string{"a.go"}})
@@ -241,7 +241,7 @@ func TestTrackerImportAndSync(t *testing.T) {
 	e := newEnv(t, withTracker(), withCfg(func(c *domain.ProjectConfig) { c.Tracker.Trusted = []string{"leandro", "label:accepted"} }))
 	mine := e.ready("feature", "Mine", "")
 	eventually(t, "item created in the tracker", func() bool { return e.item(mine.ID).TrackerRef == "mem#1" })
-	if _, err := e.svc.UpdateItem(e.ctx, "demo", owner(), mine.ID, ItemPatch{Size: ptr("2h")}); err != nil {
+	if _, err := e.svc.UpdateItem(e.ctx, "demo", owner(), mine.ID, ItemPatch{Size: new("2h")}); err != nil {
 		t.Fatal(err)
 	}
 	eventually(t, "item updated in the tracker", func() bool { return len(e.tracker.Updated()) > 0 })

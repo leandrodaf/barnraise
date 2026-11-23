@@ -190,10 +190,10 @@ func TestUpdateItem(t *testing.T) {
 		t.Fatalf("patched %+v", up)
 	}
 	for name, patch := range map[string]ItemPatch{
-		"bad priority": {Priority: ptr("high")},
+		"bad priority": {Priority: new("high")},
 		"self dep":     {Deps: &[]string{d.ID}},
 		"bad dep":      {Deps: &[]string{"x"}},
-		"unknown kind": {Kind: ptr("nope")},
+		"unknown kind": {Kind: new("nope")},
 	} {
 		if _, err := e.svc.UpdateItem(e.ctx, "demo", owner(), d.ID, patch); !strings.Contains(err.Error(), "invalid") && !strings.Contains(err.Error(), "depend") {
 			t.Errorf("%s: %v", name, err)
@@ -212,7 +212,7 @@ func TestUpdateItem(t *testing.T) {
 	wantErr(t, err, ErrConflict)
 }
 
-func ptr[T any](v T) *T { return &v }
+//go:fix inline
 
 func TestCloseItemReasons(t *testing.T) {
 	e := newEnv(t, withHost())

@@ -3,6 +3,7 @@ package domain
 import (
 	"errors"
 	"fmt"
+	"maps"
 	"sort"
 	"strings"
 	"time"
@@ -289,9 +290,7 @@ func (it *Item) Clone() *Item {
 	c.Anchors.Specs = append([]string(nil), it.Anchors.Specs...)
 	if it.Runs != nil {
 		c.Runs = make(map[string]StepRun, len(it.Runs))
-		for k, v := range it.Runs {
-			c.Runs[k] = v
-		}
+		maps.Copy(c.Runs, it.Runs)
 	}
 	if it.Alt != nil {
 		alt := *it.Alt

@@ -58,7 +58,7 @@ func TestRuntimeSessionWithoutDeliveryTwiceBlocks(t *testing.T) {
 	}
 	e.fill()
 	e.idle()
-	got = e.wantStatus(it.ID, domain.StatusBlocked, "implement")
+	e.wantStatus(it.ID, domain.StatusBlocked, "implement")
 	if q := e.question(it.ID); !strings.Contains(q.Context, "ended twice without a delivery") {
 		t.Fatal(q.Context)
 	}
@@ -87,7 +87,7 @@ func TestRuntimeReviewSessionWithoutReviewAsksTheOwner(t *testing.T) {
 	it := e.ready("reviewed", "silent reviewer", "x")
 	e.start(it.ID)
 	e.mustDeliver(it.ID, domain.Delivery{})
-	for i := 0; i < 2; i++ {
+	for range 2 {
 		e.fill()
 		e.idle()
 	}
@@ -261,6 +261,11 @@ func TestRuntimeStartFailures(t *testing.T) {
 	if _, busy := e.p.running[it.ID]; busy {
 		t.Fatal("the item is free again")
 	}
+	// Every free implementer slot tried the item once in that pass.
+	failed := len(e.prov.Specs())
+	if failed == 0 {
+		t.Fatal("the provider was never asked")
+	}
 	e.prov.FailOpen(nil)
 	RoleText = func(*domain.ProjectConfig, string) (string, error) { return "", errors.New("no role file") }
 	e.fill()
@@ -269,8 +274,8 @@ func TestRuntimeStartFailures(t *testing.T) {
 	r.MaxSessions = -1
 	e.fill()
 	r.MaxSessions = 0
-	if len(e.prov.Specs()) != 1 {
-		t.Fatal(len(e.prov.Specs()))
+	if got := len(e.prov.Specs()); got != failed {
+		t.Fatalf("no session may open without a role prompt or with sessions off: %d opens, want %d", got, failed)
 	}
 }
 

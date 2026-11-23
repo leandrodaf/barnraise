@@ -187,7 +187,7 @@ func TestSenderFilterConcurrencyAndClose(t *testing.T) {
 	defer srv.Close()
 	s := NewSender(Options{Concurrency: 2})
 	def := domain.WebhookDef{URL: srv.URL, Events: []string{"check.completed"}}
-	for i := 0; i < 10; i++ {
+	for i := range 10 {
 		ev := testEvent()
 		if i%2 == 0 {
 			ev.Type = domain.EvCheckCompleted

@@ -489,7 +489,7 @@ func TestConcurrentCalls(t *testing.T) {
 	const n = 5
 	f := &fakeAPI{statusWant: n, statusAll: make(chan struct{})}
 	lines := make([]string, 0, n+1)
-	for i := 0; i < n; i++ {
+	for i := range n {
 		lines = append(lines, call(100+i, "status", map[string]any{}))
 	}
 	lines = append(lines, req("last", "ping", nil))
@@ -497,7 +497,7 @@ func TestConcurrentCalls(t *testing.T) {
 	if len(raw) != n+1 {
 		t.Fatalf("want %d responses, got %d", n+1, len(raw))
 	}
-	for i := 0; i < n; i++ {
+	for i := range n {
 		r := toolResultOf(t, got[fmt.Sprint(100+i)])
 		if r.IsError || !strings.Contains(r.text(), strings.ToLower("Project app")) || !strings.Contains(r.text(), strings.ToLower("ready 2")) {
 			t.Errorf("call %d: %+v", 100+i, r)

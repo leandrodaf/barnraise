@@ -104,7 +104,9 @@ func (a Actor) Require(scope, project string) error {
 }
 
 // IsPerson reports owner or person tokens.
-func (a Actor) IsPerson() bool { return a.Kind == ActorOwner || (a.Kind == ActorToken && a.Can(ScopeApprove, "")) }
+func (a Actor) IsPerson() bool {
+	return a.Kind == ActorOwner || (a.Kind == ActorToken && a.Can(ScopeApprove, ""))
+}
 
 // RoleScopes are the scopes an agent role gets for its session.
 func RoleScopes(role string, reviewer bool) []string {

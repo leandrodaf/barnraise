@@ -53,7 +53,7 @@ type Token struct {
 	Hash    string    `json:"-"`
 	Project string    `json:"project,omitempty"` // empty: every project
 	Scopes  []string  `json:"scopes"`
-	Expires time.Time `json:"expires,omitempty"` // zero: never
+	Expires time.Time `json:"expires"` // zero: never
 	Revoked bool      `json:"revoked"`
 	Created time.Time `json:"created"`
 }

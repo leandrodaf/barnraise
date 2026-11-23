@@ -138,7 +138,7 @@ func (e *Email) message(n ports.Notification) []byte {
 		body += "\n\n" + n.Link
 	}
 	// net/smtp's data writer does the dot-stuffing.
-	for _, l := range strings.Split(strings.ReplaceAll(body, "\r\n", "\n"), "\n") {
+	for l := range strings.SplitSeq(strings.ReplaceAll(body, "\r\n", "\n"), "\n") {
 		b.WriteString(l + "\r\n")
 	}
 	return []byte(b.String())

@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
+	"slices"
 	"sort"
 	"strings"
 
@@ -191,10 +192,5 @@ func missing(tool string, fields ...[2]string) error {
 }
 
 func oneOf(v string, values ...string) bool {
-	for _, x := range values {
-		if v == x {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(values, v)
 }

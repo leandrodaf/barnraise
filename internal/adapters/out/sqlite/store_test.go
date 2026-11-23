@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
 	"path/filepath"
 	"sync"
 	"testing"
@@ -124,11 +125,11 @@ func TestConcurrentAppendFile(t *testing.T) {
 	ctx := context.Background()
 	s := open(t, filepath.Join(t.TempDir(), "c.db"))
 	var wg sync.WaitGroup
-	for w := 0; w < 8; w++ {
+	for w := range 8 {
 		wg.Add(1)
 		go func(w int) {
 			defer wg.Done()
-			for i := 0; i < 50; i++ {
+			for i := range 50 {
 				if _, err := s.Append(ctx, ev(fmt.Sprintf("w%d-%d", w, i), "p", domain.EvJournal, "", t0)); err != nil {
 					t.Error(err)
 					return
@@ -232,7 +233,7 @@ func TestTokens(t *testing.T) {
 func TestAudit(t *testing.T) {
 	ctx := context.Background()
 	s := open(t, ":memory:")
-	for i := 0; i < 5; i++ {
+	for i := range 5 {
 		proj := "p"
 		if i == 4 {
 			proj = "q"
@@ -277,7 +278,7 @@ func BenchmarkLoad(b *testing.B) {
 	s := open(b, filepath.Join(b.TempDir(), "bench.db"))
 	const n = 10000
 	evs := make([]domain.Event, 0, 1000)
-	for i := 0; i < n; i++ {
+	for i := range n {
 		evs = append(evs, ev(fmt.Sprint("e", i), "p", domain.EvItemUpdated, "I-1", t0))
 		if len(evs) == cap(evs) {
 			if _, err := s.Append(ctx, evs...); err != nil {
@@ -294,4 +295,29 @@ func BenchmarkLoad(b *testing.B) {
 		}
 	}
 	b.ReportMetric(float64(b.Elapsed().Nanoseconds())/float64(b.N*n), "ns/event")
+}
+
+func TestStateFileIsPrivate(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "barnraise.db")
+	// A file left world-readable by an older version is tightened on open.
+	if err := os.WriteFile(path, nil, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	s, err := Open(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close()
+	if _, err := s.Append(context.Background(), domain.Event{ID: "e1", Project: "demo", Type: "item.created"}); err != nil {
+		t.Fatal(err)
+	}
+	for _, name := range []string{path, path + "-wal", path + "-shm"} {
+		st, err := os.Stat(name)
+		if err != nil {
+			continue // the journal files exist only while there is something in them
+		}
+		if perm := st.Mode().Perm(); perm&0o077 != 0 {
+			t.Errorf("%s is %o: other users must not read the state", filepath.Base(name), perm)
+		}
+	}
 }

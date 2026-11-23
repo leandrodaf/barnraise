@@ -165,7 +165,7 @@ func (t toolRules) apply(lines []string, exit int) (fail, summary []string) {
 		}
 	}
 	run := func(rs []rule) {
-		for i := 0; i < len(lines); i++ {
+		for i := range lines {
 			for _, r := range rs {
 				if !r.re.MatchString(lines[i]) {
 					continue

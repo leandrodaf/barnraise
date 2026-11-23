@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"maps"
 	"net"
 	"net/http"
 	"strings"
@@ -73,9 +74,7 @@ func (p *Proxy) Blocked() map[string]int {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	out := map[string]int{}
-	for k, v := range p.blocked {
-		out[k] = v
-	}
+	maps.Copy(out, p.blocked)
 	return out
 }
 

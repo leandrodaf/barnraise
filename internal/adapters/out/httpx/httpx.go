@@ -12,6 +12,7 @@ import (
 	"io"
 	"math/rand/v2"
 	"net/http"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -76,18 +77,12 @@ func IsStatus(err error, codes ...int) bool {
 	if !errors.As(err, &se) {
 		return false
 	}
-	for _, c := range codes {
-		if se.Status == c {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(codes, se.Status)
 }
 
 // StatusOf returns the HTTP status of err, or 0.
 func StatusOf(err error) int {
-	var se *StatusError
-	if errors.As(err, &se) {
+	if se, ok := errors.AsType[*StatusError](err); ok {
 		return se.Status
 	}
 	return 0
@@ -267,10 +262,7 @@ func DefaultBackoff(attempt int) time.Duration {
 	if attempt < 1 {
 		attempt = 1
 	}
-	d := 500 * time.Millisecond << min(attempt-1, 6)
-	if d > 30*time.Second {
-		d = 30 * time.Second
-	}
+	d := min(500*time.Millisecond<<min(attempt-1, 6), 30*time.Second)
 	j := time.Duration(rand.Int64N(int64(d)/5+1)) - d/10
 	return d + j
 }
@@ -303,10 +295,7 @@ func RetryAfter(h http.Header, now time.Time) (time.Duration, bool) {
 		return time.Duration(n) * time.Second, true
 	}
 	if t, err := http.ParseTime(v); err == nil {
-		d := t.Sub(now)
-		if d < 0 {
-			d = 0
-		}
+		d := max(t.Sub(now), 0)
 		return d, true
 	}
 	return 0, false

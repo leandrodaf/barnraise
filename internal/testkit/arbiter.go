@@ -108,7 +108,7 @@ func normKey(key string) (string, error) {
 		strings.HasSuffix(key, ".lock") || strings.HasSuffix(key, ".") ||
 		strings.Contains(key, "..") || strings.Contains(key, "//") || strings.Contains(key, "@{") ||
 		strings.ContainsAny(key, " ~^:?*[\\\t\n\r")
-	for _, part := range strings.Split(key, "/") {
+	for part := range strings.SplitSeq(key, "/") {
 		if strings.HasPrefix(part, ".") {
 			bad = true
 		}

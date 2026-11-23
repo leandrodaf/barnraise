@@ -189,14 +189,14 @@ func runDaemon(ctx context.Context, opts cli.DaemonOptions) error {
 		svc.Runtime().EgressProxy = l.Addr().String()
 		log.Info("egress allow-list proxy", "listen", l.Addr().String(), "hosts", len(allow))
 	}
-	if d.repl != nil {
-		d.connectPeers()
-	}
-
 	for _, root := range df.Projects {
 		if err := d.addProject(ctx, root); err != nil {
 			log.Error("project not loaded", "root", root, "err", err)
 		}
+	}
+	// Peers come after the projects, so mirrored events find their project.
+	if d.repl != nil {
+		d.connectPeers()
 	}
 
 	d.binary = d.publishBinary(ctx)
@@ -528,12 +528,12 @@ func (d *daemon) projectPorts(cfg *domain.ProjectConfig) (app.ProjectPorts, erro
 	repo := gitx.New(cfg.Root, remote, cfg.MainBranch)
 	pp := app.ProjectPorts{Git: repo, Arbiter: gitx.NewArbiter(repo, nil)}
 	token := func(ref, env string) string {
-		if strings.HasPrefix(ref, "keychain:") {
-			v, _ := d.secrets.Get(strings.TrimPrefix(ref, "keychain:"))
+		if after, ok := strings.CutPrefix(ref, "keychain:"); ok {
+			v, _ := d.secrets.Get(after)
 			return v
 		}
-		if strings.HasPrefix(ref, "env:") {
-			return os.Getenv(strings.TrimPrefix(ref, "env:"))
+		if after, ok := strings.CutPrefix(ref, "env:"); ok {
+			return os.Getenv(after)
 		}
 		if v := os.Getenv(env); v != "" {
 			return v
@@ -874,7 +874,7 @@ func scanWorktree(ctx context.Context, dir string) (string, error) {
 	findings := secretscan.ScanDiff(string(diff))
 	out, _ := exec.CommandContext(ctx, "git", "-C", dir, "ls-files", "--others", "--exclude-standard").Output()
 	files := map[string][]byte{}
-	for _, f := range strings.Split(strings.TrimSpace(string(out)), "\n") {
+	for f := range strings.SplitSeq(strings.TrimSpace(string(out)), "\n") {
 		if f == "" {
 			continue
 		}

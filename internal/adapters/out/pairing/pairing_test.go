@@ -155,9 +155,7 @@ func TestConcurrentJoins(t *testing.T) {
 	var wg sync.WaitGroup
 	var ok, wrong atomic.Int32
 	for i := range 12 {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			code := "000000"
 			if i%4 == 0 {
 				code = "424242"
@@ -171,7 +169,7 @@ func TestConcurrentJoins(t *testing.T) {
 			case errors.Is(err, ErrWrongCode):
 				wrong.Add(1)
 			}
-		}()
+		})
 	}
 	wg.Wait()
 	_, err := wait()

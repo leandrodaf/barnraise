@@ -21,7 +21,7 @@ type NewItem struct {
 	Criteria   []domain.Criterion `json:"criteria,omitempty"`
 	Preserve   []string           `json:"preserve,omitempty"`
 	Deps       []string           `json:"deps,omitempty"`
-	Anchors    domain.Anchors     `json:"anchors,omitempty"`
+	Anchors    domain.Anchors     `json:"anchors"`
 	Checklist  []string           `json:"checklist,omitempty"`
 	Risky      bool               `json:"risky,omitempty"`
 	External   bool               `json:"external,omitempty"` // came from a tracker or webhook: sanitize and fence

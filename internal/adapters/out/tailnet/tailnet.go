@@ -15,6 +15,7 @@ import (
 	"fmt"
 	"net"
 	"os/exec"
+	"slices"
 	"sort"
 	"strings"
 	"time"
@@ -43,17 +44,12 @@ type Peer struct {
 	OS       string    `json:"os,omitempty"`
 	Online   bool      `json:"online"`
 	Tags     []string  `json:"tags,omitempty"`
-	LastSeen time.Time `json:"last_seen,omitempty"`
+	LastSeen time.Time `json:"last_seen"`
 }
 
 // HasTag reports whether the peer carries a tag.
 func (p Peer) HasTag(tag string) bool {
-	for _, t := range p.Tags {
-		if t == tag {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(p.Tags, tag)
 }
 
 // IPv4 returns the first IPv4 address, or "".

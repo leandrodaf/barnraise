@@ -3,6 +3,7 @@ package domain
 import (
 	"fmt"
 	"math"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -173,10 +174,8 @@ func (f *Focus) Includes(it *Item) bool {
 	if f == nil {
 		return false
 	}
-	for _, id := range f.Items {
-		if id == it.ID {
-			return true
-		}
+	if slices.Contains(f.Items, it.ID) {
+		return true
 	}
 	return f.Area != "" && AreaName(f.Area) == AreaName(it.Area)
 }

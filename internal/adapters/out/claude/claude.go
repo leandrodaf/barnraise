@@ -6,6 +6,7 @@ package claude
 import (
 	"context"
 	"fmt"
+	"maps"
 	"regexp"
 	"strconv"
 	"strings"
@@ -100,9 +101,7 @@ func (p *Provider) Flags() map[string]bool {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	out := make(map[string]bool, len(p.flags))
-	for k, v := range p.flags {
-		out[k] = v
-	}
+	maps.Copy(out, p.flags)
 	return out
 }
 

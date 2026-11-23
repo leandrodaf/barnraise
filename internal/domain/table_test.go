@@ -605,7 +605,7 @@ func TestStateProjections(t *testing.T) {
 	apply("18", EvMachineLeft, Payload{MachineI: &Machine{Name: "m1", LastSeen: now.Add(-time.Hour), Left: true}})
 	apply("19", EvAgentSession, Payload{Session: &SessionInfo{Agent: "a1", State: "working"}})
 	apply("20", EvSystemResumed, Payload{})
-	for i := 0; i < journalWindow+5; i++ {
+	for i := range journalWindow + 5 {
 		apply("j"+FormatID(KindItem, i+1), EvJournal, Payload{Journal: &JournalEntry{Text: "x"}})
 	}
 	if err := s.Apply(Event{ID: "bad", Data: json.RawMessage("{")}); err == nil {
@@ -641,7 +641,7 @@ func TestStateProjections(t *testing.T) {
 	if s.NextID(KindQuestion) != "Q-4" || s.NextID(KindProposal) != "P-11" {
 		t.Fatal(s.NextID(KindQuestion), s.NextID(KindProposal))
 	}
-	for i := 0; i < messageWindow+3; i++ {
+	for i := range messageWindow + 3 {
 		apply("msg"+FormatID(KindItem, i+1), EvMessageSent, Payload{Message: &Message{ID: FormatID(KindItem, i+1), To: "item:I-1"}})
 	}
 	if len(s.Messages) != messageWindow || len(s.Inbox("x", "", "I-1")) != messageWindow {

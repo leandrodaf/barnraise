@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -146,10 +147,8 @@ func (h *harness) waitStatus(id string, statuses ...string) *pb.Item {
 	deadline := time.Now().Add(90 * time.Second)
 	for {
 		it := h.item(id)
-		for _, s := range statuses {
-			if it.Status == s {
-				return it
-			}
+		if slices.Contains(statuses, it.Status) {
+			return it
 		}
 		if time.Now().After(deadline) {
 			tl, _ := h.cl.Timeline(context.Background(), connect.NewRequest(&pb.ItemRef{Project: "demo", Id: id}))

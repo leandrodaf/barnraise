@@ -15,18 +15,18 @@ func TestNextWorkCapacitySplit(t *testing.T) {
 		t.Fatal(err)
 	}
 	lane := map[string]domain.Lane{}
-	for i := 0; i < 20; i++ {
+	for range 20 {
 		lane[e.ready("feature", "goal work", "").ID] = domain.LaneGoal
 	}
-	for i := 0; i < 6; i++ {
+	for range 6 {
 		lane[e.ready("bug", "bug work", "").ID] = domain.LaneBugs
 	}
-	for i := 0; i < 4; i++ {
+	for range 4 {
 		lane[e.ready("improvement", "small work", "").ID] = domain.LaneImprovement
 	}
 	_ = lane
 	counts := map[domain.Lane]int{}
-	for i := 0; i < 20; i++ {
+	for i := range 20 {
 		e.clock.Advance(1)
 		a, err := e.svc.NextWork(e.ctx, "demo", Slot{Agent: "implementer-" + string(rune('a'+i)), Role: "implementer", Machine: domain.Machine{Name: "m1"}})
 		if err != nil {
@@ -231,7 +231,7 @@ func TestRefineWork(t *testing.T) {
 	}
 	_, err = e.svc.NextWork(e.ctx, "demo", slot("analyst"))
 	wantErr(t, err, ErrNoWork) // each version is refined once; then it waits for a person
-	if _, err := e.svc.UpdateItem(e.ctx, "demo", owner(), d.ID, ItemPatch{Size: ptr("4h")}); err != nil {
+	if _, err := e.svc.UpdateItem(e.ctx, "demo", owner(), d.ID, ItemPatch{Size: new("4h")}); err != nil {
 		t.Fatal(err)
 	}
 	e.next("analyst", d.ID)

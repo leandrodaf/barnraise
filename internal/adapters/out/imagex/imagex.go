@@ -37,18 +37,15 @@ func Reduce(img image.Image, width int) image.Image {
 	if width <= 0 || w <= width {
 		return img
 	}
-	nh := h * width / w
-	if nh < 1 {
-		nh = 1
-	}
+	nh := max(h*width/w, 1)
 	out := image.NewRGBA(image.Rect(0, 0, width, nh))
-	for y := 0; y < nh; y++ {
+	for y := range nh {
 		y0 := b.Min.Y + y*h/nh
 		y1 := b.Min.Y + (y+1)*h/nh
 		if y1 <= y0 {
 			y1 = y0 + 1
 		}
-		for x := 0; x < width; x++ {
+		for x := range width {
 			x0 := b.Min.X + x*w/width
 			x1 := b.Min.X + (x+1)*w/width
 			if x1 <= x0 {

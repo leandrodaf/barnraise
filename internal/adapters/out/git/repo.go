@@ -321,7 +321,7 @@ func (r *Repo) worktreesOn(ctx context.Context, branch string) ([]string, error)
 	}
 	var paths []string
 	var cur string
-	for _, line := range strings.Split(out, "\n") {
+	for line := range strings.SplitSeq(out, "\n") {
 		switch {
 		case strings.HasPrefix(line, "worktree "):
 			cur = strings.TrimPrefix(line, "worktree ")
@@ -395,7 +395,7 @@ func (r *Repo) Push(ctx context.Context, dir, branch string) error {
 
 // rejected reports whether push --porcelain output has a refused ref.
 func rejected(out string) bool {
-	for _, line := range strings.Split(out, "\n") {
+	for line := range strings.SplitSeq(out, "\n") {
 		if strings.HasPrefix(line, "!") {
 			return true
 		}
@@ -428,7 +428,7 @@ func (r *Repo) FetchBranch(ctx context.Context, branch string) (bool, error) {
 
 // parseLsRemote returns the sha of ref in ls-remote output.
 func parseLsRemote(out, ref string) (string, bool) {
-	for _, line := range strings.Split(out, "\n") {
+	for line := range strings.SplitSeq(out, "\n") {
 		sha, name, ok := strings.Cut(strings.TrimSpace(line), "\t")
 		if ok && name == ref {
 			return sha, true
@@ -500,7 +500,7 @@ func (r *Repo) ChangedFiles(ctx context.Context, from, to string) ([]string, err
 		return nil, err
 	}
 	var files []string
-	for _, f := range strings.Split(out, "\x00") {
+	for f := range strings.SplitSeq(out, "\x00") {
 		if f != "" {
 			files = append(files, f)
 		}
@@ -595,7 +595,7 @@ func (r *Repo) Log(ctx context.Context, args ...string) ([]ports.Commit, error) 
 
 func parseLog(out string) []ports.Commit {
 	var commits []ports.Commit
-	for _, rec := range strings.Split(out, "\x1e") {
+	for rec := range strings.SplitSeq(out, "\x1e") {
 		if strings.TrimSpace(rec) == "" {
 			continue
 		}
@@ -613,7 +613,7 @@ func parseLog(out string) []ports.Commit {
 		if len(c.Trailers) == 0 {
 			c.Trailers = parseTrailers(lastParagraph(c.Body))
 		}
-		for _, line := range strings.Split(f[5], "\n") {
+		for line := range strings.SplitSeq(f[5], "\n") {
 			if line = strings.TrimSpace(line); line != "" {
 				c.Files = append(c.Files, line)
 			}
@@ -628,7 +628,7 @@ var trailerRe = regexp.MustCompile(`^([A-Za-z0-9][A-Za-z0-9-]*):\s*(.*)$`)
 // parseTrailers reads "Key: value" lines; the last value of a key wins.
 func parseTrailers(s string) map[string]string {
 	var m map[string]string
-	for _, line := range strings.Split(s, "\n") {
+	for line := range strings.SplitSeq(s, "\n") {
 		mt := trailerRe.FindStringSubmatch(strings.TrimSpace(line))
 		if mt == nil {
 			continue
@@ -646,7 +646,7 @@ func parseTrailers(s string) map[string]string {
 func lastParagraph(body string) string {
 	parts := strings.Split(body, "\n\n")
 	p := strings.TrimSpace(parts[len(parts)-1])
-	for _, line := range strings.Split(p, "\n") {
+	for line := range strings.SplitSeq(p, "\n") {
 		if !trailerRe.MatchString(strings.TrimSpace(line)) {
 			return ""
 		}

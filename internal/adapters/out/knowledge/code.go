@@ -235,7 +235,7 @@ type langSpec struct {
 
 func kw(words string) map[string]bool {
 	m := map[string]bool{}
-	for _, w := range strings.Fields(words) {
+	for w := range strings.FieldsSeq(words) {
 		m[w] = true
 	}
 	return m

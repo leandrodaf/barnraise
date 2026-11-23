@@ -25,7 +25,7 @@ cosign verify-blob \
   checksums.txt
 ```
 
-Or build from source: `make build` (Go 1.26).
+Or build from source: `make build` (Go 1.27).
 
 ## Running the daemon
 

@@ -168,7 +168,7 @@ func (t *Tracker) List(ctx context.Context, since time.Time) ([]ports.TrackerIte
 	jql += " ORDER BY updated ASC"
 	var out []ports.TrackerItem
 	token := ""
-	for page := 0; page < 1000; page++ {
+	for range 1000 {
 		req := map[string]any{"jql": jql, "fields": listFields, "maxResults": 100}
 		if token != "" {
 			req["nextPageToken"] = token

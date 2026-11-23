@@ -91,10 +91,7 @@ func (s *Service) triageBudget(p *Project, want int) int {
 		return want
 	}
 	// Roughly 1% of a weekly window ≈ 40 triaged items in one batch; scale by the share.
-	n := int(p.Cfg().Budget.TriageWeekPct * 40)
-	if n < 1 {
-		n = 1
-	}
+	n := max(int(p.Cfg().Budget.TriageWeekPct*40), 1)
 	if want < n {
 		return want
 	}

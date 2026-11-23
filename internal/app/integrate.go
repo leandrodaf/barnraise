@@ -87,7 +87,7 @@ func (s *Service) ProcessQueue(ctx context.Context, project string) (int, error)
 // until the culprit is found.
 func (s *Service) integrateBatch(ctx context.Context, p *Project, items []*domain.Item) (int, error) {
 	var lastErr error
-	for attempt := 0; attempt < 3; attempt++ {
+	for range 3 {
 		ok, failed, reason, err := s.tryIntegrate(ctx, p, items)
 		if errors.Is(err, ports.ErrStaleMain) {
 			lastErr = err

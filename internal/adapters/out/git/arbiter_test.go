@@ -49,11 +49,9 @@ func TestClaimRenewRelease(t *testing.T) {
 		leases := make([]ports.Lease, 2)
 		errs := make([]error, 2)
 		for i, a := range []*Arbiter{a1, a2} {
-			wg.Add(1)
-			go func() {
-				defer wg.Done()
+			wg.Go(func() {
 				leases[i], errs[i] = a.Claim(ctx, "claims/I-42", fmt.Sprintf("m%d", i+1))
-			}()
+			})
 		}
 		wg.Wait()
 		win := -1
@@ -172,9 +170,7 @@ func TestNextUnique(t *testing.T) {
 		var wg sync.WaitGroup
 		for _, a := range []*Arbiter{a1, a2} {
 			for range perClone {
-				wg.Add(1)
-				go func() {
-					defer wg.Done()
+				wg.Go(func() {
 					n, err := a.Next(ctx, "items")
 					if err != nil {
 						t.Error(err)
@@ -183,7 +179,7 @@ func TestNextUnique(t *testing.T) {
 					mu.Lock()
 					got = append(got, n)
 					mu.Unlock()
-				}()
+				})
 			}
 		}
 		wg.Wait()

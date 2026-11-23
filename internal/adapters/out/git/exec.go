@@ -45,8 +45,7 @@ func (e *CmdError) Unwrap() error { return e.Err }
 
 // exitCode returns the process exit code of err, or -1.
 func exitCode(err error) int {
-	var ce *CmdError
-	if errors.As(err, &ce) {
+	if ce, ok := errors.AsType[*CmdError](err); ok {
 		return ce.ExitCode
 	}
 	return -1
@@ -78,8 +77,7 @@ func runEnv(ctx context.Context, dir string, stdin io.Reader, extra []string, ar
 	err := cmd.Run()
 	if err != nil {
 		code := -1
-		var ee *exec.ExitError
-		if errors.As(err, &ee) {
+		if ee, ok := errors.AsType[*exec.ExitError](err); ok {
 			code = ee.ExitCode()
 		}
 		if ctx.Err() != nil {

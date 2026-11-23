@@ -129,8 +129,13 @@ func (s *Service) AddProject(ctx context.Context, cfg *domain.ProjectConfig, pp 
 	p := &Project{Name: cfg.Name, state: domain.NewState(cfg.Name), leases: map[string]ports.Lease{}, running: map[string]string{}}
 	p.cfgV.Store(cfg)
 	p.SetPorts(pp)
+	// The replay and the registration happen under s.mu so that an event
+	// ingested from another machine is either in the replay or applied to
+	// the registered project, never lost between the two.
+	s.mu.Lock()
 	evs, err := s.d.Store.Load(ctx, cfg.Name, 0)
 	if err != nil {
+		s.mu.Unlock()
 		return nil, err
 	}
 	for _, e := range evs {
@@ -138,7 +143,6 @@ func (s *Service) AddProject(ctx context.Context, cfg *domain.ProjectConfig, pp 
 			s.d.Log.Warn("skipping bad event", "id", e.ID, "err", err)
 		}
 	}
-	s.mu.Lock()
 	s.projects[cfg.Name] = p
 	s.mu.Unlock()
 	// Items this machine held before a restart: their leases must be re-read.
@@ -326,11 +330,22 @@ func (s *Service) Ingest(ctx context.Context, e domain.Event) error {
 	if e.Machine == s.d.Machine {
 		return nil
 	}
-	p, err := s.Project(e.Project)
-	if err != nil {
-		return nil // project not driven here
+	liveOnly := e.Type == domain.EvMachineUpdated || e.Type == domain.EvAgentSession
+	s.mu.RLock()
+	p := s.projects[e.Project]
+	if p == nil {
+		// The project is not loaded here (yet). Keep the event so that
+		// AddProject replays it; dropping it would lose it for good, since
+		// the replication cursor moves past it.
+		defer s.mu.RUnlock()
+		if liveOnly || e.Project == "" {
+			return nil
+		}
+		_, err := s.d.Store.Append(ctx, e)
+		return err
 	}
-	if e.Type == domain.EvMachineUpdated || e.Type == domain.EvAgentSession {
+	s.mu.RUnlock()
+	if liveOnly {
 		// Live-only state (heartbeats, sessions): applied, never stored.
 		p.mu.Lock()
 		err := p.state.Apply(e)

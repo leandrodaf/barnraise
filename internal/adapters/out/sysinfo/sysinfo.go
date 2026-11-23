@@ -158,7 +158,7 @@ func (p *prober) emulators(ctx context.Context) int {
 // CountEmulators counts running emulators in `adb devices` output.
 func CountEmulators(out []byte) int {
 	n := 0
-	for _, l := range strings.Split(string(out), "\n") {
+	for l := range strings.SplitSeq(string(out), "\n") {
 		f := strings.Fields(l)
 		if len(f) >= 2 && strings.HasPrefix(f[0], "emulator-") && f[1] == "device" {
 			n++

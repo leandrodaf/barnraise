@@ -305,7 +305,7 @@ func interpret(s string) (string, []string, string) {
 		return false
 	}
 	findID := func(prefix string) string {
-		for _, w := range strings.Fields(strings.ToUpper(s)) {
+		for w := range strings.FieldsSeq(strings.ToUpper(s)) {
 			w = strings.Trim(w, ".,;:!?")
 			if strings.HasPrefix(w, prefix) {
 				return w

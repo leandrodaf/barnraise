@@ -36,7 +36,7 @@ func Paragraphs(s string) Block {
 
 func paragraphs(s string) []Block {
 	var out []Block
-	for _, block := range strings.Split(strings.ReplaceAll(s, "\r\n", "\n"), "\n\n") {
+	for block := range strings.SplitSeq(strings.ReplaceAll(s, "\r\n", "\n"), "\n\n") {
 		block = strings.TrimSpace(block)
 		if block == "" {
 			continue

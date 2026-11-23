@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"hash/fnv"
+	"maps"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -343,9 +344,7 @@ func (r *Runtime) start(ctx context.Context, p *Project, slot Slot, a *Assignmen
 		env["BARNRAISE_EXPERIMENT"] = experiment
 		for _, ex := range p.Cfg().Experiments {
 			if ex.Name == experiment {
-				for k, v := range ex.Env {
-					env[k] = v
-				}
+				maps.Copy(env, ex.Env)
 			}
 		}
 	}
@@ -710,9 +709,7 @@ func (r *Runtime) renewLeases(ctx context.Context, p *Project) {
 	r.lastRenew[p.Name] = time.Now()
 	p.mu.Lock()
 	leases := map[string]ports.Lease{}
-	for k, v := range p.leases {
-		leases[k] = v
-	}
+	maps.Copy(leases, p.leases)
 	p.mu.Unlock()
 	for id, l := range leases {
 		nl, err := p.Ports().Arbiter.Renew(ctx, l)

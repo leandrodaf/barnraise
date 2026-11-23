@@ -129,8 +129,7 @@ func ev(id, machine, item string, n int) domain.Event {
 func TestBusPublishSubscribe(t *testing.T) {
 	m := startMachine(t, "solo", t.TempDir(), -1)
 	defer m.stop()
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 
 	var mu sync.Mutex
 	var got []domain.Event
@@ -461,8 +460,7 @@ func TestObjectStoreLocal(t *testing.T) {
 func TestRequestRetriesUntilServed(t *testing.T) {
 	m := startMachine(t, "solo", t.TempDir(), -1)
 	defer m.stop()
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 	subj := RPCSubject("solo", "late")
 	go func() {
 		time.Sleep(300 * time.Millisecond)
@@ -480,8 +478,7 @@ func TestRequestRetriesUntilServed(t *testing.T) {
 func TestHeartbeat(t *testing.T) {
 	m := startMachine(t, "solo", t.TempDir(), -1)
 	defer m.stop()
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 	got := make(chan domain.Event, 4)
 	if err := m.bus.Subscribe(ctx, "p", func(e domain.Event) { got <- e }); err != nil {
 		t.Fatal(err)

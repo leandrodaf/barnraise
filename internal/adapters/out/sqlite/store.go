@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"net/url"
+	"os"
 	"strings"
 	"sync"
 	"time"
@@ -65,6 +66,17 @@ func openDB(path string) (*sql.DB, error) {
 		dsn = "file::memory:?" + pragmas.Encode()
 	} else {
 		pragmas.Add("_pragma", "journal_mode(WAL)")
+		// The state holds tokens' hashes, the audit trail and item text: only
+		// the owner of the daemon reads it. SQLite gives the -wal and -shm
+		// files the permissions of the main file.
+		f, err := os.OpenFile(path, os.O_RDWR|os.O_CREATE, 0o600)
+		if err != nil {
+			return nil, fmt.Errorf("open sqlite: %w", err)
+		}
+		f.Close()
+		if err := os.Chmod(path, 0o600); err != nil {
+			return nil, fmt.Errorf("open sqlite: %w", err)
+		}
 		dsn = "file:" + path + "?" + pragmas.Encode()
 	}
 	db, err := sql.Open("sqlite", dsn)

@@ -15,7 +15,7 @@ func (e *env) integrateFake(it *domain.Item, rounds int, from string) {
 	e.t.Helper()
 	_, err := e.svc.mutateItem(e.ctx, e.p, it.ID, domain.EvItemIntegrated, "merge-queue", func(x *domain.Item) error {
 		x.Status, x.IntegratedAt, x.Claim = domain.StatusIntegrated, e.clock.Now().UTC(), &domain.Claim{Machine: "m1", Since: e.clock.Now().Add(-2 * time.Hour)}
-		for i := 0; i < rounds; i++ {
+		for range rounds {
 			rr := domain.ReworkRecord{From: from, To: "implement"}
 			x.Rework = append(x.Rework, rr)
 			if _, err := e.svc.emitLocked(e.ctx, e.p, domain.EvReworkStarted, x.ID, "x", domain.Payload{Rework: &rr}); err != nil {
@@ -44,12 +44,12 @@ func TestMetricsAndAlerts(t *testing.T) {
 	e.integrateFake(b, 4, "review")
 	e.usage(domain.TokenUsage{Provider: "fake", Model: "big", Role: "implementer", Step: "implement", ItemID: a.ID, Input: 100, Output: 50, CacheRead: 300, Duration: time.Minute})
 	e.usage(domain.TokenUsage{Provider: "fake", Model: "small", Role: "reviewer", Step: "review", ItemID: a.ID, Input: 40, Duration: 3 * time.Minute, ExploreReads: 7})
-	for i := 0; i < 6; i++ {
+	for i := range 6 {
 		if _, err := e.svc.Propose(e.ctx, "demo", owner(), prop("idea number "+string(rune('a'+i))+" unique"+string(rune('a'+i)), "area"+string(rune('a'+i)))); err != nil {
 			t.Fatal(err)
 		}
 	}
-	for i := 0; i < 6; i++ {
+	for i := range 6 {
 		res := domain.CheckResult{ItemID: a.ID, Check: "flaky" + string(rune('a'+i)), Passed: true, Flaky: true}
 		if _, err := e.svc.emit(e.ctx, e.p, domain.EvCheckCompleted, a.ID, "checks", domain.Payload{Check: &res}); err != nil {
 			t.Fatal(err)
@@ -390,8 +390,11 @@ func TestHousekeepingLeaseAndDeadItems(t *testing.T) {
 	free := e.ready("simple", "claim lost", "x")
 	e.start(it.ID)
 	e.start(free.ID)
-	if !e.svc.holdHousekeeping(e.ctx, e.p) || !e.svc.holdHousekeeping(e.ctx, e.p) {
-		t.Fatal("m1 holds and renews housekeeping")
+	if !e.svc.holdHousekeeping(e.ctx, e.p) {
+		t.Fatal("m1 takes housekeeping")
+	}
+	if !e.svc.holdHousekeeping(e.ctx, e.p) {
+		t.Fatal("m1 renews housekeeping")
 	}
 	p := e.peer("m2")
 	if p.svc.holdHousekeeping(p.ctx, p.p) {

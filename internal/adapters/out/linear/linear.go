@@ -256,7 +256,7 @@ func (t *Tracker) List(ctx context.Context, since time.Time) ([]ports.TrackerIte
 	}
 	var out []ports.TrackerItem
 	var after any
-	for page := 0; page < 1000; page++ {
+	for range 1000 {
 		var data struct {
 			Issues struct {
 				Nodes    []linIssue `json:"nodes"`

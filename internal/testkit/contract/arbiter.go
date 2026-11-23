@@ -32,11 +32,9 @@ func Arbiter(t *testing.T, machines Machines) {
 		leases := make([]ports.Lease, 2)
 		errs := make([]error, 2)
 		for i, a := range []ports.Arbiter{a1, a2} {
-			wg.Add(1)
-			go func() {
-				defer wg.Done()
+			wg.Go(func() {
 				leases[i], errs[i] = a.Claim(ctx, "claims/I-42", fmt.Sprintf("m%d", i+1))
-			}()
+			})
 		}
 		wg.Wait()
 		won := 0
@@ -227,11 +225,9 @@ func Arbiter(t *testing.T, machines Machines) {
 		var mu sync.Mutex
 		got := map[int]bool{}
 		for _, a := range []ports.Arbiter{a1, a2} {
-			for w := 0; w < 2; w++ {
-				wg.Add(1)
-				go func() {
-					defer wg.Done()
-					for i := 0; i < 4; i++ {
+			for range 2 {
+				wg.Go(func() {
+					for range 4 {
 						n, err := a.Next(ctx, "ids-I")
 						if err != nil {
 							t.Errorf("next: %v", err)
@@ -244,7 +240,7 @@ func Arbiter(t *testing.T, machines Machines) {
 						got[n] = true
 						mu.Unlock()
 					}
-				}()
+				})
 			}
 		}
 		wg.Wait()

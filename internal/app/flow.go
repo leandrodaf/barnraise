@@ -426,7 +426,9 @@ func (s *Service) Review(ctx context.Context, project string, a Actor, r domain.
 	if p.Ports().CodeHost != nil && it.PR != "" {
 		pr := prFromRef(it.PR)
 		body := fmt.Sprintf("**%s · %s** — %s\n\nCriteria: %s · Code: %s\n\n%s\n%s", r.Step, r.Decision, r.Reviewer, r.Criteria, r.Code, r.Summary, domain.FormatFindings(r.Findings))
-		go func() { _ = p.Ports().CodeHost.Review(context.Background(), pr, r.Decision == domain.ReviewApprove, body) }()
+		go func() {
+			_ = p.Ports().CodeHost.Review(context.Background(), pr, r.Decision == domain.ReviewApprove, body)
+		}()
 	}
 	_ = tr
 	return it, nil

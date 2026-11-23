@@ -211,11 +211,9 @@ func EventStore(t *testing.T, newStore func(t *testing.T) ports.EventStore) {
 		var wg sync.WaitGroup
 		var mu sync.Mutex
 		seqs := map[int64]bool{}
-		for w := 0; w < 4; w++ {
-			wg.Add(1)
-			go func() {
-				defer wg.Done()
-				for i := 0; i < 20; i++ {
+		for w := range 4 {
+			wg.Go(func() {
+				for i := range 20 {
 					out, err := s.Append(ctx, ev(fmt.Sprintf("w%d-%d", w, i), "p", "x", "", t0, ""))
 					if err != nil || len(out) != 1 {
 						t.Errorf("append: %v %v", out, err)
@@ -225,7 +223,7 @@ func EventStore(t *testing.T, newStore func(t *testing.T) ports.EventStore) {
 					seqs[out[0].Seq] = true
 					mu.Unlock()
 				}
-			}()
+			})
 		}
 		wg.Wait()
 		all, _ := s.Load(ctx, "p", 0)

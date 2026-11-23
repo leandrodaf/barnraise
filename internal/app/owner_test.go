@@ -94,17 +94,17 @@ func TestFocusSplitsTheRemainingCapacity(t *testing.T) {
 	if _, _, err := e.svc.SetGoal(e.ctx, "demo", owner(), domain.Goal{Name: "MVP", DoneWhen: "done"}); err != nil {
 		t.Fatal(err)
 	}
-	for i := 0; i < 6; i++ {
+	for range 6 {
 		e.ready("feature", "goal", "cards")
 	}
-	for i := 0; i < 6; i++ {
+	for range 6 {
 		e.ready("bug", "bug", "")
 	}
 	if _, err := e.svc.Focus(e.ctx, "demo", owner(), domain.Focus{Area: "cards", Share: 50}, false); err != nil {
 		t.Fatal(err)
 	}
 	counts := map[domain.Lane]int{}
-	for i := 0; i < 8; i++ {
+	for i := range 8 {
 		a, err := e.svc.NextWork(e.ctx, "demo", Slot{Agent: "implementer-" + string(rune('a'+i)), Role: "implementer"})
 		if err != nil {
 			t.Fatal(err)

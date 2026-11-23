@@ -130,8 +130,8 @@ func (q *Quiet) Flush(ctx context.Context, title string) error {
 }
 
 func firstLine(s string) string {
-	if i := strings.IndexByte(s, '\n'); i >= 0 {
-		return s[:i]
+	if before, _, ok := strings.Cut(s, "\n"); ok {
+		return before
 	}
 	return s
 }
@@ -310,7 +310,7 @@ func fromDef(d domain.NotifierDef, secrets ports.Secrets) (ports.Notifier, error
 			}
 		}
 		var to []string
-		for _, t := range strings.Split(d.Target, ",") {
+		for t := range strings.SplitSeq(d.Target, ",") {
 			if t = strings.TrimSpace(t); t != "" {
 				to = append(to, t)
 			}

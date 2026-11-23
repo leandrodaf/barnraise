@@ -48,7 +48,7 @@ func Output(ctx context.Context, fn CommandFunc, timeout time.Duration, name str
 		return buf.String(), nil
 	case <-ctx.Done():
 		_ = signalGroup(cmd, killSignal)
-		<-done
+		<-done //nolint:errcheck // the process was killed: the context error is the one that matters
 		return buf.String(), fmt.Errorf("%s %v: %w", name, args, ctx.Err())
 	}
 }

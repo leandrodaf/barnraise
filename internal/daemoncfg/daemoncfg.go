@@ -10,6 +10,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strings"
 	"time"
@@ -117,10 +118,8 @@ func (f *File) AddProject(root string) bool {
 	if err == nil {
 		root = abs
 	}
-	for _, p := range f.Projects {
-		if p == root {
-			return false
-		}
+	if slices.Contains(f.Projects, root) {
+		return false
 	}
 	f.Projects = append(f.Projects, root)
 	return true

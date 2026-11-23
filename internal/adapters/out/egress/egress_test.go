@@ -36,8 +36,7 @@ func TestProxyHTTPAndConnect(t *testing.T) {
 	blocked := ""
 	p.OnBlock = func(h string) { blocked = h }
 	l, _ := net.Listen("tcp", "127.0.0.1:0")
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 	go p.Serve(ctx, l)
 	pu, _ := url.Parse("http://" + l.Addr().String())
 	c := &http.Client{Transport: &http.Transport{Proxy: http.ProxyURL(pu)}}

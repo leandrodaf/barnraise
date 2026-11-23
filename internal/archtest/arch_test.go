@@ -36,8 +36,7 @@ func archList(t *testing.T) map[string]*archPkg {
 		cmd.Dir = vocabRoot(t)
 		out, err := cmd.Output()
 		if err != nil {
-			var ee *exec.ExitError
-			if errors.As(err, &ee) {
+			if ee, ok := errors.AsType[*exec.ExitError](err); ok {
 				err = errors.New(err.Error() + ": " + string(ee.Stderr))
 			}
 			archErr = err

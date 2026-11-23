@@ -80,7 +80,7 @@ func TestFileStoreTamperAndWrongService(t *testing.T) {
 func TestFileStoreConcurrent(t *testing.T) {
 	s := New("svc", t.TempDir(), ForceFile())
 	var wg sync.WaitGroup
-	for i := 0; i < 8; i++ {
+	for i := range 8 {
 		wg.Add(1)
 		go func(i int) {
 			defer wg.Done()
@@ -90,7 +90,7 @@ func TestFileStoreConcurrent(t *testing.T) {
 		}(i)
 	}
 	wg.Wait()
-	for i := 0; i < 8; i++ {
+	for i := range 8 {
 		if _, err := s.Get(string(rune('a' + i))); err != nil {
 			t.Fatal(err)
 		}
