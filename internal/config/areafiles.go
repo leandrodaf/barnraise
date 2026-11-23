@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io/fs"
 	"os"
+	"path"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -105,7 +106,12 @@ func loadAreaFiles(root string, c *domain.ProjectConfig, userChecks map[string]b
 		}
 		standard := af.Standard
 		if standard != "" {
-			standard = dir + "/" + strings.TrimPrefix(standard, "./")
+			// Relative to the part's folder; it may point at the shared
+			// .barnraise/standards of the root ("../.barnraise/standards/x.md").
+			standard = path.Clean(dir + "/" + standard)
+			if strings.HasPrefix(standard, "../") || standard == ".." {
+				return fmt.Errorf("%s: standard %q points outside the repository", file, af.Standard)
+			}
 		}
 		c.Areas[name] = domain.AreaDef{Name: name, Paths: []string{dir + "/**"}, Screens: af.Screens, Contracts: af.Contracts,
 			Standard: standard, Dir: dir, About: strings.TrimSpace(af.About), Stack: strings.TrimSpace(af.Stack), KindFlows: af.Kinds}

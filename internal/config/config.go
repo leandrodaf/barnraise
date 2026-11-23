@@ -85,6 +85,7 @@ func Compile(root string, data []byte) (*domain.ProjectConfig, error) {
 			userChecks[n.Content[i].Value] = true
 		}
 	}
+	dropUnusedTemplateChecks(cfg, userChecks)
 	if err := loadAreaFiles(root, cfg, userChecks); err != nil {
 		return nil, err
 	}
@@ -765,6 +766,30 @@ func compileFlows(n *yaml.Node, roles map[string]domain.RoleDef) (map[string]*do
 		out[name] = f
 	}
 	return out, nil
+}
+
+// dropUnusedTemplateChecks removes the template's own checks from a project
+// that declares its checks itself, unless a flow still names them. A
+// template's check is a guess (`make test`); once the project says how it
+// is checked, a guess nobody points at would only run, and fail, wherever
+// every check runs (the merge queue).
+func dropUnusedTemplateChecks(c *domain.ProjectConfig, userChecks map[string]bool) {
+	if len(userChecks) == 0 {
+		return
+	}
+	named := map[string]bool{}
+	for _, f := range c.Flows {
+		for _, st := range f.Steps {
+			if st.Type == domain.StepCheck {
+				named[domain.TrimChecks(st.Run)] = true
+			}
+		}
+	}
+	for n := range c.Checks {
+		if !userChecks[n] && !named[n] {
+			delete(c.Checks, n)
+		}
+	}
 }
 
 // loadAreasFile merges .barnraise/areas.yaml.

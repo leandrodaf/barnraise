@@ -40,3 +40,34 @@ mcp:
 		t.Fatal(err)
 	}
 }
+
+// A project that declares its own checks does not keep the template's guess,
+// unless one of its flows still points at it.
+func TestTemplateChecksGiveWayToTheProjectsOwn(t *testing.T) {
+	own := "project: demo\ntemplate: blank\nchecks:\n  gate: make verify\nflows:\n  feature:\n    steps:\n      implement: { role: implementer }\n      check: { run: checks.gate }\n      integrate: { run: merge_queue }\n" +
+		"  bug:\n    steps:\n      implement: { role: implementer }\n      check: { run: checks.gate }\n      integrate: { run: merge_queue }\n"
+	cfg, err := Compile(t.TempDir(), []byte(own))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := cfg.Checks["main"]; ok {
+		t.Fatalf("the template's main check must go: %v", cfg.Checks)
+	}
+	if cfg.Checks["gate"].Run != "make verify" {
+		t.Fatalf("checks %v", cfg.Checks)
+	}
+	// The bug flow of the template still names checks.main: it stays.
+	partial := "project: demo\ntemplate: blank\nchecks:\n  extra: make extra\n"
+	cfg, err = Compile(t.TempDir(), []byte(partial))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := cfg.Checks["main"]; !ok {
+		t.Fatal("a template check a flow still names is kept")
+	}
+	// No checks of its own: the template's stay.
+	cfg, err = Compile(t.TempDir(), []byte("project: demo\ntemplate: blank\n"))
+	if err != nil || cfg.Checks["main"].Run == "" {
+		t.Fatalf("template checks: %v %v", cfg.Checks, err)
+	}
+}
