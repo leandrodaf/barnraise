@@ -261,7 +261,7 @@ func (e *env) itemCmd() *cobra.Command {
 					return fmt.Errorf("--patch must be JSON: %w", err)
 				}
 			}
-			for _, k := range []string{"title", "body", "priority", "area", "size", "class", "kind"} {
+			for _, k := range []string{"title", "body", "priority", "area", "size", "class", "kind", "branch"} {
 				if cmd.Flags().Changed(k) {
 					v, _ := cmd.Flags().GetString(k)
 					m[k] = v
@@ -296,6 +296,7 @@ func (e *env) itemCmd() *cobra.Command {
 	for _, k := range []string{"title", "body", "priority", "area", "size", "class", "kind"} {
 		edit.Flags().String(k, "", k)
 	}
+	edit.Flags().String("branch", "", "continue on a branch that already exists (work started before Barnraise); only before the item starts")
 	edit.Flags().StringArrayVarP(&setCriteria, "criterion", "c", nil, "replace criteria (repeat)")
 	edit.Flags().StringVar(&patchJSON, "patch", "", "JSON patch of item fields")
 	edit.Flags().StringVar(&reason, "reason", "", "why")

@@ -534,3 +534,47 @@ func TestWorktreeSetupRunsOncePerWorktree(t *testing.T) {
 		t.Fatalf("an unfinished setup must run again: %d", setups())
 	}
 }
+
+// An item may continue work that already exists on a branch (work started
+// before Barnraise drove the project): its worktree starts there, not on main.
+func TestItemContinuesOnAnExistingBranch(t *testing.T) {
+	e := newEnv(t, withGit())
+	// Work someone already did, on a branch of their own.
+	testkit.RunGit(t, e.repo.Root, "checkout", "-q", "-b", "old/issue-7")
+	testkit.WriteFile(t, e.repo.Root, "half.txt", "half done\n")
+	testkit.RunGit(t, e.repo.Root, "add", "-A")
+	testkit.RunGit(t, e.repo.Root, "commit", "-q", "-m", "wip: half of it")
+	testkit.RunGit(t, e.repo.Root, "push", "-q", "origin", "old/issue-7")
+	testkit.RunGit(t, e.repo.Root, "checkout", "-q", "main")
+
+	it := e.ready("simple", "Finish the export", "x")
+	branch := "old/issue-7"
+	got, err := e.svc.UpdateItem(e.ctx, "demo", owner(), it.ID, ItemPatch{Branch: &branch})
+	if err != nil || got.Branch != branch {
+		t.Fatalf("set branch: %+v %v", got, err)
+	}
+	e.start(it.ID)
+	dir := e.workspace(it.ID, map[string]string{"rest.txt": "the rest\n"})
+	if _, err := os.Stat(filepath.Join(dir, "half.txt")); err != nil {
+		t.Fatal("the worktree must start from the existing work, not from main")
+	}
+	e.mustDeliver(it.ID, domain.Delivery{})
+	e.drive(it.ID)
+	if n, err := e.svc.ProcessQueue(e.ctx, "demo"); n != 1 || err != nil {
+		t.Fatal(n, err)
+	}
+	files := e.repo.MainFiles(t)
+	if !contains(files, "half.txt") || !contains(files, "rest.txt") {
+		t.Fatalf("both the old and the new work land: %v", files)
+	}
+	// Not once work started, not by an agent, and never main.
+	other := e.ready("simple", "Another", "x")
+	main := "main"
+	if _, err := e.svc.UpdateItem(e.ctx, "demo", owner(), other.ID, ItemPatch{Branch: &main}); !errors.Is(err, ErrInvalid) {
+		t.Fatalf("main: %v", err)
+	}
+	e.start(other.ID)
+	if _, err := e.svc.UpdateItem(e.ctx, "demo", owner(), other.ID, ItemPatch{Branch: &branch}); !errors.Is(err, ErrInvalid) {
+		t.Fatalf("after the start: %v", err)
+	}
+}

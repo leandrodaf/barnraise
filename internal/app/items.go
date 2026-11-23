@@ -172,12 +172,15 @@ func (s *Service) allocate(ctx context.Context, p *Project, k domain.IDKind) (in
 
 // ItemPatch changes an item; nil fields stay.
 type ItemPatch struct {
-	Title          *string             `json:"title,omitempty"`
-	Body           *string             `json:"body,omitempty"`
-	Priority       *string             `json:"priority,omitempty"`
-	Area           *string             `json:"area,omitempty"`
-	Size           *string             `json:"size,omitempty"`
-	Class          *string             `json:"class,omitempty"`
+	Title    *string `json:"title,omitempty"`
+	Body     *string `json:"body,omitempty"`
+	Priority *string `json:"priority,omitempty"`
+	Area     *string `json:"area,omitempty"`
+	Size     *string `json:"size,omitempty"`
+	Class    *string `json:"class,omitempty"`
+	// Branch makes the item continue on a branch that already exists (work
+	// started before Barnraise drove the project). Only before work starts.
+	Branch         *string             `json:"branch,omitempty"`
 	Criteria       *[]domain.Criterion `json:"criteria,omitempty"`
 	Preserve       *[]string           `json:"preserve,omitempty"`
 	Deps           *[]string           `json:"deps,omitempty"`
@@ -237,6 +240,18 @@ func (s *Service) UpdateItem(ctx context.Context, project string, a Actor, id st
 		}
 		if patch.Class != nil {
 			it.Class = *patch.Class
+		}
+		if patch.Branch != nil {
+			b := strings.TrimSpace(*patch.Branch)
+			switch {
+			case a.Kind == ActorAgent:
+				return fmt.Errorf("%w: an agent does not choose the branch of an item", ErrForbidden)
+			case it.Step != "":
+				return fmt.Errorf("%w: %s already started on branch %s", ErrInvalid, it.ID, it.Branch)
+			case b == p.Cfg().MainBranch || strings.ContainsAny(b, " ~^:?*[\\") || strings.HasPrefix(b, "-") || strings.Contains(b, ".."):
+				return fmt.Errorf("%w: %q is not a branch an item can use", ErrInvalid, b)
+			}
+			it.Branch = b
 		}
 		if patch.Kind != nil {
 			if _, err := p.Cfg().FlowOf(*patch.Kind, it.Area); err != nil {
