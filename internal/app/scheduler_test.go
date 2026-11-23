@@ -308,3 +308,28 @@ func TestRefineOnlyOnTheHousekeepingMachine(t *testing.T) {
 		t.Fatal(a.Step)
 	}
 }
+
+// A refine that could not start (no account with capacity) is tried again
+// when an account frees up; before, the draft stayed marked as refined at
+// its version and waited for a person to edit it.
+func TestRefineThatNeverStartedIsTriedAgain(t *testing.T) {
+	e := newEnv(t)
+	if !e.svc.holdHousekeeping(e.ctx, e.p) {
+		t.Fatal("housekeeping")
+	}
+	d := e.create(NewItem{Title: "vague", Body: "[NEEDS CLARIFICATION: what?]"})
+	e.fill() // no account at all: the analyst's session cannot start
+	if n := len(e.prov.Specs()); n != 0 {
+		t.Fatalf("%d sessions without an account", n)
+	}
+	e.account("fake-1")
+	release := e.holdSessions()
+	e.fill()
+	specs := e.prov.Specs()
+	if len(specs) != 1 || specs[0].Env["BARNRAISE_ITEM"] != d.ID || specs[0].Env["BARNRAISE_STEP"] != RefineStep {
+		t.Fatalf("the draft must be refined once an account is free: %d sessions", len(specs))
+	}
+	e.svc.Runtime().MaxSessions = -1
+	release()
+	e.idle()
+}

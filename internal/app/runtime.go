@@ -283,6 +283,9 @@ func (r *Runtime) fillSlots(ctx context.Context, p *Project, m domain.Machine) {
 		if err := r.start(ctx, p, slot, a, ""); err != nil {
 			failed[a.Item.ID] = true
 			r.s.doneRunning(p, a.Item.ID, slot.Agent)
+			if a.Step.Name == RefineStep {
+				r.s.forgetRefine(p, a.Item.ID) // it never ran: refine it on a later pass
+			}
 			// Recorded once per agent and item: the agent's state must say it
 			// failed, without repeating it on every pass.
 			if r.newStartErr(p.Name+"/"+slot.Agent+"/"+a.Item.ID, err.Error()) {

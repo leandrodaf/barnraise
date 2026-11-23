@@ -128,6 +128,16 @@ func (s *Service) refineWork(p *Project, slot Slot) *Assignment {
 	return &Assignment{Project: p.Name, Item: best.Clone(), Step: domain.StepDef{Name: RefineStep, Type: domain.StepAgent, Role: "analyst"}}
 }
 
+// forgetRefine lets a draft be refined again at its current version: the
+// refine that was handed out never started (no account with capacity, a
+// workspace error), and otherwise the draft would wait for a person to edit
+// it before any analyst looked at it again.
+func (s *Service) forgetRefine(p *Project, itemID string) {
+	p.mu.Lock()
+	delete(p.refined, itemID)
+	p.mu.Unlock()
+}
+
 // heldWorkLocked finds a step of a held item that wants this role.
 func (s *Service) heldWorkLocked(p *Project, slot Slot) *Assignment {
 	var best *domain.Item
