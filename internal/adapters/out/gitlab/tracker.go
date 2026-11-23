@@ -137,9 +137,12 @@ func (t *Tracker) Update(ctx context.Context, it *domain.Item, lang string) erro
 		}
 	}
 	fields := map[string]any{
-		"title":       itemdoc.Title(it),
-		"description": itemdoc.Markdown(it, lang),
-		"labels":      strings.Join(itemdoc.MergeLabels(kept, t.managedLabels(it)), ","),
+		"labels": strings.Join(itemdoc.MergeLabels(kept, t.managedLabels(it)), ","),
+	}
+	if !it.Adopted {
+		// An issue a person wrote keeps its own title and description.
+		fields["title"] = itemdoc.Title(it)
+		fields["description"] = itemdoc.Markdown(it, lang)
 	}
 	switch closed := itemdoc.Closed(it); {
 	case closed && cur.State != "closed":

@@ -111,32 +111,36 @@ type Claim struct {
 
 // Item is a deliverable unit of work of 2 to 6 agent hours.
 type Item struct {
-	ID              string             `json:"id"`
-	Version         int                `json:"version"`
-	Title           string             `json:"title"`
-	Body            string             `json:"body,omitempty"`
-	Kind            string             `json:"kind"` // flow name: feature, bug, blog-post…
-	Priority        Priority           `json:"priority"`
-	Lane            Lane               `json:"lane"`
-	Area            string             `json:"area,omitempty"`
-	GoalID          string             `json:"goal_id,omitempty"`
-	Size            string             `json:"size,omitempty"`  // "2h-6h", estimate
-	Class           string             `json:"class,omitempty"` // simple, normal, complex, native
-	Status          Status             `json:"status"`
-	Step            string             `json:"step,omitempty"`
-	Criteria        []Criterion        `json:"criteria,omitempty"`
-	Preserve        []string           `json:"preserve,omitempty"` // bugs: what must not change
-	Clarifications  []string           `json:"clarifications,omitempty"`
-	Anchors         Anchors            `json:"anchors"`
-	Deps            []string           `json:"deps,omitempty"`
-	Tweaks          []string           `json:"tweaks,omitempty"`
-	Checklist       []string           `json:"checklist,omitempty"`
-	Rework          []ReworkRecord     `json:"rework,omitempty"`
-	Tier            int                `json:"tier"` // 0 = class default; +1 per escalation
-	Claim           *Claim             `json:"claim,omitempty"`
-	Branch          string             `json:"branch,omitempty"`
-	PR              string             `json:"pr,omitempty"`
-	TrackerRef      string             `json:"tracker_ref,omitempty"`
+	ID             string         `json:"id"`
+	Version        int            `json:"version"`
+	Title          string         `json:"title"`
+	Body           string         `json:"body,omitempty"`
+	Kind           string         `json:"kind"` // flow name: feature, bug, blog-post…
+	Priority       Priority       `json:"priority"`
+	Lane           Lane           `json:"lane"`
+	Area           string         `json:"area,omitempty"`
+	GoalID         string         `json:"goal_id,omitempty"`
+	Size           string         `json:"size,omitempty"`  // "2h-6h", estimate
+	Class          string         `json:"class,omitempty"` // simple, normal, complex, native
+	Status         Status         `json:"status"`
+	Step           string         `json:"step,omitempty"`
+	Criteria       []Criterion    `json:"criteria,omitempty"`
+	Preserve       []string       `json:"preserve,omitempty"` // bugs: what must not change
+	Clarifications []string       `json:"clarifications,omitempty"`
+	Anchors        Anchors        `json:"anchors"`
+	Deps           []string       `json:"deps,omitempty"`
+	Tweaks         []string       `json:"tweaks,omitempty"`
+	Checklist      []string       `json:"checklist,omitempty"`
+	Rework         []ReworkRecord `json:"rework,omitempty"`
+	Tier           int            `json:"tier"` // 0 = class default; +1 per escalation
+	Claim          *Claim         `json:"claim,omitempty"`
+	Branch         string         `json:"branch,omitempty"`
+	PR             string         `json:"pr,omitempty"`
+	TrackerRef     string         `json:"tracker_ref,omitempty"`
+	// Adopted marks an item that came from an entry people wrote in the
+	// tracker. Barnraise keeps its state and labels current there, and never
+	// rewrites its title or text: they are the author's.
+	Adopted         bool               `json:"adopted,omitempty"`
 	Risky           bool               `json:"risky,omitempty"`
 	Parked          bool               `json:"parked,omitempty"` // waits for a focus to end
 	ClosedReason    string             `json:"closed_reason,omitempty"`

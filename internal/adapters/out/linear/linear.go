@@ -438,10 +438,11 @@ func (t *Tracker) Update(ctx context.Context, it *domain.Item, lang string) erro
 	if err != nil {
 		return err
 	}
-	input := map[string]any{
-		"title":       itemdoc.Title(it),
-		"description": itemdoc.Markdown(it, lang),
-		"priority":    priority(it.Priority),
+	input := map[string]any{"priority": priority(it.Priority)}
+	if !it.Adopted {
+		// An issue a person wrote keeps its own title and description.
+		input["title"] = itemdoc.Title(it)
+		input["description"] = itemdoc.Markdown(it, lang)
 	}
 	ids, err := t.labelIDs(ctx, linearLabels(it))
 	if err != nil {

@@ -254,11 +254,13 @@ func (t *Tracker) Update(ctx context.Context, it *domain.Item, lang string) erro
 		return err
 	}
 	managed := jiraLabels(append(itemdoc.Labels(it), itemdoc.StatusLabel(it.Status)))
-	err := t.do(ctx, http.MethodPut, "/rest/api/3/issue/"+url.PathEscape(key), map[string]any{"fields": map[string]any{
-		"summary":     itemdoc.Title(it),
-		"description": description(it, lang),
-		"labels":      itemdoc.MergeLabels(cur.Fields.Labels, managed),
-	}}, nil)
+	fields := map[string]any{"labels": itemdoc.MergeLabels(cur.Fields.Labels, managed)}
+	if !it.Adopted {
+		// An issue a person wrote keeps its own summary and description.
+		fields["summary"] = itemdoc.Title(it)
+		fields["description"] = description(it, lang)
+	}
+	err := t.do(ctx, http.MethodPut, "/rest/api/3/issue/"+url.PathEscape(key), map[string]any{"fields": fields}, nil)
 	if err != nil {
 		return err
 	}

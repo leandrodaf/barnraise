@@ -158,10 +158,13 @@ func (t *Tracker) Update(ctx context.Context, it *domain.Item, lang string) erro
 	}
 	managed := append(itemdoc.Labels(it), itemdoc.StatusLabel(it.Status))
 	fields := stateFields(it, map[string]any{
-		"title":  itemdoc.Title(it),
-		"body":   itemdoc.Markdown(it, lang),
 		"labels": itemdoc.MergeLabels(cur.labelNames(), managed),
 	})
+	if !it.Adopted {
+		// An issue a person wrote keeps its own title and text.
+		fields["title"] = itemdoc.Title(it)
+		fields["body"] = itemdoc.Markdown(it, lang)
+	}
 	if _, err := t.c.do(ctx, http.MethodPatch, t.c.repoPath("/issues/%d", n), fields, nil); err != nil {
 		return err
 	}
