@@ -230,14 +230,30 @@ func TestEndToEnd(t *testing.T) {
 		}
 	})
 
-	t.Run("draft items wait for criteria and clarifications", func(t *testing.T) {
+	t.Run("the analyst refines drafts; questions go to the owner", func(t *testing.T) {
 		it := h.create(&pb.CreateItemRequest{Title: "Settings", Area: "settings", Body: "[NEEDS CLARIFICATION: which settings?]"})
 		if it.Status != "draft" {
 			t.Fatalf("status %s", it.Status)
 		}
-		time.Sleep(2 * time.Second)
-		if h.item(it.Id).Status != "draft" {
-			t.Fatal("a draft must not start")
+		got := h.waitStatus(it.Id, "integrated")
+		if len(got.Criteria) != 1 || got.Criteria[0].Check != "main" {
+			t.Fatalf("criteria %+v", got.Criteria)
+		}
+		ask := h.create(&pb.CreateItemRequest{Title: "Balance", Area: "balance", Body: "fake: needs-owner [NEEDS CLARIFICATION: what to show?]"})
+		deadline := time.Now().Add(30 * time.Second)
+		for {
+			if cur := h.item(ask.Id); cur.WaitingQuestion != "" {
+				if cur.Status == "draft" || cur.Status == "waiting_owner" {
+					break
+				}
+			}
+			if time.Now().After(deadline) {
+				t.Fatalf("no owner question for %s: %+v", ask.Id, h.item(ask.Id))
+			}
+			time.Sleep(200 * time.Millisecond)
+		}
+		if _, err := h.cl.CloseItem(ctx, connect.NewRequest(&pb.CloseItemRequest{Project: "demo", Id: ask.Id, Reason: "abandoned"})); err != nil {
+			t.Fatal(err)
 		}
 	})
 

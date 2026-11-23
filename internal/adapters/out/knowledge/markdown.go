@@ -367,6 +367,6 @@ func pathInArea(pattern, p string) bool {
 	if strings.HasPrefix(p, base+"/") || strings.TrimSuffix(p, "/") == base {
 		return true
 	}
-	// a folder that contains the area ("app/" contains "app/cards/")
+	// a folder that contains the area ("app/" contains "app/payments/")
 	return strings.HasSuffix(p, "/") && strings.HasPrefix(base+"/", p)
 }

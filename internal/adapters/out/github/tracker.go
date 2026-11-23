@@ -146,7 +146,7 @@ func stateFields(it *domain.Item, m map[string]any) map[string]any {
 }
 
 // Update rewrites title, body, state and managed labels of the item's issue,
-// keeping labels people added, and moves its project card.
+// keeping labels people added, and moves its project item.
 func (t *Tracker) Update(ctx context.Context, it *domain.Item, lang string) error {
 	n, err := ParseRef(it.TrackerRef)
 	if err != nil {

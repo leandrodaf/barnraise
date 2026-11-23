@@ -37,8 +37,11 @@ type Runtime struct {
 	lastImport  map[string]time.Time
 	lastSweep   map[string]time.Time
 	lastDigest  map[string]time.Time
+	lastWeekly  map[string]time.Time
 	// Sandbox turns on the provider's native sandbox in session settings.
 	Sandbox bool
+	// EgressProxy routes agent traffic through the allow-list proxy (host:port).
+	EgressProxy string
 }
 
 type liveSession struct {
@@ -73,7 +76,7 @@ func newRuntime(s *Service) *Runtime {
 	}
 	return &Runtime{s: s, poke: make(chan struct{}, 1), running: map[string]*liveSession{}, SessionTimeout: 3 * time.Hour,
 		lastHK: map[string]time.Time{}, lastRenew: map[string]time.Time{}, lastImport: map[string]time.Time{}, lastSweep: map[string]time.Time{},
-		lastDigest: map[string]time.Time{}, Sandbox: bwrapErr == nil}
+		lastDigest: map[string]time.Time{}, lastWeekly: map[string]time.Time{}, Sandbox: bwrapErr == nil}
 }
 
 // SetProbe installs the machine capability probe.
@@ -201,7 +204,13 @@ func (r *Runtime) fillSlots(ctx context.Context, p *Project, m domain.Machine) {
 // start opens a provider session for an assignment.
 func (r *Runtime) start(ctx context.Context, p *Project, slot Slot, a *Assignment) error {
 	s := r.s
-	dir, err := s.ensureWorkspace(ctx, p, a.Item.ID)
+	var dir string
+	var err error
+	if a.Step.Name == RefineStep {
+		dir, err = s.refineWorkspace(ctx, p, a.Item.ID)
+	} else {
+		dir, err = s.ensureWorkspace(ctx, p, a.Item.ID)
+	}
 	if err != nil {
 		return err
 	}
@@ -278,6 +287,11 @@ func (r *Runtime) start(ctx context.Context, p *Project, slot Slot, a *Assignmen
 		"BARNRAISE_STEP": a.Step.Name, "BARNRAISE_AGENT": slot.Agent, "BARNRAISE_ROLE": role, "BARNRAISE_ACCOUNT": acc.ID,
 		"BARNRAISE_POLICY": filepath.Join(sessDir, "policy.json"), "BARNRAISE_WORKTREE": dir,
 		"PORT": strconv.Itoa(ItemPort(p.Cfg.PortBase, it.ID)), "DISABLE_AUTOUPDATER": "1",
+	}
+	if r.EgressProxy != "" {
+		proxy := "http://" + r.EgressProxy
+		env["HTTPS_PROXY"], env["HTTP_PROXY"], env["https_proxy"], env["http_proxy"] = proxy, proxy, proxy, proxy
+		env["NO_PROXY"], env["no_proxy"] = "localhost,127.0.0.1", "localhost,127.0.0.1"
 	}
 	if experiment != "" {
 		env["BARNRAISE_EXPERIMENT"] = experiment
@@ -499,6 +513,26 @@ loop:
 		return
 	}
 	_, _, _ = s.finishStep(ctx, p, stepOutcome{Item: a.Item.ID, Step: a.Step.Name, Outcome: domain.OutcomeBlocked, Reason: reason, Actor: slot.Agent})
+}
+
+// refineWorkspace is a read-only checkout of main for the analyst: drafts get no branch or PR.
+func (s *Service) refineWorkspace(ctx context.Context, p *Project, itemID string) (string, error) {
+	if p.Ports.Git == nil {
+		return p.Cfg.Root, nil
+	}
+	dir := s.WorktreeDir(p.Name, "_refine-"+itemID)
+	main, err := p.Ports.Git.MainHead(ctx)
+	if err != nil {
+		return "", err
+	}
+	if _, err := os.Stat(filepath.Join(dir, ".git")); err == nil {
+		return dir, p.Ports.Git.Checkout(ctx, dir, main)
+	}
+	if err := p.Ports.Git.AddDetachedWorktree(ctx, dir, main); err != nil {
+		return "", err
+	}
+	s.excludeFromGit(dir, "/.barnraise-session/")
+	return dir, nil
 }
 
 // hasStepEvent is a cheap check that the step's run was recorded.

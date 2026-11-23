@@ -14,6 +14,7 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/leandrodaf/barnraise/internal/adapters/out/imagex"
 	"github.com/leandrodaf/barnraise/internal/domain"
 )
 
@@ -158,6 +159,26 @@ func PreTool(in Input, pol *domain.Policy, exists func(string) bool, bin string)
 			"hookEventName": "PreToolUse", "permissionDecision": "deny",
 			"permissionDecisionReason": "Barnraise policy: " + d.Reason + ". This is blocked by design; continue without it or deliver with a concern.",
 		}}}
+	}
+	if in.ToolName == "Read" && len(tc.Paths) == 1 && imagex.IsImage(tc.Paths[0]) && pol.Worktree != "" && !strings.Contains(tc.Paths[0], "/shots/full/") {
+		src := tc.Paths[0]
+		if !filepath.IsAbs(src) {
+			src = filepath.Join(pol.Worktree, src)
+		}
+		dst, reduced, err := imagex.ReduceFile(src, filepath.Join(pol.Worktree, ".barnraise-session", "shots"), imagex.DefaultWidth)
+		if err == nil && reduced {
+			var ti map[string]any
+			_ = json.Unmarshal(in.ToolInput, &ti)
+			if ti == nil {
+				ti = map[string]any{}
+			}
+			ti["file_path"] = dst
+			return PreToolResult{Decision: d, Call: tc, Output: map[string]any{"hookSpecificOutput": map[string]any{
+				"hookEventName": "PreToolUse", "permissionDecision": "allow",
+				"permissionDecisionReason": fmt.Sprintf("image reduced to %d px wide to save tokens; for a full-resolution region use `barnraise image crop %s x,y,w,h`", imagex.DefaultWidth, tc.Paths[0]),
+				"updatedInput":             ti,
+			}}}
+		}
 	}
 	if tc.Command != "" && bin != "" && noisyRe.MatchString(tc.Command) && !strings.Contains(tc.Command, "barnraise filter") &&
 		!strings.ContainsAny(tc.Command, "|;&><`$") {

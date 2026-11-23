@@ -325,6 +325,12 @@ func filterDiff(diff string, exclude []string) string {
 
 func stepInstructions(p *Project, it *domain.Item, st domain.StepDef) string {
 	switch {
+	case st.Name == RefineStep:
+		return fmt.Sprintf("This item is a draft. Make it ready: write criteria in EARS form, each verified by one of the project checks (%s), "+
+			"the area and anchors (files, symbols, contracts, decisions), and keep it 2 to 6 agent hours (split or turn it into a tweak otherwise). "+
+			"Apply it with `barnraise item edit %s -c \"WHEN <trigger>, THE SYSTEM SHALL <response> | <check>\" --area <area> --clear-clarifications` "+
+			"(repeat -c per criterion). If only a person can decide something, ask with the `ask_owner` tool and do not guess. Do not write code. Then stop.",
+			strings.Join(sortedKeys(p.Cfg.Checks), ", "), it.ID)
 	case st.Type == domain.StepApproval:
 		what := approvalWhat(p, it, st)
 		return fmt.Sprintf("Approve the %s or send it back. Submit with the `review` tool: criteria_verdict and code_verdict (pass/fail) and decision APPROVE or REWORK with findings. Then stop.", what)

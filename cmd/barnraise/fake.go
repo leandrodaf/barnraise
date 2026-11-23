@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"connectrpc.com/connect"
+	"google.golang.org/protobuf/types/known/structpb"
 
 	pb "github.com/leandrodaf/barnraise/gen/barnraise/v1"
 	"github.com/leandrodaf/barnraise/internal/adapters/out/fakeprovider"
@@ -57,6 +58,22 @@ func (f *fakeAgent) handle(ctx context.Context, spec ports.SessionSpec, emit fun
 		return ports.SessionResult{Text: "no work"}, nil
 	}
 	it := asg.Msg.Item
+	if spec.Env["BARNRAISE_STEP"] == "refine" {
+		if strings.Contains(it.Body, "fake: needs-owner") {
+			_, err := cl.AskOwner(ctx, connect.NewRequest(&pb.AskOwnerRequest{Project: project, Question: &pb.Question{ItemId: it.Id,
+				Context: "The draft does not say which data to show.", Decision: "What should the screen show?",
+				Options: []*pb.Option{{Label: "The balance", Recommended: true}, {Label: "The last transactions"}}, IfNoAnswer: "The item stays a draft."}}))
+			return ports.SessionResult{Text: "asked the owner"}, err
+		}
+		patch, _ := structpb.NewStruct(map[string]any{
+			"criteria":       []any{map[string]any{"text": "WHEN the user opens " + it.Title + ", THE SYSTEM SHALL show it", "check": "main"}},
+			"clarifications": []any{},
+			"body":           strings.ReplaceAll(it.Body, "[NEEDS CLARIFICATION", "[ANSWERED"),
+			"reason":         "refined by the analyst",
+		})
+		_, err := cl.UpdateItem(ctx, connect.NewRequest(&pb.UpdateItemRequest{Project: project, Id: it.Id, Patch: patch}))
+		return ports.SessionResult{Text: "refined " + it.Id}, err
+	}
 	st := asg.Msg.Step.GetFields()
 	stepName := st["name"].GetStringValue()
 	stepType := st["type"].GetStringValue()

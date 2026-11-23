@@ -256,7 +256,7 @@ func (s *State) Apply(e Event) error {
 	}
 	if p.Item != nil {
 		cur := s.Items[p.Item.ID]
-		if cur == nil || p.Item.Version > cur.Version || (p.Item.Version == cur.Version && !p.Item.UpdatedAt.Before(cur.UpdatedAt)) {
+		if cur == nil || p.Item.Version > cur.Version || (p.Item.Version == cur.Version && sameVersionWins(p.Item, cur)) {
 			s.Items[p.Item.ID] = p.Item
 		}
 		s.bump(p.Item.ID)
@@ -332,6 +332,19 @@ func (s *State) Apply(e Event) error {
 		s.Paused, s.PausedWhy = false, ""
 	}
 	return nil
+}
+
+// sameVersionWins settles two snapshots of the same item version, written
+// concurrently by two machines: the later update wins, and an exact tie is
+// broken by the snapshot bytes so every machine keeps the same one whatever
+// the delivery order.
+func sameVersionWins(next, cur *Item) bool {
+	if !next.UpdatedAt.Equal(cur.UpdatedAt) {
+		return next.UpdatedAt.After(cur.UpdatedAt)
+	}
+	a, _ := json.Marshal(next)
+	b, _ := json.Marshal(cur)
+	return string(a) >= string(b)
 }
 
 func (s *State) bump(id string) {

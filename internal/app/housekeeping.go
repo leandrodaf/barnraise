@@ -70,6 +70,12 @@ func (r *Runtime) housekeeping(ctx context.Context, p *Project, m domain.Machine
 		}
 		r.lastDigest[p.Name] = now
 	}
+	if last := r.lastWeekly[p.Name]; now.Sub(last) > 7*24*time.Hour {
+		if !last.IsZero() {
+			go s.weekly(context.Background(), p)
+		}
+		r.lastWeekly[p.Name] = now
+	}
 	s.finishGoalIfDone(ctx, p)
 }
 
@@ -282,6 +288,33 @@ func (d Digest) Text() string {
 		b.WriteString("Alert: " + a + "\n")
 	}
 	return b.String()
+}
+
+// weekly sends the proposed features (approve, reject or later in one tap)
+// and turns the metrics that got worse into self-improvement proposals.
+func (s *Service) weekly(ctx context.Context, p *Project) {
+	m, err := s.Metrics(ctx, p.Name, System(), 7*24*time.Hour)
+	if err == nil {
+		for _, a := range m.Alerts {
+			_, _ = s.Propose(ctx, p.Name, System(), domain.Proposal{Title: "Metric: " + truncate(a, 70), Problem: a, Evidence: "barnraise metrics --window 7d",
+				Impact: "the goal moves slower or costs more", Size: "2h", Area: "barnraise", GoalLink: "measured self-improvement", Kind: "self_improvement", By: "barnraise"})
+		}
+	}
+	if s.d.Notifier == nil {
+		return
+	}
+	var lines []string
+	var opts []string
+	for _, pr := range p.Snapshot().ProposalList() {
+		if (pr.Kind == "feature" || pr.Kind == "self_improvement") && (pr.Status == domain.ProposalOpen || pr.Status == domain.ProposalLater) {
+			lines = append(lines, fmt.Sprintf("%s %s — %s (barnraise proposals approve|reject|later %s)", pr.ID, pr.Title, pr.Impact, pr.ID))
+			opts = append(opts, pr.ID)
+		}
+	}
+	if len(lines) == 0 {
+		return
+	}
+	_ = s.d.Notifier.Notify(ctx, ports.Notification{Title: "[" + p.Name + "] proposed features this week", Body: strings.Join(lines, "\n"), Options: opts, Kind: "digest"})
 }
 
 func (s *Service) sendDigest(ctx context.Context, p *Project) {

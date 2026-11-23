@@ -1,0 +1,87 @@
+version: "2"
+
+run:
+  timeout: 5m
+  tests: true
+
+linters:
+  default: standard
+  enable:
+    - depguard
+  settings:
+    errcheck:
+      # Errors that carry no decision: best-effort cleanup and terminal output.
+      exclude-functions:
+        - (io.Closer).Close
+        - (*os.File).Close
+        - (net.Conn).Close
+        - (net.Listener).Close
+        - (net.Conn).SetDeadline
+        - (*net/smtp.Client).Close
+        - os.Remove
+        - os.RemoveAll
+        - io.Copy
+        - io.WriteString
+        - fmt.Fprint
+        - fmt.Fprintf
+        - fmt.Fprintln
+        - fmt.Sscan
+    depguard:
+      # The hexagonal dependency rule (docs/adr/0002-hexagonal-architecture.md):
+      # the domain depends on nothing but the standard library, ports only on
+      # the domain, the application only on the domain and the ports, and the
+      # outbound adapters never on the application or the inbound adapters.
+      rules:
+        domain:
+          list-mode: strict
+          files:
+            - "**/internal/domain/**"
+            - "!$test"
+          allow:
+            - $gostd
+            - github.com/leandrodaf/barnraise/internal/domain
+        ports:
+          list-mode: strict
+          files:
+            - "**/internal/ports/**"
+            - "!$test"
+          allow:
+            - $gostd
+            - github.com/leandrodaf/barnraise/internal/domain
+            - github.com/leandrodaf/barnraise/internal/ports
+        app:
+          list-mode: strict
+          files:
+            - "**/internal/app/**"
+            - "!$test"
+          allow:
+            - $gostd
+            - github.com/leandrodaf/barnraise/internal/domain
+            - github.com/leandrodaf/barnraise/internal/ports
+            - github.com/leandrodaf/barnraise/internal/app
+        outbound-adapters:
+          list-mode: lax
+          files:
+            - "**/internal/adapters/out/**"
+          deny:
+            - pkg: github.com/leandrodaf/barnraise/internal/app
+              desc: outbound adapters implement ports; they never call the application
+            - pkg: github.com/leandrodaf/barnraise/internal/adapters/in
+              desc: outbound adapters never depend on inbound adapters
+  exclusions:
+    generated: strict
+    paths:
+      - gen/
+    rules:
+      # Tests may ignore errors of setup helpers; the assertions catch real failures.
+      - path: _test\.go
+        linters:
+          - errcheck
+
+formatters:
+  enable:
+    - gofmt
+  exclusions:
+    generated: strict
+    paths:
+      - gen/

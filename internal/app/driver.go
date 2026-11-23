@@ -380,9 +380,13 @@ func (s *Service) runCheckStep(ctx context.Context, p *Project, it *domain.Item,
 			return err
 		}
 		if p.Ports.CodeHost != nil && head != "" {
-			go func(n string, r domain.CheckResult) {
+			go func(n string, r domain.CheckResult, pr string) {
 				_ = p.Ports.CodeHost.ReportCheck(context.Background(), head, n, r.Passed, truncate(r.Summary, 140))
-			}(n, res)
+				// Preview: prints, flow video, APK or preview link from the check go to the PR.
+				if len(r.Artifacts) > 0 && pr != "" {
+					_ = p.Ports.CodeHost.Comment(context.Background(), prFromRef(pr), "**Preview from check "+n+"**\n- "+strings.Join(r.Artifacts, "\n- "))
+				}
+			}(n, res, it.PR)
 		}
 	}
 	if pendingAny {

@@ -257,7 +257,7 @@ func (e *env) chatCmd() *cobra.Command {
 	return &cobra.Command{Use: "chat", Short: "Talk to Barnraise: focus, pause, approve, status… in plain words", Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			sc := bufio.NewScanner(e.in)
-			fmt.Fprintln(e.out, "Barnraise: What do you need? (\"focus on cards until done\", \"pause\", \"status\", \"approve the plan of I-42\", \"quit\")")
+			fmt.Fprintln(e.out, "Barnraise: What do you need? (\"focus on payments until done\", \"pause\", \"status\", \"approve the plan of I-42\", \"quit\")")
 			for {
 				fmt.Fprint(e.out, "You: ")
 				if !sc.Scan() {

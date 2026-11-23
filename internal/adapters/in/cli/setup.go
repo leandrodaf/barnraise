@@ -371,7 +371,11 @@ func (e *env) upCmd() *cobra.Command {
 				return err
 			}
 			fmt.Fprintf(e.out, "✔ Barnraise is up on machine %s with projects: %s\n", res.Msg.Machine, strings.Join(res.Msg.Projects, ", "))
+			if df.Listen != "off" && df.Listen != "" {
+				if df.Listen != "off" && df.Listen != "" {
 			fmt.Fprintf(e.out, "  Panel: http://%s/?token=$(cat %s)\n", df.Listen, paths.OwnerTokenFile())
+			}
+			}
 			return nil
 		}}
 	c.Flags().BoolVar(&service, "service", false, "install and start a systemd user service instead of a background process")
@@ -473,6 +477,7 @@ func (e *env) daemonCmd() *cobra.Command {
 	c.Flags().StringVar(&o.Machine, "machine", "", "machine name (default from daemon.yaml or the hostname)")
 	c.Flags().IntVar(&o.NATSPort, "nats-port", 0, "NATS port (default 4222)")
 	c.Flags().BoolVar(&o.NoAgents, "no-agents", false, "serve the API but start no agent sessions")
+	c.Flags().StringVar(&o.Egress, "egress", os.Getenv("BARNRAISE_EGRESS"), "run the allow-list proxy here (e.g. 127.0.0.1:7421) and route agent traffic through it")
 	c.Flags().BoolVar(&o.Fake, "fake-provider", os.Getenv("BARNRAISE_FAKE_PROVIDER") == "1", "use a scripted fake provider (tests and demos)")
 	return c
 }

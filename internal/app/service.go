@@ -71,6 +71,7 @@ type Project struct {
 	leases map[string]ports.Lease
 	// items with a step running on this machine (agent session or check)
 	running map[string]string // item -> runner (agent name or "driver")
+	refined map[string]int    // draft item -> version the analyst last refined
 	queueMu sync.Mutex
 }
 

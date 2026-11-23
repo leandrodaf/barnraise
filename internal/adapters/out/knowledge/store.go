@@ -209,8 +209,8 @@ func normAreas(in []string) []string {
 	return out
 }
 
-// splitIdent turns "PaymentService.chargeCard" into "Payment Service charge
-// Card" so text search finds identifiers by their words.
+// splitIdent turns "PaymentService.chargeOrder" into "Payment Service charge
+// Order" so text search finds identifiers by their words.
 func splitIdent(s string) string {
 	var b strings.Builder
 	var prev rune

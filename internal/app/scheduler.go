@@ -64,6 +64,11 @@ func (s *Service) NextWork(ctx context.Context, project string, slot Slot) (*Ass
 	cands := s.candidatesLocked(p, slot)
 	p.mu.Unlock()
 
+	if len(cands) == 0 && slot.Role == "analyst" {
+		if a := s.refineWork(p, slot); a != nil {
+			return a, nil
+		}
+	}
 	for _, it := range cands {
 		if ok := s.validBeforeStart(ctx, p, it); !ok {
 			continue
@@ -78,6 +83,40 @@ func (s *Service) NextWork(ctx context.Context, project string, slot Slot) (*Ass
 		return a, nil
 	}
 	return nil, ErrNoWork
+}
+
+// RefineStep is the analyst's work on draft items: EARS criteria tied to
+// checks, anchors, and questions to the owner instead of guesses.
+const RefineStep = "refine"
+
+// refineWork hands a draft item to an idle analyst, at most once per version.
+func (s *Service) refineWork(p *Project, slot Slot) *Assignment {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	if p.refined == nil {
+		p.refined = map[string]int{}
+	}
+	var best *domain.Item
+	for _, it := range p.state.Items {
+		if it.Status != domain.StatusDraft || it.WaitingQuestion != "" {
+			continue
+		}
+		if _, busy := p.running[it.ID]; busy {
+			continue
+		}
+		if v, ok := p.refined[it.ID]; ok && v == it.Version {
+			continue // already refined at this version; it waits for a person
+		}
+		if best == nil || it.Priority < best.Priority || (it.Priority == best.Priority && it.CreatedAt.Before(best.CreatedAt)) {
+			best = it
+		}
+	}
+	if best == nil {
+		return nil
+	}
+	p.refined[best.ID] = best.Version
+	p.running[best.ID] = slot.Agent
+	return &Assignment{Project: p.Name, Item: best.Clone(), Step: domain.StepDef{Name: RefineStep, Type: domain.StepAgent, Role: "analyst"}}
 }
 
 // heldWorkLocked finds a step of a held item that wants this role.

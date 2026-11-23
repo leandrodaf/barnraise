@@ -36,6 +36,7 @@ type DaemonOptions struct {
 	NATSPort int
 	NoAgents bool
 	Fake     bool
+	Egress   string // run the allow-list proxy on this address and send agent traffic through it
 }
 
 type env struct {
@@ -92,7 +93,7 @@ func (e *env) rootCmd() *cobra.Command {
 		e.knowCmd("related", "Show what is linked to an id"), e.knowCmd("why", "Explain why a line is the way it is (path:line)"),
 		e.knowCmd("history", "Show what happened to a symbol or path"), e.knowCmd("rules", "List the rules that apply to a path"), e.revalidateCmd())
 	add("setup", e.initCmd(), e.upCmd(), e.daemonCmd(), e.checkCmd(), e.explainCmd(), e.templateCmd(), e.accountCmd(), e.trackerCmd(), e.machineCmd(), e.clusterCmd(), e.tokenCmd(), e.auditCmd(), e.downCmd())
-	add("agent", e.nextCmd(), e.deliverCmd(), e.reviewCmd(), e.askCmd(), e.messageCmd(), e.inboxCmd(), e.journalCmd(), e.hookCmd(), e.statuslineCmd(), e.filterCmd(), e.mcpCmd())
+	add("agent", e.imageCmd(), e.firewallCmd(), e.nextCmd(), e.deliverCmd(), e.reviewCmd(), e.askCmd(), e.messageCmd(), e.inboxCmd(), e.journalCmd(), e.hookCmd(), e.statuslineCmd(), e.filterCmd(), e.mcpCmd())
 	root.AddCommand(&cobra.Command{Use: "version", Short: "Print the version", Run: func(*cobra.Command, []string) { fmt.Fprintln(e.out, e.hooks.Version) }})
 	return root
 }

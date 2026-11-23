@@ -108,7 +108,7 @@ func friendlyYAML(err error) error {
 	return errors.New(strings.TrimSpace(msg))
 }
 
-// docMap returns the top mapping node of a document.
+// docMap returns the top-level mapping of a YAML document.
 func docMap(n *yaml.Node) *yaml.Node {
 	if n == nil {
 		return nil

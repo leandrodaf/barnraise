@@ -27,7 +27,7 @@ const exactWeight = 2
 
 // Search runs the layered search and fuses the rankings with domain.RRF.
 //
-//  1. exact: ids (I-142, D-12, A-cards, standard:cards, sym:…), file paths
+//  1. exact: ids (I-142, D-12, A-payments, standard:payments, sym:…), file paths
 //     and symbol names;
 //  2. filter: when the query is empty, the documents matching the filters,
 //     newest first (filters always constrain every layer);

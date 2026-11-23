@@ -25,6 +25,7 @@ import (
 	"github.com/leandrodaf/barnraise/internal/adapters/out/checks"
 	"github.com/leandrodaf/barnraise/internal/adapters/out/claude"
 	"github.com/leandrodaf/barnraise/internal/adapters/out/codex"
+	"github.com/leandrodaf/barnraise/internal/adapters/out/egress"
 	"github.com/leandrodaf/barnraise/internal/adapters/out/execx"
 	gitx "github.com/leandrodaf/barnraise/internal/adapters/out/git"
 	"github.com/leandrodaf/barnraise/internal/adapters/out/github"
@@ -163,6 +164,27 @@ func runDaemon(ctx context.Context, opts cli.DaemonOptions) error {
 	svc.Runtime().SetProbe(d.probe)
 	if opts.NoAgents {
 		svc.Runtime().MaxSessions = -1
+	}
+	if opts.Egress != "" {
+		allow := append([]string(nil), egress.DefaultAllow...)
+		for _, root := range df.Projects {
+			if cfg, err := config.Load(root); err == nil {
+				allow = append(allow, cfg.Policy.AllowHosts...)
+			}
+		}
+		l, err := net.Listen("tcp", opts.Egress)
+		if err != nil {
+			return fmt.Errorf("egress proxy: %w", err)
+		}
+		px := egress.New(allow, log)
+		px.OnBlock = func(host string) {
+			for _, name := range svc.Projects() {
+				_ = svc.RecordViolation(context.Background(), name, "agent", "", "network", "egress", "outbound connection to "+host+" blocked", host)
+			}
+		}
+		go func() { _ = px.Serve(ctx, l) }()
+		svc.Runtime().EgressProxy = l.Addr().String()
+		log.Info("egress allow-list proxy", "listen", l.Addr().String(), "hosts", len(allow))
 	}
 	if d.repl != nil {
 		d.connectPeers()
@@ -427,8 +449,13 @@ func (d *daemon) addProject(ctx context.Context, root string) error {
 	d.roots[cfg.Name] = root
 	d.mu.Unlock()
 	if p, err := d.svc.Project(cfg.Name); err == nil && cfg.Goal.Name != "" && cfg.Goal.DoneWhen != "" {
-		g := p.Snapshot().ActiveGoal()
-		if g == nil || g.Name != cfg.Goal.Name {
+		known := false
+		for _, g := range p.Snapshot().Goals {
+			if g.Name == cfg.Goal.Name {
+				known = true // active or already finished: never recreate it
+			}
+		}
+		if !known {
 			if _, _, err := d.svc.SetGoal(ctx, cfg.Name, app.System(), cfg.Goal); err != nil {
 				d.log.Warn("goal from barnraise.yaml", "err", err)
 			}

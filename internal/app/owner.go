@@ -279,6 +279,15 @@ func (s *Service) SetGoal(ctx context.Context, project string, a Actor, g domain
 	g.Active = true
 	g.CreatedAt = s.d.Clock.Now().UTC()
 	_, err = s.emitLocked(ctx, p, domain.EvGoalSet, g.ID, actorName(a), domain.Payload{Goal: &g})
+	// A new goal answers the open "what is the next goal?" question.
+	for _, q := range p.state.OpenQuestions() {
+		if q.ItemID == "" && strings.Contains(q.Decision, "next goal") {
+			qq := *q
+			qq.Version++
+			qq.Answer, qq.AnsweredBy, qq.AnsweredAt = "Set a new goal — "+g.ID, actorName(a), s.d.Clock.Now().UTC()
+			_, _ = s.emitLocked(ctx, p, domain.EvOwnerQuestionAnswer, qq.ID, actorName(a), domain.Payload{Question: &qq})
+		}
+	}
 	p.mu.Unlock()
 	if err != nil {
 		return nil, nil, err
@@ -339,6 +348,15 @@ func (s *Service) Focus(ctx context.Context, project string, a Actor, f domain.F
 	effect := domain.PreviewFocus(&f, snap.ItemList())
 	if f.Area == "" && len(f.Items) == 0 {
 		return effect, fmt.Errorf("%w: a focus names an area or items", ErrInvalid)
+	}
+	if effect.FocusItems == 0 {
+		areas := map[string]bool{}
+		for _, it := range snap.ItemList() {
+			if it.Area != "" && !it.Status.Terminal() {
+				areas[it.Area] = true
+			}
+		}
+		return effect, fmt.Errorf("%w: no live items in %s; areas with live items: %s", ErrInvalid, f.Name, strings.Join(sortedKeys(areas), ", "))
 	}
 	if preview {
 		return effect, nil

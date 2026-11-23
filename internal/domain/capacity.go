@@ -2,6 +2,7 @@ package domain
 
 import (
 	"fmt"
+	"math"
 	"sort"
 	"strconv"
 	"strings"
@@ -252,7 +253,7 @@ func ParseDuration(s string) (time.Duration, error) {
 	}
 	if mult > 0 {
 		n, err := strconv.ParseFloat(s[:len(s)-1], 64)
-		if err != nil || n < 0 {
+		if err != nil || !(n >= 0) || n*float64(mult) >= math.MaxInt64 { // also rejects NaN, Inf and overflow
 			return 0, fmt.Errorf("invalid duration %q", s)
 		}
 		return time.Duration(n * float64(mult)), nil

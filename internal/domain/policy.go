@@ -185,18 +185,67 @@ func normalizeCommand(c string) string {
 	return strings.Join(strings.Fields(c), " ")
 }
 
-var redirRe = regexp.MustCompile(`(?:^|[^0-9&<>])>>?\s*([^\s;|&<>]+)`)
+// redirRe finds output redirections: >, >>, >|, 2>, &> and friends.
+var redirRe = regexp.MustCompile(`(?:^|[^<>])>>?\|?\s*([^\s;|&<>()]+)`)
+
+// inputRe finds input redirections (< file), not heredocs or <(…).
+var inputRe = regexp.MustCompile(`(?:^|[^<])<\s*([^\s;|&<>()]+)`)
+
+// notAFile are redirection targets that write nothing.
+var notAFile = map[string]bool{"/dev/null": true, "/dev/stdout": true, "/dev/stderr": true, "/dev/tty": true}
+
+// commandWords splits a segment into words without the leading wrappers
+// (env, command, exec, nohup, time, nice) and VAR=value assignments.
+func commandWords(seg string) []string {
+	f := strings.Fields(seg)
+	for len(f) > 1 {
+		switch w := f[0]; {
+		case w == "env" || w == "command" || w == "exec" || w == "nohup" || w == "time" || w == "nice" || w == "builtin" || w == "{" || w == "!":
+		case strings.Contains(w, "=") && !strings.HasPrefix(w, "-"):
+		default:
+			return f
+		}
+		f = f[1:]
+	}
+	return f
+}
+
+// inPlace reports whether sed or perl flags edit files in place (-i,
+// -i.bak, --in-place, or a cluster such as -pi or -ni).
+func inPlace(name string, args []string) bool {
+	withArg := "efl" // sed flags whose value follows
+	if name == "perl" {
+		withArg = "eEfMmIlxCdDF0"
+	}
+	for _, s := range args {
+		if strings.HasPrefix(s, "--in-place") {
+			return true
+		}
+		if len(s) < 2 || s[0] != '-' || s[1] == '-' {
+			continue
+		}
+		for _, c := range s[1:] {
+			if c == 'i' {
+				return true
+			}
+			if strings.ContainsRune(withArg, c) {
+				break
+			}
+		}
+	}
+	return false
+}
 
 // shellWrites finds files a shell command writes (redirections, tee, rm, mv, cp, sed -i, touch).
 func shellWrites(cmd string) []string {
 	var out []string
 	for _, m := range redirRe.FindAllStringSubmatch(cmd, -1) {
-		if m[1] != "/dev/null" && !strings.HasPrefix(m[1], "&") {
+		if !notAFile[m[1]] && !strings.HasPrefix(m[1], "&") {
 			out = append(out, m[1])
 		}
 	}
 	for _, seg := range splitSegments(cmd) {
-		f := strings.Fields(seg)
+		f := commandWords(seg)
 		if len(f) == 0 {
 			continue
 		}
@@ -208,7 +257,7 @@ func shellWrites(cmd string) []string {
 		case "mv", "cp", "install", "ln", "rsync":
 			out = append(out, args...) // sources of mv change too
 		case "sed", "perl":
-			if hasFlag(f[1:], "-i") {
+			if inPlace(name, f[1:]) {
 				if len(args) > 0 {
 					out = append(out, args[1:]...)
 				}
@@ -221,8 +270,13 @@ func shellWrites(cmd string) []string {
 // shellReads finds files a shell command reads with common readers.
 func shellReads(cmd string) []string {
 	var out []string
+	for _, m := range inputRe.FindAllStringSubmatch(cmd, -1) {
+		if a := m[1]; strings.Contains(a, "/") || strings.HasPrefix(a, "~") || strings.HasPrefix(a, ".") {
+			out = append(out, a)
+		}
+	}
 	for _, seg := range splitSegments(cmd) {
-		f := strings.Fields(seg)
+		f := commandWords(seg)
 		if len(f) == 0 {
 			continue
 		}
@@ -238,7 +292,7 @@ func shellReads(cmd string) []string {
 	return out
 }
 
-var segmentRe = regexp.MustCompile(`\s*(?:&&|\|\||;|\|)\s*`)
+var segmentRe = regexp.MustCompile("\\s*(?:&&|\\|\\||;|\\||&|\\$\\(|\\(|\\)|`)\\s*")
 
 func splitSegments(cmd string) []string { return segmentRe.Split(cmd, -1) }
 
@@ -267,15 +321,6 @@ func nonFlags(a []string) []string {
 		out = append(out, s)
 	}
 	return out
-}
-
-func hasFlag(a []string, flag string) bool {
-	for _, s := range a {
-		if s == flag || strings.HasPrefix(s, flag) {
-			return true
-		}
-	}
-	return false
 }
 
 // MatchGlob matches slash paths with *, ? and ** (any number of directories).

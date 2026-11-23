@@ -138,9 +138,10 @@ func (s *Service) finishStep(ctx context.Context, p *Project, o stepOutcome) (*d
 	if tr.Kind == domain.TransComplete {
 		s.releaseLease(ctx, p, it.ID)
 	}
-	if tr.Kind == domain.TransBlocked || tr.Kind == domain.TransOwner {
-		if tr.Kind == domain.TransOwner {
-			s.notifyOwner(ctx, p, "rework_exhausted", fmt.Sprintf("%s needs you", it.ID), it.Title+": "+truncate(o.Reason, 300))
+	if tr.Kind == domain.TransOwner {
+		s.notifyOwner(ctx, p, "rework_exhausted", fmt.Sprintf("%s needs you", it.ID), it.Title+": "+truncate(o.Reason, 300))
+		if len(it.Rework) > 0 && o.Outcome != domain.OutcomeNeedsContext {
+			s.analyzeExhaustedRework(ctx, p, it)
 		}
 	}
 	s.syncTracker(p, it.ID, false)
@@ -168,6 +169,36 @@ func (s *Service) ownerQuestionFor(it *domain.Item, o stepOutcome, tr domain.Tra
 		q.IfNoAnswer = "The item waits; agents work on other items."
 	}
 	return q
+}
+
+// analyzeExhaustedRework classifies why an item exhausted its rework and
+// proposes the fix (role, standard or check), for the owner to approve.
+func (s *Service) analyzeExhaustedRework(ctx context.Context, p *Project, it *domain.Item) {
+	from := map[string]int{}
+	for _, r := range it.Rework {
+		from[r.From]++
+	}
+	top, n := "", 0
+	for k, v := range from {
+		if v > n || (v == n && k < top) {
+			top, n = k, v
+		}
+	}
+	cause := "the plan or the criteria"
+	switch {
+	case strings.Contains(top, "check"):
+		cause = "a check (possibly flaky or too strict)"
+	case strings.Contains(top, "review") || strings.Contains(top, "design") || strings.Contains(top, "look"):
+		cause = "the reviewer's expectations versus the implementer's role or the area standard"
+	case strings.Contains(top, "integrate"):
+		cause = "conflicts with main (items too large or overlapping)"
+	}
+	last := it.Rework[len(it.Rework)-1].Reason
+	_, _ = s.Propose(ctx, p.Name, System(), domain.Proposal{
+		Title:    fmt.Sprintf("Rework exhausted on %s: fix %s", it.ID, top),
+		Problem:  fmt.Sprintf("%s came back %d times, %d of them from step %s; the likely cause is %s.", it.ID, len(it.Rework), n, top, cause),
+		Evidence: truncate(last, 600), Impact: "an item waits for the owner and the fleet spends tokens on retries",
+		Size: "1h", Area: def(it.Area, "general"), GoalLink: "fewer rework rounds per item", Kind: "self_improvement", By: "barnraise"})
 }
 
 // StepDone is the public input to finish a driver step by a person or CI.
