@@ -67,22 +67,23 @@ lease: { renew: 1s, ttl: 3s }
 `
 
 type envOpts struct {
-	yaml      string
-	git       bool
-	fakeGit   *testkit.FakeGit
-	cfg       []func(*domain.ProjectConfig)
-	machine   string
-	store     *testkit.Store
-	backend   *testkit.ArbiterBackend
-	noArbiter bool
-	host      bool
-	tracker   bool
-	triage    bool
-	knowledge bool
-	exec      bool
-	clock     *testkit.Clock
-	repo      *testkit.Repo
-	files     map[string]string
+	yaml       string
+	git        bool
+	fakeGit    *testkit.FakeGit
+	cfg        []func(*domain.ProjectConfig)
+	machine    string
+	store      *testkit.Store
+	backend    *testkit.ArbiterBackend
+	noArbiter  bool
+	noNotifier bool
+	host       bool
+	tracker    bool
+	triage     bool
+	knowledge  bool
+	exec       bool
+	clock      *testkit.Clock
+	repo       *testkit.Repo
+	files      map[string]string
 }
 
 type opt func(*envOpts)
@@ -93,6 +94,7 @@ func withCfg(f func(*domain.ProjectConfig)) opt { return func(o *envOpts) { o.cf
 func withMachine(m string) opt                  { return func(o *envOpts) { o.machine = m } }
 func withStore(s *testkit.Store) opt            { return func(o *envOpts) { o.store = s } }
 func withBackend(b *testkit.ArbiterBackend) opt { return func(o *envOpts) { o.backend = b } }
+func withoutNotifier() opt                      { return func(o *envOpts) { o.noNotifier = true } }
 func withoutArbiter() opt                       { return func(o *envOpts) { o.noArbiter = true } }
 func withHost() opt                             { return func(o *envOpts) { o.host = true } }
 func withTracker() opt                          { return func(o *envOpts) { o.tracker = true } }
@@ -197,6 +199,9 @@ func newEnv(t *testing.T, opts ...opt) *env {
 	deps := Deps{Clock: e.clock, IDs: e.ids, Store: e.store, Checks: e.checks, Notifier: e.notes,
 		Providers: map[string]ports.Provider{"fake": e.prov}, Log: slog.New(slog.NewTextHandler(io.Discard, nil)),
 		Machine: o.machine, Version: "test", DataDir: t.TempDir(), SocketPath: filepath.Join(t.TempDir(), "s.sock"), BinaryPath: "/bin/barnraise"}
+	if o.noNotifier {
+		deps.Notifier = nil
+	}
 	if o.knowledge {
 		e.know = &testkit.Knowledge{}
 		deps.Knowledge = e.know

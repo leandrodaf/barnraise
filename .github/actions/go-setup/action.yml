@@ -1,0 +1,37 @@
+name: Go with a cache per job
+description: >
+  Installs Go and restores the module cache and the build cache of this job.
+  Each job keeps its own build cache (race, cross-compiled and plain builds
+  share almost nothing), and unchanged packages come back as cached test
+  results. Save it at the end of the job with ./.github/actions/go-cache-save.
+inputs:
+  name:
+    description: Name of the cache, one per job (test, e2e, lint, build)
+    required: true
+outputs:
+  key:
+    description: The key to save under
+    value: ${{ steps.key.outputs.key }}
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-go@v7
+      with:
+        go-version-file: go.mod
+        cache: false
+    - id: key
+      shell: bash
+      env:
+        PREFIX: go-${{ runner.os }}-${{ runner.arch }}-${{ inputs.name }}-${{ hashFiles('go.sum') }}-
+      run: |
+        echo "prefix=$PREFIX" >> "$GITHUB_OUTPUT"
+        echo "key=$PREFIX$GITHUB_SHA" >> "$GITHUB_OUTPUT"
+    - uses: actions/cache/restore@v6
+      with:
+        path: |
+          ~/go/pkg/mod
+          ~/.cache/go-build
+        key: ${{ steps.key.outputs.key }}
+        restore-keys: |
+          ${{ steps.key.outputs.prefix }}
+          go-${{ runner.os }}-${{ runner.arch }}-${{ inputs.name }}-

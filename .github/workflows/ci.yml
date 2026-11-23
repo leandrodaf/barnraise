@@ -8,33 +8,85 @@ on:
 permissions:
   contents: read
 
+# A newer push to the same branch makes the older run pointless.
 concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
+  changes:
+    name: what changed
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    outputs:
+      code: ${{ steps.diff.outputs.code }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - id: diff
+        env:
+          BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
+        run: scripts/ci-changes.sh
+
+  test:
+    name: tests with -race and coverage
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+      - id: go
+        uses: ./.github/actions/go-setup
+        with:
+          name: test
+      - name: git identity for the tests
+        run: |
+          git config --global user.name "barnraise-ci"
+          git config --global user.email "ci@barnraise.invalid"
+          git config --global init.defaultBranch main
+      - name: go test -race, with the coverage floor of internal/domain and internal/app
+        run: make cover
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: coverage
+          path: coverage.out
+      - uses: ./.github/actions/go-cache-save
+        with:
+          key: ${{ steps.go.outputs.key }}
+
   lint:
     name: vet, lint, vuln
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - uses: actions/checkout@v7
+      - id: go
+        uses: ./.github/actions/go-setup
         with:
-          go-version: "1.27"
+          name: lint
       - name: go vet
         run: go vet ./...
       - name: golangci-lint (with the depguard architecture rules)
-        uses: golangci/golangci-lint-action@v8
+        uses: golangci/golangci-lint-action@v9
         with:
           version: v2.15
       - name: govulncheck
         run: go run golang.org/x/vuln/cmd/govulncheck@latest ./...
+      - uses: ./.github/actions/go-cache-save
+        with:
+          key: ${{ steps.go.outputs.key }}
 
   proto:
     name: buf lint and breaking
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
       - uses: bufbuild/buf-action@v1
@@ -43,12 +95,14 @@ jobs:
       - name: buf lint
         run: buf lint
       - name: buf breaking against main
+        env:
+          EVENT: ${{ github.event_name }}
         run: |
           if [ "$(git rev-list --count HEAD)" -le 1 ]; then
             echo "First commit; nothing to compare against."
             exit 0
           fi
-          if [ "${{ github.event_name }}" = "push" ]; then
+          if [ "$EVENT" = "push" ]; then
             # On main itself, compare with the previous commit.
             buf breaking --against ".git#ref=HEAD~1"
           else
@@ -59,50 +113,18 @@ jobs:
             buf breaking --against '.git#branch=main'
           fi
 
-  test:
-    name: tests with -race and coverage
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
-        with:
-          go-version: "1.27"
-      - name: git identity for the tests
-        run: |
-          git config --global user.name "barnraise-ci"
-          git config --global user.email "ci@barnraise.invalid"
-          git config --global init.defaultBranch main
-      - name: go test -race
-        run: go test -race -short -covermode=atomic -coverprofile=coverage.out ./...
-      - name: coverage of internal/domain and internal/app (minimum 90%)
-        run: |
-          fail=0
-          for p in ./internal/domain ./internal/app; do
-            n=$(basename "$p")
-            go test -short -covermode=atomic -coverprofile="coverage.$n.out" "$p" >/dev/null
-            pct=$(go tool cover -func="coverage.$n.out" | awk '/^total:/ {sub("%","",$3); print $3}')
-            if awk -v p="$pct" 'BEGIN {exit !(p+0 >= 90)}'; then
-              echo "$p: $pct%"
-            else
-              echo "::error::$p coverage is $pct%, below the 90% minimum"
-              fail=1
-            fi
-          done
-          exit $fail
-      - uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: coverage
-          path: coverage*.out
-
   e2e:
     name: end-to-end and cluster tests
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
     runs-on: ubuntu-latest
+    timeout-minutes: 25
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - uses: actions/checkout@v7
+      - id: go
+        uses: ./.github/actions/go-setup
         with:
-          go-version: "1.27"
+          name: e2e
       - name: git (the e2e tests drive real git)
         run: |
           git --version
@@ -112,29 +134,31 @@ jobs:
       - name: e2e
         env:
           BARNRAISE_NO_TAILSCALE: "1"
-        run: go test -race -timeout 20m -run 'TestEndToEnd|TestTwoMachines' -v ./cmd/barnraise
+        run: go test -race -timeout 20m -run 'TestEndToEnd|TestTwoMachines' ./cmd/barnraise
       - name: smoke with the built binary (fake provider)
         run: make smoke
+      - uses: ./.github/actions/go-cache-save
+        with:
+          key: ${{ steps.go.outputs.key }}
 
   build:
-    name: build ${{ matrix.goos }}/${{ matrix.goarch }}
+    name: build linux and darwin, amd64 and arm64
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        goos: [linux, darwin]
-        goarch: [amd64, arm64]
+    timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - uses: actions/checkout@v7
+      - id: go
+        uses: ./.github/actions/go-setup
         with:
-          go-version: "1.27"
-      - name: go build
-        env:
-          CGO_ENABLED: "0"
-          GOOS: ${{ matrix.goos }}
-          GOARCH: ${{ matrix.goarch }}
-        run: go build -trimpath -ldflags "-s -w -X main.version=${GITHUB_SHA::7}" -o dist/barnraise-${{ matrix.goos }}-${{ matrix.goarch }} ./cmd/barnraise
-      - uses: actions/upload-artifact@v4
+          name: build
+      - name: go build, four targets on one runner (one cache, one startup)
+        run: make cross
+      - uses: actions/upload-artifact@v7
         with:
-          name: barnraise-${{ matrix.goos }}-${{ matrix.goarch }}
+          name: barnraise
           path: dist/
+      - uses: ./.github/actions/go-cache-save
+        with:
+          key: ${{ steps.go.outputs.key }}

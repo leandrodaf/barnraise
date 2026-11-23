@@ -1,0 +1,19 @@
+name: Save the Go cache of this job
+description: >
+  Saves the module and build caches restored by ./.github/actions/go-setup.
+  Only main saves: pull requests read main's cache and never fill the quota
+  with caches nobody else can use.
+inputs:
+  key:
+    description: The key output of go-setup
+    required: true
+runs:
+  using: composite
+  steps:
+    - if: github.ref == 'refs/heads/main'
+      uses: actions/cache/save@v6
+      with:
+        path: |
+          ~/go/pkg/mod
+          ~/.cache/go-build
+        key: ${{ inputs.key }}

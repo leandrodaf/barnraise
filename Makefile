@@ -10,10 +10,11 @@ COVER_PKGS := ./internal/domain ./internal/app
 FUZZTIME  ?= 10s
 IMAGE     ?= barnraise:dev
 BUF       ?= buf
+CROSS_TARGETS ?= linux/amd64 linux/arm64 darwin/amd64 darwin/arm64
 SMOKE_PROVIDER ?= fake
 
 .DEFAULT_GOAL := build
-.PHONY: help build test test-race cover lint vuln proto proto-breaking e2e smoke fuzz-smoke docker clean
+.PHONY: help build cross test test-race cover lint vuln proto proto-breaking e2e smoke fuzz-smoke docker clean
 
 help: ## Show the targets
 	@awk 'BEGIN {FS = ":.*## "} /^[a-z0-9-]+:.*## / {printf "  %-15s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
@@ -29,14 +30,21 @@ test-race: ## Full suite with the race detector, end-to-end and cluster tests in
 
 cover: ## Coverage profile; fails when internal/domain or internal/app is below COVER_MIN (90%)
 	$(GO) test -race -short -covermode=atomic -coverprofile=coverage.out ./...
-	@fail=0; for p in $(COVER_PKGS); do \
-	  n=$$(basename $$p); \
-	  $(GO) test -short -covermode=atomic -coverprofile=coverage.$$n.out $$p >/dev/null || exit 1; \
+	@# One run feeds both: each package's own lines are cut out of the profile.
+	@fail=0; mod=$$($(GO) list -m); for p in $(COVER_PKGS); do \
+	  n=$$(basename $$p); pkg=$$mod/$${p#./}; \
+	  { head -1 coverage.out; grep "^$$pkg/[^/]*:" coverage.out; } > coverage.$$n.out; \
 	  pct=$$($(GO) tool cover -func=coverage.$$n.out | awk '/^total:/ {sub("%","",$$3); print $$3}'); \
 	  ok=$$(awk -v p="$$pct" -v m="$(COVER_MIN)" 'BEGIN {print (p+0 >= m+0) ? 1 : 0}'); \
 	  if [ "$$ok" = 1 ]; then echo "coverage $$p: $$pct% (minimum $(COVER_MIN)%)"; \
 	  else echo "coverage $$p: $$pct% is below the minimum of $(COVER_MIN)%"; fail=1; fi; \
 	done; exit $$fail
+
+cross: ## Build linux and darwin, amd64 and arm64, into dist/ (in parallel)
+	@mkdir -p dist; pids=""; for t in $(CROSS_TARGETS); do \
+	  os=$${t%/*}; arch=$${t#*/}; \
+	  CGO_ENABLED=0 GOOS=$$os GOARCH=$$arch $(GO) build -trimpath -ldflags "$(LDFLAGS)" -o dist/$(BIN)-$$os-$$arch $(PKG) & pids="$$pids $$!"; \
+	done; fail=0; for pid in $$pids; do wait $$pid || fail=1; done; ls -l dist; exit $$fail
 
 lint: ## golangci-lint, including the depguard architecture rules
 	golangci-lint run ./...

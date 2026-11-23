@@ -472,9 +472,8 @@ func TestAddProjectRestoresLeases(t *testing.T) {
 	if !again.p.Snapshot().Paused || again.item(it.ID).Claim == nil {
 		t.Fatal("the state is replayed")
 	}
-	if e.know.Indexed() == 0 {
-		t.Fatal("items are indexed")
-	}
+	// Indexing runs in the background, off the path of the command.
+	eventually(t, "the items to be indexed", func() bool { return e.know.Indexed() > 0 })
 	if err := again.svc.ReloadConfig("demo", again.cfg); err != nil {
 		t.Fatal(err)
 	}

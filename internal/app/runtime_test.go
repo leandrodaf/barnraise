@@ -34,6 +34,25 @@ func (e *env) fill() {
 	r.fillSlots(e.ctx, e.p, r.machine())
 }
 
+// holdSessions makes every session wait until the returned function is
+// called. A fake session that ends at once lets the next free slot pick the
+// same item again within one pass; how often that happens depends on the
+// machine's speed, so tests that count sessions hold them instead.
+func (e *env) holdSessions() (release func()) {
+	ch := make(chan struct{})
+	var once sync.Once
+	e.prov.Handle(func(ctx context.Context, _ ports.SessionSpec, _ func(ports.ProviderEvent)) (ports.SessionResult, error) {
+		select {
+		case <-ch:
+		case <-ctx.Done():
+		}
+		return ports.SessionResult{}, nil
+	})
+	release = func() { once.Do(func() { close(ch) }) }
+	e.t.Cleanup(release)
+	return release
+}
+
 // actorOf resolves the session token a provider received.
 func (e *env) actorOf(spec ports.SessionSpec) Actor {
 	a, ok := e.svc.Tokens().Resolve(spec.Env["BARNRAISE_TOKEN"])
@@ -382,12 +401,13 @@ func TestWeeklyTurnsAlertsIntoProposals(t *testing.T) {
 	if n := e.notes.Sent(); len(n) == 0 || !strings.Contains(n[len(n)-1].Title, "proposed features") {
 		t.Fatalf("self-improvement proposals go to the owner weekly: %+v", n)
 	}
-	e.svc.d.Notifier = nil
-	e.svc.weekly(e.ctx, e.p)
-	e.svc.sendDigest(e.ctx, e.p)
-	e.svc.digestNote(e.p, "x")
-	e.svc.notifyOwner(e.ctx, e.p, "question", "x", "y")
-	e.svc.notifyOwnerQuestion(e.ctx, e.p, &domain.Question{})
+	// Without a notification channel nothing of this fails.
+	q := newEnv(t, withoutNotifier())
+	q.svc.weekly(q.ctx, q.p)
+	q.svc.sendDigest(q.ctx, q.p)
+	q.svc.digestNote(q.p, "x")
+	q.svc.notifyOwner(q.ctx, q.p, "question", "x", "y")
+	q.svc.notifyOwnerQuestion(q.ctx, q.p, &domain.Question{})
 }
 
 // A review must run on another model. With a single model configured that
@@ -443,6 +463,7 @@ func TestRuntimeSessionGetsOnlyTheAllowedMCPServers(t *testing.T) {
 	}
 	e.account("fake-1")
 	e.ready("simple", "needs figma", "x")
+	release := e.holdSessions()
 	e.fill()
 	specs := e.prov.Specs()
 	if len(specs) != 1 {
@@ -477,6 +498,8 @@ func TestRuntimeSessionGetsOnlyTheAllowedMCPServers(t *testing.T) {
 	if d := doc.Servers["docs"]; d.URL != "https://docs.example/mcp" || d.Type != "http" {
 		t.Fatalf("docs %+v", d)
 	}
+	e.svc.Runtime().MaxSessions = -1
+	release()
 	e.idle()
 
 	// A secret that cannot be read stops the session instead of starting it half-configured.
@@ -525,10 +548,13 @@ func TestRuntimeGivesNoWorkToAProviderWhoseSandboxCannotRun(t *testing.T) {
 	}
 	// With another provider's account the work goes there instead.
 	e.account("fake-1")
+	release := e.holdSessions()
 	e.fill()
 	if len(codex.Specs()) != 0 || len(e.prov.Specs()) != 1 || e.prov.Specs()[0].Env["BARNRAISE_ITEM"] != it.ID {
 		t.Fatalf("the item goes to the provider that can run: codex %d fake %d", len(codex.Specs()), len(e.prov.Specs()))
 	}
+	e.svc.Runtime().MaxSessions = -1
+	release()
 	e.idle()
 
 	// Where the sandbox works, Codex is used normally.
@@ -540,10 +566,20 @@ func TestRuntimeGivesNoWorkToAProviderWhoseSandboxCannotRun(t *testing.T) {
 		t.Fatal(err)
 	}
 	ok.ready("simple", "codex fine", "x")
+	hold := make(chan struct{})
+	codex2.Handle(func(ctx context.Context, _ ports.SessionSpec, _ func(ports.ProviderEvent)) (ports.SessionResult, error) {
+		select {
+		case <-hold:
+		case <-ctx.Done():
+		}
+		return ports.SessionResult{}, nil
+	})
 	ok.fill()
 	if len(codex2.Specs()) != 1 {
 		t.Fatalf("codex sessions %d", len(codex2.Specs()))
 	}
+	ok.svc.Runtime().MaxSessions = -1
+	close(hold)
 	ok.idle()
 }
 
@@ -566,6 +602,7 @@ func TestRuntimeSessionInAContainer(t *testing.T) {
 	}
 	e.svc.Runtime().Sandbox = true // a working bubblewrap on the host must not be nested in the container
 	it := e.ready("simple", "in a box", "x")
+	release := e.holdSessions()
 	e.fill()
 	specs := e.prov.Specs()
 	if len(specs) != 1 || specs[0].Container == nil {
@@ -596,23 +633,34 @@ func TestRuntimeSessionInAContainer(t *testing.T) {
 	if !strings.Contains(string(data), "bypassPermissions") {
 		t.Fatal("agents never wait for a permission prompt")
 	}
+	e.svc.Runtime().MaxSessions = -1
+	release()
 	e.idle()
 
 	// gpu: none keeps the GPU out.
 	off := newEnv(t, withGit(), withCfg(func(c *domain.ProjectConfig) { c.Container = domain.ContainerDef{Image: "agent:test", GPU: "none"} }))
 	off.account("fake-1")
 	off.ready("simple", "no gpu", "x")
+	offRelease := off.holdSessions()
 	off.fill()
 	if s := off.prov.Specs(); len(s) != 1 || len(s[0].Container.Extra) != 0 {
 		t.Fatalf("gpu none: %+v", s)
 	}
+	off.svc.Runtime().MaxSessions = -1
+	offRelease()
 	off.idle()
 }
 
 // A headless session reports the account's windows as it goes: the account
 // shows its real usage without the status line, and repeats are not recorded.
 func TestRuntimeRecordsAccountLimitsReportedByTheSession(t *testing.T) {
-	e := newEnv(t)
+	// One implementer: a session that ends at once is not started again by a
+	// second slot in the same pass, so the reports can be counted.
+	e := newEnv(t, withCfg(func(c *domain.ProjectConfig) {
+		r := c.Roles["implementer"]
+		r.Count = 1
+		c.Roles["implementer"] = r
+	}))
 	e.account("fake-1")
 	e.ready("simple", "limits", "x")
 	reset := e.clock.Now().Add(3 * time.Hour).UTC()
@@ -660,6 +708,7 @@ func TestRuntimeHoldsNewSessionsUnderMemoryPressure(t *testing.T) {
 	e.account("fake-1")
 	e.ready("simple", "waits for memory", "x")
 	r := e.svc.Runtime()
+	release := e.holdSessions()
 	m := r.machine()
 	m.MemGB, m.FreeMemGB = 16, 1.2
 	r.fillSlots(e.ctx, e.p, m)
@@ -674,7 +723,10 @@ func TestRuntimeHoldsNewSessionsUnderMemoryPressure(t *testing.T) {
 	if len(e.prov.Specs()) != 1 {
 		t.Fatalf("with memory back the item starts: %d", len(e.prov.Specs()))
 	}
+	r.MaxSessions = -1
+	release()
 	e.idle()
+	r.MaxSessions = 0
 	// Unknown is not pressure, and the owner may turn the floor off.
 	m.FreeMemGB = 0
 	if why := r.underPressure(m); why != "" {

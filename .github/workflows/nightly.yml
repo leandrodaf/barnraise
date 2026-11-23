@@ -13,13 +13,13 @@ jobs:
     name: fuzz smoke (60s per target)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
         with:
-          go-version: "1.27"
+          go-version-file: go.mod
       - name: fuzz every target
         run: make fuzz-smoke FUZZTIME=60s
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: failure()
         with:
           name: fuzz-corpus
@@ -39,13 +39,13 @@ jobs:
         id: secret
         run: |
           if [ -n "$CLAUDE_CODE_OAUTH_TOKEN" ]; then echo "present=true" >> "$GITHUB_OUTPUT"; else echo "present=false" >> "$GITHUB_OUTPUT"; echo "CLAUDE_CODE_OAUTH_TOKEN is not set; skipping."; fi
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         if: steps.secret.outputs.present == 'true'
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@v7
         if: steps.secret.outputs.present == 'true'
         with:
-          go-version: "1.27"
-      - uses: actions/setup-node@v4
+          go-version-file: go.mod
+      - uses: actions/setup-node@v7
         if: steps.secret.outputs.present == 'true'
         with:
           node-version: "22"
@@ -67,7 +67,7 @@ jobs:
           # with the real account; prints the tokens per step and role.
           set -o pipefail
           scripts/smoke.sh claude | tee smoke.log
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: steps.secret.outputs.present == 'true' && always()
         with:
           name: real-claude-smoke
