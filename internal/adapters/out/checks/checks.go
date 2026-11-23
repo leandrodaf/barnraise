@@ -134,32 +134,10 @@ func (r *Runner) Run(ctx context.Context, spec ports.CheckSpec) (domain.CheckRes
 	return res, false, fmt.Errorf("check %s: runs_on %q must be local, github-actions, machine:<label> or webhook", def.Name, def.RunsOn)
 }
 
-// outOfScope skips a touched-scope check whose areas the item did not touch.
+// outOfScope skips a check the change does not concern (see CheckDef.Applies).
 func (r *Runner) outOfScope(spec ports.CheckSpec) (bool, string) {
-	def := spec.Def
-	if def.Scope == "all" || len(def.Areas) == 0 {
-		return false, ""
-	}
-	touched := map[string]bool{}
-	for _, a := range spec.Areas {
-		touched[domain.AreaName(a)] = true
-	}
-	if r.o.AreaOf != nil {
-		for _, f := range spec.Touched {
-			if a := r.o.AreaOf(f); a != "" {
-				touched[domain.AreaName(a)] = true
-			}
-		}
-	}
-	if len(touched) == 0 && len(spec.Touched) == 0 {
-		return false, "" // nothing known about the change: run it
-	}
-	for _, a := range def.Areas {
-		if touched[domain.AreaName(a)] {
-			return false, ""
-		}
-	}
-	return true, "not touched"
+	ok, why := spec.Def.Applies(spec.Touched, spec.Areas, r.o.AreaOf)
+	return !ok, why
 }
 
 type runOutcome struct {
@@ -278,7 +256,8 @@ func (r *Runner) once(ctx context.Context, spec ports.CheckSpec, dir string, onM
 		"BARNRAISE_COMMIT="+spec.Commit,
 	)
 	// Merge stderr into stdout inside the shell so the log keeps the order.
-	cmd := ports.Cmd{Name: "sh", Args: []string{"-c", "exec 2>&1\n" + def.Run}, Dir: dir, Env: env, Timeout: timeout}
+	// A check of one part of the repository runs inside its folder.
+	cmd := ports.Cmd{Name: "sh", Args: []string{"-c", "exec 2>&1\n" + def.Run}, Dir: filepath.Join(dir, def.Dir), Env: env, Timeout: timeout}
 	res, err := r.o.Exec.Run(ctx, cmd)
 	timedOut := errors.Is(err, execx.ErrTimeout)
 	if err != nil && !timedOut {

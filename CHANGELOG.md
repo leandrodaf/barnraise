@@ -8,6 +8,9 @@ First version: one Go binary that is the daemon, the CLI, the MCP server and the
 
 ### Added
 
+- **Several parts in one repository**: each part (a backend, a web app, a mobile app) carries its own `barnraise.yaml`, found automatically; `barnraise init` detects the parts and writes the files. Checks run inside the part's folder and only for changes that touch it; a part may choose the flow of its items (`kinds`).
+- **Check selection**: `selection.all_when` and `selection.none_when`, check `paths`, `covers` and `order`, fail-fast check steps, skipped checks recorded with the reason, `barnraise check --touched <file>` to preview, and a merge queue that only checks what the batch touches and never repeats checks on a tree already checked.
+
 - **MCP by permission**: sessions load only Barnraise's MCP server and the servers the owner lists under `mcp:` in `barnraise.yaml`, per role; the account's own servers, plugins and personal settings stay out.
 - `barnraise webhook secret|forget` for the secrets of incoming webhooks; `scripts/smoke.sh` (`make smoke`) from `init` to one integrated item with the fake provider or a real Claude account.
 - A review that cannot run on a different model from the implementation tells the owner what to change instead of waiting in silence.

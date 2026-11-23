@@ -2,6 +2,7 @@ package cli
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -132,6 +133,132 @@ func Detect(root string) Detected {
 		}
 	}
 	return d
+}
+
+// Part is one part of a repository that holds several: a backend, a web
+// app, a mobile app, each in its own folder.
+type Part struct {
+	Dir    string            `json:"dir"`
+	Stack  string            `json:"stack"`
+	About  string            `json:"about"`
+	Checks map[string]string `json:"checks"`
+}
+
+// DetectParts looks for folders that are projects of their own (a go.mod, a
+// package.json, a Gradle build, a pyproject, a Cargo.toml), one or two
+// levels under the root.
+func DetectParts(root string) []Part {
+	var parts []Part
+	seen := map[string]bool{}
+	skip := map[string]bool{"node_modules": true, "vendor": true, "dist": true, "build": true, "target": true, "Pods": true}
+	var scan func(rel string, depth int)
+	scan = func(rel string, depth int) {
+		ents, err := os.ReadDir(filepath.Join(root, rel))
+		if err != nil {
+			return
+		}
+		for _, e := range ents {
+			name := e.Name()
+			if !e.IsDir() || strings.HasPrefix(name, ".") || skip[name] {
+				continue
+			}
+			dir := filepath.ToSlash(filepath.Join(rel, name))
+			if p, ok := detectPart(root, dir); ok {
+				if !seen[dir] {
+					seen[dir] = true
+					parts = append(parts, p)
+				}
+				continue // a part is not searched for parts inside it
+			}
+			if depth < 2 {
+				scan(dir, depth+1)
+			}
+		}
+	}
+	scan("", 1)
+	sort.Slice(parts, func(i, j int) bool { return parts[i].Dir < parts[j].Dir })
+	return parts
+}
+
+func detectPart(root, dir string) (Part, bool) {
+	has := func(p string) bool { _, err := os.Stat(filepath.Join(root, dir, p)); return err == nil }
+	read := func(p string) string { b, _ := os.ReadFile(filepath.Join(root, dir, p)); return string(b) }
+	p := Part{Dir: dir, Checks: map[string]string{}}
+	switch {
+	case has("go.mod"):
+		p.Stack, p.About = "go", "Go module"
+		p.Checks["test"], p.Checks["vet"] = "go test ./...", "go vet ./..."
+	case has("package.json"):
+		var pkg struct {
+			Scripts map[string]string `json:"scripts"`
+			Deps    map[string]string `json:"dependencies"`
+			Dev     map[string]string `json:"devDependencies"`
+		}
+		_ = json.Unmarshal([]byte(read("package.json")), &pkg)
+		dep := func(n string) bool { _, a := pkg.Deps[n]; _, b := pkg.Dev[n]; return a || b }
+		switch {
+		case dep("react-native") || dep("expo"):
+			p.Stack, p.About = "react-native", "Mobile app (React Native)"
+		case dep("next"):
+			p.Stack, p.About = "next", "Web app (Next.js)"
+		case dep("react"):
+			p.Stack, p.About = "react", "Web app (React)"
+		case dep("vue"):
+			p.Stack, p.About = "vue", "Web app (Vue)"
+		default:
+			p.Stack, p.About = "javascript", "JavaScript package"
+		}
+		pm := "npm"
+		switch {
+		case has("pnpm-lock.yaml"):
+			pm = "pnpm"
+		case has("yarn.lock"):
+			pm = "yarn"
+		case has("bun.lockb") || has("bun.lock"):
+			pm = "bun"
+		}
+		for _, sname := range []string{"lint", "typecheck", "test"} {
+			if _, ok := pkg.Scripts[sname]; ok {
+				p.Checks[sname] = pm + " run " + sname
+			}
+		}
+	case has("build.gradle") || has("build.gradle.kts") || has("settings.gradle") || has("settings.gradle.kts"):
+		p.Stack, p.About = "kotlin", "Gradle project"
+		p.Checks["test"] = "./gradlew test --console=plain"
+		if has("app/src/main/AndroidManifest.xml") {
+			p.Stack, p.About = "android", "Android app"
+			p.Checks["test"] = "./gradlew testDebugUnitTest --console=plain"
+		}
+	case has("pyproject.toml") || has("requirements.txt") || has("setup.py"):
+		p.Stack, p.About = "python", "Python project"
+		p.Checks["test"] = "python -m pytest -q"
+	case has("Cargo.toml"):
+		p.Stack, p.About = "rust", "Rust crate"
+		p.Checks["test"] = "cargo test"
+	default:
+		return Part{}, false
+	}
+	return p, true
+}
+
+// renderPart writes the area file of a part.
+func renderPart(p Part) string {
+	var b strings.Builder
+	b.WriteString("# One part of the repository. Barnraise finds this file by itself: its checks\n")
+	b.WriteString("# run inside this folder, and only for changes that touch it.\n")
+	fmt.Fprintf(&b, "about: %s\nstack: %s\n", yamlStr(p.About), p.Stack)
+	if len(p.Checks) > 0 {
+		b.WriteString("checks:\n")
+		names := make([]string, 0, len(p.Checks))
+		for n := range p.Checks {
+			names = append(names, n)
+		}
+		sort.Strings(names)
+		for _, n := range names {
+			fmt.Fprintf(&b, "  %s: %s\n", n, yamlStr(p.Checks[n]))
+		}
+	}
+	return b.String()
 }
 
 var remoteRe = regexp.MustCompile(`(github\.com|gitlab\.com)[:/]([^/]+/[^/]+?)(\.git)?$`)

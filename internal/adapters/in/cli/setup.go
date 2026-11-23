@@ -14,6 +14,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"sort"
 	"strings"
 	"syscall"
 	"time"
@@ -110,8 +111,23 @@ func (e *env) initCmd() *cobra.Command {
 			if a.DoneWhen == "" && a.Goal != "" {
 				a.DoneWhen = q.ask("When is it done? (a measurable end)", "")
 			}
+			// A repository with several parts (a backend, a web app, a mobile
+			// app): each part gets its own file, and no single command checks it all.
+			var parts []Part
+			if all := DetectParts(root); len(all) >= 2 {
+				parts = all
+				var names []string
+				for _, p := range parts {
+					names = append(names, fmt.Sprintf("%s/ (%s)", p.Dir, p.Stack))
+				}
+				fmt.Fprintf(e.out, "Barnraise: This repository has %d parts: %s. Each one gets its own %s with its checks; they run only for changes that touch that part.\n",
+					len(parts), strings.Join(names, ", "), config.FileName)
+				d.Template = "blank"
+			}
 			a.Template = def(a.Template, q.ask("Which template fits? ("+strings.Join(templates.Names(), ", ")+")", d.Template))
-			a.Check = def(a.Check, q.ask("Which command checks the code?", d.Check))
+			if len(parts) == 0 {
+				a.Check = def(a.Check, q.ask("Which command checks the code?", d.Check))
+			}
 			if d.Mockup != "" && a.Mockup == "" {
 				a.Mockup = q.ask("Is there a design or mockup? I found "+d.Mockup, d.Mockup)
 			}
@@ -129,15 +145,34 @@ func (e *env) initCmd() *cobra.Command {
 			a.Approves = def(a.Approves, q.ask("Who approves new features: owner (you) or analyst (the agent)?", "owner"))
 			a.Language = def(a.Language, q.ask("Language for people (items, comments, reports)?", detectLang()))
 			yml := renderYAML(a)
+			var wrote []string
+			for _, p := range parts {
+				file := filepath.Join(root, filepath.FromSlash(p.Dir), config.FileName)
+				if _, err := os.Stat(file); err == nil {
+					continue // the part already describes itself
+				}
+				if err := os.WriteFile(file, []byte(renderPart(p)), 0o644); err != nil {
+					return err
+				}
+				wrote = append(wrote, file)
+			}
+			undo := func() {
+				for _, f := range wrote {
+					_ = os.Remove(f)
+				}
+			}
 			cfg, err := config.Compile(root, []byte(yml))
 			if err != nil {
+				undo()
 				return fmt.Errorf("the answers do not form a valid configuration: %w", err)
 			}
 			if errs := cfg.Validate(); len(errs) > 0 {
+				undo()
 				return fmt.Errorf("the answers do not form a valid configuration: %v", errors.Join(errs...))
 			}
 			fmt.Fprintf(e.out, "\nHere is what I understood:\n%s\n", summary(a, cfg.Flows))
 			if !yes && !q.confirm("Write barnraise.yaml?") {
+				undo()
 				fmt.Fprintln(e.out, "Nothing written.")
 				return nil
 			}
@@ -146,6 +181,10 @@ func (e *env) initCmd() *cobra.Command {
 			}
 			if err := scaffold(root, a.Template); err != nil {
 				return err
+			}
+			for _, f := range wrote {
+				rel, _ := filepath.Rel(root, f)
+				fmt.Fprintf(e.out, "✔ %s written.\n", filepath.ToSlash(rel))
 			}
 			fmt.Fprintf(e.out, "✔ %s written, .barnraise/ created. Next: `barnraise up`.\n", config.FileName)
 			return nil
@@ -255,7 +294,11 @@ func yamlStr(s string) string {
 
 func summary(a InitAnswers, flows any) string {
 	var b strings.Builder
-	fmt.Fprintf(&b, "- Template %s; checks run `%s`.\n", a.Template, a.Check)
+	if a.Check == "" {
+		fmt.Fprintf(&b, "- Template %s; each part of the repository brings its own checks.\n", a.Template)
+	} else {
+		fmt.Fprintf(&b, "- Template %s; checks run `%s`.\n", a.Template, a.Check)
+	}
 	if a.Goal != "" {
 		fmt.Fprintf(&b, "- Goal: %s (done when: %s).\n", a.Goal, def(a.DoneWhen, "to be defined"))
 	}
@@ -483,7 +526,11 @@ func (e *env) daemonCmd() *cobra.Command {
 }
 
 func (e *env) checkCmd() *cobra.Command {
-	return &cobra.Command{Use: "check", Short: "Find mistakes in barnraise.yaml, in plain sentences", Args: cobra.NoArgs,
+	var touched []string
+	c := &cobra.Command{Use: "check", Short: "Find mistakes in barnraise.yaml, in plain sentences", Args: cobra.NoArgs,
+		Long: "Finds mistakes in barnraise.yaml.\n\n" +
+			"With --touched, it also shows which checks would run for a change that touches those files,\n" +
+			"and why the others are skipped: `barnraise check --touched backend/api/user.go --touched web/src/App.tsx`.",
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			root, err := findRoot()
 			if err != nil {
@@ -492,6 +539,28 @@ func (e *env) checkCmd() *cobra.Command {
 			problems, err := config.Check(root)
 			if err != nil {
 				return err
+			}
+			if len(problems) == 0 && len(touched) > 0 {
+				cfg, err := config.Load(root)
+				if err != nil {
+					return err
+				}
+				names := make([]string, 0, len(cfg.Checks))
+				for n := range cfg.Checks {
+					names = append(names, n)
+				}
+				sort.Strings(names)
+				for _, f := range touched {
+					fmt.Fprintf(e.out, "%s → area %s\n", f, orDash(cfg.AreaOfFile(f)))
+				}
+				for _, dec := range cfg.SelectChecks(names, touched, nil) {
+					if dec.Run {
+						fmt.Fprintf(e.out, "runs     %-16s on %-18s %s\n", dec.Name, cfg.Checks[dec.Name].RunsOn, dec.Why)
+					} else {
+						fmt.Fprintf(e.out, "skipped  %-16s %s\n", dec.Name, strings.TrimPrefix(dec.Why, "skipped: "))
+					}
+				}
+				return nil
 			}
 			if len(problems) == 0 {
 				fmt.Fprintln(e.out, "✔ barnraise.yaml is valid.")
@@ -502,6 +571,15 @@ func (e *env) checkCmd() *cobra.Command {
 			}
 			return exitCode(1)
 		}}
+	c.Flags().StringArrayVar(&touched, "touched", nil, "a file a change would touch (repeatable): show which checks run for it")
+	return c
+}
+
+func orDash(s string) string {
+	if s == "" {
+		return "- (no area)"
+	}
+	return s
 }
 
 func (e *env) explainCmd() *cobra.Command {

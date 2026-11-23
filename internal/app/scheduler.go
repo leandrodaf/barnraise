@@ -134,7 +134,7 @@ func (s *Service) heldWorkLocked(p *Project, slot Slot) *Assignment {
 		if it.Alt != nil && it.Alt.A != nil {
 			continue // attempt a delivered; the second attempt decides when it ends
 		}
-		f, err := p.Cfg().FlowFor(it.Kind)
+		f, err := p.Cfg().FlowOf(it.Kind, it.Area)
 		if err != nil {
 			continue
 		}
@@ -196,7 +196,7 @@ func (s *Service) candidatesLocked(p *Project, slot Slot) []*domain.Item {
 		if !it.DepsSatisfied(func(id string) *domain.Item { return p.state.Items[id] }) {
 			continue
 		}
-		f, err := p.Cfg().FlowFor(it.Kind)
+		f, err := p.Cfg().FlowOf(it.Kind, it.Area)
 		if err != nil {
 			continue
 		}
@@ -329,7 +329,7 @@ func (s *Service) claim(ctx context.Context, p *Project, id string, slot Slot) (
 		s.releaseLeaseValue(ctx, p, lease)
 		return nil, ErrConflict
 	}
-	f, err := p.Cfg().FlowFor(cur.Kind)
+	f, err := p.Cfg().FlowOf(cur.Kind, cur.Area)
 	if err != nil {
 		s.releaseLeaseValue(ctx, p, lease)
 		return nil, err
@@ -466,7 +466,7 @@ func (s *Service) ClaimForAgent(ctx context.Context, project string, a Actor, m 
 		it, ok := p.state.Items[a.ItemID]
 		p.mu.Unlock()
 		if ok && !it.Status.Terminal() {
-			f, err := p.Cfg().FlowFor(it.Kind)
+			f, err := p.Cfg().FlowOf(it.Kind, it.Area)
 			if err != nil {
 				return nil, err
 			}

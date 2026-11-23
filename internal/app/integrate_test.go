@@ -141,7 +141,7 @@ func TestMergeQueueBatchBisection(t *testing.T) {
 	var combined []string
 	var mu sync.Mutex
 	e.checks.Func = func(spec ports.CheckSpec) (domain.CheckResult, bool, error) {
-		if spec.Def.Scope != "all" {
+		if spec.Branch != "" { // the item's own check step; the queue checks the combined tree
 			return domain.CheckResult{Passed: true, Summary: "item check"}, false, nil
 		}
 		_, err := os.Stat(filepath.Join(spec.Dir, "bad.txt"))
@@ -199,6 +199,8 @@ func TestMergeQueueChangelogAndSteps(t *testing.T) {
 func TestMergeQueueCombinedCheckFails(t *testing.T) {
 	e := newEnv(t, withGit())
 	it := e.toQueue("Breaks main", map[string]string{"x.txt": "x\n"})
+	// Another machine integrates in between: the combined tree is new and must be checked.
+	e.repo.PushToMain(t, "someone else", map[string]string{"other.txt": "o\n"})
 	e.checks.Script("main", testkit.CheckOutcome{Passed: false, Summary: "flaky on main"})
 	if n, err := e.svc.ProcessQueue(e.ctx, "demo"); n != 0 || err != nil {
 		t.Fatal(n, err)

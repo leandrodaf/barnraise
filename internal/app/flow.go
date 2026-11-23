@@ -38,7 +38,7 @@ func (s *Service) finishStep(ctx context.Context, p *Project, o stepOutcome) (*d
 		p.mu.Unlock()
 		return nil, domain.Transition{}, fmt.Errorf("%w: %s is %s", ErrConflict, cur.ID, cur.Status)
 	}
-	f, err := p.Cfg().FlowFor(cur.Kind)
+	f, err := p.Cfg().FlowOf(cur.Kind, cur.Area)
 	if err != nil {
 		p.mu.Unlock()
 		return nil, domain.Transition{}, err
@@ -245,7 +245,7 @@ func (s *Service) Deliver(ctx context.Context, project string, a Actor, d domain
 		p.mu.Unlock()
 		return nil, fmt.Errorf("%w: your session is for step %s", ErrForbidden, a.Step)
 	}
-	f, _ := p.Cfg().FlowFor(cur.Kind)
+	f, _ := p.Cfg().FlowOf(cur.Kind, cur.Area)
 	var st domain.StepDef
 	if f != nil {
 		st, _ = f.Step(d.Step)
@@ -332,7 +332,7 @@ func (s *Service) afterDelivery(ctx context.Context, p *Project, it *domain.Item
 }
 
 func isImplementStep(p *Project, it *domain.Item, step string) bool {
-	f, err := p.Cfg().FlowFor(it.Kind)
+	f, err := p.Cfg().FlowOf(it.Kind, it.Area)
 	if err != nil {
 		return false
 	}
@@ -375,7 +375,7 @@ func (s *Service) Review(ctx context.Context, project string, a Actor, r domain.
 		p.mu.Unlock()
 		return nil, fmt.Errorf("%w: %s is at step %s (%s), not %s; this review is late", ErrConflict, cur.ID, cur.Step, cur.Status, r.Step)
 	}
-	f, _ := p.Cfg().FlowFor(cur.Kind)
+	f, _ := p.Cfg().FlowOf(cur.Kind, cur.Area)
 	var st domain.StepDef
 	if f != nil {
 		st, _ = f.Step(r.Step)
@@ -465,7 +465,7 @@ func (s *Service) resolvePendingCheck(ctx context.Context, p *Project, res domai
 		p.mu.Unlock()
 		return nil, fmt.Errorf("%w: item %s", ErrNotFound, res.ItemID)
 	}
-	f, _ := p.Cfg().FlowFor(it.Kind)
+	f, _ := p.Cfg().FlowOf(it.Kind, it.Area)
 	st, _ := f.Step(it.Step)
 	p.mu.Unlock()
 	if st.Type != domain.StepCheck {

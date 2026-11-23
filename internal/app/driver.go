@@ -268,7 +268,7 @@ func (s *Service) driveHeld(ctx context.Context, p *Project) {
 		if _, busy := p.running[it.ID]; busy {
 			continue
 		}
-		f, err := p.Cfg().FlowFor(it.Kind)
+		f, err := p.Cfg().FlowOf(it.Kind, it.Area)
 		if err != nil {
 			continue
 		}
@@ -357,16 +357,42 @@ func (s *Service) runCheckStep(ctx context.Context, p *Project, it *domain.Item,
 			Reason: "criteria without a check: " + strings.Join(missing, ", ")})
 		return err
 	}
+	// Which checks this change needs, cheapest first. The others are
+	// recorded as skipped, with the reason, so the timeline shows the choice.
+	own := []string{}
+	if it.Area != "" {
+		own = append(own, it.Area)
+	}
+	decisions := p.Cfg().SelectChecks(names, touched, own)
+	skip := func(n, why string) error {
+		res := domain.CheckResult{ID: s.d.IDs.NewID(), ItemID: it.ID, Check: n, Commit: head, Passed: true, Summary: why,
+			RunsOn: p.Cfg().Checks[n].RunsOn, At: s.d.Clock.Now().UTC()}
+		_, err := s.emit(ctx, p, domain.EvCheckCompleted, it.ID, "checks", domain.Payload{Check: &res})
+		return err
+	}
 	pendingAny := false
-	for _, n := range names {
-		def, ok := p.Cfg().Checks[n]
-		if !ok {
+	failedFirst := ""
+	for _, dec := range decisions {
+		n := dec.Name
+		def := p.Cfg().Checks[n]
+		if st.Scope == "all" {
+			dec.Run = true // the step asks for everything
+		}
+		if failedFirst != "" {
+			// Fail fast: the item goes back anyway; the rest runs on the next round.
+			if err := skip(n, "not run: check "+failedFirst+" failed first"); err != nil {
+				return err
+			}
 			continue
 		}
-		if st.Scope != "" {
-			def.Scope = st.Scope
+		if !dec.Run {
+			if err := skip(n, dec.Why); err != nil {
+				return err
+			}
+			continue
 		}
-		_, _ = s.emit(ctx, p, domain.EvCheckRequested, it.ID, "barnraise", domain.Payload{Note: n, Extra: map[string]any{"check": n, "runs_on": def.RunsOn, "commit": head}})
+		def.Scope = "all" // the selection above already decided
+		_, _ = s.emit(ctx, p, domain.EvCheckRequested, it.ID, "barnraise", domain.Payload{Note: n, Extra: map[string]any{"check": n, "runs_on": def.RunsOn, "commit": head, "why": dec.Why}})
 		spec := ports.CheckSpec{Def: def, ItemID: it.ID, Branch: it.Branch, Commit: head, Dir: dir, Touched: touched, Areas: areaList,
 			Env: map[string]string{"PORT": strconv.Itoa(ItemPort(p.Cfg().PortBase, it.ID))}}
 		res, pending, err := s.d.Checks.Run(ctx, spec)
@@ -393,6 +419,9 @@ func (s *Service) runCheckStep(ctx context.Context, p *Project, it *domain.Item,
 					_ = p.Ports().CodeHost.Comment(context.Background(), prFromRef(pr), "**Preview from check "+n+"**\n- "+strings.Join(r.Artifacts, "\n- "))
 				}
 			}(n, res, it.PR)
+		}
+		if !res.Passed {
+			failedFirst = n
 		}
 	}
 	if pendingAny {
@@ -495,7 +524,8 @@ func (s *Service) reproductionFiles(ctx context.Context, p *Project, itemID stri
 	if err != nil {
 		return nil
 	}
-	f, err := p.Cfg().FlowFor(p.Snapshot().Items[itemID].Kind)
+	cur := p.Snapshot().Items[itemID]
+	f, err := p.Cfg().FlowOf(cur.Kind, cur.Area)
 	if err != nil {
 		return nil
 	}
@@ -573,7 +603,7 @@ func (s *Service) requestOwnerApproval(ctx context.Context, p *Project, it *doma
 
 // approvalWhat names what an approval step approves: plan, delivery or post.
 func approvalWhat(p *Project, it *domain.Item, st domain.StepDef) string {
-	f, err := p.Cfg().FlowFor(it.Kind)
+	f, err := p.Cfg().FlowOf(it.Kind, it.Area)
 	if err != nil {
 		return "delivery"
 	}

@@ -162,6 +162,7 @@ func (s *Service) itemText(p *Project, it *domain.Item, withPlan bool) string {
 	if it.GoalID != "" {
 		fmt.Fprintf(&b, "Goal: %s\n", it.GoalID)
 	}
+	b.WriteString(areaBrief(p.Cfg(), it))
 	if it.Body != "" {
 		b.WriteString("\n" + it.Body + "\n")
 	}
@@ -193,6 +194,45 @@ func (s *Service) itemText(p *Project, it *domain.Item, withPlan bool) string {
 	if n := len(it.Rework); n > 0 {
 		last := it.Rework[n-1]
 		fmt.Fprintf(&b, "\nRework round %d: sent back from %s by %s:\n%s\n", n, last.From, last.By, last.Reason)
+	}
+	return b.String()
+}
+
+// areaBrief tells the agent which part of the repository the item is in:
+// what it is, its stack, its folder and the checks that will run on it.
+// In a repository with several parts, it also names the others, so the
+// agent knows what is not its to change.
+func areaBrief(cfg *domain.ProjectConfig, it *domain.Item) string {
+	a, ok := cfg.Areas[domain.AreaName(it.Area)]
+	if !ok || a.Dir == "" {
+		return ""
+	}
+	var b strings.Builder
+	fmt.Fprintf(&b, "Part of the repository: %s, in `%s/`", a.Name, a.Dir)
+	if a.Stack != "" {
+		fmt.Fprintf(&b, " (%s)", a.Stack)
+	}
+	if a.About != "" {
+		fmt.Fprintf(&b, ": %s", a.About)
+	}
+	b.WriteString("\n")
+	var checks []string
+	for _, n := range sortedKeys(cfg.Checks) {
+		if domain.Contains(cfg.Checks[n].Areas, a.Name) {
+			checks = append(checks, fmt.Sprintf("%s (`%s`)", n, cfg.Checks[n].Run))
+		}
+	}
+	if len(checks) > 0 {
+		fmt.Fprintf(&b, "Its checks, run inside `%s/`: %s\n", a.Dir, strings.Join(checks, ", "))
+	}
+	var others []string
+	for _, n := range sortedKeys(cfg.Areas) {
+		if o := cfg.Areas[n]; o.Dir != "" && n != a.Name {
+			others = append(others, fmt.Sprintf("%s in `%s/`", n, o.Dir))
+		}
+	}
+	if len(others) > 0 {
+		fmt.Fprintf(&b, "Other parts (change them only when a criterion of this item needs it; their checks run only if you touch them): %s\n", strings.Join(others, ", "))
 	}
 	return b.String()
 }

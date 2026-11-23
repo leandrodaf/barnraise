@@ -166,7 +166,7 @@ func TestScopeNotTouched(t *testing.T) {
 	s.Areas = nil
 	s.Def.Areas = []string{"A-backend"}
 	res, pending, err := r.Run(context.Background(), s)
-	if err != nil || pending || !res.Passed || res.Summary != "not touched" {
+	if err != nil || pending || !res.Passed || !strings.HasPrefix(res.Summary, "skipped: ") {
 		t.Fatalf("%+v %v %v", res, pending, err)
 	}
 	s.Def.Areas = []string{"app"}

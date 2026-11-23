@@ -212,7 +212,26 @@ func newEnv(t *testing.T, opts ...opt) *env {
 		t.Fatalf("add project: %v", err)
 	}
 	e.p = p
-	t.Cleanup(func() { e.svc.Runtime().StopAll() })
+	t.Cleanup(func() {
+		e.svc.Runtime().StopAll()
+		// Driver steps started by a tick may still be pushing: let them end
+		// before the temporary repository is removed.
+		deadline := time.Now().Add(5 * time.Second)
+		for time.Now().Before(deadline) {
+			e.p.mu.Lock()
+			n := 0
+			for _, who := range e.p.running {
+				if who == "driver" {
+					n++
+				}
+			}
+			e.p.mu.Unlock()
+			if n == 0 {
+				break
+			}
+			time.Sleep(5 * time.Millisecond)
+		}
+	})
 	return e
 }
 

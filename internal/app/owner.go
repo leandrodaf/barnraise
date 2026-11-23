@@ -128,7 +128,7 @@ func (s *Service) Answer(ctx context.Context, project string, a Actor, qid, answ
 // applyAnswer turns an owner's answer into the item's next move.
 func (s *Service) applyAnswer(ctx context.Context, p *Project, a Actor, it *domain.Item, choice, note string) error {
 	lc := strings.ToLower(choice)
-	f, err := p.Cfg().FlowFor(it.Kind)
+	f, err := p.Cfg().FlowOf(it.Kind, it.Area)
 	if err != nil {
 		return err
 	}
@@ -220,7 +220,7 @@ func (s *Service) Approve(ctx context.Context, project string, a Actor, target, 
 		return fmt.Errorf("%w: item %s", ErrNotFound, id)
 	}
 	it = it.Clone()
-	f, _ := p.Cfg().FlowFor(it.Kind)
+	f, _ := p.Cfg().FlowOf(it.Kind, it.Area)
 	st, _ := f.Step(it.Step)
 	p.mu.Unlock()
 	if st.Type != domain.StepApproval && !(st.Type == domain.StepAgent && st.Review) {
@@ -491,7 +491,7 @@ func (s *Service) Handback(ctx context.Context, project string, a Actor, id, not
 			x.Claim = &domain.Claim{Machine: s.d.Machine, Agent: actorName(a), Since: s.d.Clock.Now().UTC()}
 		}
 		if x.Step == "" {
-			f, err := p.Cfg().FlowFor(x.Kind)
+			f, err := p.Cfg().FlowOf(x.Kind, x.Area)
 			if err != nil {
 				return err
 			}
@@ -522,7 +522,7 @@ func (s *Service) Redo(ctx context.Context, project string, a Actor, id, step, w
 	}
 	s.stopItemSessions(id)
 	it, err := s.mutateItem(ctx, p, id, domain.EvItemRedo, actorName(a), func(x *domain.Item) error {
-		f, err := p.Cfg().FlowFor(x.Kind)
+		f, err := p.Cfg().FlowOf(x.Kind, x.Area)
 		if err != nil {
 			return err
 		}

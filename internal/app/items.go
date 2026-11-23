@@ -37,6 +37,13 @@ type CreateResult struct {
 }
 
 // CreateItem adds an item to the queue.
+func flowName(f *domain.Flow) string {
+	if f == nil {
+		return "?"
+	}
+	return f.Name
+}
+
 func (s *Service) CreateItem(ctx context.Context, project string, a Actor, in NewItem) (CreateResult, error) {
 	p, err := s.Project(project)
 	if err != nil {
@@ -60,7 +67,7 @@ func (s *Service) CreateItem(ctx context.Context, project string, a Actor, in Ne
 	if err != nil {
 		return CreateResult{}, fmt.Errorf("%w: %v", ErrInvalid, err)
 	}
-	if _, err := p.Cfg().FlowFor(in.Kind); err != nil {
+	if _, err := p.Cfg().FlowOf(in.Kind, in.Area); err != nil {
 		return CreateResult{}, fmt.Errorf("%w: %v", ErrInvalid, err)
 	}
 	// Bugs found by agents at P2/P3 wait as proposals; P0/P1 enter directly.
@@ -214,7 +221,16 @@ func (s *Service) UpdateItem(ctx context.Context, project string, a Actor, id st
 			it.Priority = pr
 		}
 		if patch.Area != nil {
-			it.Area = domain.AreaName(*patch.Area)
+			to := domain.AreaName(*patch.Area)
+			// An item already moving keeps its flow: its current step may not exist in another one.
+			if it.Step != "" && to != it.Area {
+				from, _ := p.Cfg().FlowOf(it.Kind, it.Area)
+				next, _ := p.Cfg().FlowOf(it.Kind, to)
+				if from != next {
+					return fmt.Errorf("%w: %s is at step %s of flow %s; area %s uses another flow. Move it before work starts, or `barnraise item redo` it", ErrInvalid, it.ID, it.Step, flowName(from), to)
+				}
+			}
+			it.Area = to
 		}
 		if patch.Size != nil {
 			it.Size = *patch.Size
@@ -223,7 +239,7 @@ func (s *Service) UpdateItem(ctx context.Context, project string, a Actor, id st
 			it.Class = *patch.Class
 		}
 		if patch.Kind != nil {
-			if _, err := p.Cfg().FlowFor(*patch.Kind); err != nil {
+			if _, err := p.Cfg().FlowOf(*patch.Kind, it.Area); err != nil {
 				return fmt.Errorf("%w: %v", ErrInvalid, err)
 			}
 			if it.Step != "" {

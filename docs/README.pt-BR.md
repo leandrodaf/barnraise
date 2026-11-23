@@ -77,6 +77,26 @@ Todo comando imprime texto para pessoas por padrão e JSON com `--json`. O paine
 
 Fluxos, papéis e verificações são dados no `barnraise.yaml`, por cima de um modelo de projeto (`mobile-android`, `backend`, `web`, `content`, `blank`).
 
+## Um repositório, várias partes
+
+Um repositório com backend em Go, web em React e app em React Native é um projeto com três partes. Cada parte leva o seu próprio `barnraise.yaml` na pasta dela; o Barnraise acha esses arquivos sozinho, e o `barnraise init` escreve.
+
+```yaml
+# backend/barnraise.yaml                      # mobile/barnraise.yaml
+about: REST API                               about: Mobile app, Android first
+stack: go                                     stack: react-native
+checks:                                       kinds: { feature: feature-mobile }
+  lint: { run: golangci-lint run, order: 1 }  checks:
+  test: { run: go test ./..., order: 2 }        test: pnpm run test
+```
+
+- **Só se verifica o que a mudança toca.** Um item do backend roda as verificações do backend, dentro de `backend/`. As de web e mobile são puladas, e a linha do tempo diz por quê.
+- **Terreno desconhecido roda tudo.** Arquivo que não pertence a nenhuma parte, ou que você listou em `selection.all_when` (um `Makefile`, um `go.mod`), roda todas as verificações. Arquivos em `selection.none_when` (documentação, backlog) não exigem nenhuma.
+- **Sem trabalho repetido.** Uma verificação pode cobrir outra (`covers`), as baratas rodam primeiro e a etapa para na primeira falha, e a fila de integração não verifica de novo uma árvore que já foi verificada.
+- **Cada parte pode se comportar de um jeito.** A parte escolhe o fluxo dos itens dela (`kinds`) e as máquinas de que as verificações precisam (`runs_on: machine:emulators`). Os agentes ficam sabendo em que parte estão trabalhando e quais não são deles.
+
+`barnraise check --touched mobile/src/Home.tsx` mostra quais verificações rodariam para uma mudança. Detalhes em [configuration.md](configuration.md#several-parts-in-one-repository).
+
 ## Várias máquinas
 
 Toda máquina roda o mesmo binário e puxa o próprio próximo item. Não há coordenador para eleger nem terceira máquina para votar.

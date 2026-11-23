@@ -75,6 +75,26 @@ Every command prints text for people by default and JSON with `--json`. The web 
 
 Flows, roles and checks are data in `barnraise.yaml`, merged over a template (`mobile-android`, `backend`, `web`, `content`, `blank`).
 
+## One repository, several parts
+
+A repository with a Go backend, a React web app and a React Native app is one project with three parts. Each part carries its own `barnraise.yaml` in its folder; Barnraise finds them by itself, and `barnraise init` writes them.
+
+```yaml
+# backend/barnraise.yaml                      # mobile/barnraise.yaml
+about: REST API                               about: Mobile app, Android first
+stack: go                                     stack: react-native
+checks:                                       kinds: { feature: feature-mobile }
+  lint: { run: golangci-lint run, order: 1 }  checks:
+  test: { run: go test ./..., order: 2 }        test: pnpm run test
+```
+
+- **Only what the change touches is checked.** A backend item runs the backend checks, inside `backend/`. Web and mobile checks are skipped, and the timeline says why.
+- **Unknown ground runs everything.** A file that belongs to no part, or one you list in `selection.all_when` (a `Makefile`, a `go.mod`), runs every check. Files in `selection.none_when` (docs, the backlog) need none.
+- **No repeated work.** A check may cover another (`covers`), cheap checks run first and the step stops at the first failure, and the merge queue does not check again a tree that was already checked.
+- **Each part may behave differently.** A part chooses the flow of its items (`kinds`) and the machines its checks need (`runs_on: machine:emulators`). Agents are told which part they work in and which ones are not theirs to change.
+
+`barnraise check --touched mobile/src/Home.tsx` shows which checks would run for a change. Details in [docs/configuration.md](docs/configuration.md#several-parts-in-one-repository).
+
 ## Several machines
 
 Every machine runs the same binary and pulls its own next item. There is no coordinator to elect and no third machine to vote.
@@ -140,33 +160,33 @@ Agents read untrusted text, could reach private data and could send data out. Ba
 
 One word per concept, the same in the CLI, the YAML, the panel and the docs. A test (`internal/archtest`) fails on words outside this vocabulary.
 
-| Barnraise (en) | pt-BR | What it is | Command or field |
-| --- | --- | --- | --- |
-| Project | Projeto | A repository Barnraise drives, with its `barnraise.yaml` | `barnraise init` |
-| Goal | Objetivo | The long-term result, with a measurable end | `goal:`, `barnraise goal set` |
-| Focus | Foco | A temporary priority inside the goal | `barnraise focus` |
-| Item | Item | One deliverable unit of work, 2 to 6 hours of agent time | `barnraise item` |
-| Criterion | Critério | An acceptance condition in EARS, tied to a check | `-c` of `item add` |
-| Proposal | Proposta | A suggested item, waiting for approval | `barnraise propose` |
-| Tweak | Ajuste rápido | A small fix that rides with the next item of the same area | `barnraise tweak add` |
-| Area | Área | A screen, module or folder; groups tweaks and proposals | `areas:` |
-| Flow | Fluxo | The sequence of steps of an item kind | `flows:` |
-| Step | Etapa | One part of a flow: plan, implement, check, review, integrate | `steps:` |
-| Check | Verificação | An automatic verification: build, tests, screenshots | `checks:` |
-| Review | Revisão | An evaluation by an agent or a person, with two verdicts | `barnraise review` |
-| Rework | Retrabalho | A return to an earlier step, with a limit | `rework:` |
-| Delivery | Entrega | What the agent hands back at the end of a step, with a fixed status | `barnraise deliver` |
-| Role | Papel | A function: implementer, reviewer, analyst, designer | `roles:` |
-| Agent | Agente | A role running on an account, on a machine | `barnraise agents` |
-| Account | Conta | A login at a provider | `barnraise account add` |
-| Provider | Provedor | Claude Code, Codex, … | `models:` |
-| Machine | Máquina | A computer of the cluster; all are equal, none is central | `barnraise machine invite` |
-| Tracker | Rastreador | Where people see items: local, GitHub, GitLab, Jira, Linear | `tracker:` |
-| Template | Modelo de projeto | Ready roles, flows and checks for a kind of project | `template:` |
-| Owner | Dono | The person who approves and decides | `approves: owner` |
-| Merge queue | Fila de integração | Where approved items wait to land on main | `barnraise queue` |
-| Anchor | Âncora | What an item assumes: files, symbols, contracts, decisions, the base commit | `--files`, `--symbols` |
-| Revalidation | Revalidação | Checking whether an item still holds after something changed | `barnraise revalidate` |
+| Concept | What it is | Command or field |
+| --- | --- | --- |
+| Project | A repository Barnraise drives, with its `barnraise.yaml` | `barnraise init` |
+| Goal | The long-term result, with a measurable end | `goal:`, `barnraise goal set` |
+| Focus | A temporary priority inside the goal | `barnraise focus` |
+| Item | One deliverable unit of work, 2 to 6 hours of agent time | `barnraise item` |
+| Criterion | An acceptance condition in EARS, tied to a check | `-c` of `item add` |
+| Proposal | A suggested item, waiting for approval | `barnraise propose` |
+| Tweak | A small fix that rides with the next item of the same area | `barnraise tweak add` |
+| Area | A screen, module or folder; groups tweaks and proposals | `areas:` |
+| Flow | The sequence of steps of an item kind | `flows:` |
+| Step | One part of a flow: plan, implement, check, review, integrate | `steps:` |
+| Check | An automatic verification: build, tests, screenshots | `checks:` |
+| Review | An evaluation by an agent or a person, with two verdicts | `barnraise review` |
+| Rework | A return to an earlier step, with a limit | `rework:` |
+| Delivery | What the agent hands back at the end of a step, with a fixed status | `barnraise deliver` |
+| Role | A function: implementer, reviewer, analyst, designer | `roles:` |
+| Agent | A role running on an account, on a machine | `barnraise agents` |
+| Account | A login at a provider | `barnraise account add` |
+| Provider | Claude Code, Codex, … | `models:` |
+| Machine | A computer of the cluster; all are equal, none is central | `barnraise machine invite` |
+| Tracker | Where people see items: local, GitHub, GitLab, Jira, Linear | `tracker:` |
+| Template | Ready roles, flows and checks for a kind of project | `template:` |
+| Owner | The person who approves and decides | `approves: owner` |
+| Merge queue | Where approved items wait to land on main | `barnraise queue` |
+| Anchor | What an item assumes: files, symbols, contracts, decisions, the base commit | `--files`, `--symbols` |
+| Revalidation | Checking whether an item still holds after something changed | `barnraise revalidate` |
 
 Short ids are the same everywhere (tracker, pull request title, branch, commit trailer): `G-3` goal, `I-142` item, `P-77` proposal, `D-12` decision. `git log --grep I-142` finds all the code of an item.
 
@@ -196,7 +216,6 @@ docs/adr/                 architecture decision records
 
 ```yaml
 template: mobile-android
-language: pt-BR
 goal: Personal finance app, Android first
 approves: owner
 checks:

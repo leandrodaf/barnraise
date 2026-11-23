@@ -3,6 +3,7 @@ package domain
 import (
 	"fmt"
 	"sort"
+	"strings"
 	"time"
 )
 
@@ -31,7 +32,165 @@ type CheckDef struct {
 	Timeout      time.Duration `json:"timeout"`
 	FlakyRetries int           `json:"flaky_retries"` // up to 3 runs on branch and main
 	Criteria     bool          `json:"criteria,omitempty"`
-	Areas        []string      `json:"areas,omitempty"` // only for these areas
+	Areas        []string      `json:"areas,omitempty"`  // only for these areas
+	Paths        []string      `json:"paths,omitempty"`  // …or when a touched file matches one of these globs
+	Dir          string        `json:"dir,omitempty"`    // folder the command runs in, relative to the repository root
+	Covers       []string      `json:"covers,omitempty"` // checks this one makes redundant when both apply
+	Order        int           `json:"order,omitempty"`  // lower runs first (cheap before expensive); ties by name
+}
+
+// SelectionDef tunes which checks run for a change, beyond areas and paths.
+type SelectionDef struct {
+	AllWhen  []string `json:"all_when,omitempty"`  // globs: a change to one of these runs every check
+	NoneWhen []string `json:"none_when,omitempty"` // globs: a change to these alone needs no check
+}
+
+// CheckDecision is the verdict of the selection for one check.
+type CheckDecision struct {
+	Name string `json:"name"`
+	Run  bool   `json:"run"`
+	Why  string `json:"why"` // why it runs, or why it is skipped
+}
+
+// SelectChecks decides which of the named checks run for a change, in the
+// order they should run. The rules, in order:
+//
+//  1. Files matching selection.none_when are left out; a change made only of
+//     them runs just the checks with scope all.
+//  2. If a remaining file matches selection.all_when, or belongs to no area
+//     and to no check's paths, every check runs: never skip on unknown ground.
+//  3. Otherwise a check runs when the change touches one of its areas or
+//     paths (checks with neither, or with scope all, always run).
+//  4. A check that another running check covers is skipped.
+//
+// Nothing known about the change (no files, no areas) runs everything.
+func (c *ProjectConfig) SelectChecks(names, touched, touchedAreas []string) []CheckDecision {
+	var relevant []string
+	for _, f := range touched {
+		if !matchAny(c.Selection.NoneWhen, f) {
+			relevant = append(relevant, f)
+		}
+	}
+	onlyQuiet := len(touched) > 0 && len(relevant) == 0
+	full, fullWhy := false, ""
+	for _, f := range relevant {
+		if matchAny(c.Selection.AllWhen, f) {
+			full, fullWhy = true, f+" is in selection.all_when"
+			break
+		}
+		if c.AreaOfFile(f) == "" && !c.claimedByCheck(f) {
+			full, fullWhy = true, f+" belongs to no area: every check runs"
+			break
+		}
+	}
+	out := make([]CheckDecision, 0, len(names))
+	running := map[string]bool{}
+	for _, n := range names {
+		d, ok := c.Checks[n]
+		if !ok {
+			continue
+		}
+		dec := CheckDecision{Name: n}
+		switch {
+		case d.Scope == "all":
+			dec.Run, dec.Why = true, "scope all"
+		case onlyQuiet:
+			dec.Why = "skipped: the change only touches files that need no check (selection.none_when)"
+		case full:
+			dec.Run, dec.Why = true, fullWhy
+		default:
+			areas := touchedAreas
+			if len(relevant) > 0 {
+				areas = nil // the files say what was touched; the item's area is only a fallback
+			}
+			dec.Run, dec.Why = d.Applies(relevant, areas, c.AreaOfFile)
+			if dec.Run {
+				dec.Why = "the change touches it"
+			}
+		}
+		running[n] = dec.Run
+		out = append(out, dec)
+	}
+	for i := range out {
+		if !out[i].Run {
+			continue
+		}
+		for _, by := range names {
+			if by != out[i].Name && running[by] && Contains(c.Checks[by].Covers, out[i].Name) && !Contains(c.Checks[out[i].Name].Covers, by) {
+				out[i].Run, out[i].Why = false, "skipped: covered by "+by
+				break
+			}
+		}
+	}
+	sort.SliceStable(out, func(i, j int) bool {
+		a, b := c.Checks[out[i].Name], c.Checks[out[j].Name]
+		if a.Order != b.Order {
+			return a.Order < b.Order
+		}
+		return out[i].Name < out[j].Name
+	})
+	return out
+}
+
+func (c *ProjectConfig) claimedByCheck(f string) bool {
+	for _, d := range c.Checks {
+		if matchAny(d.Paths, f) {
+			return true
+		}
+	}
+	return false
+}
+
+func matchAny(globs []string, f string) bool {
+	for _, g := range globs {
+		if MatchGlob(g, f) {
+			return true
+		}
+	}
+	return false
+}
+
+// Applies decides whether a check must run for a change, and says why not
+// when it is skipped. The rule, in order:
+//
+//   - scope all: always;
+//   - neither areas nor paths: always (a check of the whole repository);
+//   - nothing known about the change: always (never skip blind);
+//   - a touched file in one of its areas, or matching one of its paths: yes;
+//   - otherwise it is skipped.
+//
+// touchedAreas are areas already known to be touched (for example the
+// item's own area); areaOf resolves a file to its area.
+func (d CheckDef) Applies(touched, touchedAreas []string, areaOf func(string) string) (bool, string) {
+	if d.Scope == "all" || (len(d.Areas) == 0 && len(d.Paths) == 0) {
+		return true, ""
+	}
+	if len(touched) == 0 && len(touchedAreas) == 0 {
+		return true, ""
+	}
+	hit := map[string]bool{}
+	for _, a := range touchedAreas {
+		hit[AreaName(a)] = true
+	}
+	for _, f := range touched {
+		for _, g := range d.Paths {
+			if MatchGlob(g, f) {
+				return true, ""
+			}
+		}
+		if areaOf != nil {
+			if a := areaOf(f); a != "" {
+				hit[AreaName(a)] = true
+			}
+		}
+	}
+	for _, a := range d.Areas {
+		if hit[AreaName(a)] {
+			return true, ""
+		}
+	}
+	scope := append(append([]string{}, d.Areas...), d.Paths...)
+	return false, "skipped: the change touches nothing in " + strings.Join(scope, ", ")
 }
 
 // AreaDef maps an area to folders, screens, contracts and standards.
@@ -41,6 +200,15 @@ type AreaDef struct {
 	Screens   []string `json:"screens,omitempty"`
 	Contracts []string `json:"contracts,omitempty"`
 	Standard  string   `json:"standard,omitempty"` // .barnraise/standards/<area>.md
+	// Set when the area comes from its own barnraise.yaml in a folder of the
+	// repository (a backend, a web app, a mobile app living side by side).
+	// KindFlows gives the items of this area their own flow per kind (a
+	// mobile screen goes through emulators and a design review; a backend
+	// endpoint does not).
+	KindFlows map[string]string `json:"kinds,omitempty"`
+	Dir       string            `json:"dir,omitempty"`   // folder, relative to the repository root
+	About     string            `json:"about,omitempty"` // one line: what this part is
+	Stack     string            `json:"stack,omitempty"` // go, react, react-native…
 }
 
 // NotifierDef configures an owner notification channel.
@@ -180,6 +348,7 @@ type ProjectConfig struct {
 	Models          ModelRouter             `json:"models"`
 	Policy          Policy                  `json:"policy"`
 	Merge           MergeDef                `json:"merge"`
+	Selection       SelectionDef            `json:"selection,omitzero"`
 	Lease           LeaseDef                `json:"lease"`
 	Budget          BudgetDef               `json:"budget"`
 	StaleAfter      time.Duration           `json:"stale_after"`
@@ -208,6 +377,23 @@ func (c *ProjectConfig) FlowFor(kind string) (*Flow, error) {
 		return f, nil
 	}
 	return nil, fmt.Errorf("no flow for item kind %q (known: %v)", kind, c.FlowNames())
+}
+
+// FlowOf returns the flow of an item: the one its area chose for its kind,
+// otherwise the project's flow for that kind.
+func (c *ProjectConfig) FlowOf(kind, area string) (*Flow, error) {
+	if a, ok := c.Areas[AreaName(area)]; ok && len(a.KindFlows) > 0 {
+		k := kind
+		if k == "" {
+			k = "feature"
+		}
+		if name, ok := a.KindFlows[k]; ok {
+			if f, ok := c.Flows[name]; ok {
+				return f, nil
+			}
+		}
+	}
+	return c.FlowFor(kind)
 }
 
 // FlowNames lists flows.
@@ -242,6 +428,26 @@ func (c *ProjectConfig) Validate() []error {
 		errs = append(errs, err)
 	}
 	errs = append(errs, c.validateMCP()...)
+	for an, a := range c.Areas {
+		for kind, flow := range a.KindFlows {
+			if _, ok := c.Flows[flow]; !ok {
+				errs = append(errs, fmt.Errorf("area %s sends %s items to flow %q, which is not declared in flows (known: %v)", an, kind, flow, c.FlowNames()))
+			}
+		}
+	}
+	for name, d := range c.Checks {
+		// A misspelled area would make the check never run: say it now.
+		for _, a := range d.Areas {
+			if _, ok := c.Areas[AreaName(a)]; !ok {
+				errs = append(errs, fmt.Errorf("check %s is for area %q, which is not declared in areas", name, a))
+			}
+		}
+		for _, o := range d.Covers {
+			if _, ok := c.Checks[o]; !ok {
+				errs = append(errs, fmt.Errorf("check %s covers %q, which is not declared in checks", name, o))
+			}
+		}
+	}
 	if len(c.Flows) == 0 {
 		errs = append(errs, fmt.Errorf("no flows are defined; pick a template or declare flows"))
 	}
@@ -263,7 +469,7 @@ func (c *ProjectConfig) Validate() []error {
 			}
 			if s.Type == StepCheck {
 				name := trimChecks(s.Run)
-				if name != "all" {
+				if name != "all" && name != "checks" {
 					if _, ok := c.Checks[name]; !ok {
 						errs = append(errs, fmt.Errorf("flow %s, step %s runs check %q, which is not declared in checks", f.Name, s.Name, name))
 					}

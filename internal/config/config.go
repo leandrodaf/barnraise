@@ -78,6 +78,16 @@ func Compile(root string, data []byte) (*domain.ProjectConfig, error) {
 	if err := loadAreasFile(root, cfg); err != nil {
 		return nil, err
 	}
+	// The checks the root file itself declares (the others come from the template).
+	userChecks := map[string]bool{}
+	if n := lookup(userMap, "checks"); n != nil && n.Kind == yaml.MappingNode {
+		for i := 0; i+1 < len(n.Content); i += 2 {
+			userChecks[n.Content[i].Value] = true
+		}
+	}
+	if err := loadAreaFiles(root, cfg, userChecks); err != nil {
+		return nil, err
+	}
 	return cfg, nil
 }
 
@@ -266,10 +276,11 @@ type rawConfig struct {
 		AllowHosts   []string `yaml:"allow_hosts"`
 	} `yaml:"policy"`
 	Areas map[string]struct {
-		Paths     []string `yaml:"paths"`
-		Screens   []string `yaml:"screens"`
-		Contracts []string `yaml:"contracts"`
-		Standard  string   `yaml:"standard"`
+		Kinds     map[string]string `yaml:"kinds"`
+		Paths     []string          `yaml:"paths"`
+		Screens   []string          `yaml:"screens"`
+		Contracts []string          `yaml:"contracts"`
+		Standard  string            `yaml:"standard"`
 	} `yaml:"areas"`
 	Merge struct {
 		Mode         string `yaml:"mode"`
@@ -278,6 +289,10 @@ type rawConfig struct {
 		Tag          bool   `yaml:"tag"`
 		UseHostQueue bool   `yaml:"use_host_queue"`
 	} `yaml:"merge"`
+	Selection struct {
+		AllWhen  []string `yaml:"all_when"`
+		NoneWhen []string `yaml:"none_when"`
+	} `yaml:"selection"`
 	Lease struct {
 		Renew string `yaml:"renew"`
 		TTL   string `yaml:"ttl"`
@@ -349,6 +364,9 @@ type checkField struct {
 	Timeout      string   `yaml:"timeout"`
 	FlakyRetries *int     `yaml:"flaky_retries"`
 	Areas        []string `yaml:"areas"`
+	Paths        []string `yaml:"paths"`
+	Covers       []string `yaml:"covers"`
+	Order        int      `yaml:"order"`
 }
 
 func (c *checkField) UnmarshalYAML(n *yaml.Node) error {
@@ -399,7 +417,7 @@ func (r *rawConfig) compile(root, tmpl string) (*domain.ProjectConfig, error) {
 
 	c.Checks = map[string]domain.CheckDef{}
 	for name, cf := range r.Checks {
-		d := domain.CheckDef{Name: name, Run: cf.Run, RunsOn: def(cf.RunsOn, "local"), Workflow: cf.Workflow, URL: cf.URL, Scope: def(cf.Scope, "touched"), Areas: cf.Areas, FlakyRetries: 3}
+		d := domain.CheckDef{Name: name, Run: cf.Run, RunsOn: def(cf.RunsOn, "local"), Workflow: cf.Workflow, URL: cf.URL, Scope: def(cf.Scope, "touched"), Areas: cf.Areas, Paths: cf.Paths, Covers: cf.Covers, Order: cf.Order, FlakyRetries: 3}
 		if cf.FlakyRetries != nil {
 			d.FlakyRetries = *cf.FlakyRetries
 		}
@@ -510,9 +528,10 @@ func (r *rawConfig) compile(root, tmpl string) (*domain.ProjectConfig, error) {
 
 	c.Areas = map[string]domain.AreaDef{}
 	for name, a := range r.Areas {
-		c.Areas[domain.AreaName(name)] = domain.AreaDef{Name: domain.AreaName(name), Paths: a.Paths, Screens: a.Screens, Contracts: a.Contracts, Standard: a.Standard}
+		c.Areas[domain.AreaName(name)] = domain.AreaDef{Name: domain.AreaName(name), Paths: a.Paths, Screens: a.Screens, Contracts: a.Contracts, Standard: a.Standard, KindFlows: a.Kinds}
 	}
 
+	c.Selection = domain.SelectionDef{AllWhen: r.Selection.AllWhen, NoneWhen: r.Selection.NoneWhen}
 	c.Merge = domain.MergeDef{Mode: def(r.Merge.Mode, "squash"), Batch: r.Merge.Batch, Changelog: r.Merge.Changelog, Tag: r.Merge.Tag, UseHostQueue: r.Merge.UseHostQueue}
 	if c.Merge.Batch <= 0 {
 		c.Merge.Batch = 4

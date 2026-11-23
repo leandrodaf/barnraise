@@ -254,3 +254,169 @@ func TestReproductionMustFailOnMain(t *testing.T) {
 		t.Fatal(got.Rework[0].Reason)
 	}
 }
+
+func partsCfg(c *domain.ProjectConfig) {
+	c.Areas = map[string]domain.AreaDef{"backend": {Name: "backend", Paths: []string{"backend/**"}, Dir: "backend", Stack: "go", About: "REST API"},
+		"web": {Name: "web", Paths: []string{"web/**"}, Dir: "web", Stack: "react"}}
+	c.Checks = map[string]domain.CheckDef{
+		"lint":         {Name: "lint", Run: "make lint", RunsOn: "local", Scope: "touched", Order: -1},
+		"backend-test": {Name: "backend-test", Run: "go test ./...", RunsOn: "local", Scope: "touched", Areas: []string{"backend"}, Dir: "backend"},
+		"web-test":     {Name: "web-test", Run: "npm test", RunsOn: "local", Scope: "touched", Areas: []string{"web"}, Dir: "web"},
+	}
+	c.Selection = domain.SelectionDef{NoneWhen: []string{"docs/**"}}
+	for _, f := range c.Flows {
+		for i := range f.Steps {
+			if f.Steps[i].Type == domain.StepCheck {
+				f.Steps[i].Run = "checks"
+			}
+		}
+	}
+}
+
+func ranChecks(e *env) string {
+	var out []string
+	for _, s := range e.checks.Specs() {
+		out = append(out, s.Def.Name)
+	}
+	return strings.Join(out, " ")
+}
+
+// In a repository with several parts, the check step runs only what the
+// item touched, cheapest first, and records why the rest was skipped.
+func TestCheckStepRunsOnlyWhatTheItemTouched(t *testing.T) {
+	e := newEnv(t, withGit(), withCfg(partsCfg))
+	it := e.ready("simple", "Backend endpoint", "backend")
+	e.start(it.ID)
+	e.workspace(it.ID, map[string]string{"backend/handler.go": "package backend\n", "docs/api.md": "# api\n"})
+	e.mustDeliver(it.ID, domain.Delivery{})
+	e.drive(it.ID)
+	if got := ranChecks(e); got != "lint backend-test" {
+		t.Fatalf("ran %q, want lint then backend-test", got)
+	}
+	e.wantStatus(it.ID, domain.StatusQueued, "integrate")
+	tl, _ := e.svc.Timeline(e.ctx, "demo", owner(), it.ID)
+	var skipped string
+	for _, te := range tl {
+		if te.Type == domain.EvCheckCompleted && strings.Contains(te.Summary, "web-test") {
+			skipped = te.Summary
+		}
+	}
+	if !strings.Contains(skipped, "skipped: the change touches nothing in web") {
+		t.Fatalf("the timeline must say why web-test did not run: %q", skipped)
+	}
+	// The agent was told which part it works in.
+	text := e.svc.itemText(e.p, e.item(it.ID), false)
+	for _, want := range []string{"Part of the repository: backend, in `backend/` (go): REST API", "backend-test (`go test ./...`)", "Other parts", "web in `web/`"} {
+		if !strings.Contains(text, want) {
+			t.Fatalf("item text lacks %q:\n%s", want, text)
+		}
+	}
+}
+
+func TestCheckStepFailsFastAndRunsBothPartsWhenBothAreTouched(t *testing.T) {
+	e := newEnv(t, withGit(), withCfg(partsCfg))
+	it := e.ready("simple", "Shared type", "web")
+	e.start(it.ID)
+	e.workspace(it.ID, map[string]string{"backend/types.go": "package backend\n", "web/types.ts": "export {}\n"})
+	e.mustDeliver(it.ID, domain.Delivery{})
+	e.checks.Script("backend-test", testkit.Fail)
+	e.drive(it.ID)
+	if got := ranChecks(e); got != "lint backend-test" {
+		t.Fatalf("after backend-test fails nothing else runs: %q", got)
+	}
+	got := e.wantStatus(it.ID, domain.StatusInProgress, "implement")
+	if len(got.Rework) != 1 || !strings.Contains(got.Rework[0].Reason, "check backend-test failed") || strings.Contains(got.Rework[0].Reason, "web-test") {
+		t.Fatalf("rework %+v", got.Rework)
+	}
+	// Fixed: the next round runs both parts.
+	e.checks.Script("backend-test", testkit.Pass)
+	e.mustDeliver(it.ID, domain.Delivery{})
+	e.drive(it.ID)
+	if got := ranChecks(e); got != "lint backend-test lint backend-test web-test" {
+		t.Fatalf("second round: %q", got)
+	}
+	e.wantStatus(it.ID, domain.StatusQueued, "integrate")
+}
+
+// The merge queue checks the combined tree only for what the batch touches.
+func TestMergeQueueChecksOnlyWhatTheBatchTouches(t *testing.T) {
+	e := newEnv(t, withGit(), withCfg(partsCfg))
+	it := e.ready("simple", "Web page", "web")
+	e.start(it.ID)
+	e.workspace(it.ID, map[string]string{"web/page.tsx": "export {}\n"})
+	e.mustDeliver(it.ID, domain.Delivery{})
+	e.drive(it.ID)
+	// Main moved in between (a backend change by another machine), so the
+	// combined tree is new; still, only the checks of what this batch touches run.
+	e.repo.PushToMain(t, "backend change elsewhere", map[string]string{"backend/other.go": "package backend\n"})
+	before := len(e.checks.Specs())
+	if n, err := e.svc.ProcessQueue(e.ctx, "demo"); err != nil || n != 1 {
+		t.Fatalf("queue %d %v", n, err)
+	}
+	var queue []string
+	for _, s := range e.checks.Specs()[before:] {
+		queue = append(queue, s.Def.Name)
+	}
+	if got := strings.Join(queue, " "); got != "lint web-test" {
+		t.Fatalf("the queue ran %q; the backend was not touched", got)
+	}
+	e.wantStatus(it.ID, domain.StatusIntegrated, "")
+}
+
+// When main did not move since the item's checks, the tree that lands is the
+// one already checked: the queue does not run the same checks again.
+func TestMergeQueueDoesNotRepeatChecksOnTheSameTree(t *testing.T) {
+	e := newEnv(t, withGit(), withCfg(partsCfg))
+	it := e.ready("simple", "Web page", "web")
+	e.start(it.ID)
+	e.workspace(it.ID, map[string]string{"web/page.tsx": "export {}\n", "plan.md": "# plan\n"})
+	e.mustDeliver(it.ID, domain.Delivery{})
+	e.drive(it.ID)
+	before := len(e.checks.Specs())
+	if n, err := e.svc.ProcessQueue(e.ctx, "demo"); err != nil || n != 1 {
+		t.Fatalf("queue %d %v", n, err)
+	}
+	if extra := len(e.checks.Specs()) - before; extra != 0 {
+		t.Fatalf("%d checks ran again on a tree that was already checked", extra)
+	}
+	e.wantStatus(it.ID, domain.StatusIntegrated, "")
+	if files := e.repo.MainFiles(t); !contains(files, "web/page.tsx") || contains(files, "plan.md") {
+		t.Fatalf("main %v", files)
+	}
+}
+
+// Each part of the repository may send its items through its own flow.
+func TestAreaChoosesTheFlowOfItsItems(t *testing.T) {
+	e := newEnv(t, withCfg(func(c *domain.ProjectConfig) {
+		partsCfg(c)
+		web := c.Areas["web"]
+		web.KindFlows = map[string]string{"simple": "reviewed"}
+		c.Areas["web"] = web
+	}))
+	back := e.ready("simple", "Backend endpoint", "backend")
+	web := e.ready("simple", "Web page", "web")
+	e.start(back.ID)
+	e.mustDeliver(back.ID, domain.Delivery{})
+	e.wantStatus(back.ID, domain.StatusInProgress, "check") // flow simple: implement, check, integrate
+	e.start(web.ID)
+	e.mustDeliver(web.ID, domain.Delivery{})
+	e.wantStatus(web.ID, domain.StatusInProgress, "review") // flow reviewed: implement, review, integrate
+	// An item already moving cannot hop to an area with another flow.
+	area := "backend"
+	if _, err := e.svc.UpdateItem(e.ctx, "demo", owner(), web.ID, ItemPatch{Area: &area}); !errors.Is(err, ErrInvalid) {
+		t.Fatalf("moving an item in progress to another flow: %v", err)
+	}
+	// A flow that does not exist is reported by the configuration.
+	bad := *e.cfg
+	bad.Areas = map[string]domain.AreaDef{"web": {Name: "web", KindFlows: map[string]string{"simple": "ghost"}}}
+	bad.Checks = map[string]domain.CheckDef{}
+	found := false
+	for _, err := range bad.Validate() {
+		if strings.Contains(err.Error(), `flow "ghost"`) {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatal("an unknown flow must be reported")
+	}
+}

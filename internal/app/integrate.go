@@ -277,21 +277,74 @@ func (s *Service) appendChangelog(ctx context.Context, p *Project, dir string, i
 	return sha, err
 }
 
+// sameTreeAsChecked reports whether the tree about to land is exactly the
+// one the item's own check step already verified: a single item, every
+// check of that step green on one commit, and no difference between that
+// commit and the squash besides the item's own memory files. That is the
+// case whenever main did not move in between, and running the same checks
+// on the same files again would only cost time.
+func (s *Service) sameTreeAsChecked(ctx context.Context, p *Project, head string, items []*domain.Item) bool {
+	g := p.Ports().Git
+	if g == nil || head == "" || len(items) != 1 {
+		return false
+	}
+	it := items[0]
+	results := s.checkResultsSince(ctx, p, it.ID, nil)
+	checked := ""
+	for _, r := range results {
+		if !r.Passed || r.Flaky || r.Commit == "" || (checked != "" && r.Commit != checked) {
+			return false
+		}
+		checked = r.Commit
+	}
+	if checked == "" {
+		return false
+	}
+	files, err := g.ChangedFiles(ctx, checked, head)
+	if err != nil {
+		return false
+	}
+	for _, f := range files {
+		if !domain.Contains(ItemFiles, f) {
+			return false
+		}
+	}
+	return true
+}
+
 // runQueueChecks runs the local checks over the combined tree.
 func (s *Service) runQueueChecks(ctx context.Context, p *Project, dir, head string, items []*domain.Item) (bool, string) {
 	if s.d.Checks == nil || dir == "" {
 		return true, ""
 	}
+	if s.sameTreeAsChecked(ctx, p, head, items) {
+		return true, "" // main did not move since the item's own checks: nothing new to check
+	}
+	// What the batch changes, from git (deliveries may list fewer files).
+	// The combined tree is main plus the batch, so only the checks the batch
+	// concerns need to run again; what main changed was checked when it landed.
 	var touched []string
 	for _, it := range items {
 		touched = append(touched, it.FilesTouched...)
 	}
-	for _, name := range sortedKeys(p.Cfg().Checks) {
-		def := p.Cfg().Checks[name]
-		if def.RunsOn != "local" {
-			continue // remote checks already ran in the item flow
+	fromGit := false
+	if g := p.Ports().Git; g != nil && head != "" {
+		if main, err := g.MainHead(ctx); err == nil && main != "" {
+			if files, err := s.itemFiles(ctx, p, main, head); err == nil && len(files) > 0 {
+				touched, fromGit = domain.Dedupe(append(touched, files...)), true
+			}
 		}
-		def.Scope = "all"
+	}
+	if !fromGit {
+		touched = nil // the change is unknown: never skip blind
+	}
+	for _, dec := range p.Cfg().SelectChecks(sortedKeys(p.Cfg().Checks), touched, nil) {
+		name := dec.Name
+		def := p.Cfg().Checks[name]
+		if def.RunsOn != "local" || !dec.Run {
+			continue // remote checks already ran in the item flow; the others do not concern this batch
+		}
+		def.Scope = "all" // the selection above already decided
 		res, pending, err := s.d.Checks.Run(ctx, ports.CheckSpec{Def: def, ItemID: items[0].ID, Commit: head, Dir: dir, Touched: touched})
 		if err != nil {
 			return false, fmt.Sprintf("check %s could not run: %v", name, err)

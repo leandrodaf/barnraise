@@ -124,7 +124,11 @@ Each check is a command string or a mapping:
 | `scope` | `touched` | `touched` runs only for the areas the item changed; `all` runs everything |
 | `timeout` | `30m` | duration |
 | `flaky_retries` | `3` | Runs on the branch and on main before calling a failure real |
-| `areas` | all | Run only for these areas |
+| `areas` | all | Run only for changes that touch these areas |
+| `paths` | none | …or that touch a file matching one of these globs (a contract shared by two parts, for example) |
+| `covers` | none | Checks this one makes redundant: when both apply, the covered one is skipped (an integration run that already runs the unit tests) |
+| `order` | `0` | Lower runs first, cheap before expensive; the step stops at the first failure |
+| `dir` | root | Folder the command runs in (set by itself for the checks of a part's own file) |
 
 ```yaml
 checks:
@@ -141,6 +145,25 @@ checks:
     runs_on: webhook
     url: https://scanner.example/run   # any system that answers on the API
 ```
+
+### Which checks run for a change
+
+A flow step either names one check (`run: checks.unit`) or runs every check that applies (`run: checks`). For each change Barnraise decides, in this order:
+
+1. Files matching `selection.none_when` are left out. A change made only of them runs just the checks with `scope: all`.
+2. If a remaining file matches `selection.all_when`, or belongs to no area and to no check's `paths`, **every check runs**: nothing is skipped on unknown ground.
+3. Otherwise a check runs when the change touches one of its `areas` or `paths`. A check with neither always runs.
+4. A check that another running check `covers` is skipped.
+
+They run by `order`, and the step stops at the first failure. Skipped checks are recorded in the item's timeline with the reason. The merge queue applies the same selection to what the batch touches, and does not run anything again when main did not move since the item's own checks (the tree that lands is the one already checked).
+
+```yaml
+selection:
+  all_when:  [Makefile, "scripts/**", "**/go.mod", "**/package.json"]   # infrastructure and dependencies
+  none_when: ["docs/**", "*.md"]                                         # needs no check
+```
+
+`barnraise check --touched backend/api/user.go --touched web/src/App.tsx` shows which checks would run for those files, and why the others are skipped. Each check also receives `BARNRAISE_TOUCHED` (the files, one per line) and `BARNRAISE_AREAS`, so a command can narrow itself further, for example to the tests related to the touched sources.
 
 A `github-actions` check needs the code host to be GitHub; see [`action/check`](../action/check) for the workflow side. `barnraise check` reports a check with no command, no workflow or no url.
 
@@ -329,6 +352,7 @@ An area maps to folders, screens, contracts and a standard. Areas can also live 
 | `screens` | Screen names |
 | `contracts` | API or event contracts, e.g. `POST /v1/payments` |
 | `standard` | `.barnraise/standards/<area>.md` |
+| `kinds` | Flow per item kind for the items of this area, e.g. `{feature: feature-mobile}` |
 
 ```yaml
 areas:
@@ -337,6 +361,41 @@ areas:
     screens: [Payments screen]
     standard: .barnraise/standards/payments.md
 ```
+
+### Several parts in one repository
+
+A repository often holds several projects side by side: a Go backend, a web app, a mobile app. Each part may carry **its own `barnraise.yaml` in its folder**. Barnraise finds these files by itself (up to three folders deep; dependency folders are never searched) and turns each one into an area: the folder is the area's `paths`, its checks are named `<area>-<check>`, run inside the folder, and only for changes that touch it. `barnraise init` detects the parts and writes these files.
+
+```yaml
+# backend/barnraise.yaml
+about: REST API of the shop
+stack: go
+checks:
+  lint:        { run: golangci-lint run, order: 1 }
+  test:        { run: go test ./..., order: 2 }
+  integration: { run: go test -tags=integration ./..., order: 5, covers: [test] }
+```
+
+```yaml
+# mobile/barnraise.yaml
+about: Mobile app, Android first
+stack: react-native
+kinds: { feature: feature-mobile }      # its items go through emulators and a design review
+checks:
+  test:    pnpm run test
+  maestro: { run: maestro test .maestro, runs_on: "machine:emulators", order: 9 }
+```
+
+| Key | Meaning |
+| --- | --- |
+| `area` | Name of the area (default: the folder's name) |
+| `about`, `stack` | One line on what the part is, and its stack. Agents working on an item of this area are told which part they are in, its checks, and which other parts exist |
+| `checks` | Same keys as the root's checks; `covers` may use the short names of this file |
+| `also_when` | Globs outside the folder that also concern this part: `also_when: [backend/api/openapi.yaml]` in the web app's file runs the web checks when the API contract changes |
+| `kinds` | Flow per item kind for the items of this area (the flows themselves are declared in the root) |
+| `standard`, `screens`, `contracts` | As in `areas:`; `standard` is relative to the folder |
+
+`project`, `template`, `flows` and `roles` belong in the root file only. When the parts bring checks, the template's own guesses (a single `make test` for everything) are dropped, and the flow steps that pointed at them run every check that applies; checks the root file declares itself are kept. An area declared both in the root and in a part's file is an error.
 
 ## merge
 
