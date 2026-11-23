@@ -1,0 +1,9 @@
+project: barnraise
+template: backend
+language: en
+goal:
+  name: Barnraise 0.1 ready for a second team
+  done_when: every phase exit criterion of the design document holds, with CI green
+approves: analyst
+checks:
+  unit: make lint && make test
