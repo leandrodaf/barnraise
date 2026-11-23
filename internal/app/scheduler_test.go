@@ -217,6 +217,9 @@ func TestValidBeforeStart(t *testing.T) {
 
 func TestRefineWork(t *testing.T) {
 	e := newEnv(t)
+	if !e.svc.holdHousekeeping(e.ctx, e.p) {
+		t.Fatal("the only machine holds housekeeping")
+	}
 	_, err := e.svc.NextWork(e.ctx, "demo", slot("analyst"))
 	wantErr(t, err, ErrNoWork)
 	d := e.create(NewItem{Title: "vague", Body: "[NEEDS CLARIFICATION: what?]"})
@@ -284,4 +287,24 @@ func TestReleaseErrorsAreQuiet(t *testing.T) {
 	e.svc.releaseLeaseValue(e.ctx, e.p, ports.Lease{Key: "claims/I-1", Version: "v9"})
 	e.backend.SetOffline(true)
 	e.svc.releaseLeaseValue(e.ctx, e.p, ports.Lease{Key: "claims/I-1", Version: "v9"})
+}
+
+// Drafts have no claim, so only the machine holding the housekeeping lease
+// refines them: two machines' analysts refined the same draft at once.
+func TestRefineOnlyOnTheHousekeepingMachine(t *testing.T) {
+	e := newEnv(t)
+	d := e.create(NewItem{Title: "vague", Body: "[NEEDS CLARIFICATION: what?]"})
+	if !e.svc.holdHousekeeping(e.ctx, e.p) {
+		t.Fatal("m1 takes housekeeping")
+	}
+	p := e.peer("m2")
+	if p.svc.holdHousekeeping(p.ctx, p.p) {
+		t.Fatal("m2 cannot take a live housekeeping lease")
+	}
+	if _, err := p.svc.NextWork(p.ctx, "demo", slot("analyst")); !errors.Is(err, ErrNoWork) {
+		t.Fatalf("m2 refines without the lease: %v", err)
+	}
+	if a := e.next("analyst", d.ID); a.Step.Name != RefineStep {
+		t.Fatal(a.Step)
+	}
 }

@@ -91,9 +91,17 @@ func (s *Service) NextWork(ctx context.Context, project string, slot Slot) (*Ass
 const RefineStep = "refine"
 
 // refineWork hands a draft item to an idle analyst, at most once per version.
+// Drafts have no claim: refining them is a duty of the cluster, done only
+// by the machine that holds the housekeeping lease. Otherwise every
+// machine's analyst refined the same draft at once.
 func (s *Service) refineWork(p *Project, slot Slot) *Assignment {
 	p.mu.Lock()
 	defer p.mu.Unlock()
+	if p.Ports().Arbiter != nil {
+		if _, held := p.leases[HousekeepingKey]; !held {
+			return nil
+		}
+	}
 	if p.refined == nil {
 		p.refined = map[string]int{}
 	}
