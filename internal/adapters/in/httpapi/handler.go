@@ -74,7 +74,7 @@ func (h *Handler) RegisterProject(ctx context.Context, r *connect.Request[pb.Reg
 	if h.srv.opts.Register == nil {
 		return nil, connect.NewError(connect.CodeUnimplemented, errors.New("this daemon cannot register projects"))
 	}
-	if err := h.srv.opts.Register(ctx, r.Msg.Root); err != nil {
+	if err := h.srv.opts.Register(ctx, r.Msg.Root, r.Msg.Paused); err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	}
 	h.audit(ctx, "project.register", r.Msg.Root, "", "")

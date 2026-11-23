@@ -37,7 +37,7 @@ type Options struct {
 	OwnerToken string // the owner's secret (file 0600 in the config dir)
 	Store      *sqlite.Store
 	Probe      func() domain.Machine
-	Register   func(ctx context.Context, root string) error
+	Register   func(ctx context.Context, root string, paused bool) error
 	Reload     func(ctx context.Context, project string) error
 	Panel      fs.FS  // static panel files
 	OpenAPI    []byte // generated document

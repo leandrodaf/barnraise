@@ -35,6 +35,7 @@ Or build from source: `make build` (Go 1.27).
 | systemd user service | `barnraise up --service` |
 | Foreground | `barnraise daemon` |
 | Stop | `barnraise down` (running steps are saved; items continue from their last step) |
+| Start paused | `barnraise up --paused`: register the project with every agent paused, adopt the work that already exists (accounts, `barnraise item edit I-7 --branch old/issue-7`), then `barnraise resume` |
 
 `barnraise daemon` flags:
 
@@ -50,7 +51,7 @@ Or build from source: `make build` (Go 1.27).
 
 ### systemd user service
 
-`barnraise up --service` writes `~/.config/systemd/user/barnraise.service` and runs `systemctl --user daemon-reload` and `systemctl --user enable --now barnraise.service`:
+`barnraise up --service` writes `~/.config/systemd/user/barnraise.service` and runs `systemctl --user daemon-reload` and `systemctl --user enable --now barnraise.service`. The unit keeps the `PATH` of the shell that ran it: a user service otherwise starts with systemd's short `PATH`, and checks would not find `~/go/bin`, `~/.local/bin` or nvm. Run it again after installing new tools.
 
 ```ini
 [Unit]
@@ -62,6 +63,7 @@ ExecStart=/home/you/.local/bin/barnraise daemon
 Restart=on-failure
 RestartSec=5
 Environment=DISABLE_AUTOUPDATER=1
+Environment="PATH=/home/you/go/bin:/home/you/.local/bin:/usr/local/bin:/usr/bin:/bin"
 
 [Install]
 WantedBy=default.target
@@ -180,6 +182,14 @@ Restore: stop the daemon, put the files back with the same owner and modes (0700
 - **The API.** The proto is checked with `buf breaking`; incompatible changes only come in a new API version, with deprecation notices first.
 
 ## Health
+
+Before it lets agents work, `barnraise up` checks the machine it runs on, and starts the project paused, with one sentence per problem, when the machine is not ready:
+
+- the arbiter remote (`code_host.remote`, `origin` by default) exists, and this machine can push to it (a dry-run push);
+- a GitHub token is reachable, for a GitHub tracker or code host (the keychain reference, `GITHUB_TOKEN`, or `gh auth token`);
+- the program each local check starts (`make` in `COMPOSE_PROJECT_NAME=x make verify`) is on the `PATH`.
+
+A second machine is where this matters most: give it its own credential for the repository, limited to that repository, before it joins.
 
 - `GET /healthz` (no token): `{"ok": true, "machine": …, "version": …, "projects": […]}`.
 - `barnraise status`, `barnraise cluster status`, `barnraise machine list`, `barnraise account list`.

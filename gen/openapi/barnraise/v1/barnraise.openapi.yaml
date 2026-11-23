@@ -4382,6 +4382,13 @@ components:
           type: string
           title: root
           description: Absolute path of a repository with a barnraise.yaml.
+        paused:
+          type: boolean
+          title: paused
+          description: |-
+            Pause every agent of the project before any of them can start, so the
+             owner can adopt work that already exists (accounts, item branches)
+             first. Lifted with Resume.
       title: RegisterProjectRequest
       additionalProperties: false
     barnraise.v1.ReportCheckRequest:

@@ -11,6 +11,9 @@ First version: one Go binary that is the daemon, the CLI, the MCP server and the
 - **Standard commits and changelog**: every item lands as one Conventional Commits commit and, for features, fixes and performance, one line under `## [Unreleased]` of a Keep a Changelog file, both written from the delivery's `change` and always in English. A description that is not English is refused.
 - `worktree.setup` runs once in each new worktree; `worktree.include` is empty by default, so files that are not in git (a `.env`) are no longer copied into agents' worktrees.
 - An issue a person wrote in the tracker is adopted: its state and labels follow the item, its title and text are never rewritten.
+- `barnraise up --paused` registers a project with every agent paused, so existing work is adopted (accounts, `item edit --branch`) before anything starts; `barnraise resume` lifts it.
+- `barnraise up` checks the machine first: the arbiter remote exists and accepts a push from here, a GitHub token is reachable, and each local check's program is on the `PATH`. A machine that is not ready starts the project paused, with one sentence per problem.
+- The systemd unit written by `barnraise up --service` keeps the `PATH` of the shell that ran it, so checks find tools in `~/go/bin`, `~/.local/bin` or nvm.
 
 - **Machine readings**: load, available memory, processor temperature and each GPU's use, memory and temperature, reported with every heartbeat; shown by `barnraise cluster status` and the panel, with `barnraise machine history` and the `MachineHistory` call for charts. Live state now travels on a last-value channel (`BR_LIVE`): never stored, never replayed as history.
 - **Checks move to idle machines**: a loaded machine hands an item's check to an idle machine of the cluster, which checks the commit out, runs it and cleans up; it falls back to running here when the other machine cannot. `offload: false` on a check opts out.

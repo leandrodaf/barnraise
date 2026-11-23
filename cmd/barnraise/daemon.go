@@ -191,7 +191,7 @@ func runDaemon(ctx context.Context, opts cli.DaemonOptions) error {
 		log.Info("egress allow-list proxy", "listen", l.Addr().String(), "hosts", len(allow))
 	}
 	for _, root := range df.Projects {
-		if err := d.addProject(ctx, root); err != nil {
+		if err := d.addProject(ctx, root, false); err != nil {
 			log.Error("project not loaded", "root", root, "err", err)
 		}
 	}
@@ -209,12 +209,17 @@ func runDaemon(ctx context.Context, opts cli.DaemonOptions) error {
 
 	srv := httpapi.New(svc, httpapi.Options{
 		Version: version, OwnerToken: owner, Store: d.store, Probe: d.probe, Panel: panel.FS(), OpenAPI: openapi.Document(),
-		Register: func(ctx context.Context, root string) error {
+		Register: func(ctx context.Context, root string, paused bool) error {
 			abs, _ := filepath.Abs(root)
 			if d.loaded(abs) {
+				if paused {
+					if err := d.pauseRoot(ctx, abs); err != nil {
+						return err
+					}
+				}
 				return d.reloadRoot(ctx, abs)
 			}
-			if err := d.addProject(ctx, abs); err != nil {
+			if err := d.addProject(ctx, abs, paused); err != nil {
 				return err
 			}
 			cur, err := daemoncfg.Load()
@@ -409,7 +414,7 @@ func (d *daemon) watchDaemonFile(ctx context.Context) {
 		d.df.Notify = df.Notify
 		for _, root := range df.Projects {
 			if !d.loaded(root) {
-				if err := d.addProject(ctx, root); err != nil {
+				if err := d.addProject(ctx, root, false); err != nil {
 					d.log.Warn("project", "root", root, "err", err)
 				}
 			}
@@ -444,7 +449,24 @@ func (d *daemon) loaded(root string) bool {
 }
 
 // addProject builds a project's ports from its barnraise.yaml.
-func (d *daemon) addProject(ctx context.Context, root string) error {
+// pausedNote is why a project registered with `barnraise up --paused` waits.
+const pausedNote = "started paused (barnraise up --paused): adopt the existing work, then barnraise resume"
+
+// pauseRoot pauses the project already loaded from root.
+func (d *daemon) pauseRoot(ctx context.Context, root string) error {
+	cfg, err := config.Load(root)
+	if err != nil {
+		return err
+	}
+	if p, err := d.svc.Project(cfg.Name); err == nil && p.Snapshot().Paused {
+		return nil
+	}
+	return d.svc.Pause(ctx, cfg.Name, app.System(), pausedNote)
+}
+
+// addProject loads the project of root. With paused, the pause is recorded
+// before the runtime is woken, so no agent of it can start.
+func (d *daemon) addProject(ctx context.Context, root string, paused bool) error {
 	cfg, err := config.Load(root)
 	if err != nil {
 		return err
@@ -458,6 +480,13 @@ func (d *daemon) addProject(ctx context.Context, root string) error {
 	}
 	if _, err := d.svc.AddProject(ctx, cfg, pp); err != nil {
 		return err
+	}
+	if paused {
+		if p, err := d.svc.Project(cfg.Name); err == nil && !p.Snapshot().Paused {
+			if err := d.svc.Pause(ctx, cfg.Name, app.System(), pausedNote); err != nil {
+				return err
+			}
+		}
 	}
 	if d.opts.Fake {
 		_, _ = d.svc.UpsertAccount(ctx, cfg.Name, app.System(), domain.Account{ID: "fake-1", Provider: "fake", Status: domain.AccountOK, CeilingPct: 100})

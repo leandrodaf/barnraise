@@ -8359,7 +8359,11 @@ func (x *EventsResponse) GetEvents() []*Event {
 type RegisterProjectRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Absolute path of a repository with a barnraise.yaml.
-	Root          string `protobuf:"bytes,1,opt,name=root,proto3" json:"root,omitempty"`
+	Root string `protobuf:"bytes,1,opt,name=root,proto3" json:"root,omitempty"`
+	// Pause every agent of the project before any of them can start, so the
+	// owner can adopt work that already exists (accounts, item branches)
+	// first. Lifted with Resume.
+	Paused        bool `protobuf:"varint,2,opt,name=paused,proto3" json:"paused,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -8399,6 +8403,13 @@ func (x *RegisterProjectRequest) GetRoot() string {
 		return x.Root
 	}
 	return ""
+}
+
+func (x *RegisterProjectRequest) GetPaused() bool {
+	if x != nil {
+		return x.Paused
+	}
+	return false
 }
 
 var File_barnraise_v1_barnraise_proto protoreflect.FileDescriptor
@@ -9144,9 +9155,10 @@ const file_barnraise_v1_barnraise_proto_rawDesc = "" +
 	"\tafter_seq\x18\x04 \x01(\x03R\bafterSeq\x12\x14\n" +
 	"\x05limit\x18\x05 \x01(\x05R\x05limit\"=\n" +
 	"\x0eEventsResponse\x12+\n" +
-	"\x06events\x18\x01 \x03(\v2\x13.barnraise.v1.EventR\x06events\",\n" +
+	"\x06events\x18\x01 \x03(\v2\x13.barnraise.v1.EventR\x06events\"D\n" +
 	"\x16RegisterProjectRequest\x12\x12\n" +
-	"\x04root\x18\x01 \x01(\tR\x04root2\xaa!\n" +
+	"\x04root\x18\x01 \x01(\tR\x04root\x12\x16\n" +
+	"\x06paused\x18\x02 \x01(\bR\x06paused2\xaa!\n" +
 	"\x10BarnraiseService\x12C\n" +
 	"\fListProjects\x12\x13.barnraise.v1.Empty\x1a\x1e.barnraise.v1.ProjectsResponse\x12W\n" +
 	"\x0fRegisterProject\x12$.barnraise.v1.RegisterProjectRequest\x1a\x1e.barnraise.v1.ProjectsResponse\x12I\n" +

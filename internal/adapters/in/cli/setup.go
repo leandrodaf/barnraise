@@ -367,7 +367,7 @@ func (e *env) daemonRunning() bool {
 }
 
 func (e *env) upCmd() *cobra.Command {
-	var service bool
+	var service, paused bool
 	c := &cobra.Command{Use: "up", Short: "Register this project and start the daemon if needed", Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			root, err := findRoot()
@@ -378,6 +378,23 @@ func (e *env) upCmd() *cobra.Command {
 				return err
 			} else if len(problems) > 0 {
 				return fmt.Errorf("barnraise.yaml has problems:\n- %s", strings.Join(problems, "\n- "))
+			}
+			cfg, err := config.Load(root)
+			if err != nil {
+				return err
+			}
+			rctx, rcancel := context.WithTimeout(cmd.Context(), 90*time.Second)
+			notReady := defaultReadiness().problems(rctx, cfg)
+			rcancel()
+			if len(notReady) > 0 {
+				fmt.Fprintf(e.out, "This machine is not ready to run agents for %s:\n", cfg.Name)
+				for _, p := range notReady {
+					fmt.Fprintf(e.out, "  ✘ %s\n", p)
+				}
+				if !paused {
+					fmt.Fprintln(e.out, "  The project starts paused; fix the above, then barnraise resume.")
+					paused = true
+				}
 			}
 			if _, err := ensureOwnerToken(); err != nil {
 				return err
@@ -409,19 +426,21 @@ func (e *env) upCmd() *cobra.Command {
 			}
 			ctx, cancel := e.ctx()
 			defer cancel()
-			res, err := e.client().RegisterProject(ctx, req(&pb.RegisterProjectRequest{Root: root}))
+			res, err := e.client().RegisterProject(ctx, req(&pb.RegisterProjectRequest{Root: root, Paused: paused}))
 			if err != nil {
 				return err
 			}
 			fmt.Fprintf(e.out, "✔ Barnraise is up on machine %s with projects: %s\n", res.Msg.Machine, strings.Join(res.Msg.Projects, ", "))
+			if paused {
+				fmt.Fprintf(e.out, "  %s is paused: no agent starts until barnraise resume.\n", cfg.Name)
+			}
 			if df.Listen != "off" && df.Listen != "" {
-				if df.Listen != "off" && df.Listen != "" {
-					fmt.Fprintf(e.out, "  Panel: http://%s/?token=$(cat %s)\n", df.Listen, paths.OwnerTokenFile())
-				}
+				fmt.Fprintf(e.out, "  Panel: http://%s/?token=$(cat %s)\n", df.Listen, paths.OwnerTokenFile())
 			}
 			return nil
 		}}
 	c.Flags().BoolVar(&service, "service", false, "install and start a systemd user service instead of a background process")
+	c.Flags().BoolVar(&paused, "paused", false, "register the project with every agent paused (adopt existing work first, then barnraise resume)")
 	return c
 }
 
@@ -455,10 +474,22 @@ ExecStart=%s daemon
 Restart=on-failure
 RestartSec=5
 Environment=DISABLE_AUTOUPDATER=1
+Environment="PATH=%s"
 
 [Install]
 WantedBy=default.target
 `
+
+// unitFile is the systemd unit. A user service starts with systemd's short
+// PATH, without ~/go/bin, ~/.local/bin or nvm: the checks
+// would not find their tools. The unit keeps the PATH of the shell that ran
+// barnraise up --service; run it again after installing new tools.
+func unitFile(exe, path string) string {
+	if path == "" {
+		path = "/usr/local/bin:/usr/bin:/bin"
+	}
+	return fmt.Sprintf(unitTemplate, exe, strings.NewReplacer(`\`, `\\`, `"`, `\"`, "%", "%%").Replace(path))
+}
 
 func installService(out io.Writer) error {
 	exe, err := os.Executable()
@@ -470,7 +501,7 @@ func installService(out io.Writer) error {
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return err
 	}
-	if err := os.WriteFile(filepath.Join(dir, "barnraise.service"), []byte(fmt.Sprintf(unitTemplate, exe)), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(dir, "barnraise.service"), []byte(unitFile(exe, os.Getenv("PATH"))), 0o644); err != nil {
 		return err
 	}
 	for _, args := range [][]string{{"--user", "daemon-reload"}, {"--user", "enable", "--now", "barnraise.service"}} {

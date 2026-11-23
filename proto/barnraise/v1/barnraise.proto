@@ -926,6 +926,10 @@ message EventsResponse {
 message RegisterProjectRequest {
   // Absolute path of a repository with a barnraise.yaml.
   string root = 1;
+  // Pause every agent of the project before any of them can start, so the
+  // owner can adopt work that already exists (accounts, item branches)
+  // first. Lifted with Resume.
+  bool paused = 2;
 }
 
 // BarnraiseService is the daemon's whole API. The CLI, the MCP server, the
