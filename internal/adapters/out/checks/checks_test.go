@@ -128,7 +128,9 @@ func TestFailsOnBranchPassesOnMain(t *testing.T) {
 	}
 }
 
-func TestFailsOnBothIsFlaky(t *testing.T) {
+// Red on the branch and on main: not the item's fault, and not verified
+// either. It neither passes nor counts as a flake; the caller holds the item.
+func TestFailsOnBothIsRedOnMain(t *testing.T) {
 	dir, mainDir := t.TempDir(), t.TempDir()
 	r := newRunner(t, Options{MainDir: func(ports.CheckSpec) string { return mainDir }})
 	s := spec(dir, counter(9))
@@ -137,8 +139,11 @@ func TestFailsOnBothIsFlaky(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !res.Passed || !res.Flaky || runs(t, dir) != "2" || runs(t, mainDir) != "1" {
+	if res.Passed || res.Flaky || !res.MainRed || runs(t, dir) != "2" || runs(t, mainDir) != "1" {
 		t.Fatalf("%+v branch=%s main=%s", res, runs(t, dir), runs(t, mainDir))
+	}
+	if !strings.HasPrefix(res.Summary, "red on main too: branch 0/2 passed, main 0/1 passed") {
+		t.Fatalf("summary = %q", res.Summary)
 	}
 }
 

@@ -47,6 +47,29 @@ func TestCheckStepOutcomes(t *testing.T) {
 	}
 }
 
+// A check that is red on main too says nothing about the item: the item is
+// held for the owner, with the reason, instead of going back to an agent to
+// "fix" code that is not wrong, and nothing else runs or integrates.
+func TestCheckRedOnMainHoldsTheItem(t *testing.T) {
+	e := newEnv(t)
+	e.checks.Script("main", testkit.CheckOutcome{Passed: false, MainRed: true, Summary: "red on main too: branch 0/1 passed, main 0/1 passed"})
+	it := e.atCheck("lint broken on main")
+	e.drive(it.ID)
+	got := e.wantStatus(it.ID, domain.StatusBlocked, "check")
+	if len(got.Rework) != 0 {
+		t.Fatalf("went to rework: %+v", got.Rework)
+	}
+	if got.WaitingQuestion == "" {
+		t.Fatal("no question for the owner")
+	}
+	if ty := e.types(it.ID); !strings.Contains(ty, domain.EvItemBlocked) {
+		t.Fatalf("events %s", ty)
+	}
+	if k := strings.Join(e.notes.Kinds(), ","); !strings.Contains(k, "check_red_on_main") {
+		t.Fatalf("notifications %s", k)
+	}
+}
+
 func TestCheckPendingThenReport(t *testing.T) {
 	e := newEnv(t, withCfg(func(c *domain.ProjectConfig) {
 		c.Checks["lint"] = domain.CheckDef{Name: "lint", Run: "golangci-lint run", RunsOn: "local"}

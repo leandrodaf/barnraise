@@ -17,6 +17,7 @@ type CheckOutcome struct {
 	Passed  bool
 	Summary string
 	Flaky   bool
+	MainRed bool
 	Pending bool
 	Err     error
 }
@@ -101,7 +102,7 @@ func (c *Checks) Run(_ context.Context, spec ports.CheckSpec) (domain.CheckResul
 	if out.Pending {
 		return domain.CheckResult{}, true, nil
 	}
-	return domain.CheckResult{Check: name, ItemID: spec.ItemID, Commit: spec.Commit, Passed: out.Passed, Flaky: out.Flaky, Summary: out.Summary, RunsOn: spec.Def.RunsOn}, false, nil
+	return domain.CheckResult{Check: name, ItemID: spec.ItemID, Commit: spec.Commit, Passed: out.Passed, Flaky: out.Flaky, MainRed: out.MainRed, Summary: out.Summary, RunsOn: spec.Def.RunsOn}, false, nil
 }
 
 // Notifier records notifications (ports.Notifier).

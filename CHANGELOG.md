@@ -13,6 +13,7 @@ First version: one Go binary that is the daemon, the CLI, the MCP server and the
 - An issue a person wrote in the tracker is adopted: its state and labels follow the item, its title and text are never rewritten.
 - `barnraise up --paused` registers a project with every agent paused, so existing work is adopted (accounts, `item edit --branch`) before anything starts; `barnraise resume` lifts it.
 - `barnraise up` checks the machine first: the arbiter remote exists and accepts a push from here, a GitHub token is reachable, and each local check's program is on the `PATH`. A machine that is not ready starts the project paused, with one sentence per problem.
+- A check that is red on main too no longer passes as a flake: it verified nothing. The item is held for the owner with the reason and an urgent notification, and does not go back to an agent to change code that is not wrong.
 - The systemd unit written by `barnraise up --service` keeps the `PATH` of the shell that ran it, so checks find tools in `~/go/bin`, `~/.local/bin` or nvm.
 
 - **Machine readings**: load, available memory, processor temperature and each GPU's use, memory and temperature, reported with every heartbeat; shown by `barnraise cluster status` and the panel, with `barnraise machine history` and the `MachineHistory` call for charts. Live state now travels on a last-value channel (`BR_LIVE`): never stored, never replayed as history.

@@ -195,6 +195,7 @@ func (r *Runner) runLocal(ctx context.Context, spec ports.CheckSpec, res *domain
 	}
 	passed, flaky := domain.FlakyVerdict(branch, main)
 	res.Passed, res.Flaky, res.Duration = passed, flaky, total
+	res.MainRed = domain.MainRedVerdict(branch, main)
 
 	report := last
 	if last.passed && firstFail.logPath != "" {
@@ -203,6 +204,9 @@ func (r *Runner) runLocal(ctx context.Context, spec ports.CheckSpec, res *domain
 	res.Summary = report.summary
 	if flaky {
 		res.Summary = fmt.Sprintf("flaky: branch %s, main %s\n%s", runsText(branch), runsText(main), report.summary)
+	}
+	if res.MainRed {
+		res.Summary = fmt.Sprintf("red on main too: branch %s, main %s\n%s", runsText(branch), runsText(main), report.summary)
 	}
 	res.LogPath = report.logPath
 	if r.o.Blobs != nil && report.logPath != "" {

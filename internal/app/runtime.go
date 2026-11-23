@@ -976,7 +976,22 @@ func (r *Runtime) StopAll() {
 	for _, ls := range list {
 		ls.stop()
 	}
+	// Each session's watcher still saves the step (commit, push) after the
+	// agent ends: wait for it, so a shutdown does not cut a push in half.
+	deadline := time.Now().Add(stopAllWait)
+	for time.Now().Before(deadline) {
+		r.mu.Lock()
+		n := len(r.running)
+		r.mu.Unlock()
+		if n == 0 {
+			return
+		}
+		time.Sleep(20 * time.Millisecond)
+	}
 }
+
+// stopAllWait bounds how long StopAll waits for sessions to save their step.
+const stopAllWait = 30 * time.Second
 
 // StopProject ends the sessions of a project (pause).
 func (r *Runtime) StopProject(project string) {

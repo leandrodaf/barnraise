@@ -397,7 +397,7 @@ func TestFlaky(t *testing.T) {
 		{[]bool{true}, nil, true, false},
 		{[]bool{false, true}, nil, true, true},
 		{[]bool{false, false, false}, []bool{true, true, true}, false, false},
-		{[]bool{false, false, false}, []bool{false, false, false}, true, true},
+		{[]bool{false, false, false}, []bool{false, false, false}, false, false},
 		{[]bool{false, false, false}, []bool{true, false}, true, true},
 		{[]bool{false, false, false}, nil, false, false},
 	}

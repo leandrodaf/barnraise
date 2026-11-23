@@ -209,12 +209,16 @@ func FormatFindings(fs []Finding) string {
 
 // CheckResult is the structured result of a verification.
 type CheckResult struct {
-	ID        string        `json:"id"`
-	ItemID    string        `json:"item_id"`
-	Check     string        `json:"check"`
-	Commit    string        `json:"commit,omitempty"`
-	Passed    bool          `json:"passed"`
-	Flaky     bool          `json:"flaky,omitempty"`
+	ID     string `json:"id"`
+	ItemID string `json:"item_id"`
+	Check  string `json:"check"`
+	Commit string `json:"commit,omitempty"`
+	Passed bool   `json:"passed"`
+	Flaky  bool   `json:"flaky,omitempty"`
+	// MainRed: it failed on the branch and failed on main too. That is not
+	// the item's fault and not a flake either: main or this machine's
+	// environment is broken (a tool version, a missing build artifact).
+	MainRed   bool          `json:"main_red,omitempty"`
 	Summary   string        `json:"summary"`
 	LogPath   string        `json:"log_path,omitempty"`
 	LogHash   string        `json:"log_hash,omitempty"`
@@ -248,13 +252,23 @@ func FlakyVerdict(branch, main []bool) (passed bool, flaky bool) {
 		// Oscillates on the branch: quarantine, do not block.
 		return true, true
 	case len(main) > 0 && mFail > 0 && mPass == 0:
-		// Also red on main: not this item's fault.
-		return true, true
+		// Also red on main: not this item's fault, but nothing was verified
+		// either. Passing would let any item through a broken check;
+		// MainRedVerdict tells the caller to hold the item instead.
+		return false, false
 	case len(main) > 0 && mFail > 0:
 		return true, true
 	default:
 		return false, false
 	}
+}
+
+// MainRedVerdict reports a check that failed every run on the branch and
+// every run on main.
+func MainRedVerdict(branch, main []bool) bool {
+	bPass, bFail := count(branch)
+	mPass, mFail := count(main)
+	return bFail > 0 && bPass == 0 && mFail > 0 && mPass == 0
 }
 
 func count(rs []bool) (pass, fail int) {

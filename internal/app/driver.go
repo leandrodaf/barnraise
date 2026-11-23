@@ -457,7 +457,7 @@ func (s *Service) runCheckStep(ctx context.Context, p *Project, it *domain.Item,
 		return err
 	}
 	pendingAny := false
-	failedFirst := ""
+	failedFirst, mainRed := "", ""
 	for _, dec := range decisions {
 		n := dec.Name
 		def := p.Cfg().Checks[n]
@@ -508,10 +508,24 @@ func (s *Service) runCheckStep(ctx context.Context, p *Project, it *domain.Item,
 		}
 		if !res.Passed {
 			failedFirst = n
+			if res.MainRed {
+				mainRed = n
+			}
 		}
 	}
 	if pendingAny {
 		return nil // results come through ReportCheck
+	}
+	if mainRed != "" {
+		// Sending the item back would have an agent "fix" code that is not
+		// wrong; passing it would let anything through. A person fixes main
+		// or the machine, then retries the step.
+		reason := fmt.Sprintf("check %s is red on main too, so it says nothing about this item: main or this machine's environment is broken (a tool version, a missing build artifact, memory). Fix it and retry the step.", mainRed)
+		if _, _, err := s.finishStep(ctx, p, stepOutcome{Item: it.ID, Step: st.Name, Outcome: domain.OutcomeBlocked, Reason: reason, Actor: "checks"}); err != nil {
+			return err
+		}
+		s.notifyOwner(ctx, p, "check_red_on_main", fmt.Sprintf("Check %s is red on main", mainRed), it.ID+" is held at "+st.Name+": "+reason)
+		return nil
 	}
 	results := s.checkResultsSince(ctx, p, it.ID, it.StepStartedAt)
 	passed, reason, complete := aggregateChecks(names, results)

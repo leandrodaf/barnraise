@@ -83,6 +83,10 @@ func TestWrongCodeFailsBothSides(t *testing.T) {
 	if _, err := Join(context.Background(), addr, "222222", []byte("x")); !errors.Is(err, ErrWrongCode) {
 		t.Fatalf("joiner: %v", err)
 	}
+	// The joiner hears "wrong code" before the inviter's callback has run.
+	for deadline := time.Now().Add(2 * time.Second); fails.Load() == 0 && time.Now().Before(deadline); {
+		time.Sleep(5 * time.Millisecond)
+	}
 	if fails.Load() != 1 {
 		t.Fatalf("inviter failures %d", fails.Load())
 	}
