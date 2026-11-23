@@ -136,3 +136,19 @@ func TestUnitFileKeepsThePath(t *testing.T) {
 		t.Fatalf("empty PATH:\n%s", u)
 	}
 }
+
+// An isolated user cannot enter the owner's home: an account folder there,
+// or the CLI's own, would leave the session without its login.
+func TestIsolateProblem(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	if isolateProblem("") == "" {
+		t.Fatal("the CLI's own folder cannot be isolated")
+	}
+	if why := isolateProblem(home + "/.local/share/barnraise/accounts/claude-1"); !strings.Contains(why, "container") {
+		t.Fatalf("a folder in the home: %q", why)
+	}
+	if why := isolateProblem("/srv/barnraise/accounts/claude-1"); why != "" {
+		t.Fatalf("a folder outside the home: %q", why)
+	}
+}

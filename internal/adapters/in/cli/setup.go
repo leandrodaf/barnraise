@@ -831,6 +831,9 @@ func (e *env) accountCmd() *cobra.Command {
 				acc = &pb.Account{Id: id, Provider: prov, Plan: plan, ConfigDir: dir, CeilingPct: ceiling, Status: "ok", Machine: machine}
 			}
 			if isolate {
+				if why := isolateProblem(dir); why != "" {
+					return errors.New(why)
+				}
 				user := "barnraise-" + id
 				if err := isolateAccount(e.out, user, dir); err != nil {
 					return err
@@ -1035,6 +1038,22 @@ func tailStr(s string, n int) string {
 		return s
 	}
 	return s[len(s)-n:]
+}
+
+// isolateProblem says why an account folder cannot belong to an isolated
+// user. The isolated user has no access to the owner's home, so the CLI's
+// own folder ("default") or any folder under the owner's home would be out
+// of its reach: the session could not log in. A container (`container:` in
+// barnraise.yaml) is the isolation that needs neither sudo nor a new user.
+func isolateProblem(dir string) string {
+	home, _ := os.UserHomeDir()
+	switch {
+	case dir == "":
+		return "--isolate needs the account's own folder: leave out --config-dir default, or run agents in a container (`container:` in barnraise.yaml), which needs no new user"
+	case home != "" && (dir == home || strings.HasPrefix(filepath.Clean(dir)+"/", filepath.Clean(home)+"/")):
+		return fmt.Sprintf("--isolate: %s is inside your home, which the isolated user cannot enter (and so are the worktrees, under Barnraise's data dir). Run agents in a container (`container:` in barnraise.yaml), which needs neither sudo nor a new user, or set BARNRAISE_DATA_DIR to a folder outside your home and log in again without --config-dir", dir)
+	}
+	return ""
 }
 
 // isolateAccount creates a Linux user per agent account, without access to the

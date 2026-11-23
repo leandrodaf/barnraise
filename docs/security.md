@@ -36,6 +36,8 @@ To report a vulnerability, see [SECURITY.md](../SECURITY.md).
 
 Give that user its own code host token, limited to one repository and to branches. Main stays protected; only the daemon integrates.
 
+The isolated user has no way into the owner's home, and by default the account folders and the item worktrees live there, under Barnraise's data dir (`~/.local/share/barnraise`). So `--isolate` refuses the CLI's own folder (`--config-dir default`) and any folder under the owner's home, saying why. It needs `BARNRAISE_DATA_DIR` outside the home (`/srv/barnraise`, owned by the owner, with the isolated users in its group) and the session runs through `sudo -n -u`, which needs a `sudoers` rule for the owner. **On a workstation, prefer a container** ([layer 11](#11-containers-when-the-project-asks-for-them)): the same boundary (the agent sees only the worktree, the `.git`, its account and the socket) with neither sudo nor a new user. That is how Nobira runs.
+
 ### 3. A blocking PreToolUse hook
 
 Every agent session is configured with Barnraise's hooks (`PreToolUse`, `PostToolUse`, `SessionStart`, `PreCompact`, `UserPromptSubmit`, `Stop`). `barnraise hook pre-tool` decides **locally, without network**, from a compiled policy file (`BARNRAISE_POLICY`), so it is fast and works even when the daemon is down and even with `--dangerously-skip-permissions`. A denial is reported to the daemon asynchronously as `policy.violation.blocked`, and the owner is told.
