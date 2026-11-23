@@ -778,3 +778,33 @@ func TestRuntimeHoldsNewSessionsUnderMemoryPressure(t *testing.T) {
 		t.Fatalf("floor off: %q", why)
 	}
 }
+
+// Gemini cannot change files outside a container, so an implementer step
+// never goes to it there, while a reviewer step may; inside a container it
+// implements too.
+func TestRuntimeReadOnlyProviderOnlyReviewsOnTheHost(t *testing.T) {
+	geminiFirst := withCfg(func(c *domain.ProjectConfig) {
+		for class := range c.Models.Classes {
+			c.Models.Classes[class] = []domain.ModelChoice{{Provider: "gemini", Model: "gemini-2.5-pro"}, {Provider: "fake", Model: "fake-large"}}
+		}
+	})
+	e := newEnv(t, geminiFirst)
+	gem := fakeprovider.New("gemini", "google")
+	e.svc.d.Providers["gemini"] = gem
+	if _, err := e.svc.UpsertAccount(e.ctx, "demo", owner(), domain.Account{ID: "gemini-1", Provider: "gemini", CeilingPct: 100}); err != nil {
+		t.Fatal(err)
+	}
+	e.account("fake-1")
+	release := e.holdSessions()
+	it := e.ready("simple", "needs code", "x")
+	e.fill()
+	if len(gem.Specs()) != 0 {
+		t.Fatal("an implementer step went to a provider that cannot change files on the host")
+	}
+	if len(e.prov.Specs()) != 1 || e.prov.Specs()[0].Env["BARNRAISE_ITEM"] != it.ID {
+		t.Fatalf("the step goes to the provider that can implement: fake %d", len(e.prov.Specs()))
+	}
+	e.svc.Runtime().MaxSessions = -1
+	release()
+	e.idle()
+}

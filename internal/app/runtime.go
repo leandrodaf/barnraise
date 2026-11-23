@@ -68,6 +68,12 @@ type Runtime struct {
 	NoSandboxProviders map[string]string // provider -> why, and what to do
 }
 
+// ReadOnlyOnHost lists providers whose sessions cannot run commands or
+// change files outside a container (they have no hook Barnraise can use as
+// a barrier, so the adapter turns those tools off). They only get steps of
+// roles that review: an implementer step there would end without code.
+var ReadOnlyOnHost = map[string]bool{"gemini": true}
+
 // codexNeedsBwrap explains why Codex gets no work on a machine where bubblewrap cannot start.
 const codexNeedsBwrap = "Codex runs every command inside bubblewrap, which cannot create user namespaces on this machine. " +
 	"On Ubuntu: allow it with an AppArmor profile for bwrap, or `sudo sysctl kernel.apparmor_restrict_unprivileged_userns=0`. " +
@@ -428,6 +434,9 @@ func (r *Runtime) start(ctx context.Context, p *Project, slot Slot, a *Assignmen
 			if domain.PickAccount(accounts, provider, s.d.Machine, p.Name, now) != nil {
 				blocked = why // an account is ready, only the sandbox stops it
 			}
+			return false
+		}
+		if ReadOnlyOnHost[provider] && p.Cfg().Container.Image == "" && !rd.Reviewer {
 			return false
 		}
 		if len(rd.Providers) > 0 && !domain.Contains(rd.Providers, provider) {
