@@ -13,6 +13,7 @@ First version: one Go binary that is the daemon, the CLI, the MCP server and the
 - An issue a person wrote in the tracker is adopted: its state and labels follow the item, its title and text are never rewritten.
 - `barnraise up --paused` registers a project with every agent paused, so existing work is adopted (accounts, `item edit --branch`) before anything starts; `barnraise resume` lifts it.
 - `barnraise up` checks the machine first: the arbiter remote exists and accepts a push from here, a GitHub token is reachable, and each local check's program is on the `PATH`. A machine that is not ready starts the project paused, with one sentence per problem.
+- A tracker import that fails, in full or for some issues, keeps its window: the issues it could not take come in with the next import. Before, the window moved on and they were never imported unless someone touched them; the failures were not logged either.
 - A check that is red on main too no longer passes as a flake: it verified nothing. The item is held for the owner with the reason and an urgent notification, and does not go back to an agent to change code that is not wrong.
 - The systemd unit written by `barnraise up --service` keeps the `PATH` of the shell that ran it, so checks find tools in `~/go/bin`, `~/.local/bin` or nvm.
 

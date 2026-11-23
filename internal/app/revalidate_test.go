@@ -292,3 +292,36 @@ func TestTrackerImportAndSync(t *testing.T) {
 		t.Fatal(n, err)
 	}
 }
+
+// A failed tracker import keeps its window: the issues it could not take
+// come in with the next one, even if nobody touches them in between. Before,
+// the window moved on and they were never imported.
+func TestTrackerImportFailureKeepsTheWindow(t *testing.T) {
+	e := newEnv(t, withTracker(), withCfg(func(c *domain.ProjectConfig) { c.Tracker.Trusted = []string{"ana"} }))
+	r := e.svc.Runtime()
+	old := time.Now().Add(-48 * time.Hour)
+	e.tracker.Items = []ports.TrackerItem{{Ref: "gh#20", Title: "Old issue", Body: "b", Author: "ana", Updated: old}}
+	e.tracker.SetListErr(errors.New("network is unreachable"))
+	m := r.machine()
+	r.housekeeping(e.ctx, e.p, m)
+	time.Sleep(100 * time.Millisecond) // the import runs in the background and fails
+	r.mu.Lock()
+	moved := !r.importedTo[e.p.Name].IsZero()
+	r.mu.Unlock()
+	if moved {
+		t.Fatal("a failed import moved the window")
+	}
+
+	e.tracker.SetListErr(nil)
+	r.lastImport[e.p.Name] = time.Time{}
+	r.lastHK[e.p.Name] = time.Time{}
+	r.housekeeping(e.ctx, e.p, m)
+	eventually(t, "the old issue comes in on the next import", func() bool {
+		for _, it := range e.p.Snapshot().Items {
+			if it.TrackerRef == "gh#20" {
+				return true
+			}
+		}
+		return false
+	})
+}

@@ -172,6 +172,13 @@ func (t *Tracker) List(_ context.Context, since time.Time) ([]ports.TrackerItem,
 	return out, nil
 }
 
+// SetListErr changes the List error while other goroutines may be listing.
+func (t *Tracker) SetListErr(err error) {
+	t.mu.Lock()
+	t.ListErr = err
+	t.mu.Unlock()
+}
+
 // Create implements ports.Tracker.
 func (t *Tracker) Create(_ context.Context, it *domain.Item, _ string) (ports.TrackerItem, error) {
 	t.mu.Lock()

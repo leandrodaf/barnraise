@@ -3,6 +3,7 @@ package app
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
 	"sync"
@@ -436,6 +437,7 @@ func (s *Service) ImportFromTracker(ctx context.Context, project string, since t
 		}
 	}
 	n := 0
+	var failed []error
 	for _, ti := range list {
 		if it, ok := byRef[ti.Ref]; ok {
 			title := domain.SanitizeExternal(ti.Title)
@@ -464,6 +466,8 @@ func (s *Service) ImportFromTracker(ctx context.Context, project string, since t
 			_, err := s.CreateItem(ctx, p.Name, System(), NewItem{Title: ti.Title, Body: body + "\n\n[NEEDS CLARIFICATION: analyst rewrites this as a structured item]", Kind: kind, External: true, TrackerRef: ti.Ref, Priority: "P2"})
 			if err == nil {
 				n++
+			} else {
+				failed = append(failed, fmt.Errorf("%s: %w", ti.Ref, err))
 			}
 			continue
 		}
@@ -471,9 +475,13 @@ func (s *Service) ImportFromTracker(ctx context.Context, project string, since t
 			Size: "unknown", Area: "general", GoalLink: "reported by a person", Kind: map[string]string{"bug": "bug", "feature": "feature"}[kind], By: "tracker"})
 		if err == nil {
 			n++
+		} else {
+			failed = append(failed, fmt.Errorf("%s: %w", ti.Ref, err))
 		}
 	}
-	return n, nil
+	// An issue that failed is not in the next window unless it changes: the
+	// caller keeps the window where it was, so it is tried again.
+	return n, errors.Join(failed...)
 }
 
 // SyncAllToTracker creates in the tracker every live item that is not there yet

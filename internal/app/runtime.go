@@ -42,6 +42,9 @@ type Runtime struct {
 	// push: StopAll waits for them as it waits for sessions.
 	queues     sync.WaitGroup
 	lastImport map[string]time.Time
+	// importedTo is where the last complete tracker import started: the next
+	// one lists what changed since then. A failed import leaves it in place.
+	importedTo map[string]time.Time
 	lastSweep  map[string]time.Time
 	lastDigest map[string]time.Time
 	lastWeekly map[string]time.Time
@@ -117,7 +120,7 @@ func newRuntime(s *Service) *Runtime {
 		bwrapErr = errors.New("sandbox unavailable")
 	}
 	r := &Runtime{s: s, poke: make(chan struct{}, 1), running: map[string]*liveSession{}, SessionTimeout: 3 * time.Hour,
-		lastHK: map[string]time.Time{}, lastRenew: map[string]time.Time{}, lastImport: map[string]time.Time{}, lastSweep: map[string]time.Time{},
+		lastHK: map[string]time.Time{}, lastRenew: map[string]time.Time{}, lastImport: map[string]time.Time{}, importedTo: map[string]time.Time{}, lastSweep: map[string]time.Time{},
 		lastDigest: map[string]time.Time{}, lastWeekly: map[string]time.Time{}, Sandbox: bwrapErr == nil, NoSandboxProviders: map[string]string{}}
 	if bwrapErr != nil && goruntime.GOOS == "linux" {
 		r.NoSandboxProviders["codex"] = codexNeedsBwrap

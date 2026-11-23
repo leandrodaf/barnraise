@@ -45,15 +45,21 @@ func (r *Runtime) housekeeping(ctx context.Context, p *Project, m domain.Machine
 		s.d.Log.Info("proposals expired", "project", p.Name, "count", n)
 	}
 	if now.Sub(r.lastImport[p.Name]) > 2*time.Minute && p.Ports().Tracker != nil {
-		since := r.lastImport[p.Name]
+		r.mu.Lock()
+		since := r.importedTo[p.Name]
+		r.mu.Unlock()
 		if since.IsZero() {
 			since = now.Add(-30 * 24 * time.Hour)
 		}
 		r.lastImport[p.Name] = now
 		go func() {
 			if _, err := s.ImportFromTracker(context.Background(), p.Name, since.Add(-time.Minute)); err != nil {
-				s.d.Log.Warn("tracker import", "err", err)
+				s.d.Log.Warn("tracker import; the next one tries again from the same point", "project", p.Name, "since", since, "err", err)
+				return
 			}
+			r.mu.Lock()
+			r.importedTo[p.Name] = now
+			r.mu.Unlock()
 		}()
 	}
 	if now.Sub(r.lastSweep[p.Name]) > 24*time.Hour {
