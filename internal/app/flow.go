@@ -19,6 +19,7 @@ type stepOutcome struct {
 	RunInfo  *domain.StepRun
 	Criteria []domain.CriterionMark
 	Files    []string
+	Change   *domain.ChangeNote
 }
 
 // finishStep applies the flow engine's decision. The flow is code: Barnraise
@@ -61,6 +62,10 @@ func (s *Service) finishStep(ctx context.Context, p *Project, o stepOutcome) (*d
 		}
 		if len(o.Files) > 0 {
 			it.FilesTouched = domain.Dedupe(append(it.FilesTouched, o.Files...))
+		}
+		if o.Change != nil {
+			c := *o.Change
+			it.Change = &c
 		}
 		if o.RunInfo != nil {
 			if it.Runs == nil {
@@ -262,6 +267,12 @@ func (s *Service) Deliver(ctx context.Context, project string, a Actor, d domain
 		p.mu.Unlock()
 		return nil, fmt.Errorf("%w: a reproduce step must list the failing test file in files", ErrInvalid)
 	}
+	if note, err := changeOf(cur, st, d); err != nil {
+		p.mu.Unlock()
+		return nil, err
+	} else {
+		d.Change = note
+	}
 	p.mu.Unlock()
 	d.Agent = actorName(a)
 	d.At = s.d.Clock.Now().UTC()
@@ -272,7 +283,7 @@ func (s *Service) Deliver(ctx context.Context, project string, a Actor, d domain
 	}
 	// Commit and push the step's work before the transition: if this
 	// machine dies, nothing is lost.
-	if sha, err := s.commitStep(ctx, p, d.ItemID, fmt.Sprintf("%s: %s step %s", d.ItemID, strings.ToLower(string(d.Status)), d.Step)); err == nil && sha != "" {
+	if sha, err := s.commitStep(ctx, p, d.ItemID, fmt.Sprintf("chore(%s): %s step %s", d.ItemID, strings.ToLower(string(d.Status)), d.Step)); err == nil && sha != "" {
 		d.Commit = sha
 	} else if err != nil {
 		if strings.Contains(err.Error(), "secret") {
@@ -289,12 +300,41 @@ func (s *Service) Deliver(ctx context.Context, project string, a Actor, d domain
 	}
 	run := runInfo(a)
 	it, tr, err := s.finishStep(ctx, p, stepOutcome{Item: d.ItemID, Step: d.Step, Outcome: outcome, Reason: reason, Actor: d.Agent,
-		Criteria: d.Criteria, Files: d.Files, RunInfo: run, Payload: domain.Payload{Note: d.Summary}})
+		Criteria: d.Criteria, Files: d.Files, Change: d.Change, RunInfo: run, Payload: domain.Payload{Note: d.Summary}})
 	if err != nil {
 		return nil, err
 	}
 	s.afterDelivery(ctx, p, it, d, tr)
 	return it, nil
+}
+
+// changeOf returns how a delivery describes its change on main, checked.
+// Only the step that changes the product needs one (not a plan, not a
+// reproduction test), and only when it delivers work. Without one from the
+// agent, the item's own kind, area and title are used when they already make
+// a valid English header; otherwise the agent has to write it.
+func changeOf(it *domain.Item, st domain.StepDef, d domain.Delivery) (*domain.ChangeNote, error) {
+	outcome, _ := d.Status.Outcome()
+	if st.Output != "" || st.Name == RefineStep || !outcome.Positive() {
+		return nil, nil
+	}
+	if d.Change != nil {
+		c := *d.Change
+		c.Type, c.Scope, c.Subject = strings.TrimSpace(c.Type), strings.TrimSpace(c.Scope), strings.TrimSpace(c.Subject)
+		if err := c.Validate(); err != nil {
+			return nil, fmt.Errorf("%w: %v", ErrInvalid, err)
+		}
+		return &c, nil
+	}
+	if it.Change != nil {
+		return it.Change, nil // an earlier round already described it
+	}
+	c := domain.DefaultChangeNote(it)
+	if err := c.Validate(); err != nil {
+		return nil, fmt.Errorf("%w: describe the change in the delivery's `change` (type, scope, subject), in English, for the commit and the changelog; "+
+			"the item's title cannot be used as it is: %v", ErrInvalid, err)
+	}
+	return &c, nil
 }
 
 func runInfo(a Actor) *domain.StepRun {

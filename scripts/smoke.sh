@@ -157,7 +157,7 @@ while :; do
 done
 
 log="$(git --git-dir "$remote" log --format='%s%n%b' main)"
-printf '%s\n' "$log" | grep -q '^I-1: Add a greeting file' || {
+printf '%s\n' "$log" | grep -q '^feat(docs): add a greeting file' || {
 	echo "smoke: main lacks the item's commit" >&2
 	exit 1
 }

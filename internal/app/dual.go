@@ -98,7 +98,7 @@ func (s *Service) deliverAttempt(ctx context.Context, p *Project, a Actor, d dom
 	if b {
 		dir, branch = s.altDir(p.Name, d.ItemID), branchB
 	}
-	sha, err := s.commitIn(ctx, p, d.ItemID, dir, branch, fmt.Sprintf("%s: attempt %s, %s step %s", d.ItemID, map[bool]string{true: "b", false: "a"}[b], strings.ToLower(string(d.Status)), d.Step))
+	sha, err := s.commitIn(ctx, p, d.ItemID, dir, branch, fmt.Sprintf("chore(%s): attempt %s, %s step %s", d.ItemID, map[bool]string{true: "b", false: "a"}[b], strings.ToLower(string(d.Status)), d.Step))
 	if err != nil && strings.Contains(err.Error(), "secret") {
 		return nil, err
 	}
@@ -246,6 +246,6 @@ func (s *Service) resolveDual(ctx context.Context, p *Project, id string) (*doma
 		r = strings.Join(winner.Concerns, "; ")
 	}
 	out, _, err := s.finishStep(ctx, p, stepOutcome{Item: id, Step: it.Step, Outcome: outcome, Reason: r, Actor: winner.Agent,
-		Criteria: winner.Criteria, Files: winner.Files, Payload: domain.Payload{Note: reason}})
+		Criteria: winner.Criteria, Files: winner.Files, Change: winner.Change, Payload: domain.Payload{Note: reason}})
 	return out, err
 }

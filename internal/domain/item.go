@@ -156,6 +156,9 @@ type Item struct {
 	Runs            map[string]StepRun `json:"runs,omitempty"`     // last run per step
 	Attempts        int                `json:"attempts,omitempty"` // runs of the current step without a delivery
 	Alt             *AltAttempt        `json:"alt,omitempty"`
+	// Change is how the item's work is described on main: the header of its
+	// commit and its line in the changelog. Set by the delivery.
+	Change *ChangeNote `json:"change,omitempty"`
 }
 
 // AltAttempt is the second, parallel attempt of a risky item's step: the

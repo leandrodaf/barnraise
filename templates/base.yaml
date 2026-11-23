@@ -22,8 +22,8 @@ kinds:
   improvement: feature
   bug: bug
   self_improvement: feature
-merge: { mode: squash, batch: 4 }
+merge: { mode: squash, batch: 4, changelog: CHANGELOG.md }
 lease: { renew: 30s, ttl: 2m }
 budget: { triage_week: 2%, context_tokens: 6000, compact_at: 60% }
 revalidation: { stale_after: 14d }
-worktree: { include: [.env, .env.local], port_base: 4100, safety_commit: 15m }
+worktree: { include: [], port_base: 4100, safety_commit: 15m }

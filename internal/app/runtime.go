@@ -824,7 +824,7 @@ loop:
 			}
 		case <-safety.C:
 			// Safety commit of pending changes.
-			_, _ = s.commitStep(ctx, p, a.Item.ID, a.Item.ID+": safety commit during "+a.Step.Name)
+			_, _ = s.commitStep(ctx, p, a.Item.ID, "chore("+a.Item.ID+"): safety commit during "+a.Step.Name)
 		}
 	}
 	res, err := ls.sess.Wait()

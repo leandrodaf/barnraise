@@ -181,7 +181,7 @@ func TestEndToEnd(t *testing.T) {
 			t.Fatal("no merge commit")
 		}
 		log := git(t, h.root, "--git-dir", h.remote, "log", "--format=%s%n%b", "main")
-		if !strings.Contains(log, it.Id+": Cards screen") || !strings.Contains(log, "Barnraise-Item: "+it.Id) {
+		if !strings.Contains(log, "feat(cards): cards screen") || !strings.Contains(log, "Barnraise-Item: "+it.Id) {
 			t.Fatalf("main log: %s", log)
 		}
 		files := git(t, h.root, "--git-dir", h.remote, "ls-tree", "-r", "--name-only", "main")

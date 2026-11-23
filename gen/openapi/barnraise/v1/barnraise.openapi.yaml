@@ -2528,6 +2528,34 @@ components:
           title: entries
       title: AuditResponse
       additionalProperties: false
+    barnraise.v1.ChangeNote:
+      type: object
+      properties:
+        type:
+          type: string
+          title: type
+          description: feat, fix, perf, refactor, docs, test, build, ci, chore, style or revert.
+        scope:
+          type: string
+          title: scope
+          description: 'The part of the product: api, web, mobile…'
+        subject:
+          type: string
+          title: subject
+          description: Imperative, lower case, no final period, in English.
+        body:
+          type: string
+          title: body
+          description: Why, and what changes for people. Optional.
+        breaking:
+          type: string
+          title: breaking
+          description: What breaks and how to migrate. Empty when nothing does.
+      title: ChangeNote
+      additionalProperties: false
+      description: |-
+        ChangeNote describes a change in the form of Conventional Commits. It
+         becomes the header of the commit that lands and a line of the changelog.
     barnraise.v1.CheckResult:
       type: object
       properties:
@@ -2913,6 +2941,10 @@ components:
         at:
           type: string
           title: at
+        change:
+          title: change
+          description: How the change is described on main, in English.
+          $ref: '#/components/schemas/barnraise.v1.ChangeNote'
       title: Delivery
       additionalProperties: false
     barnraise.v1.DigestResponse:
@@ -3503,6 +3535,9 @@ components:
           type: integer
           title: attempts
           format: int32
+        change:
+          title: change
+          $ref: '#/components/schemas/barnraise.v1.ChangeNote'
       title: Item
       additionalProperties: false
     barnraise.v1.ItemRef:

@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -45,7 +46,7 @@ func TestMergeQueueSquash(t *testing.T) {
 		t.Fatalf("merge commit %s, main %s", got.MergeCommit, e.repo.RemoteMain(t))
 	}
 	log := e.repo.MainLog(t)
-	if !strings.Contains(log, dep.ID+": Cards screen") || !strings.Contains(log, "Barnraise-Item: "+dep.ID) {
+	if !strings.Contains(log, "chore(x): cards screen") || !strings.Contains(log, "Barnraise-Item: "+dep.ID) {
 		t.Fatalf("main log %s", log)
 	}
 	files := e.repo.MainFiles(t)
@@ -175,14 +176,57 @@ func TestMergeQueueBatchBisection(t *testing.T) {
 }
 
 func TestMergeQueueChangelogAndSteps(t *testing.T) {
+	// One item, one commit on main: a Conventional Commits header, its body,
+	// the item's trailer, and the changelog line inside the same commit.
 	e := newEnv(t, withGit(), withCfg(func(c *domain.ProjectConfig) { c.Merge.Changelog = "CHANGELOG.md" }))
-	it := e.toQueue("Profile", map[string]string{"profile.txt": "p\n"})
+	it := e.ready("simple", "Perfil da pessoa", "x") // the item may be in any language
+	e.start(it.ID)
+	e.workspace(it.ID, map[string]string{"profile.txt": "p\n"})
+	if _, err := e.deliver(it.ID, domain.Delivery{}); !errors.Is(err, ErrInvalid) || !strings.Contains(err.Error(), "in English") {
+		t.Fatalf("a title that is not English cannot be the commit: the agent must describe the change: %v", err)
+	}
+	if _, err := e.deliver(it.ID, domain.Delivery{Change: &domain.ChangeNote{Type: "feat", Subject: "adiciona a página de perfil"}}); !errors.Is(err, ErrInvalid) {
+		t.Fatalf("a description in Portuguese is refused: %v", err)
+	}
+	e.mustDeliver(it.ID, domain.Delivery{Change: &domain.ChangeNote{Type: "feat", Scope: "web", Subject: "add the profile page",
+		Body: "People can see and change their own data."}})
+	e.drive(it.ID)
 	if n, err := e.svc.ProcessQueue(e.ctx, "demo"); n != 1 || err != nil {
 		t.Fatal(n, err)
 	}
+	msg := testkit.RunGit(t, e.repo.Root, "--git-dir", e.repo.Remote, "log", "-1", "--format=%B", "main")
+	want := "feat(web): add the profile page\n\nPeople can see and change their own data.\n\nBarnraise-Item: " + it.ID
+	if strings.TrimSpace(msg) != want {
+		t.Fatalf("commit on main:\n%s", msg)
+	}
 	out := testkit.RunGit(t, e.repo.Root, "--git-dir", e.repo.Remote, "show", "main:CHANGELOG.md")
-	if !strings.Contains(out, "- "+it.ID+" Profile") {
-		t.Fatalf("changelog %q", out)
+	if !strings.HasPrefix(out, "# Changelog") || !strings.Contains(out, "## [Unreleased]\n\n### Added\n\n- **web:** Add the profile page ("+it.ID+")") {
+		t.Fatalf("changelog:\n%s", out)
+	}
+	if n := testkit.RunGit(t, e.repo.Root, "--git-dir", e.repo.Remote, "rev-list", "--count", "main"); n != "2" {
+		t.Fatalf("the changelog line lands inside the item's commit: %s commits on main", n)
+	}
+	// A second item adds its line under its own section; a change people do
+	// not read about (tests, upkeep) adds none.
+	fix := e.ready("simple", "Saldo errado", "x")
+	e.start(fix.ID)
+	e.workspace(fix.ID, map[string]string{"balance.txt": "b\n"})
+	e.mustDeliver(fix.ID, domain.Delivery{Change: &domain.ChangeNote{Type: "fix", Subject: "show the balance after a refund"}})
+	e.drive(fix.ID)
+	chore := e.ready("simple", "Tidy the build", "x")
+	e.start(chore.ID)
+	e.workspace(chore.ID, map[string]string{"build.txt": "b\n"})
+	e.mustDeliver(chore.ID, domain.Delivery{})
+	e.drive(chore.ID)
+	if n, err := e.svc.ProcessQueue(e.ctx, "demo"); n != 2 || err != nil {
+		t.Fatal(n, err)
+	}
+	out = testkit.RunGit(t, e.repo.Root, "--git-dir", e.repo.Remote, "show", "main:CHANGELOG.md")
+	if !strings.Contains(out, "### Added\n\n- **web:** Add the profile page ("+it.ID+")\n\n### Fixed\n\n- Show the balance after a refund ("+fix.ID+")") || strings.Contains(out, chore.ID) {
+		t.Fatalf("changelog after three items:\n%s", out)
+	}
+	if log := e.repo.MainLog(t); !strings.Contains(log, "fix: show the balance after a refund") || !strings.Contains(log, "chore(x): tidy the build") {
+		t.Fatalf("main log:\n%s", log)
 	}
 
 	s := newEnv(t, withGit(), withCfg(func(c *domain.ProjectConfig) { c.Merge.Mode = "steps" }))
@@ -191,7 +235,7 @@ func TestMergeQueueChangelogAndSteps(t *testing.T) {
 		t.Fatal(n, err)
 	}
 	log := s.repo.MainLog(t)
-	if !strings.Contains(log, it.ID+": done step implement") {
+	if !strings.Contains(log, "chore("+it.ID+"): done step implement") {
 		t.Fatalf("steps mode keeps the item's commits: %s", log)
 	}
 }

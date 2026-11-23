@@ -172,7 +172,7 @@ func TestTwoMachinesOffloadChecks(t *testing.T) {
 		t.Fatalf("beta kept the checkout of the check: %v", left)
 	}
 	log := git(t, base, "--git-dir", remote, "log", "--format=%s", "main")
-	if !strings.Contains(log, "I-1: Report") {
+	if !strings.Contains(log, "feat(reports): report") {
 		t.Fatalf("main: %s", log)
 	}
 }

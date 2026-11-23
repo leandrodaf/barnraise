@@ -72,6 +72,7 @@ Every command prints text for people by default and JSON with `--json`. The web 
 - Each item has its own **branch, worktree and draft pull request** from the first step. Every step ends with a commit and a push, so nothing is lost if a machine dies.
 - A failed quick look, check or review sends the item back with the reason. **Rework is limited**; past the limit the owner gets a question instead of an endless loop.
 - A **bug** has its own flow: it only closes with a test that fails on main and passes on the branch.
+- Each item lands as **one commit in the Conventional Commits form and one line in the changelog** (Keep a Changelog), written from the same description and always in English, whatever language the project's people read.
 
 Flows, roles and checks are data in `barnraise.yaml`, merged over a template (`mobile-android`, `backend`, `web`, `content`, `blank`).
 

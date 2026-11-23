@@ -74,6 +74,7 @@ Todo comando imprime texto para pessoas por padrão e JSON com `--json`. O paine
 - Cada item tem **branch, worktree e pull request em rascunho** próprios desde a primeira etapa. Toda etapa termina com commit e push; se a máquina cair, nada se perde.
 - Revisão rápida, verificação ou revisão que falha devolve o item com o motivo. **O retrabalho tem limite**; passou do limite, o dono recebe uma pergunta em vez de um laço sem fim.
 - **Bug** tem fluxo próprio: só fecha com um teste que falha na main e passa na branch.
+- Cada item entra como **um commit no formato Conventional Commits e uma linha no changelog** (Keep a Changelog), escritos da mesma descrição e sempre em inglês, seja qual for a língua das pessoas do projeto.
 
 Fluxos, papéis e verificações são dados no `barnraise.yaml`, por cima de um modelo de projeto (`mobile-android`, `backend`, `web`, `content`, `blank`).
 

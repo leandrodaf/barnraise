@@ -99,6 +99,7 @@ message Item {
   repeated string files_touched = 38;
   map<string, StepRun> runs = 39;
   int32 attempts = 40;
+  ChangeNote change = 41;
 }
 
 message Goal {
@@ -225,6 +226,23 @@ message Delivery {
   string reason = 9;
   string commit = 10;
   string at = 11;
+  // How the change is described on main, in English.
+  ChangeNote change = 12;
+}
+
+// ChangeNote describes a change in the form of Conventional Commits. It
+// becomes the header of the commit that lands and a line of the changelog.
+message ChangeNote {
+  // feat, fix, perf, refactor, docs, test, build, ci, chore, style or revert.
+  string type = 1;
+  // The part of the product: api, web, mobile…
+  string scope = 2;
+  // Imperative, lower case, no final period, in English.
+  string subject = 3;
+  // Why, and what changes for people. Optional.
+  string body = 4;
+  // What breaks and how to migrate. Empty when nothing does.
+  string breaking = 5;
 }
 
 message Finding {

@@ -479,7 +479,7 @@ func (s *Service) Handback(ctx context.Context, project string, a Actor, id, not
 	if err != nil {
 		return nil, fmt.Errorf("%w: %v", ErrInvalid, err)
 	}
-	if _, err := s.commitStep(ctx, p, id, id+": changes by "+actorName(a)); err != nil && strings.Contains(err.Error(), "secret") {
+	if _, err := s.commitStep(ctx, p, id, "chore("+id+"): changes by "+actorName(a)); err != nil && strings.Contains(err.Error(), "secret") {
 		return nil, err
 	}
 	it, err := s.mutateItem(ctx, p, id, domain.EvItemResumed, actorName(a), func(x *domain.Item) error {

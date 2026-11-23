@@ -168,7 +168,7 @@ func TestRuntimeAgentDelivers(t *testing.T) {
 	if _, ok := e.svc.Tokens().Resolve(spec.Env["BARNRAISE_TOKEN"]); ok {
 		t.Fatal("the session token is revoked when the session ends")
 	}
-	if log := testkit.RunGit(t, e.repo.Root, "--git-dir", e.repo.Remote, "log", "--format=%s", got.Branch); !strings.Contains(log, it.ID+": done step implement") {
+	if log := testkit.RunGit(t, e.repo.Root, "--git-dir", e.repo.Remote, "log", "--format=%s", got.Branch); !strings.Contains(log, "chore("+it.ID+"): done step implement") {
 		t.Fatalf("the step is committed and pushed: %s", log)
 	}
 	// One tick drives the check and the merge queue.

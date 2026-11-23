@@ -219,7 +219,7 @@ func TestTwoMachinesFailover(t *testing.T) {
 		time.Sleep(300 * time.Millisecond)
 	}
 	log := git(t, base, "--git-dir", remote, "log", "--format=%s", "main")
-	if !strings.Contains(log, "I-1: Cards screen") {
+	if !strings.Contains(log, "feat(cards): cards screen") {
 		t.Fatalf("main: %s", log)
 	}
 	tl := beta.run(t, bin, "item", "timeline", "I-1")

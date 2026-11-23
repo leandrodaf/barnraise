@@ -50,8 +50,12 @@ type Delivery struct {
 	Files    []string        `json:"files,omitempty"`
 	Concerns []string        `json:"concerns,omitempty"`
 	Reason   string          `json:"reason,omitempty"` // for NEEDS_CONTEXT and BLOCKED
-	Commit   string          `json:"commit,omitempty"`
-	At       time.Time       `json:"at,omitzero"`
+	// Change describes the work for the commit that lands and for the
+	// changelog, in English (Conventional Commits). Given with the delivery
+	// of the step that changes the product.
+	Change *ChangeNote `json:"change,omitempty"`
+	Commit string      `json:"commit,omitempty"`
+	At     time.Time   `json:"at,omitzero"`
 }
 
 // Validate enforces the fields: loose text does not move an item.

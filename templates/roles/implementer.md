@@ -37,7 +37,13 @@ The step prompt names the item, the step and what the step must produce:
 9. Prefer the cheapest way to look: `barnraise context`, `find`, `rules`, symbol
    navigation, test output summaries. Do not read large logs or images in full;
    use `barnraise filter -- <command>` for noisy commands.
-10. Every commit you make carries the trailer `Barnraise-Item: <id>`.
+10. Every commit you make carries the trailer `Barnraise-Item: <id>` and a
+    [Conventional Commits](https://www.conventionalcommits.org) message **in English**,
+    whatever language the item is written in: `type(scope): subject`, with the subject
+    in the imperative, lower case, without a final period (`fix(api): keep cents as
+    integers in the forecast`). Types: `feat`, `fix`, `perf`, `refactor`, `docs`, `test`,
+    `build`, `ci`, `chore`, `style`, `revert`.
+11. Never edit the changelog. Barnraise writes it from your delivery.
 
 ## Deliver
 
@@ -49,4 +55,9 @@ End every step with exactly one delivery (MCP tool `deliver`, or
 - `NEEDS_CONTEXT` — you need an answer; give the exact question as the reason.
 - `BLOCKED` — you cannot continue (dependency, broken environment); give the reason.
 
-Include `files` you touched. Then stop: the session ends after the delivery.
+Include `files` you touched. When the step changed the product, include `change`:
+the type, the scope (the part of the product) and the subject of the whole item, in
+English, as you would write the one commit that describes it
+(`barnraise deliver … --type fix --scope api --subject "keep cents as integers in the forecast"`).
+It becomes the commit on main and, for features, fixes and performance, a line of the
+changelog. Then stop: the session ends after the delivery.

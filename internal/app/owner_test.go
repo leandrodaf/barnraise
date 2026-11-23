@@ -154,7 +154,7 @@ func TestTakeoverHandback(t *testing.T) {
 	if err != nil || back.Status != domain.StatusInProgress || back.Step != "implement" || back.Claim == nil {
 		t.Fatalf("handback %+v %v", back, err)
 	}
-	if log := testkit.RunGit(t, e.repo.Root, "--git-dir", e.repo.Remote, "log", "--format=%s", back.Branch); !strings.Contains(log, it.ID+": changes by ana") {
+	if log := testkit.RunGit(t, e.repo.Root, "--git-dir", e.repo.Remote, "log", "--format=%s", back.Branch); !strings.Contains(log, "chore("+it.ID+"): changes by ana") {
 		t.Fatalf("the person's work is committed and pushed: %s", log)
 	}
 	_, err = e.svc.Handback(e.ctx, "demo", owner(), it.ID, "")

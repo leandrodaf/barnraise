@@ -404,11 +404,42 @@ checks:
 | --- | --- | --- |
 | `mode` | `squash` | `squash` (one commit per item) or `steps` (the step commits) |
 | `batch` | `4` | Items integrated together; a failing batch is bisected |
-| `changelog` | none | Changelog file to update on integration |
+| `changelog` | `CHANGELOG.md` | Changelog file Barnraise keeps, in the [Keep a Changelog](https://keepachangelog.com) format; empty turns it off |
 | `tag` | `false` | Tag after integrating |
 | `use_host_queue` | `false` | Use the code host's merge queue when it has one |
 
 With `squash`, the item's own files (`plan.md`, `criteria.json`) are left out of the commit that lands on main.
+
+### Commits and the changelog
+
+Every item lands on main as one commit in the [Conventional Commits](https://www.conventionalcommits.org) form, **always in English**, whatever `language` the project's people read:
+
+```
+fix(api): keep cents as integers in the forecast
+
+Rounding happened before the sum, so a month could be off by one cent.
+
+Barnraise-Item: I-142
+```
+
+- The agent that did the work describes it in its delivery (`change`: `type`, `scope`, `subject`, and optionally `body` and `breaking`). Barnraise checks the shape: a known type (`feat`, `fix`, `perf`, `refactor`, `docs`, `test`, `build`, `ci`, `chore`, `style`, `revert`), a one-word scope, a subject in the imperative, lower case, without a final period, a header of at most 72 characters, and English text. A description that is not English is refused, and the agent writes it again.
+- When the agent gives none, the item's kind, area and title are used if they already make a valid English header. An item with a title in another language always needs the agent's description.
+- A breaking change puts `!` in the header and a `BREAKING CHANGE:` trailer.
+- The commits an agent makes while it works follow the same form; with `squash` they are folded into the item's one commit.
+
+The same description writes the changelog. On integration the item's line goes under `## [Unreleased]`, in the section of its type: `feat` → **Added**, `fix` → **Fixed**, `perf` → **Changed**, `revert` → **Removed**, and any breaking change → **Changed**. Tests, build, CI, docs, refactors and upkeep add no line: a changelog is for the people who use the product. The line lands inside the item's own commit, and agents never edit the file.
+
+```markdown
+## [Unreleased]
+
+### Added
+
+- **api:** Add CSV export of the statement (I-140)
+
+### Fixed
+
+- **api:** Keep cents as integers in the forecast (I-142)
+```
 
 ## lease
 
@@ -535,13 +566,13 @@ Send a share of the items to a change before the whole fleet gets it.
 
 | Key | Default | Meaning |
 | --- | --- | --- |
-| `include` | `[.env, .env.local]` | Files copied from the repository into each item worktree |
+| `include` | none | Files that are not in git, copied from the repository into each item worktree |
 | `port_base` | `4100` | Base of the per-item server port (`PORT` in the agent's environment) |
 | `safety_commit` | `15m` | Pending changes are committed and pushed at least this often |
 | `setup` | none | Command run once in each new worktree, before any work or check there: install dependencies, generate code (`make install`, `pnpm install --frozen-lockfile`). Also run in the scratch checkouts of checks moved to another machine |
 | `setup_timeout` | `30m` | How long `setup` may take |
 
-`include` copies files that are not in git into every worktree. Leave it empty (`include: []`) when those files hold what an agent must not have, such as the address of a real database.
+`include` copies files that are not in git into every worktree. It is empty by default, because such files (`.env`) usually hold what an agent must not have: secrets, or the address of a real database. List a file only when it is safe in an agent's hands.
 
 ## Machine configuration (`daemon.yaml`)
 

@@ -46,11 +46,15 @@ func (e *env) nextCmd() *cobra.Command {
 
 func (e *env) deliverCmd() *cobra.Command {
 	var status, summary, reason, item, step string
+	var ctype, cscope, csubject, cbody, cbreaking string
 	var crit, files, concerns []string
 	c := &cobra.Command{Use: "deliver", Short: "End a step with a delivery: DONE, DONE_WITH_CONCERNS, NEEDS_CONTEXT or BLOCKED", Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			d := &pb.Delivery{ItemId: def(item, os.Getenv("BARNRAISE_ITEM")), Step: def(step, os.Getenv("BARNRAISE_STEP")), Status: strings.ToUpper(status),
 				Summary: summary, Files: files, Concerns: concerns, Reason: reason}
+			if ctype != "" || csubject != "" {
+				d.Change = &pb.ChangeNote{Type: ctype, Scope: cscope, Subject: csubject, Body: cbody, Breaking: cbreaking}
+			}
 			for _, cm := range crit {
 				id, ev, ok := strings.Cut(cm, "=")
 				met := true
@@ -82,6 +86,11 @@ func (e *env) deliverCmd() *cobra.Command {
 	f.StringVar(&reason, "reason", "", "for NEEDS_CONTEXT and BLOCKED: the exact question or blocker")
 	f.StringVar(&item, "item", "", "item (default: the session's)")
 	f.StringVar(&step, "step", "", "step (default: the session's)")
+	f.StringVar(&ctype, "type", "", "the change, for the commit and the changelog: feat, fix, perf, refactor, docs, test, build, ci, chore, style, revert")
+	f.StringVar(&cscope, "scope", "", "the part of the product the change is in: api, web, mobile")
+	f.StringVar(&csubject, "subject", "", `what the change does, in English: imperative, lower case, no final period ("add CSV export of the statement")`)
+	f.StringVar(&cbody, "body", "", "optional: why, and what changes for people (English)")
+	f.StringVar(&cbreaking, "breaking", "", "only when something breaks: what, and how to migrate (English)")
 	return c
 }
 

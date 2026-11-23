@@ -219,7 +219,7 @@ type criterionMark struct {
 func deliverTool() *tool {
 	t := &tool{
 		Name:        "deliver",
-		Description: "End your step on the item with a structured delivery. Loose text does not move an item. Mark each criterion by id with evidence (a check run, a file, a screenshot); never rewrite criteria.",
+		Description: "End your step on the item with a structured delivery. Loose text does not move an item. Mark each criterion by id with evidence (a check run, a file, a screenshot); never rewrite criteria. When the step changed the product, describe the change in `change`: it becomes the commit on main (Conventional Commits) and a line of the changelog, always in English, whatever language the item is written in.",
 		Schema: object(map[string]any{
 			"item_id": str("Item id such as I-42. Defaults to the item of this session."),
 			"status": enum("DONE: finished. DONE_WITH_CONCERNS: finished but list the concerns. NEEDS_CONTEXT: missing information, say what in reason. BLOCKED: cannot go on, say why in reason.",
@@ -233,6 +233,13 @@ func deliverTool() *tool {
 			"files":    strList("Files you touched, relative to the repository root."),
 			"concerns": strList("Concerns the reviewer should know about. Required for DONE_WITH_CONCERNS."),
 			"reason":   str("Why you need context or are blocked. Required for NEEDS_CONTEXT and BLOCKED."),
+			"change": described("How the change is described on main, in English: the commit header (Conventional Commits) and, for features, fixes and performance, the changelog line. Give it when the step changed the product.", object(map[string]any{
+				"type":     enum("What kind of change it is.", "feat", "fix", "perf", "refactor", "docs", "test", "build", "ci", "chore", "style", "revert"),
+				"scope":    str("The part of the product, one short lower-case word: api, web, mobile, auth."),
+				"subject":  str("What the change does: imperative, lower case, no final period, in English, short enough for a 72-character commit header. Example: add CSV export of the statement"),
+				"body":     str("Optional: why, and what changes for people. In English."),
+				"breaking": str("Only when something breaks: what, and how to migrate. In English."),
+			}, "type", "subject")),
 		}, "status", "summary"),
 	}
 	t.run = func(ctx context.Context, s *server, args json.RawMessage) *toolResult {
@@ -244,6 +251,13 @@ func deliverTool() *tool {
 			Files    []string        `json:"files"`
 			Concerns []string        `json:"concerns"`
 			Reason   string          `json:"reason"`
+			Change   *struct {
+				Type     string `json:"type"`
+				Scope    string `json:"scope"`
+				Subject  string `json:"subject"`
+				Body     string `json:"body"`
+				Breaking string `json:"breaking"`
+			} `json:"change"`
 		}
 		if err := decodeArgs(t, args, &a); err != nil {
 			return errorResult(err.Error())
@@ -255,6 +269,10 @@ func deliverTool() *tool {
 		}
 		d := &pb.Delivery{ItemId: id, Status: a.Status, Summary: strings.TrimSpace(a.Summary), Files: a.Files,
 			Concerns: nonBlank(a.Concerns), Reason: strings.TrimSpace(a.Reason)}
+		if c := a.Change; c != nil && !blank(c.Type+c.Subject) {
+			d.Change = &pb.ChangeNote{Type: strings.TrimSpace(c.Type), Scope: strings.TrimSpace(c.Scope), Subject: strings.TrimSpace(c.Subject),
+				Body: strings.TrimSpace(c.Body), Breaking: strings.TrimSpace(c.Breaking)}
+		}
 		for _, c := range a.Criteria {
 			if blank(c.ID) {
 				return errorResult("every criterion needs its id")
@@ -1111,4 +1129,10 @@ func createItemTool() *tool {
 		return textResult(text, pbJSON(resp.Msg))
 	}
 	return t
+}
+
+// described adds a description to a schema.
+func described(desc string, schema map[string]any) map[string]any {
+	schema["description"] = desc
+	return schema
 }

@@ -183,7 +183,7 @@ func (s *Service) tryIntegrate(ctx context.Context, p *Project, items []*domain.
 		if err != nil {
 			return false, it, "workspace: " + err.Error(), nil
 		}
-		if _, err := s.commitStep(ctx, p, it.ID, it.ID+": pending changes before integration"); err != nil && strings.Contains(err.Error(), "secret") {
+		if _, err := s.commitStep(ctx, p, it.ID, "chore("+it.ID+"): pending changes before integration"); err != nil && strings.Contains(err.Error(), "secret") {
 			return false, it, err.Error(), nil
 		}
 		if h, err := g.Head(ctx, dir); err == nil {
@@ -194,6 +194,10 @@ func (s *Service) tryIntegrate(ctx context.Context, p *Project, items []*domain.
 				return false, it, "rebase on main conflicts: " + err.Error(), nil
 			}
 			return false, it, "rebase failed: " + err.Error(), nil
+		}
+		// On top of main as it is now: the changelog line of this item.
+		if err := s.writeChangelog(ctx, p, dir, it); err != nil {
+			return false, it, "changelog: " + err.Error(), nil
 		}
 		var sha string
 		if p.Cfg().Merge.Mode == "steps" {
@@ -214,11 +218,6 @@ func (s *Service) tryIntegrate(ctx context.Context, p *Project, items []*domain.
 		head = sha
 		lastDir = dir
 		done = append(done, built{it, sha})
-	}
-	if p.Cfg().Merge.Changelog != "" && lastDir != "" {
-		if sha, err := s.appendChangelog(ctx, p, lastDir, items); err == nil && sha != "" {
-			head = sha
-		}
 	}
 	// Check the combined result: every local check over the whole tree.
 	if pass, why := s.runQueueChecks(ctx, p, lastDir, head, items); !pass {
@@ -258,23 +257,54 @@ func integrationSummary(items []*domain.Item) string {
 // ItemFiles live in the item's branch (its memory) but never land on main.
 var ItemFiles = []string{"plan.md", "criteria.json"}
 
-func squashMessage(it *domain.Item) string {
-	return fmt.Sprintf("%s: %s\n\n%s", it.ID, it.Title, domain.CommitTrailer(it.ID))
+// changeNote is how an item is described on main: what its delivery said,
+// or what its kind, area and title give. As a last resort (an item delivered
+// before descriptions existed, with a title that is not a valid header) it
+// is recorded as upkeep, so the history keeps one format.
+func changeNote(it *domain.Item) domain.ChangeNote {
+	if it.Change != nil && it.Change.Validate() == nil {
+		return *it.Change
+	}
+	if c := domain.DefaultChangeNote(it); c.Validate() == nil {
+		return c
+	}
+	return domain.ChangeNote{Type: "chore", Scope: domain.Slug(it.Area, 20), Subject: "integrate " + it.ID}
 }
 
-func (s *Service) appendChangelog(ctx context.Context, p *Project, dir string, items []*domain.Item) (string, error) {
-	path := filepath.Join(dir, p.Cfg().Merge.Changelog)
-	cur, _ := os.ReadFile(path)
-	var b strings.Builder
-	for _, it := range items {
-		fmt.Fprintf(&b, "- %s %s\n", it.ID, it.Title)
+// squashMessage is the message of the one commit an item becomes on main:
+// a Conventional Commits header, the body and the item's trailer.
+func squashMessage(it *domain.Item) string {
+	return changeNote(it).CommitMessage(it.ID)
+}
+
+// writeChangelog adds the item's line to the Unreleased part of the
+// project's changelog, in the item's worktree, as a commit of its branch:
+// the line lands inside the item's own commit. Changes people do not read
+// about (tests, build, upkeep) add nothing.
+func (s *Service) writeChangelog(ctx context.Context, p *Project, dir string, it *domain.Item) error {
+	name := p.Cfg().Merge.Changelog
+	note := changeNote(it)
+	section := note.ChangelogSection()
+	if name == "" || section == "" {
+		return nil
 	}
-	content := b.String() + string(cur)
-	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
-		return "", err
+	path := filepath.Join(dir, filepath.FromSlash(name))
+	cur, err := os.ReadFile(path)
+	if err != nil && !os.IsNotExist(err) {
+		return err
 	}
-	sha, _, err := p.Ports().Git.CommitAll(ctx, dir, "changelog: "+integrationSummary(items))
-	return sha, err
+	next := domain.InsertChangelog(string(cur), section, note.ChangelogEntry(it.ID))
+	if next == string(cur) {
+		return nil
+	}
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		return err
+	}
+	if err := os.WriteFile(path, []byte(next), 0o644); err != nil {
+		return err
+	}
+	_, _, err = p.Ports().Git.CommitAll(ctx, dir, "docs(changelog): add "+it.ID+"\n\n"+domain.CommitTrailer(it.ID))
+	return err
 }
 
 // sameTreeAsChecked reports whether the tree about to land is exactly the
@@ -305,7 +335,7 @@ func (s *Service) sameTreeAsChecked(ctx context.Context, p *Project, head string
 		return false
 	}
 	for _, f := range files {
-		if !domain.Contains(ItemFiles, f) {
+		if !domain.Contains(ItemFiles, f) && f != p.Cfg().Merge.Changelog {
 			return false
 		}
 	}
@@ -332,6 +362,16 @@ func (s *Service) runQueueChecks(ctx context.Context, p *Project, dir, head stri
 		if main, err := g.MainHead(ctx); err == nil && main != "" {
 			if files, err := s.itemFiles(ctx, p, main, head); err == nil && len(files) > 0 {
 				touched, fromGit = domain.Dedupe(append(touched, files...)), true
+			}
+			// The changelog line Barnraise wrote is not a change of the product.
+			if cl := p.Cfg().Merge.Changelog; cl != "" {
+				kept := touched[:0:0]
+				for _, f := range touched {
+					if f != cl {
+						kept = append(kept, f)
+					}
+				}
+				touched = kept
 			}
 		}
 	}
