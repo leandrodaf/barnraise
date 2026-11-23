@@ -11,6 +11,7 @@ import (
 	"net"
 	"net/url"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"slices"
 	"sort"
@@ -334,6 +335,15 @@ type rawConfig struct {
 		Type    string            `yaml:"type"`
 		Roles   []string          `yaml:"roles"`
 	} `yaml:"mcp"`
+	Plugins map[string]struct {
+		Command string            `yaml:"command"`
+		Args    []string          `yaml:"args"`
+		Env     []string          `yaml:"env"`
+		Secrets map[string]string `yaml:"secrets"`
+		Timeout string            `yaml:"timeout"`
+		Events  []string          `yaml:"events"`
+		Options map[string]any    `yaml:"options"`
+	} `yaml:"plugins"`
 	Experiments []struct {
 		Name   string            `yaml:"name"`
 		Share  string            `yaml:"share"`
@@ -623,6 +633,26 @@ func (r *rawConfig) compile(root, tmpl string) (*domain.ProjectConfig, error) {
 		}
 		c.MCP[name] = domain.MCPServerDef{Command: m.Command, Args: m.Args, Env: m.Env, URL: m.URL, Type: m.Type, Roles: m.Roles}
 	}
+	for _, name := range slices.Sorted(maps.Keys(r.Plugins)) {
+		pl := r.Plugins[name]
+		if c.Plugins == nil {
+			c.Plugins = map[string]domain.PluginDef{}
+		}
+		d := domain.PluginDef{Command: strings.TrimSpace(pl.Command), Args: pl.Args, Env: pl.Env, Secrets: pl.Secrets, Events: pl.Events, Options: pl.Options, Timeout: 30 * time.Second}
+		if pl.Timeout != "" {
+			t, err := domain.ParseDuration(pl.Timeout)
+			if err != nil {
+				return nil, fmt.Errorf("plugins.%s.timeout: %w", name, err)
+			}
+			d.Timeout = t
+		}
+		c.Plugins[name] = d
+		// A plugin program kept in the repository is the owner's: agents
+		// may not change it (.barnraise/** is denied already).
+		if f := domain.PluginFile(d.Command); f != "" && !domain.Contains(c.Policy.DenyWrite, f) {
+			c.Policy.DenyWrite = append(c.Policy.DenyWrite, f)
+		}
+	}
 	for _, w := range r.Webhooks {
 		c.Webhooks = append(c.Webhooks, domain.WebhookDef{URL: w.URL, Events: w.Events, SecretRef: w.SecretRef})
 	}
@@ -898,8 +928,37 @@ func Check(root string) ([]string, error) {
 			}
 		}
 	}
+	for _, name := range slices.Sorted(maps.Keys(cfg.Plugins)) {
+		if msg := pluginProgramProblem(root, name, cfg.Plugins[name].Command); msg != "" {
+			problems = append(problems, msg)
+		}
+	}
 	sort.Strings(problems)
 	return problems, nil
+}
+
+// pluginProgramProblem tells when a plugin's program cannot be found.
+func pluginProgramProblem(root, name, command string) string {
+	if command == "" {
+		return "" // Validate says it already
+	}
+	p := command
+	switch {
+	case strings.HasPrefix(p, "~/"):
+		home, _ := os.UserHomeDir()
+		p = filepath.Join(home, p[2:])
+	case !filepath.IsAbs(p) && strings.Contains(p, "/"):
+		p = filepath.Join(root, filepath.FromSlash(p))
+	case !filepath.IsAbs(p):
+		if _, err := exec.LookPath(p); err != nil {
+			return fmt.Sprintf("plugin %s runs %s, which is not on the PATH", name, command)
+		}
+		return ""
+	}
+	if st, err := os.Stat(p); err != nil || st.IsDir() {
+		return fmt.Sprintf("plugin %s runs %s, which does not exist", name, command)
+	}
+	return ""
 }
 
 // Explain renders the compiled config with every default filled in.
@@ -922,7 +981,7 @@ func Explain(cfg *domain.ProjectConfig) (string, error) {
 		"models":    cfg.Models, "policy": cfg.Policy, "areas": cfg.Areas, "merge": cfg.Merge,
 		"lease":  map[string]string{"renew": cfg.Lease.Renew.String(), "ttl": cfg.Lease.TTL.String()},
 		"budget": cfg.Budget, "revalidation": map[string]string{"stale_after": cfg.StaleAfter.String()},
-		"notifications": cfg.Notifications, "webhooks": cfg.Webhooks, "mcp": cfg.MCP, "experiments": cfg.Experiments,
+		"notifications": cfg.Notifications, "webhooks": cfg.Webhooks, "mcp": cfg.MCP, "plugins": cfg.Plugins, "experiments": cfg.Experiments,
 		"providers": cfg.APIProviders,
 		"worktree":  map[string]any{"include": cfg.EnvFiles, "port_base": cfg.PortBase, "safety_commit": cfg.SafetyCommit.String(), "setup": cfg.WorktreeSetup},
 	}

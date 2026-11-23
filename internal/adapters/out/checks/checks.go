@@ -1,8 +1,8 @@
-// Package checks implements ports.CheckRunner: it runs a check locally, or
-// dispatches it to another machine, to GitHub Actions or to a webhook and
-// reports it as pending. Local runs retry flaky failures on the branch and
-// on main (domain.FlakyVerdict) and keep the full log next to a short
-// summary for the agent.
+// Package checks implements ports.CheckRunner: it runs a check locally,
+// hands it to an external plugin, or dispatches it to another machine, to
+// GitHub Actions or to a webhook and reports it as pending. Local runs
+// retry flaky failures on the branch and on main (domain.FlakyVerdict) and
+// keep the full log next to a short summary for the agent.
 package checks
 
 import (
@@ -43,6 +43,8 @@ type Options struct {
 	// Dispatch starts a GitHub Actions workflow on branch with inputs
 	// item, commit and check.
 	Dispatch func(ctx context.Context, workflow, branch string, inputs map[string]string) error
+	// Plugin runs a check on an external plugin (runs_on: plugin:<name>).
+	Plugin func(ctx context.Context, name string, spec ports.CheckSpec) (domain.CheckResult, bool, error)
 	// CallbackURL is sent to webhook checks so they can report back.
 	CallbackURL string
 	// WebhookSecret signs webhook check requests (webhook package scheme).
@@ -130,8 +132,28 @@ func (r *Runner) Run(ctx context.Context, spec ports.CheckSpec) (domain.CheckRes
 		}
 		res.Summary = "sent to " + def.URL
 		return res, true, nil
+	case strings.HasPrefix(def.RunsOn, "plugin:"):
+		name := strings.TrimPrefix(def.RunsOn, "plugin:")
+		if r.o.Plugin == nil {
+			return res, false, fmt.Errorf("check %s runs on plugin %s, but no plugins are configured", def.Name, name)
+		}
+		out, pending, err := r.o.Plugin(ctx, name, spec)
+		if err != nil {
+			return res, false, fmt.Errorf("check %s on plugin %s: %w", def.Name, name, err)
+		}
+		res.Passed, res.Flaky, res.Summary, res.Artifacts = out.Passed, out.Flaky, out.Summary, out.Artifacts
+		res.LogPath, res.Duration, res.Criteria = out.LogPath, out.Duration, out.Criteria
+		if r.o.Blobs != nil && res.LogPath != "" {
+			if f, err := os.Open(res.LogPath); err == nil {
+				if h, err := r.o.Blobs.Put(ctx, f); err == nil {
+					res.LogHash = h
+				}
+				f.Close()
+			}
+		}
+		return res, pending, nil
 	}
-	return res, false, fmt.Errorf("check %s: runs_on %q must be local, github-actions, machine:<label> or webhook", def.Name, def.RunsOn)
+	return res, false, fmt.Errorf("check %s: runs_on %q must be local, github-actions, machine:<label>, webhook or plugin:<name>", def.Name, def.RunsOn)
 }
 
 // outOfScope skips a check the change does not concern (see CheckDef.Applies).

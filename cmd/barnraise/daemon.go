@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"reflect"
 	"strconv"
 	"strings"
 	"sync"
@@ -37,6 +38,7 @@ import (
 	"github.com/leandrodaf/barnraise/internal/adapters/out/linear"
 	natsx "github.com/leandrodaf/barnraise/internal/adapters/out/nats"
 	"github.com/leandrodaf/barnraise/internal/adapters/out/notify"
+	"github.com/leandrodaf/barnraise/internal/adapters/out/plugin"
 	"github.com/leandrodaf/barnraise/internal/adapters/out/secretscan"
 	"github.com/leandrodaf/barnraise/internal/adapters/out/sqlite"
 	"github.com/leandrodaf/barnraise/internal/adapters/out/sysinfo"
@@ -83,6 +85,7 @@ type daemon struct {
 	mu      sync.Mutex
 	roots   map[string]string // project -> root
 	runners map[string]*checks.Runner
+	plugins map[string]*plugin.Host // project/name -> the running plugin
 	machine atomic.Pointer[domain.Machine]
 	dataDir string
 	opts    cli.DaemonOptions
@@ -106,7 +109,7 @@ func runDaemon(ctx context.Context, opts cli.DaemonOptions) error {
 	if opts.Listen != "" {
 		df.Listen = opts.Listen
 	}
-	d := &daemon{log: log, df: df, dfMod: df.ModTime(), roots: map[string]string{}, runners: map[string]*checks.Runner{}, dataDir: paths.DataDir(), opts: opts}
+	d := &daemon{log: log, df: df, dfMod: df.ModTime(), roots: map[string]string{}, runners: map[string]*checks.Runner{}, plugins: map[string]*plugin.Host{}, dataDir: paths.DataDir(), opts: opts}
 	if err := os.MkdirAll(d.dataDir, 0o700); err != nil {
 		return err
 	}
@@ -133,6 +136,7 @@ func runDaemon(ctx context.Context, opts cli.DaemonOptions) error {
 		return fmt.Errorf("open state: %w", err)
 	}
 	defer d.store.Close()
+	defer d.closePlugins()
 	kn, err := knowledge.New(d.store.DB(), knowledge.WithWriteLock(d.store.WriteLock()))
 	if err != nil {
 		return fmt.Errorf("open knowledge index: %w", err)
@@ -206,6 +210,7 @@ func runDaemon(ctx context.Context, opts cli.DaemonOptions) error {
 	d.binary = d.publishBinary(ctx)
 	go d.watchVersions(ctx, d.binary)
 	go d.forwardWebhooks(ctx)
+	go d.forwardHooks(ctx)
 	go d.reindexOnIntegration(ctx)
 	go d.watchDaemonFile(ctx)
 	go d.serveRemoteChecks(ctx)
@@ -580,7 +585,15 @@ func (d *daemon) projectPorts(cfg *domain.ProjectConfig) (app.ProjectPorts, erro
 		}
 		return ""
 	}
+	d.syncPlugins(cfg)
 	var err error
+	if name, ok := domain.PluginRef(cfg.Tracker.Type); ok {
+		h, perr := d.pluginOf(cfg.Name, name)
+		if perr != nil {
+			return pp, fmt.Errorf("tracker %s: %w", cfg.Tracker.Type, perr)
+		}
+		pp.Tracker = h.Tracker(cfg.Tracker.Columns)
+	}
 	switch cfg.Tracker.Type {
 	case "github":
 		tok := token(cfg.Tracker.Token, "GITHUB_TOKEN")
@@ -674,6 +687,13 @@ func (d *daemon) newRunner(cfg *domain.ProjectConfig, ch ports.CodeHost) *checks
 	o := checks.Options{Exec: execx.New(), LogDir: filepath.Join(d.dataDir, "logs", project), Blobs: blobsOrNil(d.blobs), AreaOf: cfg.AreaOfFile,
 		Remote: func(ctx context.Context, label string, spec ports.CheckSpec) error {
 			return d.dispatchRemote(project, label, spec)
+		},
+		Plugin: func(ctx context.Context, name string, spec ports.CheckSpec) (domain.CheckResult, bool, error) {
+			h, err := d.pluginOf(project, name)
+			if err != nil {
+				return domain.CheckResult{}, false, err
+			}
+			return h.RunCheck(ctx, spec)
 		},
 	}
 	if ch != nil {
@@ -925,23 +945,149 @@ func (d *daemon) probe() domain.Machine {
 // notifier fans out to the daemon's and the projects' channels.
 func (d *daemon) notifier() ports.Notifier {
 	var defs []domain.NotifierDef
+	var plugins notify.Multi
 	for _, n := range d.df.Notify {
+		if _, ok := domain.PluginRef(n.Type); ok {
+			d.log.Warn("notifications: plugins are declared in a project's barnraise.yaml; daemon.yaml cannot use one", "type", n.Type)
+			continue
+		}
 		defs = append(defs, domain.NotifierDef{Type: n.Type, Target: n.Target, Secret: n.Secret})
 	}
 	for _, root := range d.df.Projects {
-		if cfg, err := config.Load(root); err == nil {
-			defs = append(defs, cfg.Notifications...)
+		cfg, err := config.Load(root)
+		if err != nil {
+			continue
+		}
+		for _, n := range cfg.Notifications {
+			if name, ok := domain.PluginRef(n.Type); ok {
+				plugins = append(plugins, &pluginNotifier{d: d, project: cfg.Name, name: name, target: n.Target, extra: n.Extra})
+				continue
+			}
+			defs = append(defs, n)
 		}
 	}
-	if len(defs) == 0 {
+	if len(defs) == 0 && len(plugins) == 0 {
 		return nil
 	}
-	n, err := notify.FromDefs(defs, d.secrets)
+	var out notify.Multi
+	if len(defs) > 0 {
+		n, err := notify.FromDefs(defs, d.secrets)
+		if err != nil {
+			d.log.Warn("notifications", "err", err)
+		} else {
+			out = append(out, n)
+		}
+	}
+	out = append(out, plugins...)
+	if len(out) == 0 {
+		return nil
+	}
+	return out
+}
+
+// pluginNotifier finds the project's plugin when it sends, so a reloaded
+// barnraise.yaml takes effect without restarting the daemon.
+type pluginNotifier struct {
+	d             *daemon
+	project, name string
+	target        string
+	extra         map[string]string
+}
+
+func (n *pluginNotifier) Notify(ctx context.Context, x ports.Notification) error {
+	h, err := n.d.pluginOf(n.project, n.name)
 	if err != nil {
-		d.log.Warn("notifications", "err", err)
-		return nil
+		return err
 	}
-	return n
+	return h.Notifier(n.target, n.extra).Notify(ctx, x)
+}
+
+// syncPlugins starts hosts for a project's plugins (lazily: the program
+// runs with the first call), replaces those whose definition changed and
+// stops those that are gone.
+func (d *daemon) syncPlugins(cfg *domain.ProjectConfig) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	prefix := cfg.Name + "/"
+	for key, h := range d.plugins {
+		name, ok := strings.CutPrefix(key, prefix)
+		if !ok {
+			continue
+		}
+		if def, keep := cfg.Plugins[name]; !keep || !reflect.DeepEqual(def, h.Def()) {
+			go func() { _ = h.Close() }()
+			delete(d.plugins, key)
+		}
+	}
+	for name, def := range cfg.Plugins {
+		if _, ok := d.plugins[prefix+name]; ok {
+			continue
+		}
+		d.plugins[prefix+name] = plugin.New(plugin.Options{
+			Name: name, Def: def, Project: cfg.Name, Root: cfg.Root, Version: version,
+			LogDir: filepath.Join(d.dataDir, "logs", cfg.Name),
+			Secret: func(ref string) (string, error) { return notify.SecretRef(d.secrets, ref) },
+			Log:    d.log.With("project", cfg.Name),
+		})
+	}
+}
+
+// pluginOf returns a project's plugin.
+func (d *daemon) pluginOf(project, name string) (*plugin.Host, error) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	if h := d.plugins[project+"/"+name]; h != nil {
+		return h, nil
+	}
+	return nil, fmt.Errorf("plugin %q is not declared in the plugins of project %s", name, project)
+}
+
+func (d *daemon) closePlugins() {
+	d.mu.Lock()
+	hosts := make([]*plugin.Host, 0, len(d.plugins))
+	for _, h := range d.plugins {
+		hosts = append(hosts, h)
+	}
+	d.plugins = map[string]*plugin.Host{}
+	d.mu.Unlock()
+	var wg sync.WaitGroup
+	for _, h := range hosts {
+		wg.Go(func() { _ = h.Close() })
+	}
+	wg.Wait()
+}
+
+// forwardHooks hands each event to the project's hook plugins that asked
+// for its type. Delivery never blocks the flow: a slow plugin's queue
+// drops events instead.
+func (d *daemon) forwardHooks(ctx context.Context) {
+	ch, cancel := d.svc.Hub().Subscribe("", nil, 2048)
+	defer cancel()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case e, ok := <-ch:
+			if !ok {
+				return
+			}
+			if e.Type == domain.EvAgentSession || e.Type == domain.EvMachineUpdated {
+				continue // live-only noise
+			}
+			prefix := e.Project + "/"
+			d.mu.Lock()
+			var hosts []*plugin.Host
+			for key, h := range d.plugins {
+				if strings.HasPrefix(key, prefix) && h.Wants(e.Type) {
+					hosts = append(hosts, h)
+				}
+			}
+			d.mu.Unlock()
+			for _, h := range hosts {
+				h.Deliver(e)
+			}
+		}
+	}
 }
 
 // forwardWebhooks sends events to each project's outgoing webhooks, signed.

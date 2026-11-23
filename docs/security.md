@@ -13,7 +13,7 @@ To report a vulnerability, see [SECURITY.md](../SECURITY.md).
 | Agent grants itself more access | Writes `~/.bashrc`, `.git/hooks` or the provider's settings | Isolated user; `deny_write` and command rules in the hook |
 | Malicious code reaches production | Agent changes `.github/workflows` or the deploy script, and integration triggers the deploy | Hook blocks workflow and CI files; only the daemon moves main; protected main and environments with required approval on the code host |
 | Agent games the check | Changes a test, pins the expected result, exits early with success | Existing tests, snapshots, reference images and check scripts are locked; independent reviewer of another model family; bugs need a reproduction test that fails on main |
-| Agent changes the orchestrator | Starts "improving" Barnraise instead of finishing the item | Hook blocks `.barnraise/**`, `barnraise.yaml`, the binary and its data; owner-only commands are blocked; self-improvement is a separate lane approved by the owner |
+| Agent changes the orchestrator | Starts "improving" Barnraise instead of finishing the item, or adds or edits a plugin the daemon runs | Hook blocks `.barnraise/**`, every `barnraise.yaml`, plugin programs in the repository, the binary and its data; owner-only commands are blocked; self-improvement is a separate lane approved by the owner |
 | A third party's machine is compromised | Lateral movement to the main machine | Per-machine NATS nkeys with narrow permissions; own tokens; no deploy rights |
 | A classifier used as the barrier | Automatic permission modes miss part of the injection cases | Not used as a barrier; Barnraise relies on OS users, hooks, the sandbox and daemon scopes |
 
@@ -44,7 +44,7 @@ The built-in policy (`internal/domain/policy.go`, extended by `policy:` in `barn
 
 | Rule | Built-in entries |
 | --- | --- |
-| `deny_write` (worktree globs) | `.github/workflows/**`, `.gitlab-ci.yml`, `.barnraise/**`, `barnraise.yaml`, `**/*.keystore`, `**/*.jks`, `**/.env`, `**/.env.*`, `.git/**`, `**/.git/hooks/**`, `criteria.json`, `.claude/settings*.json`, `.codex/**`, `.gemini/**` |
+| `deny_write` (worktree globs) | `.github/workflows/**`, `.gitlab-ci.yml`, `.barnraise/**`, `**/barnraise.yaml` (the root file and every part's), the program of each [plugin](plugins.md) kept in the repository, `**/*.keystore`, `**/*.jks`, `**/.env`, `**/.env.*`, `.git/**`, `**/.git/hooks/**`, `criteria.json`, `.claude/settings*.json`, `.codex/**`, `.gemini/**` |
 | `lock_existing` (may add, may not change) | `**/*_test.go`, `**/test/**`, `**/tests/**`, `**/__tests__/**`, `**/*.test.*`, `**/*.spec.*`, `**/__snapshots__/**`, `**/screenshots/reference/**`, `**/.maestro/**`, `scripts/verificar*`, `scripts/check*` |
 | `deny_read` | `~/.config/gh/**`, `~/.ssh/**`, `~/.aws/**`, `~/.netrc`, `~/.git-credentials`, `~/.claude/.credentials.json`, `~/.codex/auth.json`, `~/.gemini/oauth_creds.json`, `~/.config/barnraise/**`, `~/.local/share/barnraise/**`, `~/.docker/config.json`, `~/.gnupg/**`, `~/.kube/**`, keystores |
 | `deny_commands` (regular expressions) | `gh secret`, `gh auth token`, `curl … \| sh` and `sh <(curl …)`, force pushes and pushes to `main`/`master`, `git config core.hooksPath`, any `update-ref` or push of `refs/barnraise`, `sudo`, `chmod` under `/home/`, `--dangerously-skip-permissions`, owner-only `barnraise` commands (`approve`, `focus`, `pause`, `resume`, `token`, `account`, `machine`, `daemon`, `takeover`, `handback`, `queue run`, …), `nc -e`, `crontab`, `systemctl` |
@@ -102,6 +102,10 @@ With [`container:`](configuration.md#container) in `barnraise.yaml`, every sessi
 ### 12. Only the tools the owner allowed
 
 A Claude Code session is started with `--strict-mcp-config` and `--setting-sources project,local`: it loads Barnraise's MCP server, the servers listed under [`mcp:`](configuration.md#mcp) for its role, and the settings Barnraise wrote for the session. The MCP servers, plugins, hooks and personal settings of the account's own configuration are not loaded, so an agent never inherits the owner's mail, ads or cloud tools.
+
+### 13. Plugins are the owner's
+
+[External plugins](plugins.md) run as the daemon's user, so only the owner configures them: they are declared in `barnraise.yaml` (denied to agents, like every part's `barnraise.yaml`), their programs belong in `.barnraise/plugins/` (denied) and any other program path inside the repository is added to `deny_write` when the file is compiled. No API call or MCP tool adds a plugin. A plugin's environment holds only `PATH`, `HOME`, `USER`, `LANG`, `TZ`, `TMPDIR`, the variable names its `env` lists and the secrets its `secrets` map resolves from the keychain; secrets never travel in the protocol or on a command line, and the owner token, provider credentials and other tokens of the daemon stay out of its reach. A call that outlives its timeout is cancelled and the plugin's process group is killed. Text a tracker plugin returns is external text: it is sanitized and fenced like any other tracker's.
 
 ## What is never the agent's
 

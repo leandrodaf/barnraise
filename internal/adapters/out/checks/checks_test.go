@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -271,5 +272,39 @@ func TestWebhookCheck(t *testing.T) {
 	s.Def.URL = bad.URL
 	if _, _, err := r.Run(context.Background(), s); err == nil {
 		t.Fatal("5xx must error")
+	}
+}
+
+func TestPluginCheck(t *testing.T) {
+	blobs := &memBlobs{m: map[string][]byte{}}
+	logPath := filepath.Join(t.TempDir(), "farm.log")
+	if err := os.WriteFile(logPath, []byte("3 devices passed\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	var gotName string
+	r := newRunner(t, Options{Blobs: blobs, Plugin: func(_ context.Context, name string, s ports.CheckSpec) (domain.CheckResult, bool, error) {
+		gotName = name
+		if s.Def.Run == "boom" {
+			return domain.CheckResult{}, false, errors.New("farm down")
+		}
+		return domain.CheckResult{Passed: true, Summary: "3 devices", LogPath: logPath, Artifacts: []string{"shot.png"}, Duration: time.Second}, s.Def.Run == "later", nil
+	}})
+	s := spec("", "")
+	s.Def.RunsOn = "plugin:farm"
+	res, pending, err := r.Run(context.Background(), s)
+	if err != nil || pending || gotName != "farm" || !res.Passed || res.ID != "c1" || res.ItemID != "I-42" || res.RunsOn != "plugin:farm" ||
+		res.Summary != "3 devices" || len(res.Artifacts) != 1 || string(blobs.m[res.LogHash]) != "3 devices passed\n" {
+		t.Fatalf("%+v %v %v", res, pending, err)
+	}
+	s.Def.Run = "later"
+	if _, pending, err = r.Run(context.Background(), s); err != nil || !pending {
+		t.Fatalf("pending = %v %v", pending, err)
+	}
+	s.Def.Run = "boom"
+	if _, _, err = r.Run(context.Background(), s); err == nil || !strings.Contains(err.Error(), "check unit on plugin farm: farm down") {
+		t.Fatalf("err = %v", err)
+	}
+	if _, _, err = NewRunner(Options{}).Run(context.Background(), s); err == nil || !strings.Contains(err.Error(), "no plugins are configured") {
+		t.Fatalf("err = %v", err)
 	}
 }

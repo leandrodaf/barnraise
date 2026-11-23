@@ -26,7 +26,7 @@ type RoleDef struct {
 type CheckDef struct {
 	Name         string        `json:"name"`
 	Run          string        `json:"run,omitempty"`      // command for local and machine checks
-	RunsOn       string        `json:"runs_on"`            // local, github-actions, machine:<label>, webhook
+	RunsOn       string        `json:"runs_on"`            // local, github-actions, machine:<label>, webhook, plugin:<name>
 	Workflow     string        `json:"workflow,omitempty"` // github-actions workflow file
 	URL          string        `json:"url,omitempty"`      // webhook
 	Scope        string        `json:"scope,omitempty"`    // touched (default) or all
@@ -227,7 +227,7 @@ type AreaDef struct {
 
 // NotifierDef configures an owner notification channel.
 type NotifierDef struct {
-	Type   string            `json:"type"` // webhook, telegram, slack, ntfy, email, desktop
+	Type   string            `json:"type"` // webhook, telegram, slack, ntfy, email, desktop, plugin:<name>
 	Target string            `json:"target"`
 	Secret string            `json:"secret,omitempty"` // keychain reference
 	Extra  map[string]string `json:"extra,omitempty"`
@@ -327,7 +327,7 @@ func (c *ProjectConfig) validateAPIProviders() []error {
 
 // TrackerDef configures where people see items.
 type TrackerDef struct {
-	Type    string            `json:"type"` // local, github, gitlab, jira, linear
+	Type    string            `json:"type"` // local, github, gitlab, jira, linear, plugin:<name>
 	Repo    string            `json:"repo,omitempty"`
 	Project string            `json:"project,omitempty"`
 	URL     string            `json:"url,omitempty"`
@@ -412,6 +412,7 @@ type ProjectConfig struct {
 	Notifications   []NotifierDef           `json:"notifications,omitempty"`
 	Webhooks        []WebhookDef            `json:"webhooks,omitempty"`
 	MCP             map[string]MCPServerDef `json:"mcp,omitempty"`
+	Plugins         map[string]PluginDef    `json:"plugins,omitempty"`
 	Experiments     []ExperimentDef         `json:"experiments,omitempty"`
 	KindFlows       map[string]string       `json:"kind_flows,omitempty"` // item kind -> flow
 	SafetyCommit    time.Duration           `json:"safety_commit"`
@@ -493,6 +494,7 @@ func (c *ProjectConfig) Validate() []error {
 	}
 	errs = append(errs, c.validateMCP()...)
 	errs = append(errs, c.validateAPIProviders()...)
+	errs = append(errs, c.validatePlugins()...)
 	if ct := c.Container; ct.Image == "" && (ct.Engine != "" || ct.Network != "" || len(ct.Mounts) > 0) {
 		errs = append(errs, fmt.Errorf("container needs an image (one with the AI CLI and the project's tools)"))
 	} else if ct.Engine != "" && ct.Engine != "docker" && ct.Engine != "podman" {
@@ -568,8 +570,10 @@ func (c *ProjectConfig) Validate() []error {
 			if ch.URL == "" {
 				errs = append(errs, fmt.Errorf("check %s runs on a webhook but has no url", n))
 			}
+		case strings.HasPrefix(ch.RunsOn, "plugin:"):
+			// validatePlugins checks the name
 		default:
-			errs = append(errs, fmt.Errorf("check %s: runs_on %q must be local, github-actions, machine:<label> or webhook", n, ch.RunsOn))
+			errs = append(errs, fmt.Errorf("check %s: runs_on %q must be local, github-actions, machine:<label>, webhook or plugin:<name>", n, ch.RunsOn))
 		}
 	}
 	switch c.Approves {
@@ -580,7 +584,9 @@ func (c *ProjectConfig) Validate() []error {
 	switch c.Tracker.Type {
 	case "local", "github", "gitlab", "jira", "linear":
 	default:
-		errs = append(errs, fmt.Errorf("tracker type %q is not supported; use local, github, gitlab, jira or linear", c.Tracker.Type))
+		if !strings.HasPrefix(c.Tracker.Type, "plugin:") {
+			errs = append(errs, fmt.Errorf("tracker type %q is not supported; use local, github, gitlab, jira, linear or plugin:<name>", c.Tracker.Type))
+		}
 	}
 	if c.Lease.TTL > 0 && c.Lease.Renew >= c.Lease.TTL {
 		errs = append(errs, fmt.Errorf("lease renew (%s) must be shorter than the ttl (%s)", c.Lease.Renew, c.Lease.TTL))

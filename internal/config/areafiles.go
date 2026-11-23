@@ -43,6 +43,7 @@ type areaFile struct {
 	Template string    `yaml:"template"`
 	Flows    yaml.Node `yaml:"flows"`
 	Roles    yaml.Node `yaml:"roles"`
+	Plugins  yaml.Node `yaml:"plugins"`
 }
 
 // AreaFiles lists the folders (relative, slash-separated, sorted) that hold
@@ -93,8 +94,8 @@ func loadAreaFiles(root string, c *domain.ProjectConfig, userChecks map[string]b
 		if err := yaml.Unmarshal(data, &af); err != nil {
 			return fmt.Errorf("%s: %w", file, friendlyYAML(err))
 		}
-		if af.Project != "" || af.Template != "" || af.Flows.Kind != 0 || af.Roles.Kind != 0 {
-			return fmt.Errorf("%s describes one part of the repository: it may set area, about, stack, standard, screens, contracts, also_when, kinds and checks; project, template, flows and roles belong in the %s at the root", file, FileName)
+		if af.Project != "" || af.Template != "" || af.Flows.Kind != 0 || af.Roles.Kind != 0 || af.Plugins.Kind != 0 {
+			return fmt.Errorf("%s describes one part of the repository: it may set area, about, stack, standard, screens, contracts, also_when, kinds and checks; project, template, flows, roles and plugins belong in the %s at the root", file, FileName)
 		}
 		name := domain.AreaName(def(af.Area, filepath.Base(dir)))
 		if prev, ok := c.Areas[name]; ok {

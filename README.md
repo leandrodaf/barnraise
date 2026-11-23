@@ -146,6 +146,8 @@ checks:
 
 Without a stored token, Barnraise uses `GITHUB_TOKEN` and then `gh auth token`. Without webhooks it polls the tracker; with them (`POST /v1/webhooks/github`, verified with the HMAC signature, events `push`, `issues`, `issue_comment`, `check_run`, `workflow_run`) changes arrive at once. Text that comes from GitHub is sanitized and shown to agents inside fences as untrusted data. "Issue" is only the thing on GitHub: item I-42 shows up as issue #1608. GitLab, Jira and Linear work the same way as trackers; see [docs/configuration.md](docs/configuration.md).
 
+Any other tracker, check runner, notification channel or event hook is an external plugin: a program in any language that speaks JSON-RPC on its standard input and output, declared under `plugins:` in `barnraise.yaml` and used as `tracker: {type: plugin:<name>}`, `runs_on: plugin:<name>` or `type: plugin:<name>` in `notifications`. No rebuild of Barnraise is needed; see [docs/plugins.md](docs/plugins.md).
+
 ## Security
 
 Agents read untrusted text, could reach private data and could send data out. Barnraise breaks all three, in layers. Details in [docs/security.md](docs/security.md).
@@ -207,7 +209,7 @@ internal/domain/          pure rules: item, goal, focus, flow, rework, capacity,
 internal/app/             use cases: claim, deliver, review, integrate, propose, set focus…
 internal/ports/           small interfaces: Provider, Tracker, CodeHost, Arbiter, EventBus, StateStore…
 internal/adapters/in/     httpapi (Connect), mcp, cli, hooks, panel
-internal/adapters/out/    claude, codex, gemini, github, gitlab, jira, linear, nats, sqlite, git, tailnet, pairing…
+internal/adapters/out/    claude, codex, gemini, github, gitlab, jira, linear, plugin, nats, sqlite, git, tailnet, pairing…
 proto/ · gen/             the API contract (protobuf) and the generated code
 templates/                base defaults and the project templates
 docs/adr/                 architecture decision records

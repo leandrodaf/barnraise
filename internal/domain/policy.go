@@ -42,7 +42,7 @@ type Policy struct {
 func DefaultPolicy() Policy {
 	return Policy{
 		DenyWrite: []string{
-			".github/workflows/**", ".gitlab-ci.yml", ".barnraise/**", "barnraise.yaml",
+			".github/workflows/**", ".gitlab-ci.yml", ".barnraise/**", "**/barnraise.yaml",
 			"**/*.keystore", "**/*.jks", "**/.env", "**/.env.*", ".git/**", "**/.git/hooks/**",
 			"criteria.json", ".claude/settings*.json", ".codex/**", ".gemini/**",
 		},

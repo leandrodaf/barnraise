@@ -45,6 +45,7 @@ Formats used below:
 | `budget` | mapping | `{triage_week: 2%, context_tokens: 6000, compact_at: 60%}` | See [budget](#budget) |
 | `revalidation` | mapping | `{stale_after: 14d}` | See [revalidation](#revalidation) |
 | `notifications` | list | none | See [notifications](#notifications) |
+| `plugins` | mapping | none | External plugins; see [plugins](#plugins) |
 | `webhooks` | list | none | See [webhooks](#webhooks) |
 | `experiments` | list | none | See [experiments](#experiments) |
 | `worktree` | mapping | `{include: [.env, .env.local], port_base: 4100, safety_commit: 15m}` | See [worktree](#worktree) |
@@ -90,7 +91,7 @@ Where people see items. The daemon owns the flow state; the tracker is the windo
 
 | Key | Default | Meaning |
 | --- | --- | --- |
-| `type` | `local` | `local`, `github`, `gitlab`, `jira`, `linear` |
+| `type` | `local` | `local`, `github`, `gitlab`, `jira`, `linear`, or `plugin:<name>` for a tracker plugin (see [plugins](#plugins)) |
 | `repo` | none | `owner/name` (GitHub) or the project path (GitLab) |
 | `project` | none | GitHub Projects number, Jira key (`KEY` or `email/KEY`), Linear team key |
 | `url` | none | Base URL for GitLab or Jira |
@@ -119,7 +120,7 @@ Each check is a command string or a mapping:
 | Key | Default | Meaning |
 | --- | --- | --- |
 | `run` | none | Command, for `local` and `machine:<label>` checks |
-| `runs_on` | `local` | `local`, `github-actions`, `machine:<label>` (a paired machine with that label, e.g. `machine:emulators`), `webhook` |
+| `runs_on` | `local` | `local`, `github-actions`, `machine:<label>` (a paired machine with that label, e.g. `machine:emulators`), `webhook`, `plugin:<name>` (a check plugin, see [plugins](#plugins); it receives `run` as given) |
 | `workflow` | none | Workflow file for `github-actions`; dispatched with inputs `item`, `commit` and `check` |
 | `url` | none | Endpoint for `webhook` checks; the result comes back on the signed inbound webhook |
 | `scope` | `touched` | `touched` runs only for the areas the item changed; `all` runs everything |
@@ -444,7 +445,7 @@ checks:
 | `kinds` | Flow per item kind for the items of this area (the flows themselves are declared in the root) |
 | `standard`, `screens`, `contracts` | As in `areas:`; `standard` is relative to the folder |
 
-`project`, `template`, `flows` and `roles` belong in the root file only. When the parts bring checks, the template's own guesses (a single `make test` for everything) are dropped, and the flow steps that pointed at them run every check that applies; checks the root file declares itself are kept. An area declared both in the root and in a part's file is an error.
+`project`, `template`, `flows`, `roles` and `plugins` belong in the root file only. When the parts bring checks, the template's own guesses (a single `make test` for everything) are dropped, and the flow steps that pointed at them run every check that applies; checks the root file declares itself are kept. An area declared both in the root and in a part's file is an error.
 
 ## merge
 
@@ -523,6 +524,7 @@ Owner notification channels. Each entry has `type`, `target`, `secret` (a secret
 | `slack` | incoming webhook URL (or put the URL in `secret`) | | |
 | `email` | recipients, comma-separated | SMTP password | `host`, `port` (587), `username`, `from` |
 | `desktop` | | | |
+| `plugin:<name>` | sent to the plugin | | sent to the plugin |
 
 ```yaml
 notifications:
@@ -581,6 +583,42 @@ mcp:
 ```
 
 `barnraise check` reports a server without `command` or `url`, or one for a role that does not exist. A secret that cannot be read stops the session from starting.
+
+## plugins
+
+External plugins: programs the owner configures, in any language, that the daemon starts and talks to over JSON-RPC on their standard input and output. The protocol is [plugins.md](plugins.md). A plugin is used where a tracker, a check or a notification channel is chosen, by `plugin:<name>`, and receives events when it lists them.
+
+| Key | Default | Meaning |
+| --- | --- | --- |
+| `command` | none | The program: a name on the `PATH`, an absolute path, `~/…`, or a path relative to the repository root (keep those in `.barnraise/plugins/`) |
+| `args` | none | Its arguments |
+| `env` | none | **Names** of the daemon's environment variables passed to it; nothing else of the daemon's environment reaches it besides `PATH`, `HOME`, `USER`, `LANG`, `TZ` and `TMPDIR` |
+| `secrets` | none | Variable name to secret reference (`keychain:…`, `env:…`), resolved when it starts and passed in its environment; never a value |
+| `timeout` | `30s` | duration: how long each call may take; a check uses the check's own `timeout` |
+| `events` | none | For a hook plugin: event types it receives; a trailing `*` matches a prefix (`item.step.*`), `*` is every event |
+| `options` | none | The plugin's own settings, sent in `initialize` |
+
+```yaml
+plugins:
+  youtrack:
+    command: .barnraise/plugins/youtrack.py
+    env: [YOUTRACK_URL]
+    secrets: { YOUTRACK_TOKEN: "keychain:youtrack" }
+    options: { project: SHOP }
+  farm:
+    command: device-farm-plugin
+    events: ["item.step.*", item.integrated]
+tracker:
+  type: plugin:youtrack
+  columns: { ready: Todo, in_progress: Doing, integrated: Done }
+checks:
+  devices: { runs_on: "plugin:farm", run: "android-14 pixel-8", timeout: 45m }
+notifications:
+  - type: plugin:farm
+    target: "#mobile"
+```
+
+`barnraise check` reports a plugin without `command`, a program that is not found, an `env` entry that is not a variable name, a secret that is a value instead of a reference, and a `plugin:<name>` that names no declared plugin. Plugins belong in the root `barnraise.yaml`, not in a part's file. A plugin program inside the repository is added to the policy's `deny_write`, so agents cannot change it.
 
 ## webhooks
 
