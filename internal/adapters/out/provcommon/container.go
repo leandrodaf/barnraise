@@ -22,6 +22,7 @@ func ContainerArgs(c *ports.ContainerSpec, env *Env, workdir, name string, args 
 		engine = "docker"
 	}
 	out := []string{"run", "--rm", "-i", "--init", "--workdir", workdir}
+	out = append(out, Hardening...)
 	if c.Network != "" {
 		out = append(out, "--network", c.Network)
 	}
@@ -47,4 +48,23 @@ func ContainerArgs(c *ports.ContainerSpec, env *Env, workdir, name string, args 
 	// Inside the container the CLI is found on the image's PATH.
 	out = append(out, c.Image, filepath.Base(name))
 	return engine, append(out, args...)
+}
+
+// Hardening is what every agent container runs with, on top of the engine's
+// default seccomp profile: no Linux capabilities and no way to gain any
+// (setuid binaries do nothing), the image read-only with scratch folders in
+// memory, a cap on processes and open files, no core dumps, and a hostname
+// that is not the machine's. The same layers ai-jail puts around an agent
+// (rlimits, read-only /usr and /etc, tmpfs /tmp), in engine flags.
+var Hardening = []string{
+	"--cap-drop", "ALL",
+	"--security-opt", "no-new-privileges",
+	"--read-only",
+	"--tmpfs", "/tmp:rw,exec,nosuid,nodev,size=8g",
+	"--tmpfs", "/var/tmp:rw,nosuid,nodev,size=1g",
+	"--tmpfs", "/run:rw,nosuid,nodev,size=64m",
+	"--pids-limit", "4096",
+	"--ulimit", "nofile=65536:65536",
+	"--ulimit", "core=0",
+	"--hostname", "barnraise-agent",
 }

@@ -453,6 +453,11 @@ func (c *ProjectConfig) Validate() []error {
 	} else if ct.GPU != "" && ct.GPU != "auto" && ct.GPU != "all" && ct.GPU != "none" {
 		errs = append(errs, fmt.Errorf("container.gpu %q is not auto, all or none", ct.GPU))
 	}
+	for _, m := range c.Container.Mounts {
+		if why := ForbiddenMount(m, ""); why != "" {
+			errs = append(errs, fmt.Errorf("container.mounts: %s is never mounted into an agent's container: %s", m, why))
+		}
+	}
 	for an, a := range c.Areas {
 		for kind, flow := range a.KindFlows {
 			if _, ok := c.Flows[flow]; !ok {

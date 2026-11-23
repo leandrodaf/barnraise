@@ -20,7 +20,7 @@ func TestContainerArgs(t *testing.T) {
 	if name != "docker" {
 		t.Fatalf("engine %s", name)
 	}
-	for _, want := range []string{"run --rm -i --init --workdir /w/I-1", "--network bridge", "--user 1000:1000",
+	for _, want := range []string{"run --rm -i --init --workdir /w/I-1 --cap-drop ALL --security-opt no-new-privileges --read-only", "--pids-limit 4096", "--ulimit core=0", "--network bridge", "--user 1000:1000",
 		"--volume /w/I-1:/w/I-1 ", "--volume /repo/.git:/repo/.git ", "--volume /usr/local/bin/barnraise:/usr/local/bin/barnraise:ro",
 		"--device /dev/dri", "--env HOME=/w/I-1/.barnraise-session/home", "--env BARNRAISE_TOKEN ", "--env CLAUDE_CONFIG_DIR ",
 		"agent:1 claude -p --model haiku"} {

@@ -608,6 +608,9 @@ func (r *Runtime) containerSpec(p *Project, ct domain.ContainerDef, worktree, se
 		if !filepath.IsAbs(path) {
 			return nil, fmt.Errorf("container.mounts: %q must be an absolute path (or start with ~/)", m)
 		}
+		if why := domain.ForbiddenMount(path, host); why != "" {
+			return nil, fmt.Errorf("container.mounts: %s is never mounted into an agent's container: %s", m, why)
+		}
 		add(path, ro)
 	}
 	cs.Extra = r.gpuArgs(cs.Engine, ct.GPU)

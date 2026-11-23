@@ -503,6 +503,8 @@ container:
   mounts: ["~/.cache/go-build", "/opt/android-sdk:ro"]
 ```
 
+Every container runs with no Linux capabilities and `no-new-privileges`, a read-only image (`/tmp`, `/var/tmp` and `/run` in memory), at most 4096 processes and 65536 open files, no core dumps, and its own hostname. `mounts` never takes the engine's socket (whoever reaches it is root on the machine), `/`, system folders, a whole home or a credential folder (`~/.ssh`, `~/.gnupg`, `~/.aws`, `~/.config`, `~/.docker`, `~/.kube`…): `barnraise check` says so, and the session refuses to start.
+
 Mounted by Barnraise, each at its own path: the item's worktree, the repository's `.git` (a worktree commits there), the agent's account folder, the daemon's socket and the `barnraise` binary (read-only). Not mounted: the owner's home, the daemon's state, other items' worktrees. The session runs as the daemon's uid, with `HOME` inside the session folder. Inside a container the provider's native sandbox is off (bubblewrap does not nest); the container is the boundary, and the blocking hook and the policy still apply.
 
 With `gpu` other than `none`, `/dev/kvm` is passed in too when the machine has it, so an Android emulator can run inside the container. Codex runs there with its own sandbox off (bubblewrap cannot nest in a container, and the container is the boundary); on the machine itself it always runs in `workspace-write`.
