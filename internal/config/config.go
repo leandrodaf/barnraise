@@ -297,6 +297,14 @@ type rawConfig struct {
 		Events    []string `yaml:"events"`
 		SecretRef string   `yaml:"secret_ref"`
 	} `yaml:"webhooks"`
+	MCP map[string]struct {
+		Command string            `yaml:"command"`
+		Args    []string          `yaml:"args"`
+		Env     map[string]string `yaml:"env"`
+		URL     string            `yaml:"url"`
+		Type    string            `yaml:"type"`
+		Roles   []string          `yaml:"roles"`
+	} `yaml:"mcp"`
 	Experiments []struct {
 		Name   string            `yaml:"name"`
 		Share  string            `yaml:"share"`
@@ -563,6 +571,12 @@ func (r *rawConfig) compile(root, tmpl string) (*domain.ProjectConfig, error) {
 		c.StaleAfter = d
 	}
 	c.Notifications = r.Notifications
+	for name, m := range r.MCP {
+		if c.MCP == nil {
+			c.MCP = map[string]domain.MCPServerDef{}
+		}
+		c.MCP[name] = domain.MCPServerDef{Command: m.Command, Args: m.Args, Env: m.Env, URL: m.URL, Type: m.Type, Roles: m.Roles}
+	}
 	for _, w := range r.Webhooks {
 		c.Webhooks = append(c.Webhooks, domain.WebhookDef{URL: w.URL, Events: w.Events, SecretRef: w.SecretRef})
 	}
@@ -791,7 +805,7 @@ func Explain(cfg *domain.ProjectConfig) (string, error) {
 		"models":    cfg.Models, "policy": cfg.Policy, "areas": cfg.Areas, "merge": cfg.Merge,
 		"lease":  map[string]string{"renew": cfg.Lease.Renew.String(), "ttl": cfg.Lease.TTL.String()},
 		"budget": cfg.Budget, "revalidation": map[string]string{"stale_after": cfg.StaleAfter.String()},
-		"notifications": cfg.Notifications, "webhooks": cfg.Webhooks, "experiments": cfg.Experiments,
+		"notifications": cfg.Notifications, "webhooks": cfg.Webhooks, "mcp": cfg.MCP, "experiments": cfg.Experiments,
 		"worktree": map[string]any{"include": cfg.EnvFiles, "port_base": cfg.PortBase, "safety_commit": cfg.SafetyCommit.String()},
 	}
 	var buf bytes.Buffer

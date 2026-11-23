@@ -1,0 +1,42 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 500" width="1200" height="500" role="img" aria-labelledby="t d" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">
+<title id="t">Failover between machines</title><desc id="d">Machine A claims an item with a git ref and renews it every 30 seconds. When A dies the ref is not renewed; after 2 minutes machine B takes the ref with a compare-and-swap and continues from the last pushed step.</desc>
+<defs><marker id="a1f2328" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#1f2328"/></marker><marker id="a57606a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#57606a"/></marker><marker id="a0969da" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#0969da"/></marker><marker id="a1a7f37" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#1a7f37"/></marker><marker id="abc4c00" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#bc4c00"/></marker><marker id="a8250df" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#8250df"/></marker><marker id="acf222e" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#cf222e"/></marker></defs>
+<rect x="0.5" y="0.5" width="1199" height="499" rx="12" fill="#ffffff" stroke="#d0d7de"/>
+<text x="40" y="44" font-size="20" fill="#1f2328" font-weight="600" text-anchor="start">When a machine dies, another one continues from the last pushed step</text>
+<text x="40" y="68" font-size="14" fill="#57606a" font-weight="400" text-anchor="start">The claim is a git ref with a deadline. Nothing is elected and nothing is lost.</text>
+<text x="40" y="155" font-size="14" fill="#1f2328" font-weight="600" text-anchor="start">Machine A</text>
+<line x1="150" y1="150" x2="1160" y2="150" stroke="#d0d7de" stroke-width="2"/>
+<text x="40" y="267" font-size="14" fill="#1f2328" font-weight="600" text-anchor="start">Git server</text>
+<line x1="150" y1="262" x2="1160" y2="262" stroke="#d0d7de" stroke-width="2"/>
+<text x="40" y="379" font-size="14" fill="#1f2328" font-weight="600" text-anchor="start">Machine B</text>
+<line x1="150" y1="374" x2="1160" y2="374" stroke="#d0d7de" stroke-width="2"/>
+<rect x="180" y="128" width="430" height="44" rx="8" fill="#ddf4ff" stroke="#0969da" stroke-width="1.2"/>
+<text x="395" y="155" font-size="13" fill="#1f2328" font-weight="400" text-anchor="middle">works on I-42: plan → implement …</text>
+<line x1="200" y1="172" x2="200" y2="254" stroke="#1a7f37" stroke-width="1.6" marker-end="url(#a1a7f37)"/>
+<text x="192" y="205" font-size="12" fill="#1a7f37" font-weight="400" text-anchor="end">claims:</text>
+<text x="192" y="221" font-size="12" fill="#1a7f37" font-weight="400" text-anchor="end">creates the ref</text>
+<line x1="300" y1="172" x2="300" y2="254" stroke="#1a7f37" stroke-width="1.2" stroke-dasharray="2 4" marker-end="url(#a1a7f37)"/>
+<line x1="370" y1="172" x2="370" y2="254" stroke="#1a7f37" stroke-width="1.2" stroke-dasharray="2 4" marker-end="url(#a1a7f37)"/>
+<line x1="440" y1="172" x2="440" y2="254" stroke="#1a7f37" stroke-width="1.2" stroke-dasharray="2 4" marker-end="url(#a1a7f37)"/>
+<line x1="510" y1="172" x2="510" y2="254" stroke="#1a7f37" stroke-width="1.2" stroke-dasharray="2 4" marker-end="url(#a1a7f37)"/>
+<line x1="580" y1="172" x2="580" y2="254" stroke="#1a7f37" stroke-width="1.2" stroke-dasharray="2 4" marker-end="url(#a1a7f37)"/>
+<rect x="236.8" y="204" width="406.5" height="18" rx="3" fill="#ffffff"/>
+<text x="440" y="216" font-size="12" fill="#1a7f37" font-weight="400" text-anchor="middle">renews every 30 s · commits and pushes each step to br/I-42</text>
+<rect x="200" y="254" width="580" height="16" rx="4" fill="#dafbe1" stroke="#1a7f37" stroke-width="1.2"/>
+<text x="210" y="292" font-size="12.5" fill="#1a7f37" text-anchor="start" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace">refs/barnraise/claims/I-42 → machine A</text>
+<text x="628" y="157" font-size="24" fill="#cf222e" font-weight="700" text-anchor="middle">✕</text>
+<text x="650" y="120" font-size="12" fill="#cf222e" font-weight="400" text-anchor="start">machine A dies (power, network, kill -9)</text>
+<rect x="610" y="254" width="170" height="16" rx="4" fill="#ffebe9" stroke="#cf222e" stroke-width="1.2"/>
+<text x="695" y="292" font-size="12" fill="#cf222e" font-weight="400" text-anchor="middle">no renewal for 2 min</text>
+<line x1="780" y1="352" x2="780" y2="272" stroke="#8250df" stroke-width="1.6" marker-end="url(#a8250df)"/>
+<text x="792" y="322" font-size="12" fill="#8250df" font-weight="400" text-anchor="start">takes the ref: compare-and-swap</text>
+<rect x="780" y="254" width="330" height="16" rx="4" fill="#fbefff" stroke="#8250df" stroke-width="1.2"/>
+<text x="1110" y="246" font-size="12.5" fill="#8250df" text-anchor="end" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace">→ machine B</text>
+<rect x="780" y="352" width="330" height="44" rx="8" fill="#fbefff" stroke="#8250df" stroke-width="1.2"/>
+<text x="945" y="379" font-size="13" fill="#1f2328" font-weight="400" text-anchor="middle">continues at implement … integrates</text>
+<text x="180" y="400" font-size="12" fill="#57606a" font-weight="400" text-anchor="start">sees the item through the mirrored events; cannot take it while the ref is renewed</text>
+<rect x="40" y="420" width="1120" height="52" rx="8" fill="#f6f8fa" stroke="#d0d7de" stroke-width="1.2"/>
+<text x="60" y="442" font-size="13" fill="#1f2328" font-weight="600" text-anchor="start">What the owner sees:</text>
+<text x="200" y="442" font-size="13" fill="#57606a" font-weight="400" text-anchor="start" font-style="italic">"Machine A has been away for 3 min. Machine B took its items: I-42 resumed there. Nothing lost."</text>
+<text x="60" y="461" font-size="12.5" fill="#57606a" font-weight="400" text-anchor="start">Measured on two real machines over Tailscale with an 8 s deadline: taken over and integrated 15 s after kill -9.</text>
+</svg>

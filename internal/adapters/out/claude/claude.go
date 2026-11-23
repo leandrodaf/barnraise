@@ -172,9 +172,21 @@ func (p *Provider) Args(spec ports.SessionSpec) []string {
 	}
 	if spec.MCPConfig != "" {
 		args = append(args, "--mcp-config", spec.MCPConfig)
+		if p.flagKnown("--strict-mcp-config") {
+			// Only Barnraise's MCP server: the account owner's own servers
+			// (mail, ads, cloud…) are not the agent's to use, and their tool
+			// lists cost tokens in every session.
+			args = append(args, "--strict-mcp-config")
+		}
 	}
 	if spec.SettingsFile != "" {
 		args = append(args, "--settings", spec.SettingsFile)
+		if p.flagKnown("--setting-sources") {
+			// The session's settings are the ones Barnraise wrote plus the
+			// project's; the account owner's personal settings, plugins and
+			// hooks stay out.
+			args = append(args, "--setting-sources", "project,local")
+		}
 	}
 	if spec.ResumeID != "" {
 		args = append(args, "--resume", spec.ResumeID)

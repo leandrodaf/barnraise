@@ -308,7 +308,7 @@ func TestOpenReplaysAndBuildsCommand(t *testing.T) {
 	}
 	wantArgs := []string{"claude", "-p", "--output-format", "stream-json", "--verbose",
 		"--model", "haiku", "--effort", "low", "--append-system-prompt", "be brief",
-		"--mcp-config", "/m.json", "--settings", "/s.json", "--resume", "r-1",
+		"--mcp-config", "/m.json", "--strict-mcp-config", "--settings", "/s.json", "--setting-sources", "project,local", "--resume", "r-1",
 		"--max-turns", "3", "--json-schema", `{"type":"object"}`}
 	if !slices.Equal(call.Args, wantArgs) {
 		t.Fatalf("args = %q", call.Args)

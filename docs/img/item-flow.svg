@@ -1,0 +1,76 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 470" width="1200" height="470" role="img" aria-labelledby="t d" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">
+<title id="t">The flow of one item</title><desc id="d">An item goes from draft to ready, plan, plan approval, implement, quick look, check, review, merge queue and main. A failed quick look, check or review sends it back to implement with the reason, up to a limit.</desc>
+<defs><marker id="a1f2328" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#1f2328"/></marker><marker id="a57606a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#57606a"/></marker><marker id="a0969da" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#0969da"/></marker><marker id="a1a7f37" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#1a7f37"/></marker><marker id="abc4c00" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#bc4c00"/></marker><marker id="a8250df" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#8250df"/></marker><marker id="acf222e" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#cf222e"/></marker></defs>
+<rect x="0.5" y="0.5" width="1199" height="469" rx="12" fill="#ffffff" stroke="#d0d7de"/>
+<text x="40" y="44" font-size="20" fill="#1f2328" font-weight="600" text-anchor="start">The flow of one item: the daemon decides the next step, the model does the work</text>
+<text x="40" y="68" font-size="14" fill="#57606a" font-weight="400" text-anchor="start">Flows are data in barnraise.yaml. This is the feature flow of the blank template.</text>
+<rect x="37" y="150" width="100" height="56" rx="8" fill="#f6f8fa" stroke="#6e7781" stroke-width="1.2"/>
+<text x="87.0" y="183" font-size="13.5" fill="#1f2328" font-weight="600" text-anchor="middle">draft</text>
+<text x="87.0" y="230" font-size="12" fill="#57606a" font-weight="400" text-anchor="middle">analyst writes</text>
+<text x="87.0" y="247" font-size="12" fill="#57606a" font-weight="400" text-anchor="middle">EARS criteria</text>
+<rect x="151" y="150" width="100" height="56" rx="8" fill="#f6f8fa" stroke="#6e7781" stroke-width="1.2"/>
+<text x="201.0" y="183" font-size="13.5" fill="#1f2328" font-weight="600" text-anchor="middle">ready</text>
+<text x="201.0" y="230" font-size="12" fill="#57606a" font-weight="400" text-anchor="middle">waits in the</text>
+<text x="201.0" y="247" font-size="12" fill="#57606a" font-weight="400" text-anchor="middle">queue</text>
+<line x1="138" y1="178" x2="149" y2="178" stroke="#1f2328" stroke-width="1.4" marker-end="url(#a1f2328)"/>
+<rect x="265" y="150" width="100" height="56" rx="8" fill="#ddf4ff" stroke="#0969da" stroke-width="1.2"/>
+<text x="315.0" y="183" font-size="13.5" fill="#1f2328" font-weight="600" text-anchor="middle">plan</text>
+<text x="315.0" y="230" font-size="12" fill="#57606a" font-weight="400" text-anchor="middle">implementer</text>
+<text x="315.0" y="247" font-size="12" fill="#57606a" font-weight="400" text-anchor="middle">writes plan.md</text>
+<line x1="252" y1="178" x2="263" y2="178" stroke="#1f2328" stroke-width="1.4" marker-end="url(#a1f2328)"/>
+<rect x="379" y="150" width="100" height="56" rx="8" fill="#fbefff" stroke="#8250df" stroke-width="1.2"/>
+<text x="429.0" y="183" font-size="13.5" fill="#1f2328" font-weight="600" text-anchor="middle">plan approval</text>
+<text x="429.0" y="230" font-size="12" fill="#57606a" font-weight="400" text-anchor="middle">analyst or</text>
+<text x="429.0" y="247" font-size="12" fill="#57606a" font-weight="400" text-anchor="middle">the owner</text>
+<line x1="366" y1="178" x2="377" y2="178" stroke="#1f2328" stroke-width="1.4" marker-end="url(#a1f2328)"/>
+<rect x="493" y="150" width="100" height="56" rx="8" fill="#ddf4ff" stroke="#0969da" stroke-width="1.2"/>
+<text x="543.0" y="183" font-size="13.5" fill="#1f2328" font-weight="600" text-anchor="middle">implement</text>
+<text x="543.0" y="230" font-size="12" fill="#57606a" font-weight="400" text-anchor="middle">implementer,</text>
+<text x="543.0" y="247" font-size="12" fill="#57606a" font-weight="400" text-anchor="middle">own worktree</text>
+<line x1="480" y1="178" x2="491" y2="178" stroke="#1f2328" stroke-width="1.4" marker-end="url(#a1f2328)"/>
+<rect x="607" y="150" width="100" height="56" rx="8" fill="#ddf4ff" stroke="#0969da" stroke-width="1.2"/>
+<text x="657.0" y="183" font-size="13.5" fill="#1f2328" font-weight="600" text-anchor="middle">quick look</text>
+<text x="657.0" y="230" font-size="12" fill="#57606a" font-weight="400" text-anchor="middle">cheap model</text>
+<text x="657.0" y="247" font-size="12" fill="#57606a" font-weight="400" text-anchor="middle">first</text>
+<line x1="594" y1="178" x2="605" y2="178" stroke="#1f2328" stroke-width="1.4" marker-end="url(#a1f2328)"/>
+<rect x="721" y="150" width="100" height="56" rx="8" fill="#dafbe1" stroke="#1a7f37" stroke-width="1.2"/>
+<text x="771.0" y="183" font-size="13.5" fill="#1f2328" font-weight="600" text-anchor="middle">check</text>
+<text x="771.0" y="230" font-size="12" fill="#57606a" font-weight="400" text-anchor="middle">build, tests,</text>
+<text x="771.0" y="247" font-size="12" fill="#57606a" font-weight="400" text-anchor="middle">CI: no AI</text>
+<line x1="708" y1="178" x2="719" y2="178" stroke="#1f2328" stroke-width="1.4" marker-end="url(#a1f2328)"/>
+<rect x="835" y="150" width="100" height="56" rx="8" fill="#ddf4ff" stroke="#0969da" stroke-width="1.2"/>
+<text x="885.0" y="183" font-size="13.5" fill="#1f2328" font-weight="600" text-anchor="middle">review</text>
+<text x="885.0" y="230" font-size="12" fill="#57606a" font-weight="400" text-anchor="middle">another model</text>
+<text x="885.0" y="247" font-size="12" fill="#57606a" font-weight="400" text-anchor="middle">family</text>
+<line x1="822" y1="178" x2="833" y2="178" stroke="#1f2328" stroke-width="1.4" marker-end="url(#a1f2328)"/>
+<rect x="949" y="150" width="100" height="56" rx="8" fill="#dafbe1" stroke="#1a7f37" stroke-width="1.2"/>
+<text x="999.0" y="183" font-size="13.5" fill="#1f2328" font-weight="600" text-anchor="middle">merge queue</text>
+<text x="999.0" y="230" font-size="12" fill="#57606a" font-weight="400" text-anchor="middle">rebase, check</text>
+<text x="999.0" y="247" font-size="12" fill="#57606a" font-weight="400" text-anchor="middle">again, squash</text>
+<line x1="936" y1="178" x2="947" y2="178" stroke="#1f2328" stroke-width="1.4" marker-end="url(#a1f2328)"/>
+<rect x="1063" y="150" width="100" height="56" rx="8" fill="#f6f8fa" stroke="#6e7781" stroke-width="1.2"/>
+<text x="1113.0" y="183" font-size="13.5" fill="#1f2328" font-weight="600" text-anchor="middle">main</text>
+<text x="1113.0" y="230" font-size="12" fill="#57606a" font-weight="400" text-anchor="middle">one commit,</text>
+<text x="1113.0" y="247" font-size="12" fill="#57606a" font-weight="400" text-anchor="middle">item trailer</text>
+<line x1="1050" y1="178" x2="1061" y2="178" stroke="#1f2328" stroke-width="1.4" marker-end="url(#a1f2328)"/>
+<path d="M 657.0 150 L 657.0 126 L 529.0 126 L 529.0 148" fill="none" stroke="#bc4c00" stroke-width="1.6" stroke-dasharray="5 4" marker-end="url(#abc4c00)"/>
+<path d="M 771.0 150 L 771.0 112 L 543.0 112 L 543.0 148" fill="none" stroke="#bc4c00" stroke-width="1.6" stroke-dasharray="5 4" marker-end="url(#abc4c00)"/>
+<path d="M 885.0 150 L 885.0 98 L 557.0 98 L 557.0 148" fill="none" stroke="#bc4c00" stroke-width="1.6" stroke-dasharray="5 4" marker-end="url(#abc4c00)"/>
+<text x="831.0" y="92" font-size="12" fill="#bc4c00" font-weight="400" text-anchor="start">rework, with the reason</text>
+<rect x="40" y="290" width="1120" height="148" rx="8" fill="#f6f8fa" stroke="#d0d7de" stroke-width="1.2"/>
+<rect x="60" y="308" width="14" height="14" rx="3" fill="#ddf4ff" stroke="#0969da" stroke-width="1.2"/>
+<text x="84" y="320" font-size="13" fill="#1f2328" font-weight="600" text-anchor="start">Agent step</text>
+<text x="190" y="320" font-size="13" fill="#57606a" font-weight="400" text-anchor="start">one fresh session per step, with only the context that step needs; it ends with one delivery or one review in a fixed shape</text>
+<rect x="60" y="333" width="14" height="14" rx="3" fill="#fbefff" stroke="#8250df" stroke-width="1.2"/>
+<text x="84" y="345" font-size="13" fill="#1f2328" font-weight="600" text-anchor="start">Approval</text>
+<text x="190" y="345" font-size="13" fill="#57606a" font-weight="400" text-anchor="start">the plan is approved before any code is written; the owner always says what is approved: the plan or the delivery</text>
+<rect x="60" y="358" width="14" height="14" rx="3" fill="#dafbe1" stroke="#1a7f37" stroke-width="1.2"/>
+<text x="84" y="370" font-size="13" fill="#1f2328" font-weight="600" text-anchor="start">Automatic</text>
+<text x="190" y="370" font-size="13" fill="#57606a" font-weight="400" text-anchor="start">scripts and CI decide, never a model; the merge queue is the only writer of main</text>
+<rect x="60" y="383" width="14" height="14" rx="3" fill="#fff1e5" stroke="#bc4c00" stroke-width="1.2"/>
+<text x="84" y="395" font-size="13" fill="#1f2328" font-weight="600" text-anchor="start">Rework</text>
+<text x="190" y="395" font-size="13" fill="#57606a" font-weight="400" text-anchor="start">limited: 3 rounds on the same model, 2 on a stronger one, then a question to the owner</text>
+<rect x="60" y="408" width="14" height="14" rx="3" fill="#f6f8fa" stroke="#6e7781" stroke-width="1.2"/>
+<text x="84" y="420" font-size="13" fill="#1f2328" font-weight="600" text-anchor="start">Risky items</text>
+<text x="190" y="420" font-size="13" fill="#57606a" font-weight="400" text-anchor="start">run implement as two attempts in parallel worktrees; the checks choose (never by default: it doubles usage)</text>
+</svg>

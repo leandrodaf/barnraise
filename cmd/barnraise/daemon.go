@@ -160,6 +160,7 @@ func runDaemon(ctx context.Context, opts cli.DaemonOptions) error {
 		Store: d.store, Bus: &d.bus, Checks: &checkRouter{d: d}, Providers: providers, Knowledge: kn, Exec: ex, Log: log,
 		Machine: df.Machine, Version: version, DataDir: d.dataDir, SocketPath: paths.Socket(), BinaryPath: exe,
 		Notifier: d.notifier(), Blobs: blobsOrNil(d.blobs),
+		ResolveSecret: func(ref string) (string, error) { return notify.SecretRef(d.secrets, ref) },
 	})
 	d.svc = svc
 	app.RoleText = config.RolePrompt

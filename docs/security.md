@@ -93,6 +93,10 @@ Before each step's commit and push, the diff and the changed files are scanned w
 - **Tailscale** (recommended) encrypts and identifies each machine; `barnraise cluster acl` prints an ACL where only `tag:barnraise` reaches the Barnraise ports.
 - Other people's machines use the same isolated-user model, with their own tokens and no deploy rights.
 
+### 11. Only the tools the owner allowed
+
+A Claude Code session is started with `--strict-mcp-config` and `--setting-sources project,local`: it loads Barnraise's MCP server, the servers listed under [`mcp:`](configuration.md#mcp) for its role, and the settings Barnraise wrote for the session. The MCP servers, plugins, hooks and personal settings of the account's own configuration are not loaded, so an agent never inherits the owner's mail, ads or cloud tools.
+
 ## What is never the agent's
 
 Production secrets and variables, signing keys, store submissions, manual deploys, permission and policy changes. Those go to the owner as a question, with options and a recommendation. Changes to Barnraise's own policy, hooks, permissions and arbiter need the owner's approval, even when Barnraise drives its own development.

@@ -13,6 +13,7 @@
 #   SMOKE_TIMEOUT   seconds to wait for the item (default 120 fake, 1800 claude)
 #   SMOKE_CLAUDE_CONFIG_DIR  logged-in Claude config dir (default: the CLI's own)
 #   SMOKE_MODEL     model for every class with `claude` (default haiku)
+#   SMOKE_REVIEW_MODEL  second model, for the review (default sonnet@low)
 #   SMOKE_KEEP=1    keep the work directory for inspection
 set -eu
 
@@ -76,8 +77,9 @@ git checkout -q -B main
 printf '# smoke\n\nA tiny repository for the Barnraise smoke test.\n' >README.md
 "$bin" init -y --force --no-accounts --template blank --name smoke --approves analyst --check "test -f README.md" >/dev/null
 if [ "$provider" = claude ]; then
-	# One cheap model for every class keeps the nightly run small.
-	m="claude/${SMOKE_MODEL:-haiku}"
+	# Cheap models for every class keep the nightly run small. Two of them,
+	# because a review must run on a different model from the implementation.
+	m="claude/${SMOKE_MODEL:-haiku}, claude/${SMOKE_REVIEW_MODEL:-sonnet@low}"
 	printf '\nmodels:\n  classes:\n    simple: [%s]\n    normal: [%s]\n    complex: [%s]\n    native: [%s]\n    cheap: [%s]\n' "$m" "$m" "$m" "$m" "$m" >>barnraise.yaml
 	"$bin" check >/dev/null
 fi

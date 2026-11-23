@@ -34,22 +34,25 @@ var (
 
 // Deps are the ports shared by all projects of a daemon.
 type Deps struct {
-	Clock      ports.Clock
-	IDs        ports.IDGen
-	Store      ports.EventStore
-	Bus        ports.EventBus // optional
-	Checks     ports.CheckRunner
-	Notifier   ports.Notifier // optional
-	Providers  map[string]ports.Provider
-	Blobs      ports.BlobStore // optional
-	Knowledge  ports.Knowledge // optional
-	Exec       ports.Exec      // optional
-	Log        *slog.Logger
-	Machine    string
-	Version    string
-	DataDir    string // worktrees, logs, policy files
-	SocketPath string
-	BinaryPath string // the barnraise binary, for hooks and MCP config
+	Clock    ports.Clock
+	IDs      ports.IDGen
+	Store    ports.EventStore
+	Bus      ports.EventBus // optional
+	Checks   ports.CheckRunner
+	Notifier ports.Notifier // optional
+	// ResolveSecret turns a secret reference (keychain:…, env:…) into its
+	// value; optional. Used for the environment of the owner's MCP servers.
+	ResolveSecret func(ref string) (string, error)
+	Providers     map[string]ports.Provider
+	Blobs         ports.BlobStore // optional
+	Knowledge     ports.Knowledge // optional
+	Exec          ports.Exec      // optional
+	Log           *slog.Logger
+	Machine       string
+	Version       string
+	DataDir       string // worktrees, logs, policy files
+	SocketPath    string
+	BinaryPath    string // the barnraise binary, for hooks and MCP config
 }
 
 // ProjectPorts are per-project adapters.

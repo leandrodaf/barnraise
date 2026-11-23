@@ -388,3 +388,105 @@ func TestWeeklyTurnsAlertsIntoProposals(t *testing.T) {
 	e.svc.notifyOwner(e.ctx, e.p, "question", "x", "y")
 	e.svc.notifyOwnerQuestion(e.ctx, e.p, &domain.Question{})
 }
+
+// A review must run on another model. With a single model configured that
+// can never happen, so the owner is told once instead of the item waiting
+// in silence.
+func TestRuntimeTellsTheOwnerWhenNoOtherModelCanReview(t *testing.T) {
+	e := newEnv(t, withCfg(func(c *domain.ProjectConfig) {
+		for class := range c.Models.Classes {
+			c.Models.Classes[class] = []domain.ModelChoice{{Provider: "fake", Model: "fake-large"}}
+		}
+	}))
+	e.account("fake-1")
+	it := e.ready("reviewed", "one model only", "x")
+	e.start(it.ID)
+	e.mustDeliver(it.ID, domain.Delivery{})
+	e.wantStatus(it.ID, domain.StatusInProgress, "review")
+	e.fill()
+	e.fill()
+	var told []string
+	for _, n := range e.notes.Sent() {
+		if n.Kind == "model_rule" {
+			told = append(told, n.Body)
+		}
+	}
+	if len(told) != 1 {
+		t.Fatalf("the owner is told once, got %d: %v", len(told), e.notes.Kinds())
+	}
+	for _, want := range []string{"step review of " + it.ID, "different model from step implement", "fake-large", "models.classes"} {
+		if !strings.Contains(told[0], want) {
+			t.Fatalf("the message must say what to do; %q lacks %q", told[0], want)
+		}
+	}
+	if len(e.prov.Specs()) != 0 {
+		t.Fatal("no session may review with the model that did the work")
+	}
+}
+
+// A session gets Barnraise's MCP server and only the servers the owner
+// allowed for that role in barnraise.yaml.
+func TestRuntimeSessionGetsOnlyTheAllowedMCPServers(t *testing.T) {
+	e := newEnv(t, withCfg(func(c *domain.ProjectConfig) {
+		c.MCP = map[string]domain.MCPServerDef{
+			"figma":   {Command: "figma-mcp", Args: []string{"--stdio"}, Env: map[string]string{"FIGMA_TOKEN": "keychain:figma", "MODE": "read"}, Roles: []string{"implementer"}},
+			"docs":    {URL: "https://docs.example/mcp"},
+			"billing": {Command: "billing-mcp", Roles: []string{"reviewer"}},
+		}
+	}))
+	e.svc.d.ResolveSecret = func(ref string) (string, error) {
+		if ref == "keychain:figma" {
+			return "s3cret", nil
+		}
+		return "", errors.New("unknown " + ref)
+	}
+	e.account("fake-1")
+	e.ready("simple", "needs figma", "x")
+	e.fill()
+	specs := e.prov.Specs()
+	if len(specs) != 1 {
+		t.Fatalf("specs %d", len(specs))
+	}
+	data, err := os.ReadFile(specs[0].MCPConfig)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var doc struct {
+		Servers map[string]struct {
+			Command string            `json:"command"`
+			Args    []string          `json:"args"`
+			Env     map[string]string `json:"env"`
+			URL     string            `json:"url"`
+			Type    string            `json:"type"`
+		} `json:"mcpServers"`
+	}
+	if err := json.Unmarshal(data, &doc); err != nil {
+		t.Fatal(err)
+	}
+	if len(doc.Servers) != 3 || doc.Servers["barnraise"].Command == "" {
+		t.Fatalf("the implementer gets barnraise, figma and docs: %s", data)
+	}
+	if _, ok := doc.Servers["billing"]; ok {
+		t.Fatal("a server allowed for the reviewer must not reach the implementer")
+	}
+	f := doc.Servers["figma"]
+	if f.Command != "figma-mcp" || len(f.Args) != 1 || f.Env["FIGMA_TOKEN"] != "s3cret" || f.Env["MODE"] != "read" {
+		t.Fatalf("figma %+v", f)
+	}
+	if d := doc.Servers["docs"]; d.URL != "https://docs.example/mcp" || d.Type != "http" {
+		t.Fatalf("docs %+v", d)
+	}
+	e.idle()
+
+	// A secret that cannot be read stops the session instead of starting it half-configured.
+	bad := newEnv(t, withCfg(func(c *domain.ProjectConfig) {
+		c.MCP = map[string]domain.MCPServerDef{"figma": {Command: "figma-mcp", Env: map[string]string{"FIGMA_TOKEN": "keychain:missing"}}}
+	}))
+	bad.svc.d.ResolveSecret = func(ref string) (string, error) { return "", errors.New("not in the keychain") }
+	bad.account("fake-1")
+	bad.ready("simple", "no secret", "x")
+	bad.fill()
+	if len(bad.prov.Specs()) != 0 {
+		t.Fatal("no session without the server's secret")
+	}
+}

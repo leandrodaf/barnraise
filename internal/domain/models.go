@@ -1,6 +1,7 @@
 package domain
 
 import (
+	"errors"
 	"fmt"
 	"slices"
 	"sort"
@@ -125,6 +126,7 @@ func (r ModelRouter) Route(req RouteRequest) ([]ModelChoice, error) {
 		}
 	}
 	var preferred, fallback []ModelChoice
+	sameModel := false
 	seen := map[string]bool{}
 	for _, c := range base {
 		c = r.Escalate(c, req.Tier)
@@ -138,6 +140,8 @@ func (r ModelRouter) Route(req RouteRequest) ([]ModelChoice, error) {
 		if req.AvoidFamily != "" && r.Family(c.Provider) == req.AvoidFamily {
 			if c.Model != req.AvoidModel {
 				fallback = append(fallback, c)
+			} else {
+				sameModel = true
 			}
 			continue
 		}
@@ -145,10 +149,20 @@ func (r ModelRouter) Route(req RouteRequest) ([]ModelChoice, error) {
 	}
 	out := append(preferred, fallback...)
 	if len(out) == 0 {
+		if sameModel {
+			// Waiting does not help: the only usable model is the one that
+			// did the work under review.
+			return nil, fmt.Errorf("%w: class %s only offers %s, the model that ran the step under review", ErrNoOtherModel, class, req.AvoidModel)
+		}
 		return nil, fmt.Errorf("no provider with free capacity for class %s", class)
 	}
 	return out, nil
 }
+
+// ErrNoOtherModel means a step that must run on a different model from
+// another step has no such model to run on. It needs a change of
+// configuration or another account, not time.
+var ErrNoOtherModel = errors.New("no other model available")
 
 // AccountStatus of a login.
 type AccountStatus string

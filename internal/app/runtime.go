@@ -238,6 +238,9 @@ func (r *Runtime) fillSlots(ctx context.Context, p *Project, m domain.Machine) {
 			if r.newStartErr(p.Name+"/"+a.Item.ID, err.Error()) {
 				r.s.d.Log.Warn("start session", "agent", slot.Agent, "item", a.Item.ID, "err", err)
 				r.s.sessionState(ctx, p, slot, a, "failed", err.Error(), "", "", "")
+				if errors.Is(err, domain.ErrNoOtherModel) {
+					r.s.notifyOwner(ctx, p, "model_rule", a.Item.ID+" cannot be reviewed", err.Error())
+				}
 			}
 			continue
 		}
@@ -322,6 +325,10 @@ func (r *Runtime) start(ctx context.Context, p *Project, slot Slot, a *Assignmen
 		return domain.PickAccount(accounts, provider, s.d.Machine, p.Name, now) != nil
 	}
 	choices, err := p.Cfg().Models.Route(domain.RouteRequest{Class: class, FixedModel: a.Step.Model, Tier: it.Tier, AvoidFamily: avoidFamily, AvoidModel: avoidModel, Usable: usable})
+	if errors.Is(err, domain.ErrNoOtherModel) {
+		return fmt.Errorf("step %s of %s must run on a different model from step %s: %w (add a second model to the class in `models.classes`, or an account of another provider)",
+			a.Step.Name, it.ID, a.Step.DifferentFrom(), err)
+	}
 	if err != nil {
 		s.notifyAccountsExhausted(ctx, p)
 		return err
@@ -445,7 +452,34 @@ func (r *Runtime) writeSessionFiles(p *Project, sessDir, worktree string, env ma
 	for _, k := range []string{"BARNRAISE_TOKEN", "BARNRAISE_SOCKET", "BARNRAISE_PROJECT", "BARNRAISE_ITEM", "BARNRAISE_STEP", "BARNRAISE_AGENT", "BARNRAISE_ROLE"} {
 		mcpEnv[k] = env[k]
 	}
-	mcp := map[string]any{"mcpServers": map[string]any{"barnraise": map[string]any{"command": bin, "args": []string{"mcp"}, "env": mcpEnv}}}
+	servers := map[string]any{"barnraise": map[string]any{"command": bin, "args": []string{"mcp"}, "env": mcpEnv}}
+	// Only what the owner allowed for this role in barnraise.yaml (`mcp:`).
+	for name, d := range p.Cfg().MCPFor(a.Role) {
+		srv := map[string]any{}
+		if d.URL != "" {
+			srv["url"] = d.URL
+			srv["type"] = def(d.Type, "http")
+		} else {
+			srv["command"] = d.Command
+			srv["args"] = append([]string{}, d.Args...)
+		}
+		if len(d.Env) > 0 {
+			senv := map[string]string{}
+			for k, v := range d.Env {
+				if r.s.d.ResolveSecret != nil && (strings.HasPrefix(v, "keychain:") || strings.HasPrefix(v, "env:")) {
+					rv, err := r.s.d.ResolveSecret(v)
+					if err != nil {
+						return "", "", fmt.Errorf("mcp.%s: %s: %w", name, k, err)
+					}
+					v = rv
+				}
+				senv[k] = v
+			}
+			srv["env"] = senv
+		}
+		servers[name] = srv
+	}
+	mcp := map[string]any{"mcpServers": servers}
 	mcpData, _ := json.MarshalIndent(mcp, "", "  ")
 	mcpPath := filepath.Join(sessDir, "mcp.json")
 	if err := os.WriteFile(mcpPath, mcpData, 0o600); err != nil {

@@ -1,0 +1,61 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 690" width="1200" height="690" role="img" aria-labelledby="t d" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">
+<title id="t">Barnraise topology</title><desc id="d">Two equal machines, each with its own daemon, event log and agents, mirror events to each other over Tailscale. The git server is the arbiter for claiming items and for main. The owner talks to any machine.</desc>
+<defs><marker id="a1f2328" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#1f2328"/></marker><marker id="a57606a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#57606a"/></marker><marker id="a0969da" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#0969da"/></marker><marker id="a1a7f37" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#1a7f37"/></marker><marker id="abc4c00" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#bc4c00"/></marker><marker id="a8250df" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#8250df"/></marker><marker id="acf222e" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#cf222e"/></marker></defs>
+<rect x="0.5" y="0.5" width="1199" height="689" rx="12" fill="#ffffff" stroke="#d0d7de"/>
+<text x="40" y="44" font-size="20" fill="#1f2328" font-weight="600" text-anchor="start">Topology: every machine is equal, git is the arbiter</text>
+<text x="40" y="68" font-size="14" fill="#57606a" font-weight="400" text-anchor="start">No coordinator and no third machine to vote. One machine works alone; two or fifty work the same way.</text>
+<rect x="380" y="96" width="440" height="92" rx="8" fill="#dafbe1" stroke="#1a7f37" stroke-width="1.2"/>
+<text x="600.0" y="139.75" font-size="15" fill="#1f2328" font-weight="600" text-anchor="middle">Git server the project already uses</text>
+<text x="600.0" y="157.25" font-size="12.5" fill="#57606a" font-weight="400" text-anchor="middle">GitHub, GitLab, Gitea… or the local disk with one machine</text>
+<text x="600" y="210" font-size="12.5" fill="#1a7f37" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace">refs/barnraise/claims/I-42   ·   main (fast-forward only)</text>
+<rect x="40" y="262" width="500" height="300" rx="10" fill="#f6f8fa" stroke="#d0d7de" stroke-width="1.2"/>
+<text x="60" y="290" font-size="15" fill="#1f2328" font-weight="600" text-anchor="start">Machine A</text>
+<text x="520" y="290" font-size="12.5" fill="#57606a" font-weight="400" text-anchor="end">pulls its own next item</text>
+<rect x="60" y="306" width="460" height="62" rx="8" fill="#ddf4ff" stroke="#0969da" stroke-width="1.2"/>
+<text x="290.0" y="334.25" font-size="14" fill="#1f2328" font-weight="600" text-anchor="middle">barnraise daemon</text>
+<text x="290.0" y="351.75" font-size="12.5" fill="#57606a" font-weight="400" text-anchor="middle">queue · flows · checks · merge queue · accounts and limits</text>
+<rect x="60" y="382" width="222" height="62" rx="8" fill="#f6f8fa" stroke="#6e7781" stroke-width="1.2"/>
+<text x="171.0" y="410.25" font-size="14" fill="#1f2328" font-weight="600" text-anchor="middle">SQLite</text>
+<text x="171.0" y="427.75" font-size="12.5" fill="#57606a" font-weight="400" text-anchor="middle">append-only event log</text>
+<rect x="298" y="382" width="222" height="62" rx="8" fill="#fbefff" stroke="#8250df" stroke-width="1.2"/>
+<text x="409.0" y="410.25" font-size="14" fill="#1f2328" font-weight="600" text-anchor="middle">NATS JetStream</text>
+<text x="409.0" y="427.75" font-size="12.5" fill="#57606a" font-weight="400" text-anchor="middle">embedded, mirrors events</text>
+<rect x="60" y="458" width="460" height="84" rx="8" fill="#fff1e5" stroke="#bc4c00" stroke-width="1.2"/>
+<text x="290.0" y="488.5" font-size="14" fill="#1f2328" font-weight="600" text-anchor="middle">Agent sessions</text>
+<text x="290.0" y="506.0" font-size="12.5" fill="#57606a" font-weight="400" text-anchor="middle">Claude Code and Codex through their own CLIs and subscriptions</text>
+<text x="290.0" y="523.5" font-size="12.5" fill="#57606a" font-weight="400" text-anchor="middle">one git worktree per item · hooks, sandbox, own Linux user</text>
+<rect x="660" y="262" width="500" height="300" rx="10" fill="#f6f8fa" stroke="#d0d7de" stroke-width="1.2"/>
+<text x="680" y="290" font-size="15" fill="#1f2328" font-weight="600" text-anchor="start">Machine B</text>
+<text x="1140" y="290" font-size="12.5" fill="#57606a" font-weight="400" text-anchor="end">pulls its own next item</text>
+<rect x="680" y="306" width="460" height="62" rx="8" fill="#ddf4ff" stroke="#0969da" stroke-width="1.2"/>
+<text x="910.0" y="334.25" font-size="14" fill="#1f2328" font-weight="600" text-anchor="middle">barnraise daemon</text>
+<text x="910.0" y="351.75" font-size="12.5" fill="#57606a" font-weight="400" text-anchor="middle">queue · flows · checks · merge queue · accounts and limits</text>
+<rect x="680" y="382" width="222" height="62" rx="8" fill="#f6f8fa" stroke="#6e7781" stroke-width="1.2"/>
+<text x="791.0" y="410.25" font-size="14" fill="#1f2328" font-weight="600" text-anchor="middle">SQLite</text>
+<text x="791.0" y="427.75" font-size="12.5" fill="#57606a" font-weight="400" text-anchor="middle">append-only event log</text>
+<rect x="918" y="382" width="222" height="62" rx="8" fill="#fbefff" stroke="#8250df" stroke-width="1.2"/>
+<text x="1029.0" y="410.25" font-size="14" fill="#1f2328" font-weight="600" text-anchor="middle">NATS JetStream</text>
+<text x="1029.0" y="427.75" font-size="12.5" fill="#57606a" font-weight="400" text-anchor="middle">embedded, mirrors events</text>
+<rect x="680" y="458" width="460" height="84" rx="8" fill="#fff1e5" stroke="#bc4c00" stroke-width="1.2"/>
+<text x="910.0" y="488.5" font-size="14" fill="#1f2328" font-weight="600" text-anchor="middle">Agent sessions</text>
+<text x="910.0" y="506.0" font-size="12.5" fill="#57606a" font-weight="400" text-anchor="middle">Claude Code and Codex through their own CLIs and subscriptions</text>
+<text x="910.0" y="523.5" font-size="12.5" fill="#57606a" font-weight="400" text-anchor="middle">one git worktree per item · hooks, sandbox, own Linux user</text>
+<line x1="540" y1="413" x2="660" y2="413" stroke="#8250df" stroke-width="1.6" marker-end="url(#a8250df)" marker-start="url(#a8250df)"/>
+<rect x="574.8" y="384" width="50.3" height="18" rx="3" fill="#ffffff"/>
+<text x="600" y="396" font-size="12" fill="#8250df" font-weight="400" text-anchor="middle">events</text>
+<rect x="564.8" y="424" width="70.5" height="18" rx="3" fill="#ffffff"/>
+<text x="600" y="436" font-size="12" fill="#8250df" font-weight="400" text-anchor="middle">Tailscale</text>
+<rect x="571.5" y="440" width="57.0" height="18" rx="3" fill="#ffffff"/>
+<text x="600" y="452" font-size="12" fill="#8250df" font-weight="400" text-anchor="middle">+ nkeys</text>
+<path d="M 290 262 L 290 142 L 380 142" fill="none" stroke="#1a7f37" stroke-width="1.6" marker-end="url(#a1a7f37)"/>
+<path d="M 910 262 L 910 142 L 820 142" fill="none" stroke="#1a7f37" stroke-width="1.6" marker-end="url(#a1a7f37)"/>
+<text x="205" y="236" font-size="12" fill="#1a7f37" font-weight="400" text-anchor="middle">claim, renew every 30 s,</text>
+<text x="205" y="252" font-size="12" fill="#1a7f37" font-weight="400" text-anchor="middle">push each step, integrate</text>
+<text x="995" y="236" font-size="12" fill="#1a7f37" font-weight="400" text-anchor="middle">atomic compare-and-swap:</text>
+<text x="995" y="252" font-size="12" fill="#1a7f37" font-weight="400" text-anchor="middle">the first machine wins</text>
+<rect x="380" y="598" width="440" height="62" rx="8" fill="#f6f8fa" stroke="#6e7781" stroke-width="1.2"/>
+<text x="600.0" y="626.75" font-size="15" fill="#1f2328" font-weight="600" text-anchor="middle">Owner</text>
+<text x="600.0" y="644.25" font-size="12.5" fill="#57606a" font-weight="400" text-anchor="middle">CLI · web panel · MCP on any device — the same API on any machine</text>
+<path d="M 380 629 L 290 629 L 290 562" fill="none" stroke="#57606a" stroke-width="1.6" marker-end="url(#a57606a)"/>
+<path d="M 820 629 L 910 629 L 910 562" fill="none" stroke="#57606a" stroke-width="1.6" marker-end="url(#a57606a)"/>
+</svg>

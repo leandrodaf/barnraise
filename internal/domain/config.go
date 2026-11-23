@@ -58,6 +58,49 @@ type WebhookDef struct {
 	SecretRef string   `json:"secret_ref,omitempty"`
 }
 
+// MCPServerDef is an MCP server the owner lets agents use besides
+// Barnraise's own. Nothing else is loaded into a session: the servers of
+// the account's own configuration stay out.
+type MCPServerDef struct {
+	Command string            `json:"command,omitempty"`
+	Args    []string          `json:"args,omitempty"`
+	Env     map[string]string `json:"env,omitempty"` // values may be secret references (keychain:…, env:…)
+	URL     string            `json:"url,omitempty"`
+	Type    string            `json:"type,omitempty"`  // http or sse, with url
+	Roles   []string          `json:"roles,omitempty"` // empty: every role
+}
+
+// MCPFor returns the extra MCP servers a role may use.
+func (c *ProjectConfig) MCPFor(role string) map[string]MCPServerDef {
+	out := map[string]MCPServerDef{}
+	for name, d := range c.MCP {
+		if len(d.Roles) == 0 || Contains(d.Roles, role) {
+			out[name] = d
+		}
+	}
+	return out
+}
+
+func (c *ProjectConfig) validateMCP() []error {
+	var errs []error
+	for name, d := range c.MCP {
+		switch {
+		case name == "barnraise":
+			errs = append(errs, fmt.Errorf("mcp: the name barnraise is taken by Barnraise's own server"))
+		case (d.Command == "") == (d.URL == ""):
+			errs = append(errs, fmt.Errorf("mcp.%s needs either `command` (a local server) or `url` (a remote one)", name))
+		case d.Type != "" && d.Type != "http" && d.Type != "sse":
+			errs = append(errs, fmt.Errorf("mcp.%s: type %q is not http or sse", name, d.Type))
+		}
+		for _, r := range d.Roles {
+			if _, ok := c.Roles[r]; !ok {
+				errs = append(errs, fmt.Errorf("mcp.%s is for role %q, which does not exist", name, r))
+			}
+		}
+	}
+	return errs
+}
+
 // TrackerDef configures where people see items.
 type TrackerDef struct {
 	Type    string            `json:"type"` // local, github, gitlab, jira, linear
@@ -114,41 +157,42 @@ type ExperimentDef struct {
 
 // ProjectConfig is barnraise.yaml compiled with template defaults.
 type ProjectConfig struct {
-	Name            string              `json:"name"`
-	Root            string              `json:"root"`
-	Template        string              `json:"template"`
-	Language        string              `json:"language"`
-	Goal            Goal                `json:"goal"`
-	Approves        string              `json:"approves"`
-	MainBranch      string              `json:"main_branch"`
-	Tracker         TrackerDef          `json:"tracker"`
-	CodeHost        CodeHostDef         `json:"code_host"`
-	Roles           map[string]RoleDef  `json:"roles"`
-	Flows           map[string]*Flow    `json:"flows"`
-	Checks          map[string]CheckDef `json:"checks"`
-	Areas           map[string]AreaDef  `json:"areas"`
-	Capacity        Capacity            `json:"capacity"`
-	Proposals       ProposalRules       `json:"proposals"`
-	Tweaks          TweakRules          `json:"tweaks"`
-	TargetSize      string              `json:"target_size"`
-	SmallerBecomes  string              `json:"smaller_becomes"`
-	SameAreaFinding string              `json:"same_area_findings"`
-	SelfApproves    string              `json:"self_approves"`
-	Models          ModelRouter         `json:"models"`
-	Policy          Policy              `json:"policy"`
-	Merge           MergeDef            `json:"merge"`
-	Lease           LeaseDef            `json:"lease"`
-	Budget          BudgetDef           `json:"budget"`
-	StaleAfter      time.Duration       `json:"stale_after"`
-	Notifications   []NotifierDef       `json:"notifications,omitempty"`
-	Webhooks        []WebhookDef        `json:"webhooks,omitempty"`
-	Experiments     []ExperimentDef     `json:"experiments,omitempty"`
-	KindFlows       map[string]string   `json:"kind_flows,omitempty"` // item kind -> flow
-	SafetyCommit    time.Duration       `json:"safety_commit"`
-	EnvFiles        []string            `json:"env_files,omitempty"` // copied into worktrees (.worktreeinclude)
-	PortBase        int                 `json:"port_base"`
-	Standards       map[string]string   `json:"standards,omitempty"`
-	Extra           map[string]any      `json:"extra,omitempty"`
+	Name            string                  `json:"name"`
+	Root            string                  `json:"root"`
+	Template        string                  `json:"template"`
+	Language        string                  `json:"language"`
+	Goal            Goal                    `json:"goal"`
+	Approves        string                  `json:"approves"`
+	MainBranch      string                  `json:"main_branch"`
+	Tracker         TrackerDef              `json:"tracker"`
+	CodeHost        CodeHostDef             `json:"code_host"`
+	Roles           map[string]RoleDef      `json:"roles"`
+	Flows           map[string]*Flow        `json:"flows"`
+	Checks          map[string]CheckDef     `json:"checks"`
+	Areas           map[string]AreaDef      `json:"areas"`
+	Capacity        Capacity                `json:"capacity"`
+	Proposals       ProposalRules           `json:"proposals"`
+	Tweaks          TweakRules              `json:"tweaks"`
+	TargetSize      string                  `json:"target_size"`
+	SmallerBecomes  string                  `json:"smaller_becomes"`
+	SameAreaFinding string                  `json:"same_area_findings"`
+	SelfApproves    string                  `json:"self_approves"`
+	Models          ModelRouter             `json:"models"`
+	Policy          Policy                  `json:"policy"`
+	Merge           MergeDef                `json:"merge"`
+	Lease           LeaseDef                `json:"lease"`
+	Budget          BudgetDef               `json:"budget"`
+	StaleAfter      time.Duration           `json:"stale_after"`
+	Notifications   []NotifierDef           `json:"notifications,omitempty"`
+	Webhooks        []WebhookDef            `json:"webhooks,omitempty"`
+	MCP             map[string]MCPServerDef `json:"mcp,omitempty"`
+	Experiments     []ExperimentDef         `json:"experiments,omitempty"`
+	KindFlows       map[string]string       `json:"kind_flows,omitempty"` // item kind -> flow
+	SafetyCommit    time.Duration           `json:"safety_commit"`
+	EnvFiles        []string                `json:"env_files,omitempty"` // copied into worktrees (.worktreeinclude)
+	PortBase        int                     `json:"port_base"`
+	Standards       map[string]string       `json:"standards,omitempty"`
+	Extra           map[string]any          `json:"extra,omitempty"`
 }
 
 // FlowFor returns the flow of an item kind.
@@ -197,6 +241,7 @@ func (c *ProjectConfig) Validate() []error {
 	if err := c.Capacity.Validate(); err != nil {
 		errs = append(errs, err)
 	}
+	errs = append(errs, c.validateMCP()...)
 	if len(c.Flows) == 0 {
 		errs = append(errs, fmt.Errorf("no flows are defined; pick a template or declare flows"))
 	}

@@ -394,6 +394,29 @@ notifications:
     secret: keychain:telegram-bot
 ```
 
+## mcp
+
+MCP servers the agents may use besides Barnraise's own. A session loads **only** Barnraise's server and the ones listed here for its role: the servers, plugins and personal settings of the account's own configuration are never loaded (`--strict-mcp-config`), so an agent cannot reach the owner's mail, ads or cloud tools, and their tool lists do not cost tokens in every session.
+
+| Key | Default | Meaning |
+| --- | --- | --- |
+| `command`, `args` | none | A local server started by the session |
+| `url`, `type` | none, `http` | A remote server (`http` or `sse`); use this or `command` |
+| `env` | none | Environment of a local server; a value may be a secret reference (`keychain:…`, `env:…`), resolved when the session starts |
+| `roles` | every role | Roles that get this server |
+
+```yaml
+mcp:
+  figma:
+    command: figma-mcp
+    env: { FIGMA_TOKEN: "keychain:mcp/figma" }
+    roles: [implementer, designer]
+  docs:
+    url: https://docs.example/mcp
+```
+
+`barnraise check` reports a server without `command` or `url`, or one for a role that does not exist. A secret that cannot be read stops the session from starting.
+
 ## webhooks
 
 Outgoing webhooks: every matching event is sent as a CloudEvent, signed with HMAC-SHA256 and retried. See [api.md](api.md#webhooks).

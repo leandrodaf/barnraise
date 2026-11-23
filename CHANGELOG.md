@@ -8,6 +8,10 @@ First version: one Go binary that is the daemon, the CLI, the MCP server and the
 
 ### Added
 
+- **MCP by permission**: sessions load only Barnraise's MCP server and the servers the owner lists under `mcp:` in `barnraise.yaml`, per role; the account's own servers, plugins and personal settings stay out.
+- `barnraise webhook secret|forget` for the secrets of incoming webhooks; `scripts/smoke.sh` (`make smoke`) from `init` to one integrated item with the fake provider or a real Claude account.
+- A review that cannot run on a different model from the implementation tells the owner what to change instead of waiting in silence.
+
 - **Daemon as the only authority** with an append-only event log in SQLite, the current state derived from events, and `item redo` from any step.
 - **Projects** from a short `barnraise.yaml` merged over templates (`mobile-android`, `backend`, `web`, `content`, `blank`, and saved ones); `init` in conversation, `check`, `explain`, `template save`.
 - **Goal, focus and capacity**: a goal with a measurable end and an inventory, a temporary focus with a preview of its effect, and the 80/15/5 split between goal, bugs and improvements, plus a weekly self-improvement lane.
