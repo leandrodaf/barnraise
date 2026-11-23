@@ -38,10 +38,13 @@ type Runtime struct {
 	MaxSessions int
 	lastHK      map[string]time.Time
 	lastRenew   map[string]time.Time
-	lastImport  map[string]time.Time
-	lastSweep   map[string]time.Time
-	lastDigest  map[string]time.Time
-	lastWeekly  map[string]time.Time
+	// queues counts the merge-queue passes started by Tick, which fetch and
+	// push: StopAll waits for them as it waits for sessions.
+	queues     sync.WaitGroup
+	lastImport map[string]time.Time
+	lastSweep  map[string]time.Time
+	lastDigest map[string]time.Time
+	lastWeekly map[string]time.Time
 	// startErrs remembers the last start failure of each agent, so a
 	// failure that repeats every pass (accounts out of limits, a missing
 	// binary) is logged once, not every few seconds.
@@ -185,7 +188,12 @@ func (r *Runtime) Tick(ctx context.Context) {
 			continue
 		}
 		r.s.driveHeld(ctx, p)
+		if r.isStopped() {
+			return
+		}
+		r.queues.Add(1)
 		go func() {
+			defer r.queues.Done()
 			if _, err := r.s.ProcessQueue(ctx, p.Name); err != nil {
 				r.s.d.Log.Warn("merge queue", "project", p.Name, "err", err)
 			}
@@ -984,9 +992,15 @@ func (r *Runtime) StopAll() {
 		n := len(r.running)
 		r.mu.Unlock()
 		if n == 0 {
-			return
+			break
 		}
 		time.Sleep(20 * time.Millisecond)
+	}
+	queues := make(chan struct{})
+	go func() { r.queues.Wait(); close(queues) }()
+	select {
+	case <-queues:
+	case <-time.After(time.Until(deadline)):
 	}
 }
 
