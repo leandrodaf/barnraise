@@ -263,7 +263,9 @@ func (r *Runtime) fillSlots(ctx context.Context, p *Project, m domain.Machine) {
 		if err := r.start(ctx, p, slot, a, ""); err != nil {
 			failed[a.Item.ID] = true
 			r.s.doneRunning(p, a.Item.ID, slot.Agent)
-			if r.newStartErr(p.Name+"/"+a.Item.ID, err.Error()) {
+			// Recorded once per agent and item: the agent's state must say it
+			// failed, without repeating it on every pass.
+			if r.newStartErr(p.Name+"/"+slot.Agent+"/"+a.Item.ID, err.Error()) {
 				r.s.d.Log.Warn("start session", "agent", slot.Agent, "item", a.Item.ID, "err", err)
 				r.s.sessionState(ctx, p, slot, a, "failed", err.Error(), "", "", "")
 				switch {
@@ -275,7 +277,7 @@ func (r *Runtime) fillSlots(ctx context.Context, p *Project, m domain.Machine) {
 			}
 			continue
 		}
-		r.newStartErr(p.Name+"/"+a.Item.ID, "")
+		r.newStartErr(p.Name+"/"+slot.Agent+"/"+a.Item.ID, "")
 		if dual {
 			slotB := Slot{Agent: slot.Agent + "-b", Role: slot.Role, Machine: slot.Machine, Reviewer: slot.Reviewer}
 			p.mu.Lock()
