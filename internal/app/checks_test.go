@@ -420,3 +420,77 @@ func TestAreaChoosesTheFlowOfItsItems(t *testing.T) {
 		t.Fatal("an unknown flow must be reported")
 	}
 }
+
+// A code host refuses a pull request without a difference from main, so the
+// draft opens with the first commit of the item, once, and is closed (with
+// its branch removed) when the squash lands on main.
+func TestPullRequestOpensWithTheFirstCommitAndClosesOnIntegration(t *testing.T) {
+	e := newEnv(t, withGit(), withHost())
+	it := e.ready("simple", "Cards", "x")
+	e.start(it.ID)
+	e.workspace(it.ID, nil)
+	if n := e.host.Count("OpenDraftPR"); n != 0 {
+		t.Fatalf("no pull request before the branch has a commit of its own: %d", n)
+	}
+	e.workspace(it.ID, map[string]string{"app/cards.txt": "cards\n"})
+	e.mustDeliver(it.ID, domain.Delivery{})
+	if n := e.host.Count("OpenDraftPR"); n != 1 || e.item(it.ID).PR == "" {
+		t.Fatalf("the first step's commit opens the draft: %d opens, pr %q", n, e.item(it.ID).PR)
+	}
+	branch := e.item(it.ID).Branch
+	e.drive(it.ID)
+	if n := e.host.Count("OpenDraftPR"); n != 1 {
+		t.Fatalf("opened once: %d", n)
+	}
+	if n, err := e.svc.ProcessQueue(e.ctx, "demo"); err != nil || n != 1 {
+		t.Fatalf("queue %d %v", n, err)
+	}
+	eventually(t, "the pull request to be closed", func() bool { return e.host.Count("Close 1") == 1 })
+	if e.host.Count("Comment 1 Integrated into main") != 1 {
+		t.Fatalf("the pull request says where the change went: %v", e.host.Calls())
+	}
+	if out, _ := testkit.GitOutput(e.repo.Root, "--git-dir", e.repo.Remote, "branch", "--list", branch); strings.TrimSpace(out) != "" {
+		t.Fatalf("the item's branch is removed from the remote after integration: %q", out)
+	}
+}
+
+// A delivery that changes nothing must not land on main as an empty commit.
+func TestCheckStepRefusesADeliveryThatChangesNothing(t *testing.T) {
+	e := newEnv(t, withGit())
+	it := e.ready("simple", "Already there", "x")
+	e.start(it.ID)
+	e.workspace(it.ID, map[string]string{"README.md": "# demo\n"}) // identical to main
+	e.mustDeliver(it.ID, domain.Delivery{})
+	e.drive(it.ID)
+	got := e.wantStatus(it.ID, domain.StatusInProgress, "implement")
+	if len(got.Rework) != 1 || !strings.Contains(got.Rework[0].Reason, "changes nothing on top of main") {
+		t.Fatalf("rework %+v", got.Rework)
+	}
+	if len(e.checks.Specs()) != 0 {
+		t.Fatal("nothing to verify: no check runs")
+	}
+}
+
+// A claim whose release was lost (the network dropped) is removed later.
+func TestFinishedItemsDoNotKeepTheirClaim(t *testing.T) {
+	e := newEnv(t)
+	it := e.ready("simple", "left behind", "x")
+	e.start(it.ID)
+	e.mustDeliver(it.ID, domain.Delivery{})
+	if _, err := e.svc.CloseItem(e.ctx, "demo", owner(), it.ID, "abandoned", "", "not needed"); err != nil {
+		t.Fatal(err)
+	}
+	// The release got lost: the claim is back on the arbiter.
+	if _, err := e.arb.Claim(e.ctx, claimKey(it.ID), "m1"); err != nil {
+		t.Fatal(err)
+	}
+	other := e.ready("simple", "still going", "x")
+	e.start(other.ID)
+	e.svc.releaseFinishedClaims(e.ctx, e.p)
+	if info, _ := e.arb.Inspect(e.ctx, claimKey(it.ID)); info.Held {
+		t.Fatal("the claim of a finished item must be released")
+	}
+	if info, _ := e.arb.Inspect(e.ctx, claimKey(other.ID)); !info.Held {
+		t.Fatal("the claim of an item in progress stays")
+	}
+}

@@ -400,8 +400,18 @@ func (s *Service) markIntegrated(ctx context.Context, p *Project, it *domain.Ite
 	}
 	if p.Ports().CodeHost != nil && upd != nil && upd.PR != "" {
 		go func() {
-			_ = p.Ports().CodeHost.Comment(context.Background(), prFromRef(upd.PR), fmt.Sprintf("Integrated into %s as %s by the Barnraise merge queue.", p.Cfg().MainBranch, sha))
+			// The squash lands on main as a new commit, so the host does not
+			// see the pull request as merged: say where it went and close it.
+			bg := context.Background()
+			_ = p.Ports().CodeHost.Comment(bg, prFromRef(upd.PR), fmt.Sprintf("Integrated into %s as %s by the Barnraise merge queue.", p.Cfg().MainBranch, sha))
+			_ = p.Ports().CodeHost.Close(bg, prFromRef(upd.PR), "")
 		}()
+	}
+	if g := p.Ports().Git; g != nil && upd != nil && upd.Branch != "" {
+		// The item's branch did its job; main has the change.
+		if err := g.DeleteBranch(ctx, upd.Branch); err != nil {
+			s.d.Log.Debug("delete the item's branch", "item", it.ID, "err", err)
+		}
 	}
 	s.unblockDependents(ctx, p)
 	s.syncTracker(p, it.ID, false)

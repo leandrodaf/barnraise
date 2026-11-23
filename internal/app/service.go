@@ -77,6 +77,7 @@ type Project struct {
 	// items with a step running on this machine (agent session or check)
 	running map[string]string // item -> runner (agent name or "driver")
 	refined map[string]int    // draft item -> version the analyst last refined
+	opening map[string]bool   // items whose pull request is being opened right now
 	queueMu sync.Mutex
 }
 
@@ -89,6 +90,8 @@ type Service struct {
 	tokens   *TokenRegistry
 	sessions *sessionRegistry
 	runtime  *Runtime
+	// trackerMu serializes the tracker updates of each item (project/item -> *sync.Mutex).
+	trackerMu sync.Map
 }
 
 // New creates the service.

@@ -62,6 +62,7 @@ func (r *Runtime) housekeeping(ctx context.Context, p *Project, m domain.Machine
 			if _, err := s.Sweep(context.Background(), p.Name); err != nil {
 				s.d.Log.Warn("nightly sweep", "err", err)
 			}
+			s.releaseFinishedClaims(context.Background(), p)
 		}()
 	}
 	if last := r.lastDigest[p.Name]; now.Sub(last) > 24*time.Hour {
@@ -472,4 +473,34 @@ func (s *Service) MachineLeave(ctx context.Context, project string, a Actor) ([]
 	_, _ = s.emit(ctx, p, domain.EvMachineLeft, s.d.Machine, actorName(a), domain.Payload{MachineI: &m})
 	sort.Strings(returned)
 	return returned, nil
+}
+
+// releaseFinishedClaims removes the claims this machine still holds on
+// items that are finished. A release can fail when the network drops at the
+// wrong moment; the claim is harmless (nobody takes a finished item) but it
+// should not stay in the repository for ever.
+func (s *Service) releaseFinishedClaims(ctx context.Context, p *Project) {
+	arb := p.Ports().Arbiter
+	if arb == nil {
+		return
+	}
+	keys, err := arb.List(ctx, "claims/")
+	if err != nil {
+		return
+	}
+	snap := p.Snapshot()
+	for _, key := range keys {
+		id := strings.TrimPrefix(key, "claims/")
+		it := snap.Items[id]
+		if it == nil || !it.Status.Terminal() {
+			continue
+		}
+		info, err := arb.Inspect(ctx, key)
+		if err != nil || !info.Held || info.Holder != s.d.Machine {
+			continue
+		}
+		if err := arb.Release(ctx, ports.Lease{Key: key, Holder: info.Holder, Version: info.Version, Renewed: info.Renewed}); err != nil {
+			s.d.Log.Debug("release a finished item's claim", "item", id, "err", err)
+		}
+	}
 }

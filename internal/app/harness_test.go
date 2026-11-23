@@ -21,6 +21,7 @@ import (
 
 func TestMain(m *testing.M) {
 	testkit.IsolateGit()
+	trackerRetryDelay = time.Millisecond
 	os.Exit(m.Run())
 }
 

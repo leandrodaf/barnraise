@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/leandrodaf/barnraise/internal/domain"
@@ -357,6 +358,9 @@ func extractJSON(s string) string {
 	return s[i : j+1]
 }
 
+// trackerRetryDelay is the pause before the second try of a refused tracker update.
+var trackerRetryDelay = 2 * time.Second
+
 // syncTracker mirrors an item to the tracker in the background (both ways is
 // handled by ImportFromTracker).
 func (s *Service) syncTracker(p *Project, id string, create bool) {
@@ -366,6 +370,12 @@ func (s *Service) syncTracker(p *Project, id string, create bool) {
 	go func() {
 		ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
 		defer cancel()
+		// One writer per item at a time: two updates sent together make the
+		// tracker refuse one of them, and the last state must be the one that stays.
+		muAny, _ := s.trackerMu.LoadOrStore(p.Name+"/"+id, &sync.Mutex{})
+		mu := muAny.(*sync.Mutex)
+		mu.Lock()
+		defer mu.Unlock()
 		it := p.Snapshot().Items[id]
 		if it == nil {
 			return
@@ -382,7 +392,18 @@ func (s *Service) syncTracker(p *Project, id string, create bool) {
 			}, domain.Payload{Note: fmt.Sprintf("item %s appears as %s in %s", id, ti.Ref, p.Ports().Tracker.Name())})
 			return
 		}
-		if err := p.Ports().Tracker.Update(ctx, it, p.Cfg().Language); err != nil {
+		err := p.Ports().Tracker.Update(ctx, it, p.Cfg().Language)
+		if err != nil {
+			// Once more with the state as it is now (someone else may have changed the entry meanwhile).
+			select {
+			case <-ctx.Done():
+			case <-time.After(trackerRetryDelay):
+			}
+			if cur := p.Snapshot().Items[id]; cur != nil {
+				err = p.Ports().Tracker.Update(ctx, cur, p.Cfg().Language)
+			}
+		}
+		if err != nil {
 			s.d.Log.Warn("tracker update", "item", id, "err", err)
 		}
 	}()
