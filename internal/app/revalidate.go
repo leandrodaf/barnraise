@@ -186,10 +186,10 @@ func (s *Service) applyVerdicts(ctx context.Context, p *Project, ch domain.Chang
 			}, domain.Payload{Cause: ch.Cause, Note: v.Reason})
 		case domain.TriageConflict:
 			p.mu.Lock()
-			q := &domain.Question{ItemID: v.ItemID, Context: fmt.Sprintf("%s contradicts %s: %s", v.ItemID, ch.Cause, v.Reason),
-				Decision:   "Keep the item as it is, update it, or close it?",
-				Options:    []domain.Option{{Label: "Update the item", Recommended: true}, {Label: "Keep as is"}, {Label: "Abandon the item"}},
-				IfNoAnswer: "The item stays out of the queue."}
+			q := &domain.Question{ItemID: v.ItemID, Context: ot(p, "conflict.context", v.ItemID, ch.Cause, v.Reason),
+				Decision:   ot(p, "conflict.decision"),
+				Options:    []domain.Option{ownerOpt(p, "update", true), ownerOpt(p, "keep", false), ownerOpt(p, "abandon", false)},
+				IfNoAnswer: ot(p, "if.conflict")}
 			if qid, err := s.askLocked(ctx, p, q, "triage"); err == nil {
 				_, _ = s.mutateItemLocked(ctx, p, v.ItemID, domain.EvItemWaitingOwner, "triage", func(x *domain.Item) error {
 					if x.Status == domain.StatusInProgress {

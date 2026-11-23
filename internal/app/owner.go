@@ -118,7 +118,7 @@ func (s *Service) Answer(ctx context.Context, project string, a Actor, qid, answ
 	}
 	p.mu.Unlock()
 	if it != nil && it.WaitingQuestion == qid {
-		if err := s.applyAnswer(ctx, p, a, it, choice, note); err != nil {
+		if err := s.applyAnswer(ctx, p, a, it, choice, cur.ActionOf(choice), note); err != nil {
 			return &q, err
 		}
 	}
@@ -126,8 +126,14 @@ func (s *Service) Answer(ctx context.Context, project string, a Actor, qid, answ
 }
 
 // applyAnswer turns an owner's answer into the item's next move.
-func (s *Service) applyAnswer(ctx context.Context, p *Project, a Actor, it *domain.Item, choice, note string) error {
+func (s *Service) applyAnswer(ctx context.Context, p *Project, a Actor, it *domain.Item, choice, action, note string) error {
 	lc := strings.ToLower(choice)
+	// Options Barnraise offers carry their action, whatever the language of
+	// the label; older questions and the ones agents write are read by label.
+	if action != "" {
+		lc = map[string]string{"approve": "approve", "rework": "rework", "abandon": "abandon", "split": "split",
+			"accept": "accept", "stronger": "stronger retry", "retry": "retry", "answer": "answer", "update": "update", "keep": "keep"}[action]
+	}
 	f, err := p.Cfg().FlowOf(it.Kind, it.Area)
 	if err != nil {
 		return err
@@ -184,7 +190,7 @@ func (s *Service) applyAnswer(ctx context.Context, p *Project, a Actor, it *doma
 		if err == nil {
 			// The answer itself goes to the item, not only a note: the next
 			// session is often another agent, which did not ask.
-			text := "Owner answered: " + choice
+			text := ot(p, "answered.message", choice)
 			if note != "" {
 				text += " — " + note
 			}

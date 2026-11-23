@@ -275,6 +275,20 @@ type Question struct {
 type Option struct {
 	Label       string `json:"label"`
 	Recommended bool   `json:"recommended,omitempty"`
+	// Action is what choosing the option does, for options Barnraise itself
+	// offers (retry, abandon, approve…): the label is in the owner's
+	// language, the action is not. Empty for options an agent wrote.
+	Action string `json:"action,omitempty"`
+}
+
+// ActionOf is the action of the option with this label, or "".
+func (q *Question) ActionOf(label string) string {
+	for _, o := range q.Options {
+		if o.Label == label {
+			return o.Action
+		}
+	}
+	return ""
 }
 
 // Open reports whether nobody answered yet.

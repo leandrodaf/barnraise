@@ -213,9 +213,9 @@ func (s *Service) finishGoalIfDone(ctx context.Context, p *Project) {
 		return
 	}
 	p.mu.Lock()
-	q := &domain.Question{Context: fmt.Sprintf("Goal %s (%s) is done: %d of %d items.", g.ID, g.Name, prog.Done, prog.Total),
-		Decision: "What is the next goal?", Options: []domain.Option{{Label: "Set a new goal", Recommended: true}, {Label: "Only bugs and approved improvements for now"}},
-		IfNoAnswer: "Agents work only on bugs and approved improvements."}
+	q := &domain.Question{Context: ot(p, "goal.context", g.ID, g.Name, prog.Done, prog.Total),
+		Decision: ot(p, "goal.decision"), Options: []domain.Option{ownerOpt(p, "new_goal", true), ownerOpt(p, "bugs_only", false)},
+		IfNoAnswer: ot(p, "if.goal")}
 	_, _ = s.askLocked(ctx, p, q, "barnraise")
 	p.mu.Unlock()
 }

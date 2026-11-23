@@ -686,10 +686,11 @@ func (s *Service) requestOwnerApproval(ctx context.Context, p *Project, it *doma
 	if cur == nil || cur.WaitingQuestion != "" || cur.Step != st.Name {
 		return nil
 	}
-	q := &domain.Question{ItemID: it.ID, Context: fmt.Sprintf("%s (%s) is at step %s.", it.ID, it.Title, st.Name),
-		Decision:   fmt.Sprintf("Approve the %s of %s?", what, it.ID),
-		Options:    []domain.Option{{Label: "Approve the " + what, Recommended: true}, {Label: "Send back for rework"}},
-		IfNoAnswer: "The item waits; agents work on other items.", Urgent: true}
+	whatText := ot(p, "what."+what)
+	q := &domain.Question{ItemID: it.ID, Context: ot(p, "approval.context", it.ID, it.Title, st.Name),
+		Decision:   ot(p, "approval.decision", whatText, it.ID),
+		Options:    []domain.Option{ownerOpt(p, "approve", true, whatText), ownerOpt(p, "rework", false)},
+		IfNoAnswer: ot(p, "if.waits"), Urgent: true}
 	qid, err := s.askLocked(ctx, p, q, "barnraise")
 	if err != nil {
 		return err

@@ -484,3 +484,49 @@ func TestOwnerAnswerReachesTheNextAgent(t *testing.T) {
 		t.Fatalf("the prompt of the next agent lacks the decision:\n%s", sp.Prompt)
 	}
 }
+
+// The questions Barnraise asks come out in the project's language, and an
+// answer in that language still does what the option says: on Nobira the
+// owner, who does not read English, got "How should it continue?" with
+// "Retry the step".
+func TestOwnerQuestionsInTheProjectsLanguage(t *testing.T) {
+	e := newEnv(t, withCfg(func(c *domain.ProjectConfig) { c.Language = "pt-BR" }))
+	it := e.ready("simple", "Exportar", "export")
+	e.next("implementer", it.ID)
+	got := e.mustDeliver(it.ID, domain.Delivery{Status: domain.DeliveryBlocked, Reason: "sem acesso ao bucket"})
+	if got.Status != domain.StatusBlocked {
+		t.Fatalf("blocked %+v", got)
+	}
+	q := e.question(it.ID)
+	if q.Decision != "Como seguir?" || q.Recommended() != "Tentar a etapa de novo" || !strings.Contains(q.Context, "parou na etapa") ||
+		q.IfNoAnswer != "O item fica parado; os agentes seguem com os outros." {
+		t.Fatalf("question not in Portuguese: %+v", q)
+	}
+	for _, o := range q.Options {
+		if o.Action == "" {
+			t.Fatalf("option %q has no action", o.Label)
+		}
+	}
+	if _, err := e.svc.Answer(e.ctx, "demo", owner(), q.ID, "Tentar a etapa de novo", ""); err != nil {
+		t.Fatal(err)
+	}
+	got = e.item(it.ID)
+	if got.WaitingQuestion != "" || (got.Status != domain.StatusInProgress && got.Status != domain.StatusReady) {
+		t.Fatalf("a Portuguese answer must retry the step: %+v", got)
+	}
+	inbox, _ := e.svc.Inbox(e.ctx, "demo", "x", "implementer", it.ID, false)
+	if len(inbox) == 0 || inbox[len(inbox)-1].Text != "O dono respondeu: Tentar a etapa de novo" {
+		t.Fatalf("inbox %+v", inbox)
+	}
+
+	// "Desistir do item" closes it, by its action and not by an English word.
+	e.next("implementer", it.ID)
+	e.mustDeliver(it.ID, domain.Delivery{Status: domain.DeliveryBlocked, Reason: "de novo"})
+	q = e.question(it.ID)
+	if _, err := e.svc.Answer(e.ctx, "demo", owner(), q.ID, "2", ""); err != nil {
+		t.Fatal(err)
+	}
+	if got := e.item(it.ID); got.Status != domain.StatusClosed {
+		t.Fatalf("Desistir do item must close it: %s", got.Status)
+	}
+}

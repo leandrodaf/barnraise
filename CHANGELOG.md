@@ -18,6 +18,7 @@ First version: one Go binary that is the daemon, the CLI, the MCP server and the
 - An issue a person wrote in the tracker is adopted: its state and labels follow the item, its title and text are never rewritten.
 - `barnraise up --paused` registers a project with every agent paused, so existing work is adopted (accounts, `item edit --branch`) before anything starts; `barnraise resume` lifts it.
 - `barnraise up` checks the machine first: the arbiter remote exists and accepts a push from here, a GitHub token is reachable, and each local check's program is on the `PATH`. A machine that is not ready starts the project paused, with one sentence per problem.
+- The questions Barnraise asks the owner (a blocked step, rework exhausted, an approval, a conflict, the next goal) come out in the project's `language:` (Brazilian Portuguese and English for now), and each option carries its action, so an answer in any language does what it says.
 - The owner's answer reaches the item even without a note, and every step's prompt lists the owner's decisions about the item: on Nobira a second agent asked the same question again because a bare choice was never passed on.
 - The policy hook resolves relative paths from the folder the agent is in, like the shell (`../httpapi/*.go` from a subfolder was refused as a secret), and lets agents in a container write scratch files to its own `/tmp`.
 - A draft whose refine could not start (no account with capacity) is refined again later. It used to stay marked as refined at its version and wait for a person to edit it.

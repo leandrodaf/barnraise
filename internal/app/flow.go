@@ -124,7 +124,7 @@ func (s *Service) finishStep(ctx context.Context, p *Project, o stepOutcome) (*d
 		if tr.Kind == domain.TransBlocked {
 			_, _ = s.emitLocked(ctx, p, domain.EvItemBlocked, it.ID, o.Actor, domain.Payload{Note: o.Reason})
 		}
-		q := s.ownerQuestionFor(it, o, tr)
+		q := s.ownerQuestionFor(p, it, o, tr)
 		qid, err := s.askLocked(ctx, p, q, "barnraise")
 		if err != nil {
 			s.d.Log.Warn("owner question", "item", it.ID, "err", err)
@@ -154,24 +154,24 @@ func (s *Service) finishStep(ctx context.Context, p *Project, o stepOutcome) (*d
 	return it, tr, nil
 }
 
-func (s *Service) ownerQuestionFor(it *domain.Item, o stepOutcome, tr domain.Transition) *domain.Question {
+func (s *Service) ownerQuestionFor(p *Project, it *domain.Item, o stepOutcome, tr domain.Transition) *domain.Question {
 	q := &domain.Question{ItemID: it.ID, Urgent: true}
 	switch {
 	case tr.Kind == domain.TransBlocked:
-		q.Context = fmt.Sprintf("%s (%s) is blocked at step %s: %s", it.ID, it.Title, o.Step, truncate(o.Reason, 500))
-		q.Decision = "How should it continue?"
-		q.Options = []domain.Option{{Label: "Retry the step", Recommended: true}, {Label: "Abandon the item"}}
-		q.IfNoAnswer = "The item stays blocked; agents work on other items."
+		q.Context = ot(p, "blocked.context", it.ID, it.Title, o.Step, truncate(o.Reason, 500))
+		q.Decision = ot(p, "continue.decision")
+		q.Options = []domain.Option{ownerOpt(p, "retry", true), ownerOpt(p, "abandon", false)}
+		q.IfNoAnswer = ot(p, "if.blocked")
 	case o.Outcome == domain.OutcomeNeedsContext:
-		q.Context = fmt.Sprintf("%s (%s) needs information at step %s.", it.ID, it.Title, o.Step)
+		q.Context = ot(p, "needs.context", it.ID, it.Title, o.Step)
 		q.Decision = truncate(o.Reason, 800)
-		q.Options = []domain.Option{{Label: "Answer and continue", Recommended: true}, {Label: "Abandon the item"}}
-		q.IfNoAnswer = "The item waits; agents work on other items."
+		q.Options = []domain.Option{ownerOpt(p, "answer", true), ownerOpt(p, "abandon", false)}
+		q.IfNoAnswer = ot(p, "if.waits")
 	default:
-		q.Context = fmt.Sprintf("%s (%s) came back %d times; last reason: %s", it.ID, it.Title, len(it.Rework), truncate(o.Reason, 400))
-		q.Decision = "How should it continue?"
-		q.Options = []domain.Option{{Label: "Retry with a stronger model", Recommended: true}, {Label: "Accept with a caveat"}, {Label: "Split the item"}, {Label: "Abandon the item"}}
-		q.IfNoAnswer = "The item waits; agents work on other items."
+		q.Context = ot(p, "rework.context", it.ID, it.Title, len(it.Rework), truncate(o.Reason, 400))
+		q.Decision = ot(p, "continue.decision")
+		q.Options = []domain.Option{ownerOpt(p, "stronger", true), ownerOpt(p, "accept", false), ownerOpt(p, "split", false), ownerOpt(p, "abandon", false)}
+		q.IfNoAnswer = ot(p, "if.waits")
 	}
 	return q
 }
