@@ -100,13 +100,20 @@ func (p *Policy) Decide(c ToolCall, exists func(string) bool) Decision {
 	for _, raw := range c.Paths {
 		abs := p.expand(raw)
 		rel := p.relative(abs)
+		// The item's worktree lives under Barnraise's own data folder, which
+		// is otherwise off limits: inside the worktree, the absolute rules
+		// (Barnraise's state, the owner's credential folders) do not apply,
+		// only the rules written for the worktree do (.env, keystores,
+		// .barnraise/**, the deny_write globs below).
+		inside := p.Worktree != "" && rel != ""
 		for _, g := range p.SelfPaths {
-			if MatchGlob(p.expand(g), abs) && c.Write {
+			if !inside && MatchGlob(p.expand(g), abs) && c.Write {
 				return deny("self", "agents cannot change Barnraise itself or its configuration: "+raw)
 			}
 		}
 		for _, g := range p.DenyRead {
-			if MatchGlob(p.expand(g), abs) || (rel != "" && MatchGlob(g, rel)) {
+			absRule := strings.HasPrefix(g, "/") || strings.HasPrefix(g, "~")
+			if (!inside || !absRule) && MatchGlob(p.expand(g), abs) || (rel != "" && !absRule && MatchGlob(g, rel)) {
 				return deny("deny_read", "access to credentials and secrets is blocked: "+raw)
 			}
 		}
