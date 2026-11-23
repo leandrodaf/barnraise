@@ -1,5 +1,10 @@
-// Package imagex reduces screenshots before any agent reads them: a full
-// phone print costs ~3,350 tokens, a 720 px wide one ~1,500.
+// Package imagex reduces screenshots before any agent reads them.
+//
+// The model already scales an image down to about 1.15 megapixels, so a
+// full 1080x2400 phone print costs ~1,530 tokens and a 720 px wide one
+// almost the same (~1,530: 720x1600 is 1.15 MP). Only a narrower image
+// saves: 540 px wide is ~860 tokens. Measured on 23,154 real prints of
+// Nobira (Nov 2026): 720 px saved 8.4%, 540 px 43.6%.
 package imagex
 
 import (
@@ -12,13 +17,28 @@ import (
 	"image/jpeg"
 	"image/png"
 	"io"
+	"io/fs"
+	"math"
 	"os"
 	"path/filepath"
 	"strings"
 )
 
-// DefaultWidth is the target width for agents.
-const DefaultWidth = 720
+// DefaultWidth is the target width for agents: half a 1080 px phone print,
+// still readable, ~44% fewer tokens than full resolution.
+const DefaultWidth = 540
+
+// Tokens estimates what the model is charged for an image of w x h pixels:
+// it scales to at most 1568 px on the long side and about 1.15 MP, then
+// counts one token per 750 pixels.
+func Tokens(w, h int) int {
+	if w <= 0 || h <= 0 {
+		return 0
+	}
+	s := min(1.0, 1568/float64(max(w, h)), math.Sqrt(1_150_000/float64(w*h)))
+	w2, h2 := max(1, int(float64(w)*s)), max(1, int(float64(h)*s))
+	return (w2*h2 + 749) / 750
+}
 
 // IsImage reports whether a path looks like a raster image.
 func IsImage(path string) bool {
@@ -164,4 +184,47 @@ func Crop(src, dst string, x, y, w, h int) error {
 		return err
 	}
 	return o.Close()
+}
+
+// Cost is what a folder of images costs an agent, at full resolution and
+// reduced to a width.
+type Cost struct {
+	Images     int     `json:"images"`
+	FullTokens int     `json:"full_tokens"`
+	Width      int     `json:"width"`
+	ReducedTok int     `json:"reduced_tokens"`
+	SavedPct   float64 `json:"saved_pct"`
+}
+
+// MeasureDir walks dir and estimates the tokens of every image in it, as
+// read at full resolution and reduced to width. Only the image headers are
+// read.
+func MeasureDir(dir string, width int) (Cost, error) {
+	c := Cost{Width: width}
+	err := filepath.WalkDir(dir, func(p string, d fs.DirEntry, err error) error {
+		if err != nil || d.IsDir() || !IsImage(p) {
+			return nil
+		}
+		f, err := os.Open(p)
+		if err != nil {
+			return nil
+		}
+		cfg, _, err := image.DecodeConfig(f)
+		f.Close()
+		if err != nil || cfg.Width <= 0 || cfg.Height <= 0 {
+			return nil
+		}
+		w, h := cfg.Width, cfg.Height
+		c.Images++
+		c.FullTokens += Tokens(w, h)
+		if width > 0 && w > width {
+			h, w = max(h*width/w, 1), width
+		}
+		c.ReducedTok += Tokens(w, h)
+		return nil
+	})
+	if c.FullTokens > 0 {
+		c.SavedPct = float64(int(1000*(1-float64(c.ReducedTok)/float64(c.FullTokens)))) / 10
+	}
+	return c, err
 }

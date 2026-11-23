@@ -201,6 +201,20 @@ A machine runs as many sessions as its CPUs and total memory allow (`barnraise c
 
 Each account's usage of its 5-hour and weekly windows comes from the sessions themselves (Claude Code reports it after every request) and from the status line of interactive sessions. `barnraise account list` shows the numbers and the reset times; an account at its ceiling is skipped until its window resets.
 
+## Tokens of prints
+
+Agents read screenshots through the `pre-tool` hook, which hands them a copy 540 px wide (`barnraise image crop` gives a full-resolution region when a detail matters). The model already scales big images down to about 1.15 megapixels, so a narrower image is the only thing that saves: a 1080x2400 phone print costs ~1,530 tokens in full, almost the same at 720 px, and ~860 at 540 px.
+
+`barnraise image cost <folder>` measures a folder of prints, full against reduced. On Nobira's 23,154 prints of Nov 2026 (704 items, median 10 prints per item, mean 31, 90th percentile 88):
+
+| Width | Tokens per print | Saved |
+| --- | --- | --- |
+| Full resolution | 1,279 | |
+| 720 px (the old default) | 1,172 | 8.4% |
+| 540 px (default) | 721 | 43.5% |
+
+A mobile item with the mean of 31 prints goes from ~40,000 to ~22,500 tokens of images; one at the 90th percentile, from ~113,000 to ~63,000.
+
 ## Readings and moving checks between machines
 
 Every machine reports, with each heartbeat, its 1-minute load, the memory it has available, the temperature of its processor and, for each GPU, how busy it is, its memory and its temperature (NVIDIA through `nvidia-smi`, AMD through the kernel's counters). A reading a machine cannot take is simply absent.

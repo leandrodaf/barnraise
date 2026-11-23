@@ -17,7 +17,7 @@ func (e *env) imageCmd() *cobra.Command {
 	c := &cobra.Command{Use: "image", Short: "Prints for agents: reduced by default, full-resolution regions on demand"}
 	var width int
 	var out string
-	reduce := &cobra.Command{Use: "reduce <file>", Short: "Write a copy at most --width pixels wide (default 720)", Args: cobra.ExactArgs(1),
+	reduce := &cobra.Command{Use: "reduce <file>", Short: "Write a copy at most --width pixels wide (default 540)", Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			dir := out
 			if dir == "" {
@@ -34,7 +34,7 @@ func (e *env) imageCmd() *cobra.Command {
 			fmt.Fprintln(e.out, p)
 			return nil
 		}}
-	reduce.Flags().IntVar(&width, "width", imagex.DefaultWidth, "maximum width (540 to 720 for agents)")
+	reduce.Flags().IntVar(&width, "width", imagex.DefaultWidth, "maximum width (540 by default: ~44% fewer tokens than a full phone print)")
 	reduce.Flags().StringVar(&out, "out", "", "output folder")
 	crop := &cobra.Command{Use: "crop <file> <x,y,w,h>", Short: "Cut a full-resolution region (flagged screens)", Args: cobra.ExactArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -61,6 +61,26 @@ func (e *env) imageCmd() *cobra.Command {
 			fmt.Fprintln(e.out, dst)
 			return nil
 		}}
-	c.AddCommand(reduce, crop)
+	var costWidth int
+	cost := &cobra.Command{Use: "cost <folder>", Short: "Tokens the images of a folder cost an agent, full and reduced", Args: cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			c, err := imagex.MeasureDir(args[0], costWidth)
+			if err != nil {
+				return err
+			}
+			if e.json {
+				e.printAny(c)
+				return nil
+			}
+			if c.Images == 0 {
+				fmt.Fprintln(e.out, "No images.")
+				return nil
+			}
+			fmt.Fprintf(e.out, "%d images: %d tokens at full resolution, %d reduced to %d px (%.1f%% saved); %d and %d per image.\n",
+				c.Images, c.FullTokens, c.ReducedTok, c.Width, c.SavedPct, c.FullTokens/c.Images, c.ReducedTok/c.Images)
+			return nil
+		}}
+	cost.Flags().IntVar(&costWidth, "width", imagex.DefaultWidth, "width the agents read")
+	c.AddCommand(reduce, crop, cost)
 	return c
 }
