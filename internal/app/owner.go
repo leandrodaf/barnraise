@@ -181,8 +181,14 @@ func (s *Service) applyAnswer(ctx context.Context, p *Project, a Actor, it *doma
 			}
 			return nil
 		}, domain.Payload{Note: note})
-		if err == nil && note != "" {
-			_, _ = s.SendMessage(ctx, p.Name, System(), domain.Message{To: "item:" + it.ID, ItemID: it.ID, Text: "Owner: " + note})
+		if err == nil {
+			// The answer itself goes to the item, not only a note: the next
+			// session is often another agent, which did not ask.
+			text := "Owner answered: " + choice
+			if note != "" {
+				text += " — " + note
+			}
+			_, _ = s.SendMessage(ctx, p.Name, System(), domain.Message{To: "item:" + it.ID, ItemID: it.ID, Text: text})
 		}
 		s.runtime.Poke()
 		return err

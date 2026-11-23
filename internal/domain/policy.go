@@ -34,6 +34,13 @@ type Policy struct {
 	AllowHosts   []string `json:"allow_hosts"`    // for the sandbox and proxy
 	Home         string   `json:"home,omitempty"` // to expand ~
 	Worktree     string   `json:"worktree,omitempty"`
+	// Cwd is the folder the tool call runs in (the hook's input): relative
+	// paths are resolved from it, like the shell does. Empty: the worktree.
+	Cwd string `json:"cwd,omitempty"`
+	// PrivateTmp: the session runs in a container whose /tmp and /var/tmp
+	// are its own, in memory. Only then may an agent write scratch files
+	// there; on the machine itself /tmp is shared with the owner.
+	PrivateTmp bool `json:"private_tmp,omitempty"`
 	MainBranch   string   `json:"main_branch,omitempty"`
 	SelfPaths    []string `json:"self_paths,omitempty"` // the Barnraise binary, its config and state
 }
@@ -121,6 +128,9 @@ func (p *Policy) Decide(c ToolCall, exists func(string) bool) Decision {
 			continue
 		}
 		if p.Worktree != "" && rel == "" {
+			if p.PrivateTmp && scratch(abs) {
+				continue // temporary files: /tmp is the agent's scratch space
+			}
 			return deny("outside_worktree", "writing outside the item worktree is blocked: "+raw)
 		}
 		for _, g := range p.DenyWrite {
@@ -159,14 +169,30 @@ func (p *Policy) Decide(c ToolCall, exists func(string) bool) Decision {
 	return Decision{Allow: true}
 }
 
+// scratch reports a path under the temporary folders, where an agent may
+// write scratch files (in a container they are in memory and gone after).
+func scratch(abs string) bool {
+	for _, d := range []string{"/tmp/", "/var/tmp/"} {
+		if strings.HasPrefix(abs, d) && !strings.Contains(abs[len(d):], "..") {
+			return true
+		}
+	}
+	return false
+}
+
 func deny(rule, reason string) Decision { return Decision{Allow: false, Rule: rule, Reason: reason} }
 
 func (p *Policy) expand(s string) string {
 	if p.Home != "" && (s == "~" || strings.HasPrefix(s, "~/")) {
 		return p.Home + s[1:]
 	}
-	if p.Worktree != "" && !strings.HasPrefix(s, "/") && !strings.HasPrefix(s, "~") {
-		return path.Join(p.Worktree, s)
+	if !strings.HasPrefix(s, "/") && !strings.HasPrefix(s, "~") {
+		if p.Cwd != "" {
+			return path.Join(p.Cwd, s)
+		}
+		if p.Worktree != "" {
+			return path.Join(p.Worktree, s)
+		}
 	}
 	return path.Clean(s)
 }

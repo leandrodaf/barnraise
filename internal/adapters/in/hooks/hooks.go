@@ -153,7 +153,11 @@ var noisyRe = regexp.MustCompile(`^\s*(\./gradlew|gradle|go\s+test|go\s+build|np
 // PreTool decides a tool call. bin is the barnraise binary used for the filter wrapper.
 func PreTool(in Input, pol *domain.Policy, exists func(string) bool, bin string) PreToolResult {
 	tc := ToolCall(in)
-	d := pol.Decide(tc, exists)
+	pc := *pol
+	if in.Cwd != "" {
+		pc.Cwd = in.Cwd // relative paths are the shell's, from where the agent is
+	}
+	d := pc.Decide(tc, exists)
 	if !d.Allow {
 		return PreToolResult{Decision: d, Call: tc, Output: map[string]any{"hookSpecificOutput": map[string]any{
 			"hookEventName": "PreToolUse", "permissionDecision": "deny",

@@ -737,6 +737,7 @@ func (r *Runtime) writeSessionFiles(p *Project, sessDir, worktree string, env ma
 	pol.Home = home
 	pol.Worktree = worktree
 	pol.MainBranch = p.Cfg().MainBranch
+	pol.PrivateTmp = p.Cfg().Container.Image != "" // the container's /tmp is in memory and its own
 	polData, _ := json.MarshalIndent(pol, "", "  ")
 	if err := os.WriteFile(filepath.Join(sessDir, "policy.json"), polData, 0o600); err != nil {
 		return "", "", err

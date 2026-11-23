@@ -87,7 +87,7 @@ func TestDeliverNeedsContextAndBlocked(t *testing.T) {
 		t.Fatal("the question is answered")
 	}
 	inbox, _ := e.svc.Inbox(e.ctx, "demo", "x", "implementer", it.ID, false)
-	if len(inbox) == 0 || inbox[len(inbox)-1].Text != "Owner: semicolon" {
+	if len(inbox) == 0 || inbox[len(inbox)-1].Text != "Owner answered: Answer and continue — semicolon" {
 		t.Fatalf("the answer goes to the agent: %+v", inbox)
 	}
 
@@ -454,5 +454,33 @@ func TestFinishStepGuards(t *testing.T) {
 	wantErr(t, err, ErrConflict)
 	if truncate("abcdef", 3) != "abc…" || tail("abcdef", 2) != "…ef" || tail("ab", 5) != "ab" {
 		t.Fatal("truncate/tail")
+	}
+}
+
+// An answer without a note still reaches the item, and every later step's
+// prompt lists the owner's decisions: on Nobira a second agent asked the
+// owner the same question again because a bare choice was never passed on.
+func TestOwnerAnswerReachesTheNextAgent(t *testing.T) {
+	e := newEnv(t)
+	it := e.ready("simple", "Table", "docs")
+	e.next("implementer", it.ID)
+	e.mustDeliver(it.ID, domain.Delivery{Status: domain.DeliveryNeedsContext, Reason: "Do you approve the table in docs/mobile.md?"})
+	q := e.question(it.ID)
+	if _, err := e.svc.Answer(e.ctx, "demo", owner(), q.ID, "1", ""); err != nil {
+		t.Fatal(err)
+	}
+	inbox, _ := e.svc.Inbox(e.ctx, "demo", "other", "implementer", it.ID, false)
+	if len(inbox) == 0 || !strings.HasPrefix(inbox[len(inbox)-1].Text, "Owner answered: ") {
+		t.Fatalf("a bare choice must reach the item: %+v", inbox)
+	}
+	got := e.item(it.ID)
+	f, _ := e.cfg.FlowOf(got.Kind, got.Area)
+	st, _ := f.Step(got.Step)
+	sp, err := e.svc.BuildStepPrompt(e.ctx, e.p, got, st, "implementer", "implementer-2")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(sp.Prompt, "The owner already decided") || !strings.Contains(sp.Prompt, q.ID+": Do you approve the table in docs/mobile.md?") {
+		t.Fatalf("the prompt of the next agent lacks the decision:\n%s", sp.Prompt)
 	}
 }

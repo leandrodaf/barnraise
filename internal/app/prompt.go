@@ -275,6 +275,9 @@ func (s *Service) BuildStepPrompt(ctx context.Context, p *Project, it *domain.It
 			b.WriteString("\n## Last journal entry\n" + j + "\n")
 		}
 	}
+	if d := ownerDecisions(p, it.ID); d != "" {
+		b.WriteString(d)
+	}
 	inbox, _ := s.Inbox(ctx, p.Name, agent, role, it.ID, true)
 	if len(inbox) > 0 {
 		b.WriteString("\n## Messages\n")
@@ -402,3 +405,27 @@ const barnraiseConventions = `
   (type(scope): subject — imperative, lower case, no final period), whatever language the item is written in.
   Barnraise writes the changelog from ` + "`change`" + `; never edit the changelog file.
 `
+
+// ownerDecisions lists the owner's answers about an item, oldest first. Every
+// step's prompt carries them: the agent of the next step is often not the one
+// that asked, and on Nobira a second agent asked the owner the same question
+// again because the first answer never reached it.
+func ownerDecisions(p *Project, itemID string) string {
+	snap := p.Snapshot()
+	var qs []*domain.Question
+	for _, q := range snap.Questions {
+		if q.ItemID == itemID && q.Answer != "" {
+			qs = append(qs, q)
+		}
+	}
+	if len(qs) == 0 {
+		return ""
+	}
+	slices.SortFunc(qs, func(a, b *domain.Question) int { return a.AnsweredAt.Compare(b.AnsweredAt) })
+	var b strings.Builder
+	b.WriteString("\n## The owner already decided (do not ask again)\n")
+	for _, q := range qs {
+		fmt.Fprintf(&b, "- %s: %s → %s\n", q.ID, strings.TrimSpace(q.Decision), q.Answer)
+	}
+	return b.String()
+}
