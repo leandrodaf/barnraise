@@ -22,6 +22,7 @@ import (
 	"math/big"
 	"net"
 	"strings"
+	"syscall"
 	"time"
 
 	"filippo.io/cpace"
@@ -106,6 +107,9 @@ func NormalizeCode(code string) (string, error) {
 type InviteOptions struct {
 	// ListenAddr is the TCP address to listen on (default ":0").
 	ListenAddr string
+	// Listeners are more listeners served by the same single-use invite,
+	// such as one on the embedded Tailscale device. Invite closes them.
+	Listeners []net.Listener
 	// Code is the pairing code; a random one is generated when empty.
 	Code string
 	// Payload is sent to the joining machine (cluster information).
@@ -149,12 +153,16 @@ func Invite(ctx context.Context, opts InviteOptions) (code, addr string, wait fu
 	var lc net.ListenConfig
 	ln, err := lc.Listen(ctx, "tcp", opts.ListenAddr)
 	if err != nil {
+		for _, l := range opts.Listeners {
+			l.Close()
+		}
 		return "", "", nil, err
 	}
 	addr = ln.Addr().String()
-	inv := &inviter{code: code, opts: opts, ln: ln, expires: time.Now().Add(opts.Timeout), done: make(chan struct{})}
+	lns := append([]net.Listener{ln}, opts.Listeners...)
+	inv := &inviter{code: code, opts: opts, lns: lns, expires: time.Now().Add(opts.Timeout), done: make(chan struct{})}
 	ictx, cancel := context.WithDeadline(ctx, inv.expires)
-	context.AfterFunc(ictx, func() { ln.Close() })
+	context.AfterFunc(ictx, inv.closeListeners)
 	if opts.BeaconPort > 0 {
 		go beacon(ictx, opts, addr)
 	}
@@ -172,7 +180,7 @@ func Invite(ctx context.Context, opts InviteOptions) (code, addr string, wait fu
 type inviter struct {
 	code    string
 	opts    InviteOptions
-	ln      net.Listener
+	lns     []net.Listener
 	expires time.Time
 
 	failed   int
@@ -181,17 +189,58 @@ type inviter struct {
 	err      error
 }
 
+func (inv *inviter) closeListeners() {
+	for _, l := range inv.lns {
+		l.Close()
+	}
+}
+
 func (inv *inviter) finish(info []byte, err error) {
 	inv.peerInfo, inv.err = info, err
-	inv.ln.Close()
+	inv.closeListeners()
 	close(inv.done)
 }
 
-// serve handles one connection at a time, so concurrent attackers cannot
-// make more than MaxFailedAttempts guesses in total.
+type accepted struct {
+	conn net.Conn
+	err  error
+}
+
+// accept merges the listeners into one channel; the first listener error
+// ends the invite.
+func (inv *inviter) accept(ctx context.Context) <-chan accepted {
+	ch := make(chan accepted)
+	for _, l := range inv.lns {
+		go func() {
+			for {
+				c, err := l.Accept()
+				select {
+				case ch <- accepted{c, err}:
+				case <-ctx.Done():
+					if c != nil {
+						c.Close()
+					}
+					return
+				}
+				if err != nil {
+					return
+				}
+			}
+		}()
+	}
+	return ch
+}
+
+// serve handles one connection at a time, across all listeners, so
+// concurrent attackers cannot make more than MaxFailedAttempts guesses in
+// total.
 func (inv *inviter) serve(ctx context.Context) {
+	actx, stop := context.WithCancel(context.Background())
+	defer stop()
+	conns := inv.accept(actx)
 	for {
-		conn, err := inv.ln.Accept()
+		a := <-conns
+		conn, err := a.conn, a.err
 		if err != nil {
 			switch {
 			case time.Now().After(inv.expires) || errors.Is(ctx.Err(), context.DeadlineExceeded):
@@ -284,6 +333,12 @@ type JoinOptions struct {
 	Addr string
 	Code string
 	Info []byte
+	// Candidates are tried in order when Addr is empty, before the LAN
+	// discovery: the online Barnraise machines of the tailnet.
+	Candidates []string
+	// Dial connects to Addr and Candidates (default the system dialer);
+	// the embedded Tailscale device passes its own.
+	Dial func(ctx context.Context, network, addr string) (net.Conn, error)
 	// BeaconPort for discovery when Addr is empty (default DefaultBeaconPort).
 	BeaconPort int
 	// DiscoverFor bounds the discovery (default 5s).
@@ -300,7 +355,18 @@ func JoinWith(ctx context.Context, o JoinOptions) ([]byte, error) {
 		return nil, errors.New("pairing: info too large")
 	}
 	if o.Addr != "" {
-		return join(ctx, o.Addr, code, o.Info)
+		return join(ctx, o.Dial, o.Addr, code, o.Info)
+	}
+	var last error
+	for _, a := range o.Candidates {
+		out, err := join(ctx, o.Dial, a, code, o.Info)
+		if err == nil || !(errors.Is(err, errDial) || errors.Is(err, errClosedBeforeReply)) {
+			// A machine with an invite answered: right or wrong, that is the answer.
+			return out, err
+		}
+		// Nothing there, or a daemon that relays the pairing port while no
+		// invite runs behind it: try the next machine.
+		last = err
 	}
 	if o.BeaconPort == 0 {
 		o.BeaconPort = DefaultBeaconPort
@@ -310,11 +376,13 @@ func JoinWith(ctx context.Context, o JoinOptions) ([]byte, error) {
 	}
 	addrs, err := Discover(ctx, o.BeaconPort, o.DiscoverFor)
 	if err != nil {
+		if last != nil && errors.Is(err, ErrNoInviteFound) {
+			return nil, fmt.Errorf("%w; no machine of the tailnet answered either (%v)", err, last)
+		}
 		return nil, err
 	}
-	var last error
 	for _, a := range addrs {
-		out, err := join(ctx, a, code, o.Info)
+		out, err := join(ctx, nil, a, code, o.Info)
 		if err == nil {
 			return out, nil
 		}
@@ -323,13 +391,19 @@ func JoinWith(ctx context.Context, o JoinOptions) ([]byte, error) {
 	return nil, last
 }
 
-func join(ctx context.Context, addr, code string, info []byte) ([]byte, error) {
-	var d net.Dialer
+// errDial marks a join that could not reach anything at the address.
+var errDial = errors.New("pairing: dial")
+
+func join(ctx context.Context, dial func(context.Context, string, string) (net.Conn, error), addr, code string, info []byte) ([]byte, error) {
+	if dial == nil {
+		var d net.Dialer
+		dial = d.DialContext
+	}
 	dctx, cancel := context.WithTimeout(ctx, stepDeadline)
 	defer cancel()
-	conn, err := d.DialContext(dctx, "tcp", addr)
+	conn, err := dial(dctx, "tcp", addr)
 	if err != nil {
-		return nil, fmt.Errorf("pairing: dial %s: %w", addr, err)
+		return nil, fmt.Errorf("%w %s: %w", errDial, addr, err)
 	}
 	defer conn.Close()
 	deadline := time.Now().Add(stepDeadline)
@@ -345,11 +419,14 @@ func join(ctx context.Context, addr, code string, info []byte) ([]byte, error) {
 		return nil, err
 	}
 	if err := writeFrame(conn, frameHello, append([]byte{version}, msgA...)); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("%w: %w", errClosedBeforeReply, err)
 	}
 	typ, msgB, err := readFrame(conn)
 	if err != nil {
-		return nil, closedErr(err)
+		if errors.Is(err, io.EOF) || errors.Is(err, io.ErrUnexpectedEOF) || errors.Is(err, syscall.ECONNRESET) {
+			return nil, errClosedBeforeReply
+		}
+		return nil, err
 	}
 	if typ != frameReply {
 		return nil, ErrProtocol

@@ -29,6 +29,16 @@ type Peer struct {
 	Added     time.Time `yaml:"added"`
 }
 
+// TSNet configures the embedded Tailscale (`network: tsnet`). The auth key
+// is never here: it lives in the keychain or the environment.
+type TSNet struct {
+	// ControlURL is the coordination server; empty is Tailscale's own.
+	// A Headscale URL self-hosts it.
+	ControlURL string `yaml:"control_url,omitempty"`
+	// Tags the device advertises (default tag:barnraise).
+	Tags []string `yaml:"tags,omitempty"`
+}
+
 // File is daemon.yaml.
 type File struct {
 	Machine    string   `yaml:"machine"`
@@ -39,7 +49,8 @@ type File struct {
 	NKeySeed   string   `yaml:"nkey_seed,omitempty"`
 	NKeyPublic string   `yaml:"nkey_public,omitempty"`
 	Peers      []Peer   `yaml:"peers,omitempty"`
-	Network    string   `yaml:"network,omitempty"` // tailscale, lan
+	Network    string   `yaml:"network,omitempty"` // empty (auto), tailscale, tsnet, lan
+	TSNet      TSNet    `yaml:"tsnet,omitempty"`
 	Notify     []struct {
 		Type   string `yaml:"type"`
 		Target string `yaml:"target"`

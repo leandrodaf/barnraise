@@ -145,6 +145,7 @@ func (d *daemon) selfUpdate(ctx context.Context, m *domain.Machine) error {
 	d.log.Info("binary replaced; restarting", "version", m.Version)
 	d.svc.Runtime().StopAll()
 	d.stopNATS()
+	d.closeTailnet()
 	_ = d.store.Close()
 	_ = os.Remove(d.pidFile)
 	return syscall.Exec(exe, os.Args, os.Environ())

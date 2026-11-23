@@ -105,7 +105,8 @@ Toda máquina roda o mesmo binário e puxa o próprio próximo item. Não há co
 
 - **O git é o árbitro.** Pegar um item cria `refs/barnraise/claims/<item>` com um compare-and-swap atômico; a primeira máquina ganha. A main só anda por push fast-forward.
 - **Os eventos são espelhados.** Cada máquina tem seu NATS JetStream embutido; os eventos correm entre as máquinas sempre que elas se enxergam, e cada uma continua trabalhando quando fica isolada.
-- **Parear leva um código de 6 dígitos.** `barnraise machine invite` numa máquina, `barnraise machine join <código>` na outra. Pelo Tailscale quando ele está instalado; cada máquina tem sua nkey e só pode ler os eventos da outra.
+- **Parear leva um código de 6 dígitos.** `barnraise machine invite` numa máquina, `barnraise machine join <código>` na outra. Cada máquina tem sua nkey e só pode ler os eventos da outra.
+- **O Tailscale vem embutido.** Os binários de release trazem o Tailscale: o Barnraise entra na tailnet como um dispositivo próprio, com o nome da máquina e a tag `tag:barnraise`, e a máquina não precisa de mais nada além do `barnraise`. Com uma auth key (`barnraise machine network-key` ou `BARNRAISE_TS_AUTHKEY`), `barnraise machine join 482913` entra na tailnet e no cluster de uma vez. Um `tailscale` instalado é usado no lugar quando existe; `barnraise machine network tsnet --control-url <url>` aponta para um Headscale próprio. Sem Tailscale, o mesmo código pareia pela rede local ou por um endereço direto (`--addr`).
 - **Uma versão só.** A máquina que vê outra com versão mais nova baixa o binário, confere o hash e reinicia quando não há sessão rodando.
 - **As máquinas conhecem a carga umas das outras.** Cada uma informa CPU, memória, temperatura e GPU, como estado ao vivo que nunca é gravado. A máquina carregada passa as verificações para uma ociosa, que limpa o que criou; `barnraise machine history` desenha as leituras recentes.
 

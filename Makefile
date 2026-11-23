@@ -12,15 +12,26 @@ IMAGE     ?= barnraise:dev
 BUF       ?= buf
 CROSS_TARGETS ?= linux/amd64 linux/arm64 darwin/amd64 darwin/arm64
 SMOKE_PROVIDER ?= fake
+# Build tags. `tsnet` embeds Tailscale (about 13 MB more); releases carry it.
+TAGS      ?=
+RELEASE_TAGS ?= tsnet
 
 .DEFAULT_GOAL := build
-.PHONY: help build cross test test-race cover lint vuln proto proto-breaking e2e smoke fuzz-smoke docker clean
+.PHONY: help build build-tsnet tsnet-check cross release-cross test test-race cover lint vuln proto proto-breaking e2e smoke fuzz-smoke docker clean
 
 help: ## Show the targets
 	@awk 'BEGIN {FS = ":.*## "} /^[a-z0-9-]+:.*## / {printf "  %-15s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
 
 build: ## Build ./barnraise with the version from git describe
-	CGO_ENABLED=0 $(GO) build -trimpath -ldflags "$(LDFLAGS)" -o $(BIN) $(PKG)
+	CGO_ENABLED=0 $(GO) build -trimpath -tags "$(TAGS)" -ldflags "$(LDFLAGS)" -o $(BIN) $(PKG)
+
+build-tsnet: ## Build ./barnraise with the embedded Tailscale, as the releases are
+	$(MAKE) build TAGS=$(RELEASE_TAGS)
+
+tsnet-check: ## Build, vet and test the embedded Tailscale (tsnet tag; local test tailnet, no internet)
+	$(GO) build -tags tsnet ./...
+	$(GO) vet -tags tsnet ./...
+	$(GO) test -tags tsnet -race -run 'TestEmbedded|TestResolve|TestOpen' ./internal/adapters/out/tailnet
 
 test: ## Fast tests (-short: skips the end-to-end and cluster tests)
 	$(GO) test -short ./...
@@ -43,8 +54,11 @@ cover: ## Coverage profile; fails when internal/domain or internal/app is below 
 cross: ## Build linux and darwin, amd64 and arm64, into dist/ (in parallel)
 	@mkdir -p dist; pids=""; for t in $(CROSS_TARGETS); do \
 	  os=$${t%/*}; arch=$${t#*/}; \
-	  CGO_ENABLED=0 GOOS=$$os GOARCH=$$arch $(GO) build -trimpath -ldflags "$(LDFLAGS)" -o dist/$(BIN)-$$os-$$arch $(PKG) & pids="$$pids $$!"; \
+	  CGO_ENABLED=0 GOOS=$$os GOARCH=$$arch $(GO) build -trimpath -tags "$(TAGS)" -ldflags "$(LDFLAGS)" -o dist/$(BIN)-$$os-$$arch $(PKG) & pids="$$pids $$!"; \
 	done; fail=0; for pid in $$pids; do wait $$pid || fail=1; done; ls -l dist; exit $$fail
+
+release-cross: ## The four release binaries into dist/, with the release build tags (tsnet)
+	$(MAKE) cross TAGS=$(RELEASE_TAGS)
 
 lint: ## golangci-lint, including the depguard architecture rules
 	golangci-lint run ./...
@@ -74,7 +88,7 @@ fuzz-smoke: ## Run every fuzz target for FUZZTIME (default 10s)
 	done
 
 docker: ## Build the container image (IMAGE, default barnraise:dev)
-	docker build --build-arg VERSION=$(VERSION) -t $(IMAGE) .
+	docker build --build-arg VERSION=$(VERSION) --build-arg TAGS="$(TAGS)" -t $(IMAGE) .
 
 clean: ## Remove build and coverage outputs
 	rm -f $(BIN) coverage*.out

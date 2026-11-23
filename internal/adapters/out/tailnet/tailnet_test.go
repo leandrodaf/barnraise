@@ -112,7 +112,7 @@ func TestACLSnippet(t *testing.T) {
 	if !strings.Contains(s, `"tag:barnraise:4222"`) || !strings.Contains(s, "autogroup:admin") || !strings.Contains(s, `"tagOwners"`) {
 		t.Fatal(s)
 	}
-	if !strings.Contains(ACLSnippet("owner@example.com"), "tag:barnraise:47913") {
+	if !strings.Contains(ACLSnippet("owner@example.com"), "tag:barnraise:47900") {
 		t.Fatal("default ports")
 	}
 }

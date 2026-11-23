@@ -79,6 +79,8 @@ type daemon struct {
 	secrets *keychain.Store
 	bus     swapBus
 	natsSrv *natsx.Server
+	natsLn  net.Listener    // NATS on the embedded Tailscale device
+	tn      tailnet.Tailnet // nil: no tailnet
 	repl    *natsx.Replicator
 	blobs   *natsx.ObjectStore
 	sender  *webhook.Sender
@@ -143,6 +145,8 @@ func runDaemon(ctx context.Context, opts cli.DaemonOptions) error {
 	}
 	d.secrets = keychain.New("barnraise", filepath.Join(paths.ConfigDir(), "secrets"))
 
+	d.openTailnet(ctx)
+	defer d.closeTailnet()
 	if err := d.startNATS(ctx); err != nil {
 		log.Warn("NATS unavailable; running without the event bus between machines", "err", err)
 	}
@@ -297,6 +301,44 @@ func ownerToken() (string, error) {
 	return tok, os.WriteFile(p, []byte(tok+"\n"), 0o600)
 }
 
+// openTailnet joins the tailnet daemon.yaml asks for (`network:`). With the
+// embedded Tailscale this process becomes a device of the tailnet: NATS and
+// the pairing port are served on it, and peers are dialed through it.
+func (d *daemon) openTailnet(ctx context.Context) {
+	cfg := cli.TailnetConfig(d.df, func(format string, args ...any) { d.log.Info("tailscale: " + fmt.Sprintf(format, args...)) })
+	tn, mode, err := tailnet.Open(ctx, cfg)
+	if err != nil {
+		d.log.Warn("tailnet not available; other machines reach this one over the local network", "network", mode, "err", err)
+		return
+	}
+	if tn == nil {
+		return
+	}
+	d.tn = tn
+	if !d.embedded() {
+		return
+	}
+	self, _, _ := tn.Status(ctx)
+	d.log.Info("joined the tailnet as its own device", "name", self.DNSName, "ip", tailnet.IPv4(self.IPs), "state", cfg.StateDir)
+	// `machine invite` listens on loopback while the daemon holds the device:
+	// relay the device's pairing port to it.
+	if ln, err := tn.Listen(ctx, fmt.Sprintf(":%d", tailnet.PairingPort)); err != nil {
+		d.log.Warn("pairing port on the tailnet", "err", err)
+	} else {
+		go func() { _ = tailnet.Forward(ctx, ln, fmt.Sprintf("127.0.0.1:%d", tailnet.PairingPort)) }()
+	}
+}
+
+// embedded reports whether this process is its own tailnet device.
+func (d *daemon) embedded() bool { return d.tn != nil && d.tn.Mode() == tailnet.ModeTsnet }
+
+func (d *daemon) closeTailnet() {
+	if d.tn != nil {
+		_ = d.tn.Close()
+		d.tn = nil
+	}
+}
+
 // startNATS starts the embedded server: other machines authenticate with
 // their nkeys and may only read our stream and call our RPC subjects.
 func (d *daemon) startNATS(ctx context.Context) error {
@@ -307,11 +349,12 @@ func (d *daemon) startNATS(ctx context.Context) error {
 		}
 	}
 	host := d.df.NATSHost
-	if len(d.df.Peers) > 0 && (host == "127.0.0.1" || host == "") {
+	if len(d.df.Peers) > 0 && (host == "127.0.0.1" || host == "") && !d.embedded() {
 		// Peers need to reach us: prefer the Tailscale address, otherwise all interfaces (nkeys required).
+		// The embedded device needs neither: peers arrive through its own listener below.
 		host = "0.0.0.0"
-		if tn := tailnet.New(); tn.Available() && os.Getenv("BARNRAISE_NO_TAILSCALE") == "" {
-			if self, _, err := tn.Status(ctx); err == nil {
+		if d.tn != nil && d.tn.Available() {
+			if self, _, err := d.tn.Status(ctx); err == nil {
 				if ip := tailnet.IPv4(self.IPs); ip != "" {
 					host = ip
 				}
@@ -339,6 +382,14 @@ func (d *daemon) startNATS(ctx context.Context) error {
 	}
 	d.natsSrv = srv
 	d.bus.v.Store(bus)
+	if d.embedded() {
+		if ln, err := d.tn.Listen(ctx, fmt.Sprintf(":%d", d.df.NATSPort)); err != nil {
+			d.log.Warn("NATS on the tailnet", "err", err)
+		} else {
+			d.natsLn = ln
+			go func() { _ = srv.ServeListener(ln) }()
+		}
+	}
 	if d.blobs == nil {
 		if bs, err := natsx.NewObjectStore(ctx, filepath.Join(d.dataDir, "blobs"), bus.JetStream()); err == nil {
 			d.blobs = bs
@@ -367,7 +418,15 @@ func (d *daemon) startNATS(ctx context.Context) error {
 	return nil
 }
 
+func (d *daemon) closeNATSListener() {
+	if d.natsLn != nil {
+		d.natsLn.Close()
+		d.natsLn = nil
+	}
+}
+
 func (d *daemon) stopNATS() {
+	d.closeNATSListener()
 	if d.repl != nil {
 		d.repl.Close()
 	}
@@ -385,6 +444,11 @@ func (d *daemon) connectPeers() {
 		d.log.Warn("machine key", "err", err)
 		return
 	}
+	opts := []nats.Option{opt}
+	if d.embedded() {
+		// Tailnet addresses exist only inside the embedded device.
+		opts = append(opts, natsx.DialerOption(d.tn.Dial))
+	}
 	known := map[string]bool{}
 	for _, st := range d.repl.Peers() {
 		known[st.Name] = true
@@ -393,11 +457,11 @@ func (d *daemon) connectPeers() {
 		if known[p.Name] {
 			continue
 		}
-		if err := d.repl.AddPeer(p.Name, p.URL, opt); err != nil {
+		if err := d.repl.AddPeer(p.Name, p.URL, opts...); err != nil {
 			d.log.Warn("peer", "name", p.Name, "err", err)
 		}
 		if d.blobs != nil {
-			d.blobs.AddPeer(p.Name, p.URL, opt)
+			d.blobs.AddPeer(p.Name, p.URL, opts...)
 		}
 	}
 }
@@ -433,8 +497,13 @@ func (d *daemon) watchDaemonFile(ctx context.Context) {
 			if b := d.bus.v.Load(); b != nil {
 				b.Conn().Close()
 			}
+			d.closeNATSListener()
 			d.natsSrv.Shutdown()
 			d.natsSrv = nil
+			if d.tn == nil {
+				// The embedded device may have been busy (a pairing command held it) at start.
+				d.openTailnet(ctx)
+			}
 			if err := d.startNATS(ctx); err != nil {
 				d.log.Warn("NATS restart", "err", err)
 			}

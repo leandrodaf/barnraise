@@ -92,7 +92,8 @@ Before each step's commit and push, the diff and the changed files are scanned w
 
 - **Pairing** uses CPace (a password-authenticated key exchange) with the 6-digit code; payloads are sealed with ChaCha20-Poly1305 under HKDF-derived keys. A wrong code fails without revealing anything; three failures close the invite, which expires after 10 minutes anyway.
 - **NATS nkeys**: each machine has its own key. A peer may only read this machine's event and blob streams and call its RPC subjects; it cannot publish into the local stream.
-- **Tailscale** (recommended) encrypts and identifies each machine; `barnraise cluster acl` prints an ACL where only `tag:barnraise` reaches the Barnraise ports.
+- **Tailscale** (recommended) encrypts and identifies each machine; `barnraise cluster acl` prints an ACL where only `tag:barnraise` reaches the Barnraise ports (NATS 4222, pairing 47900).
+- **Embedded Tailscale** (release binaries, `network: tsnet`): the daemon is its own tailnet device, and NATS listens only on loopback and on that device, never on the machine's other interfaces. The device's private keys live in `tsnet/` under the data dir, mode 0700, locked so only one process runs the device; whoever reads that directory can act as this machine on the tailnet, so back it up and protect it like `daemon.yaml`. The auth key comes from `BARNRAISE_TS_AUTHKEY` or the system keychain (`barnraise machine network-key`, read from standard input): never from `daemon.yaml` or a command line, and it is scrubbed from the device's log lines. Use a key tagged `tag:barnraise`, and prefer a short expiry: once a device has logged in the key is no longer needed. Log upload to Tailscale is turned off; with Headscale (`--control-url`) nothing goes to Tailscale's servers.
 - Other people's machines use the same isolated-user model, with their own tokens and no deploy rights.
 
 ### 11. Containers, when the project asks for them

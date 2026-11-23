@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"io"
 	"maps"
+	"net"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -1253,7 +1254,9 @@ type machineInfo struct {
 	PublicKey string `json:"public_key"`
 }
 
-func (e *env) selfInfo(df *daemoncfg.File) (machineInfo, error) {
+// selfInfo is this machine's pairing information; host is where peers
+// reach its NATS (its tailnet address when there is one).
+func (e *env) selfInfo(df *daemoncfg.File, host string) (machineInfo, error) {
 	if df.NKeySeed == "" {
 		seed, pub, err := natsx.NewMachineKey()
 		if err != nil {
@@ -1264,14 +1267,8 @@ func (e *env) selfInfo(df *daemoncfg.File) (machineInfo, error) {
 			return machineInfo{}, err
 		}
 	}
-	host := df.NATSHost
-	tn := tailnet.New()
-	if tn.Available() && os.Getenv("BARNRAISE_NO_TAILSCALE") == "" {
-		if self, _, err := tn.Status(context.Background()); err == nil {
-			if ip := tailnet.IPv4(self.IPs); ip != "" {
-				host = ip
-			}
-		}
+	if host == "" {
+		host = df.NATSHost
 	}
 	return machineInfo{Name: df.Machine, NATSURL: fmt.Sprintf("nats://%s:%d", host, df.NATSPort), PublicKey: df.NKeyPublic}, nil
 }
@@ -1285,14 +1282,28 @@ func (e *env) machineCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			me, err := e.selfInfo(df)
+			ctx, cancel := context.WithTimeout(context.Background(), 11*time.Minute)
+			defer cancel()
+			pn, err := e.pairingNet(ctx, df, false)
+			if err != nil {
+				return err
+			}
+			defer pn.Close()
+			me, err := e.selfInfo(df, pn.host)
 			if err != nil {
 				return err
 			}
 			payload, _ := json.Marshal(me)
-			ctx, cancel := context.WithTimeout(context.Background(), 11*time.Minute)
-			defer cancel()
-			code, addr, wait, err := pairing.Invite(ctx, pairing.InviteOptions{ListenAddr: listen, Payload: payload, BeaconPort: 47913})
+			var extra []net.Listener
+			if pn.own {
+				// This command holds the embedded device: serve the invite on it too.
+				l, err := pn.tn.Listen(ctx, listen)
+				if err != nil {
+					return fmt.Errorf("listen on the tailnet: %w", err)
+				}
+				extra = append(extra, l)
+			}
+			code, addr, wait, err := pairing.Invite(ctx, pairing.InviteOptions{ListenAddr: listen, Listeners: extra, Payload: payload, BeaconPort: pairing.DefaultBeaconPort})
 			if err != nil {
 				return err
 			}
@@ -1303,6 +1314,9 @@ func (e *env) machineCmd() *cobra.Command {
 				_, port, _ = strings.Cut(addr, ":")
 			}
 			fmt.Fprintf(e.out, "code: %s\nOn the other machine: barnraise machine join %s --addr %s:%s\n(valid for 10 minutes, 3 attempts)\n", pairing.FormatCode(code), code, host, port)
+			if pn.tn != nil || pn.host != df.NATSHost {
+				fmt.Fprintf(e.out, "On the same tailnet, `barnraise machine join %s` finds this machine without --addr.\n", code)
+			}
 			info, err := wait()
 			if err != nil {
 				return err
@@ -1327,14 +1341,28 @@ func (e *env) machineCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			me, err := e.selfInfo(df)
+			ctx, cancel := context.WithTimeout(context.Background(), pairingTimeout)
+			defer cancel()
+			pn, err := e.pairingNet(ctx, df, true)
+			if err != nil {
+				return err
+			}
+			defer pn.Close()
+			me, err := e.selfInfo(df, pn.host)
 			if err != nil {
 				return err
 			}
 			mine, _ := json.Marshal(me)
-			ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
-			defer cancel()
-			out, err := pairing.Join(ctx, addr, args[0], mine)
+			opts := pairing.JoinOptions{Addr: addr, Code: args[0], Info: mine}
+			if pn.tn != nil {
+				opts.Dial = pn.tn.Dial
+				if addr == "" {
+					opts.Candidates = pn.candidates(ctx, df.Machine)
+				}
+			}
+			out, err := pairing.JoinWith(ctx, opts)
+			// The daemon started below opens the embedded device itself.
+			pn.Close()
 			if err != nil {
 				return err
 			}
@@ -1353,7 +1381,7 @@ func (e *env) machineCmd() *cobra.Command {
 			}
 			return nil
 		}}
-	join.Flags().StringVar(&addr, "addr", "", "inviter address host:port (empty: discover on the local network)")
+	join.Flags().StringVar(&addr, "addr", "", "inviter address host:port (empty: the Barnraise machines of the tailnet, then the local network)")
 	leave := &cobra.Command{Use: "leave", Short: "Give this machine's items back to the queue and leave", Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			ctx, cancel := e.ctx()
@@ -1420,6 +1448,7 @@ func (e *env) machineCmd() *cobra.Command {
 		}}
 	history.Flags().StringVar(&window, "window", "", "how far back: 15m, 2h (default: everything kept)")
 	c.AddCommand(invite, join, leave, list, history)
+	c.AddCommand(e.networkCmds()...)
 	return c
 }
 

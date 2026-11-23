@@ -35,7 +35,7 @@ Choose Barnraise when the project is larger than one session: many items, more t
 
 ## Quick start
 
-Requirements: Linux or macOS, `git`, and at least one AI CLI you are logged in to (`claude`, `codex` or `gemini`). Tailscale and `bwrap` (bubblewrap) are used when present.
+Requirements: Linux or macOS, `git`, and at least one AI CLI you are logged in to (`claude`, `codex` or `gemini`). `bwrap` (bubblewrap) is used when present; Tailscale is built into the release binaries.
 
 ```sh
 curl -fsSL https://raw.githubusercontent.com/leandrodaf/barnraise/main/install.sh | sh
@@ -103,7 +103,8 @@ Every machine runs the same binary and pulls its own next item. There is no coor
 
 - **Git is the arbiter.** Taking an item creates `refs/barnraise/claims/<item>` with an atomic compare-and-swap; the first machine wins. Main only moves by fast-forward push.
 - **Events are mirrored.** Each machine has its own embedded NATS JetStream; events flow between machines whenever they can see each other, and each machine keeps working when isolated.
-- **Pairing takes a 6-digit code.** `barnraise machine invite` on one machine, `barnraise machine join <code>` on the other. Over Tailscale when it is installed; each machine has its own nkey and may only read the other's events.
+- **Pairing takes a 6-digit code.** `barnraise machine invite` on one machine, `barnraise machine join <code>` on the other. Each machine has its own nkey and may only read the other's events.
+- **Tailscale is built in.** The release binaries embed Tailscale: Barnraise joins the tailnet as its own device, named after the machine and tagged `tag:barnraise`, so a machine needs nothing but `barnraise`. Give it an auth key once (`barnraise machine network-key`, or `BARNRAISE_TS_AUTHKEY`) and `barnraise machine join 482913` joins the tailnet and the cluster at once, finding the inviting machine among the tailnet's Barnraise machines. An installed `tailscale` is used instead when there is one; `barnraise machine network tsnet --control-url <url>` points the embedded one at a self-hosted Headscale. Without Tailscale the same code pairs over the local network or a direct address (`--addr`). See [operations.md](docs/operations.md#machines-on-a-tailnet).
 - **One version.** A machine that sees a peer with a newer version fetches the binary, verifies its hash and restarts while no session runs.
 - **Machines know each other's load.** Each one reports CPU, memory, temperature and GPU, as live state that is never stored. A loaded machine hands its checks to an idle one, which cleans up after itself; `barnraise machine history` draws the recent readings.
 

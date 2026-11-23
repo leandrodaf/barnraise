@@ -28,3 +28,4 @@ One short record per decision: context, decision, consequences. A decision that 
 | [ADR-0022](0022-living-plan-anchors-short-ids.md) | Living plan: anchors, short ids and layered search |
 | [ADR-0023](0023-security-by-os-layers.md) | Security by OS layers, not by prompt |
 | [ADR-0024](0024-license-apache-2.md) | License: Apache-2.0 |
+| [ADR-0025](0025-embedded-tailscale-behind-a-build-tag.md) | Embedded Tailscale (tsnet) behind a build tag |

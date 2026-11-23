@@ -1,11 +1,19 @@
-// Package tailnet finds this machine and its peers on the Tailscale network
-// and listens on the Tailscale address.
+// Package tailnet finds this machine and its peers on the Tailscale network,
+// listens on it and dials through it.
 //
-// It drives the installed `tailscale` command instead of embedding tsnet:
-// tsnet pulls the whole tailscale.com module (hundreds of packages) into
-// the build, while the command is already present wherever Tailscale runs.
-// The Network type keeps the same shape an embedded implementation would
-// have, so it can be swapped later without touching callers.
+// Two implementations share the Tailnet interface:
+//
+//   - Network drives the installed `tailscale` command. The operating
+//     system routes the Tailscale addresses, so listening and dialing are
+//     plain TCP.
+//   - Embedded (built with the `tsnet` build tag) makes Barnraise itself a
+//     device of the tailnet with tailscale.com/tsnet: nothing else to
+//     install. Its addresses exist only inside the process, so every
+//     listener and every connection to a peer must go through it.
+//
+// tsnet pulls the whole tailscale.com module (hundreds of packages, about
+// 13 MB of binary) in, so the default build leaves it out; release builds
+// carry it. Config.Resolve picks the implementation (see select.go).
 package tailnet
 
 import (
@@ -23,6 +31,9 @@ import (
 
 // Tag is the ACL tag every Barnraise machine carries.
 const Tag = "tag:barnraise"
+
+// PairingPort is the TCP port of `barnraise machine invite`.
+const PairingPort = 47900
 
 // ErrUnavailable means Tailscale is not installed or not running.
 var ErrUnavailable = errors.New("tailnet: tailscale is not available")
@@ -61,6 +72,25 @@ func IPv4(ips []string) string {
 	}
 	return ""
 }
+
+// Tailnet is this machine's view of the Tailscale network, whichever way it
+// is joined.
+type Tailnet interface {
+	// Mode says which implementation this is (ModeTailscale or ModeTsnet).
+	Mode() Mode
+	// Available reports whether the tailnet is up and this machine has an address.
+	Available() bool
+	// Status returns this machine and the other devices of the tailnet.
+	Status(ctx context.Context) (Self, []Peer, error)
+	// Listen listens on this machine's tailnet address (":port").
+	Listen(ctx context.Context, addr string) (net.Listener, error)
+	// Dial connects to a tailnet address (or any other address).
+	Dial(ctx context.Context, network, addr string) (net.Conn, error)
+	// Close leaves the tailnet when this process joined it itself.
+	Close() error
+}
+
+var _ Tailnet = (*Network)(nil)
 
 // Runner runs a command and returns its stdout.
 type Runner func(ctx context.Context, name string, args ...string) ([]byte, error)
@@ -150,6 +180,19 @@ func (n *Network) Listen(ctx context.Context, addr string) (net.Listener, error)
 	return lc.Listen(ctx, "tcp", net.JoinHostPort(host, port))
 }
 
+// Dial connects with the system dialer: the installed Tailscale routes the
+// tailnet addresses for the whole machine.
+func (n *Network) Dial(ctx context.Context, network, addr string) (net.Conn, error) {
+	var d net.Dialer
+	return d.DialContext(ctx, network, addr)
+}
+
+// Mode is ModeTailscale.
+func (n *Network) Mode() Mode { return ModeTailscale }
+
+// Close does nothing: the installed Tailscale outlives this process.
+func (n *Network) Close() error { return nil }
+
 type rawStatus struct {
 	BackendState string             `json:"BackendState"`
 	TailscaleIPs []string           `json:"TailscaleIPs"`
@@ -221,13 +264,14 @@ func BarnraisePeers(peers []Peer) []Peer {
 // ACLSnippet is the recommended tailnet policy for the owner: machines
 // tagged tag:barnraise reach each other only on the Barnraise ports, and
 // nothing else in the owner's tailnet is reachable from them. ports are the
-// TCP ports to open (NATS, pairing, API); defaults to 4222 and 47913.
+// TCP ports to open (NATS, pairing, API); defaults to 4222 (NATS) and
+// 47900 (pairing).
 func ACLSnippet(owner string, ports ...int) string {
 	if owner == "" {
 		owner = "autogroup:admin"
 	}
 	if len(ports) == 0 {
-		ports = []int{4222, 47913}
+		ports = []int{4222, PairingPort}
 	}
 	dst := make([]string, len(ports))
 	for i, p := range ports {

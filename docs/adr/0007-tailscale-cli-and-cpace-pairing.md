@@ -1,6 +1,6 @@
 # ADR-0007: Tailscale through its CLI, pairing by CPace over TCP
 
-- Status: accepted
+- Status: accepted; amended by [ADR-0025](0025-embedded-tailscale-behind-a-build-tag.md) (embedded Tailscale)
 - Date: 2026-11-23
 
 ## Context

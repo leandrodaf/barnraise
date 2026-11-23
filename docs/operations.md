@@ -25,7 +25,7 @@ cosign verify-blob \
   checksums.txt
 ```
 
-Or build from source: `make build` (Go 1.27).
+Or build from source: `make build` (Go 1.27), or `make build-tsnet` for the release build with the embedded Tailscale.
 
 ## Running the daemon
 
@@ -140,6 +140,45 @@ Each account gets its own config dir (`CLAUDE_CONFIG_DIR`, `CODEX_HOME` or `GEMI
 
 Where no headless login exists, log in on a machine with a browser and copy that account's config dir to the server over a secure channel.
 
+## Machines on a tailnet
+
+Machines in different places reach each other over a Tailscale network (a tailnet) without opening router ports. `network:` in `daemon.yaml` (`barnraise machine network [auto|tailscale|tsnet|lan]`) says how:
+
+| Network | What happens |
+| --- | --- |
+| `tailscale` | The installed `tailscale` command. NATS listens on the machine's Tailscale address |
+| `tsnet` | The embedded Tailscale: Barnraise itself is a device of the tailnet, named after the machine and advertising `tag:barnraise`. NATS stays on loopback and peers arrive through the device; the daemon also relays the device's pairing port (47900) to `machine invite` |
+| `lan` | No tailnet: the local network or a direct address, with the same pairing code |
+| auto (empty) | `tailscale` when the command is installed, else `tsnet` when it has an auth key or logged in before, else `lan` |
+
+`BARNRAISE_NO_TAILSCALE=1` turns every tailnet off. The embedded Tailscale is in the release binaries and in `make build-tsnet`; plain `make build` leaves it out (about 13 MB lighter) and `network: tsnet` then fails with a message saying so.
+
+The first time, the embedded device logs in with an auth key. Create one in the Tailscale admin console (or `headscale preauthkeys create`), tagged `tag:barnraise`, reusable when several machines share it, and give it to Barnraise:
+
+```sh
+barnraise machine network-key          # reads the key from standard input into the system keychain
+# or, for one run or a service unit:
+export BARNRAISE_TS_AUTHKEY=tskey-auth-...
+barnraise machine network tsnet        # optional: auto picks it once there is a key
+```
+
+The key is read from `BARNRAISE_TS_AUTHKEY` (then `TS_AUTHKEY`), then the keychain entry `tailscale/authkey`; it is never written to `daemon.yaml`, passed on a command line or logged. After the first login the device's own keys in the state directory are enough, and the auth key may expire or be removed (`barnraise machine network-key --forget`). Without any key, the daemon logs a login URL and waits up to a minute.
+
+Pairing over the tailnet:
+
+```sh
+# machine A
+barnraise machine invite
+# machine B, with only barnraise and an auth key
+barnraise machine join 482913          # joins the tailnet, finds A among the tag:barnraise machines, joins the cluster
+```
+
+`machine join` without `--addr` tries the online `tag:barnraise` machines of the tailnet on port 47900, then invite beacons on the local network. When the daemon already holds the embedded device, `machine invite` listens on loopback and the daemon relays the tailnet's pairing port to it; `machine join` opens a short-lived ephemeral device (`<machine>-pairing`, needs the auth key) or falls back to the local network.
+
+**Headscale.** `barnraise machine network tsnet --control-url https://headscale.example.com` points the embedded device at a self-hosted control server; nothing then goes to Tailscale's servers. The embedded device never uploads logs to Tailscale either way.
+
+**ACL.** `barnraise cluster acl` prints a policy where only `tag:barnraise` reaches the Barnraise ports (NATS 4222 and pairing 47900) and owns nothing else; paste it into the tailnet's policy (Headscale: its policy file).
+
 ## Where the data lives
 
 Nothing of this is in the repository.
@@ -158,12 +197,13 @@ Inside the data dir:
 | `nats/` | JetStream storage: the event stream mirrored with other machines |
 | `blobs/` | Object store: logs, screenshots, diffs and binaries by content hash |
 | `cursors.json` | How far this machine has read each peer's stream |
+| `tsnet/` (0700) | The embedded Tailscale's state: the device's private keys (`tailscaled.state`), `self.json` (its tailnet name and addresses, for the commands while the daemon holds the device) and a lock file. Treat it like `daemon.yaml`: whoever copies it can be this machine on the tailnet. `tsnet-pairing/` is a short-lived ephemeral device, removed after `machine join` |
 | `worktrees/<project>/<item>/` | Item worktrees (with `.barnraise-session/` for the agent's settings) |
 | `logs/<project>/` | Full logs of checks and filtered commands |
 | `accounts/<id>/` | Provider config dirs of each account |
 | `daemon.log`, `daemon.pid` | Log and pid of a background daemon |
 
-Environment variables used by the CLI and the hooks: `BARNRAISE_URL`, `BARNRAISE_SOCKET`, `BARNRAISE_TOKEN`, `BARNRAISE_PROJECT`; inside agent sessions also `BARNRAISE_ITEM`, `BARNRAISE_STEP`, `BARNRAISE_ROLE`, `BARNRAISE_AGENT`, `BARNRAISE_POLICY`. `BARNRAISE_NO_TAILSCALE=1` ignores an installed Tailscale; `BARNRAISE_NO_SELF_UPDATE=1` turns off the cluster self-update; `BARNRAISE_EGRESS` is the default of `daemon --egress`.
+Environment variables used by the CLI and the hooks: `BARNRAISE_URL`, `BARNRAISE_SOCKET`, `BARNRAISE_TOKEN`, `BARNRAISE_PROJECT`; inside agent sessions also `BARNRAISE_ITEM`, `BARNRAISE_STEP`, `BARNRAISE_ROLE`, `BARNRAISE_AGENT`, `BARNRAISE_POLICY`. `BARNRAISE_NO_TAILSCALE=1` turns Tailscale off (installed or embedded); `BARNRAISE_TS_AUTHKEY` is the embedded Tailscale's auth key; `BARNRAISE_NO_SELF_UPDATE=1` turns off the cluster self-update; `BARNRAISE_EGRESS` is the default of `daemon --egress`.
 
 ## Backups
 

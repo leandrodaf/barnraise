@@ -79,6 +79,31 @@ jobs:
         with:
           key: ${{ steps.go.outputs.key }}
 
+  tsnet:
+    name: embedded Tailscale (tsnet build tag)
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+      - id: go
+        uses: ./.github/actions/go-setup
+        with:
+          name: tsnet
+      - name: go build, go vet and the local test tailnet, with -tags tsnet
+        run: make tsnet-check
+      - name: golangci-lint with -tags tsnet
+        uses: golangci/golangci-lint-action@v9
+        with:
+          version: v2.15
+          args: --build-tags tsnet
+      - name: release-sized binary (linux/amd64)
+        run: make build-tsnet && ls -l barnraise
+      - uses: ./.github/actions/go-cache-save
+        with:
+          key: ${{ steps.go.outputs.key }}
+
   proto:
     name: buf lint and breaking
     needs: changes

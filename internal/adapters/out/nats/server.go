@@ -9,9 +9,13 @@
 package nats
 
 import (
+	"context"
 	"errors"
 	"fmt"
+	"io"
+	"net"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/nats-io/nats-server/v2/server"
@@ -136,6 +140,55 @@ func (s *Server) Connect(opts ...nats.Option) (*nats.Conn, error) {
 		all = append(all, nats.Nkey(pub, s.localKey.Sign))
 	}
 	return nats.Connect("", append(all, opts...)...)
+}
+
+// ServeListener hands every connection accepted on ln to the server, as if
+// it had arrived on the server's own port, until ln is closed. It is how
+// peers reach this server through a listener the server does not own, such
+// as the embedded Tailscale device: authentication and permissions apply
+// exactly as on the TCP port.
+func (s *Server) ServeListener(ln net.Listener) error {
+	for {
+		c, err := ln.Accept()
+		if err != nil {
+			if errors.Is(err, net.ErrClosed) {
+				return nil
+			}
+			return err
+		}
+		ic, err := s.srv.InProcessConn()
+		if err != nil {
+			c.Close()
+			continue
+		}
+		go splice(c, ic)
+	}
+}
+
+// splice copies both ways and closes both connections when either side ends.
+func splice(a, b net.Conn) {
+	var once sync.Once
+	closeBoth := func() { a.Close(); b.Close() }
+	go func() { _, _ = io.Copy(a, b); once.Do(closeBoth) }()
+	_, _ = io.Copy(b, a)
+	once.Do(closeBoth)
+}
+
+// DialFunc dials a connection, like net.Dialer.DialContext.
+type DialFunc func(ctx context.Context, network, addr string) (net.Conn, error)
+
+type customDialer struct{ dial DialFunc }
+
+func (d customDialer) Dial(network, addr string) (net.Conn, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	return d.dial(ctx, network, addr)
+}
+
+// DialerOption makes a client connect through dial instead of the system
+// dialer: peers on the embedded Tailscale are reachable only through it.
+func DialerOption(dial DialFunc) nats.Option {
+	return nats.SetCustomDialer(customDialer{dial: dial})
 }
 
 // Shutdown stops the server and waits for it to finish.
