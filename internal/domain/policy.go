@@ -40,9 +40,9 @@ type Policy struct {
 	// PrivateTmp: the session runs in a container whose /tmp and /var/tmp
 	// are its own, in memory. Only then may an agent write scratch files
 	// there; on the machine itself /tmp is shared with the owner.
-	PrivateTmp bool `json:"private_tmp,omitempty"`
-	MainBranch   string   `json:"main_branch,omitempty"`
-	SelfPaths    []string `json:"self_paths,omitempty"` // the Barnraise binary, its config and state
+	PrivateTmp bool     `json:"private_tmp,omitempty"`
+	MainBranch string   `json:"main_branch,omitempty"`
+	SelfPaths  []string `json:"self_paths,omitempty"` // the Barnraise binary, its config and state
 }
 
 // DefaultPolicy blocks what is never the agent's.
