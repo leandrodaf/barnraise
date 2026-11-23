@@ -293,6 +293,27 @@ func (e *env) next(role, want string) *Assignment {
 	return a
 }
 
+// nextBusy is next without freeing the item: its session keeps running.
+func (e *env) nextBusy(role, want string) *Assignment {
+	e.t.Helper()
+	a, err := e.svc.NextWork(e.ctx, "demo", slot(role))
+	if err != nil || (want != "" && a.Item.ID != want) {
+		e.t.Fatalf("next work for %s = %+v, %v; want %s", role, a, err, want)
+	}
+	return a
+}
+
+// start claims a ready item for an implementer slot, even when other work is held.
+func (e *env) start(id string) *Assignment {
+	e.t.Helper()
+	a, err := e.svc.claim(e.ctx, e.p, id, slot("implementer"))
+	if err != nil {
+		e.t.Fatalf("claim %s: %v", id, err)
+	}
+	e.svc.doneRunning(e.p, id, "")
+	return a
+}
+
 // workspace creates the item's worktree and writes files in it.
 func (e *env) workspace(id string, files map[string]string) string {
 	e.t.Helper()

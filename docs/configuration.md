@@ -332,10 +332,10 @@ An area maps to folders, screens, contracts and a standard. Areas can also live 
 
 ```yaml
 areas:
-  cards:
-    paths: [app/src/main/java/app/cards/**]
-    screens: [Cards screen]
-    standard: .barnraise/standards/cards.md
+  payments:
+    paths: [app/src/main/java/app/payments/**]
+    screens: [Payments screen]
+    standard: .barnraise/standards/payments.md
 ```
 
 ## merge

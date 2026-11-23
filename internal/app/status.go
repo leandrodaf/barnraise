@@ -80,7 +80,7 @@ func (s *Service) GetStatus(ctx context.Context, project string, a Actor) (Statu
 	}
 	sort.Slice(st.Agents, func(i, j int) bool { return st.Agents[i].Agent < st.Agents[j].Agent })
 	st.Accounts = snap.AccountList()
-	ttl := p.Cfg.Lease.TTL
+	ttl := p.Cfg().Lease.TTL
 	for _, name := range sortedKeys(snap.Machines) {
 		m := snap.Machines[name]
 		st.Machines = append(st.Machines, MachineView{Machine: *m, Health: m.Health(now, ttl)})
@@ -381,7 +381,7 @@ func (s *Service) EstimateItem(ctx context.Context, project string, a Actor, id 
 	}
 	e := Estimate{ItemID: id, BasedOnItems: len(tokens)}
 	if len(tokens) == 0 {
-		lo, hi, _ := domain.ParseSizeRange(p.Cfg.TargetSize)
+		lo, hi, _ := domain.ParseSizeRange(p.Cfg().TargetSize)
 		e.Hours = (lo + hi) / 2
 		return e, nil
 	}

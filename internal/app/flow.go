@@ -38,7 +38,7 @@ func (s *Service) finishStep(ctx context.Context, p *Project, o stepOutcome) (*d
 		p.mu.Unlock()
 		return nil, domain.Transition{}, fmt.Errorf("%w: %s is %s", ErrConflict, cur.ID, cur.Status)
 	}
-	f, err := p.Cfg.FlowFor(cur.Kind)
+	f, err := p.Cfg().FlowFor(cur.Kind)
 	if err != nil {
 		p.mu.Unlock()
 		return nil, domain.Transition{}, err
@@ -245,7 +245,7 @@ func (s *Service) Deliver(ctx context.Context, project string, a Actor, d domain
 		p.mu.Unlock()
 		return nil, fmt.Errorf("%w: your session is for step %s", ErrForbidden, a.Step)
 	}
-	f, _ := p.Cfg.FlowFor(cur.Kind)
+	f, _ := p.Cfg().FlowFor(cur.Kind)
 	var st domain.StepDef
 	if f != nil {
 		st, _ = f.Step(d.Step)
@@ -313,7 +313,7 @@ func providerOf(a Actor) string {
 
 // afterDelivery publishes the step on the PR and marks it ready on DONE.
 func (s *Service) afterDelivery(ctx context.Context, p *Project, it *domain.Item, d domain.Delivery, tr domain.Transition) {
-	if p.Ports.CodeHost == nil || it.PR == "" {
+	if p.Ports().CodeHost == nil || it.PR == "" {
 		return
 	}
 	pr := prFromRef(it.PR)
@@ -323,16 +323,16 @@ func (s *Service) afterDelivery(ctx context.Context, p *Project, it *domain.Item
 		if len(d.Concerns) > 0 {
 			body += "\n\nConcerns:\n- " + strings.Join(d.Concerns, "\n- ")
 		}
-		_ = p.Ports.CodeHost.Comment(ctx, pr, body)
-		_ = p.Ports.CodeHost.UpdatePR(ctx, pr, prTitle(it), prBody(p, it))
+		_ = p.Ports().CodeHost.Comment(ctx, pr, body)
+		_ = p.Ports().CodeHost.UpdatePR(ctx, pr, prTitle(it), prBody(p, it))
 		if d.Status == domain.DeliveryDone && isImplementStep(p, it, d.Step) {
-			_ = p.Ports.CodeHost.MarkReady(ctx, pr)
+			_ = p.Ports().CodeHost.MarkReady(ctx, pr)
 		}
 	}()
 }
 
 func isImplementStep(p *Project, it *domain.Item, step string) bool {
-	f, err := p.Cfg.FlowFor(it.Kind)
+	f, err := p.Cfg().FlowFor(it.Kind)
 	if err != nil {
 		return false
 	}
@@ -375,7 +375,7 @@ func (s *Service) Review(ctx context.Context, project string, a Actor, r domain.
 		p.mu.Unlock()
 		return nil, fmt.Errorf("%w: %s is at step %s (%s), not %s; this review is late", ErrConflict, cur.ID, cur.Step, cur.Status, r.Step)
 	}
-	f, _ := p.Cfg.FlowFor(cur.Kind)
+	f, _ := p.Cfg().FlowFor(cur.Kind)
 	var st domain.StepDef
 	if f != nil {
 		st, _ = f.Step(r.Step)
@@ -396,7 +396,7 @@ func (s *Service) Review(ctx context.Context, project string, a Actor, r domain.
 			return nil, fmt.Errorf("%w: step %s must be reviewed by a different model than %s", ErrForbidden, r.Step, d)
 		}
 	}
-	areaOf := p.Cfg.AreaOfFile
+	areaOf := p.Cfg().AreaOfFile
 	same, other := domain.SplitFindings(cur, r.Findings, areaOf)
 	p.mu.Unlock()
 	r.Reviewer = actorName(a)
@@ -423,10 +423,10 @@ func (s *Service) Review(ctx context.Context, project string, a Actor, r domain.
 	if err != nil {
 		return nil, err
 	}
-	if p.Ports.CodeHost != nil && it.PR != "" {
+	if p.Ports().CodeHost != nil && it.PR != "" {
 		pr := prFromRef(it.PR)
 		body := fmt.Sprintf("**%s · %s** — %s\n\nCriteria: %s · Code: %s\n\n%s\n%s", r.Step, r.Decision, r.Reviewer, r.Criteria, r.Code, r.Summary, domain.FormatFindings(r.Findings))
-		go func() { _ = p.Ports.CodeHost.Review(context.Background(), pr, r.Decision == domain.ReviewApprove, body) }()
+		go func() { _ = p.Ports().CodeHost.Review(context.Background(), pr, r.Decision == domain.ReviewApprove, body) }()
 	}
 	_ = tr
 	return it, nil
@@ -463,7 +463,7 @@ func (s *Service) resolvePendingCheck(ctx context.Context, p *Project, res domai
 		p.mu.Unlock()
 		return nil, fmt.Errorf("%w: item %s", ErrNotFound, res.ItemID)
 	}
-	f, _ := p.Cfg.FlowFor(it.Kind)
+	f, _ := p.Cfg().FlowFor(it.Kind)
 	st, _ := f.Step(it.Step)
 	p.mu.Unlock()
 	if st.Type != domain.StepCheck {
@@ -492,7 +492,7 @@ func containsStr(s []string, v string) bool { return domain.Contains(s, v) }
 func (s *Service) checkNames(p *Project, st domain.StepDef) []string {
 	name := domain.TrimChecks(st.Run)
 	if name == "all" || name == "checks" {
-		return sortedKeys(p.Cfg.Checks)
+		return sortedKeys(p.Cfg().Checks)
 	}
 	return []string{name}
 }

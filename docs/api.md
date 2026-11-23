@@ -98,7 +98,7 @@ curl -s -X POST https://barnraise.example/barnraise.v1.BarnraiseService/ReportCh
   -d '{"project":"demo","result":{"item_id":"I-42","check":"unit","passed":true,"summary":"212 tests passed","commit":"3f2c9e1"}}'
 ```
 
-**Field names.** Requests accept the proto field names in snake_case (`item_id`, `done_when`), which match the JSON the daemon uses in its events, and also the lowerCamelCase form (`itemId`). Responses use the standard proto3 JSON mapping, lowerCamelCase (`goalId`, `doneWhen`); event payloads (`data` of a CloudEvent) keep the daemon's snake_case. Unknown request fields are ignored, so a typo silently does nothing: check the OpenAPI document for exact shapes.
+**Field names** are the proto field names in snake_case (`item_id`, `goal_id`, `done_when`), the same JSON the daemon uses in its events. Responses always use them; requests also accept the lowerCamelCase form (`itemId`). Empty fields and zero times are left out of responses. Unknown request fields are ignored, so a typo silently does nothing: check the OpenAPI document for exact shapes.
 
 **Errors** from a method use the Connect error format: an HTTP status plus `{"code": "permission_denied", "message": "forbidden: token \"ci\" lacks items:read"}` (`invalid_argument`, `not_found`, `failed_precondition`, …). A missing or invalid token is refused before the method runs, with `401` and `{"error": "invalid or expired token"}`; the rate limit answers `429` the same way.
 

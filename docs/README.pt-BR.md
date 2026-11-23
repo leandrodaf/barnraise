@@ -59,6 +59,9 @@ Próximos passos úteis:
 | `barnraise chat` | Conversa com o Barnraise em linguagem natural: foco, pausa, aprovação, estado |
 | `barnraise pause` / `barnraise resume` | Botão de emergência para todos os agentes |
 | `barnraise explain` | A configuração em vigor, com os padrões preenchidos |
+| `barnraise image reduce <arquivo>` / `image crop <arquivo> x,y,w,h` | Prints para agentes: cópia com no máximo 720 px de largura por padrão, regiões em resolução cheia só nas telas sinalizadas |
+
+Itens sem critérios ficam como rascunho: um analista livre os refina (critérios EARS ligados a verificações, âncoras e perguntas ao dono em vez de chutes) numa cópia só de leitura da main, sem branch nem PR. Itens criados com `--risky` fazem a implementação em duas tentativas em worktrees paralelos, e as verificações e os revisores escolhem; nunca por padrão, porque dobra o uso.
 
 Todo comando imprime texto para pessoas e JSON com `--json`. Rode `barnraise <comando> --help` para ver as opções.
 
@@ -142,6 +145,7 @@ O Barnraise funciona com uma, duas ou cinquenta máquinas e nunca exige uma terc
 
 - **O git é o árbitro.** Pegar um item cria `refs/barnraise/claims/<item>` com uma troca atômica de valor esperado (`git push --force-with-lease` no remoto, `git update-ref` com o valor antigo esperado quando não há remoto). Quem chega primeiro ganha; a outra máquina recebe a recusa na hora. A reserva é renovada a cada 30 s; sem renovação por 2 min (medidos no relógio local de cada máquina), outra máquina pode tomar o item e retoma da última etapa commitada. Os serviços globais da casa (sincronizar o rastreador, vencer propostas) ficam com quem tiver `refs/barnraise/lease/housekeeping`. A main só avança por fast-forward.
 - **Estado em todas as máquinas.** Cada máquina tem seu JetStream; os eventos são espelhados sempre que as máquinas se veem, e cada uma continua funcionando sozinha se ficar isolada.
+- **Versão única.** Cada daemon publica o próprio binário no seu Object Store; uma máquina que vê outra da mesma plataforma com versão mais nova baixa o binário pelo hash, confere, troca o executável e reinicia, só quando nenhuma sessão de agente está rodando (`BARNRAISE_NO_SELF_UPDATE=1` desliga).
 - **Pareamento com código de 6 dígitos.** `barnraise machine invite` mostra um código; na outra máquina, `barnraise machine join 482913` (com `--addr host:47900` quando a descoberta na rede local não achar quem convidou). Os dois lados rodam CPace, uma troca de chaves autenticada por senha, sobre TCP com o código como senha, e trocam as nkeys do NATS seladas com ChaCha20-Poly1305. Um código errado falha sem revelar nada; quem convida aceita três tentativas erradas e o código vence em 10 minutos.
 - **Tailscale recomendado.** Quando a CLI `tailscale` está instalada e rodando, o NATS escuta no endereço Tailscale da máquina. `barnraise cluster acl` mostra a ACL recomendada: só `tag:barnraise` alcança as portas do Barnraise. Sem Tailscale, o mesmo pareamento funciona na rede local ou em qualquer VPN.
 - **Sair é fácil.** `barnraise machine leave` devolve antes os itens da máquina para a fila. `barnraise cluster status` mostra cada máquina em verde, amarelo ou vermelho.
@@ -154,16 +158,17 @@ Os agentes leem texto não confiável, poderiam alcançar dados privados e poder
 2. **Um usuário Linux por conta de agente** com `barnraise account add --isolate`, sem acesso à home do dono.
 3. **Hook que bloqueia (PreToolUse)**, o `barnraise hook pre-tool`, que vale mesmo com `--dangerously-skip-permissions`: nada de escrever em workflows, `.barnraise/`, keystores, `.env*` ou testes existentes; nada de `git push` para a main, `gh secret`, `curl | sh`, `sudo`; nada de ler `~/.ssh`, `~/.config/gh` ou as credenciais dos provedores.
 4. **Sandbox nativo.** O sandbox do Claude Code (bubblewrap no Linux) é ligado com `failIfUnavailable` sempre que o `bwrap` funciona de verdade na máquina; o Codex roda com `--sandbox workspace-write`, nunca em modo bypass.
-5. **Texto de fora é limpo e cercado.** Comentários HTML e caracteres invisíveis saem das issues e comentários, e o agente vê o texto externo entre cercas explícitas.
-6. **Permissão por papel no daemon.** O implementador não tem o escopo `approve` e nem enxerga a ferramenta `approve`. Só o daemon integra na main.
-7. **Varredura de segredos antes de cada push**: commit cujo diff ou arquivos tenham um segredo é bloqueado, e o dono é avisado.
-8. **Tokens da API com escopo, registro de auditoria, webhooks assinados com HMAC e nkeys entre máquinas.**
+5. **Rede restrita.** `barnraise daemon --egress 127.0.0.1:7421` faz o tráfego dos agentes passar por um proxy com lista de sites permitidos, e `barnraise egress rules --user <usuário-do-agente> --apply` instala regras `nftables` para que esse usuário não alcance mais nada.
+6. **Texto de fora é limpo e cercado.** Comentários HTML e caracteres invisíveis saem das issues e comentários, e o agente vê o texto externo entre cercas explícitas.
+7. **Permissão por papel no daemon.** O implementador não tem o escopo `approve` e nem enxerga a ferramenta `approve`. Só o daemon integra na main.
+8. **Varredura de segredos antes de cada push**: commit cujo diff ou arquivos tenham um segredo é bloqueado, e o dono é avisado.
+9. **Tokens da API com escopo, registro de auditoria, webhooks assinados com HMAC e nkeys entre máquinas.**
 
 ## API
 
 Tudo o que a CLI, o MCP e o painel fazem passa por uma única API pública. Detalhes (em inglês) em [api.md](api.md).
 
-- **Connect RPC a partir do protobuf** ([proto/barnraise/v1/barnraise.proto](../proto/barnraise/v1/barnraise.proto)): o mesmo serviço responde gRPC, gRPC-Web e HTTP simples com JSON. Dá para chamar com `curl`:
+- **Connect RPC a partir do protobuf** ([proto/barnraise/v1/barnraise.proto](../proto/barnraise/v1/barnraise.proto)): o mesmo serviço responde gRPC, gRPC-Web e HTTP simples com JSON, com os nomes de campo em snake_case usados nos eventos. Dá para chamar com `curl`:
 
   ```sh
   curl -s --unix-socket ~/.local/share/barnraise/barnraise.sock \

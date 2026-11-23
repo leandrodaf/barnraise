@@ -57,7 +57,7 @@ func TestClusterSingleVersion(t *testing.T) {
 		cfg := fmt.Sprintf("machine: %s\nlisten: off\nnats_host: 127.0.0.1\nnats_port: %d\nprojects: [%s]\n", name, freePort(t), root)
 		os.WriteFile(filepath.Join(dir, "cfg", "daemon.yaml"), []byte(cfg), 0o600)
 		env := append(os.Environ(), "BARNRAISE_CONFIG_DIR="+filepath.Join(dir, "cfg"), "BARNRAISE_DATA_DIR="+filepath.Join(dir, "data"),
-			"XDG_RUNTIME_DIR="+dir, "BARNRAISE_FAKE_PROVIDER=1", "BARNRAISE_NO_TAILSCALE=1", "BARNRAISE_PROJECT=", "BARNRAISE_TOKEN=")
+			"XDG_RUNTIME_DIR="+dir, "BARNRAISE_FAKE_PROVIDER=1", "BARNRAISE_NO_TAILSCALE=1", "BARNRAISE_NO_AUTOSTART=1", "BARNRAISE_PROJECT=", "BARNRAISE_TOKEN=")
 		return &machineEnv{name: name, root: root, env: env}
 	}
 	alpha, beta := mk("alpha"), mk("beta")

@@ -1,0 +1,76 @@
+name: Barnraise check
+description: Report the result of a Barnraise check (checks:report) to the daemon's API.
+author: Leandro Ferreira
+branding:
+  icon: check-circle
+  color: green
+
+inputs:
+  url:
+    description: Base URL of the Barnraise API, e.g. https://barnraise.example (TLS, or behind Tailscale)
+    required: true
+  token:
+    description: A Barnraise API token with the checks:report scope for this project
+    required: true
+  project:
+    description: Barnraise project name
+    required: true
+  item:
+    description: Item id (I-42); the daemon sends it as the workflow_dispatch input "item"
+    required: true
+  check:
+    description: Check name from barnraise.yaml; sent as the workflow_dispatch input "check"
+    required: true
+  passed:
+    description: '"true" when the check passed; for example: ${{ job.status == ''success'' }}'
+    required: true
+  summary:
+    description: One line about the result (tests passed, the first failure, a link to the log)
+    required: false
+    default: ""
+  commit:
+    description: Commit that was checked (default github.sha)
+    required: false
+    default: ""
+
+outputs:
+  status:
+    description: HTTP status returned by the API
+    value: ${{ steps.report.outputs.status }}
+
+runs:
+  using: composite
+  steps:
+    - id: report
+      shell: bash
+      env:
+        BR_URL: ${{ inputs.url }}
+        BR_TOKEN: ${{ inputs.token }}
+        BR_PROJECT: ${{ inputs.project }}
+        BR_ITEM: ${{ inputs.item }}
+        BR_CHECK: ${{ inputs.check }}
+        BR_PASSED: ${{ inputs.passed }}
+        BR_SUMMARY: ${{ inputs.summary }}
+        BR_COMMIT: ${{ inputs.commit || github.sha }}
+      run: |
+        set -euo pipefail
+        case "$(printf '%s' "$BR_PASSED" | tr '[:upper:]' '[:lower:]')" in
+          true|1|yes|success) passed=true ;;
+          *) passed=false ;;
+        esac
+        body=$(jq -n \
+          --arg project "$BR_PROJECT" --arg item "$BR_ITEM" --arg check "$BR_CHECK" \
+          --arg summary "$BR_SUMMARY" --arg commit "$BR_COMMIT" --argjson passed "$passed" \
+          '{project: $project, result: {item_id: $item, check: $check, passed: $passed, summary: $summary, commit: $commit}}')
+        status=$(curl -sS -o "$RUNNER_TEMP/barnraise-check.json" -w '%{http_code}' \
+          -X POST "${BR_URL%/}/barnraise.v1.BarnraiseService/ReportCheck" \
+          -H 'Content-Type: application/json' \
+          -H "Authorization: Bearer $BR_TOKEN" \
+          --retry 3 --retry-all-errors \
+          -d "$body")
+        echo "status=$status" >> "$GITHUB_OUTPUT"
+        if [ "$status" -ge 300 ]; then
+          echo "::error::Barnraise answered $status: $(cat "$RUNNER_TEMP/barnraise-check.json")"
+          exit 1
+        fi
+        echo "Reported $BR_CHECK on $BR_ITEM ($BR_COMMIT): passed=$passed"

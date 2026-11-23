@@ -374,7 +374,7 @@ func (s *Server) projectForRepo(repo string) string {
 		if err != nil {
 			continue
 		}
-		if strings.EqualFold(p.Cfg.CodeHost.Repo, repo) || strings.EqualFold(p.Cfg.Tracker.Repo, repo) {
+		if strings.EqualFold(p.Cfg().CodeHost.Repo, repo) || strings.EqualFold(p.Cfg().Tracker.Repo, repo) {
 			return name
 		}
 	}
@@ -389,7 +389,7 @@ func (s *Server) applyGitHub(ctx context.Context, project string, ev github.Even
 	a := actorFrom(ctx)
 	switch ev.Type {
 	case "push":
-		if ev.Branch == p.Cfg.MainBranch && len(ev.Files) > 0 {
+		if ev.Branch == p.Cfg().MainBranch && len(ev.Files) > 0 {
 			// Main moved outside the merge queue (a person merged): revalidate.
 			_, err := s.svc.Revalidate(ctx, project, app.System(), domain.Change{Kind: "integration", Cause: "push to main " + ev.SHA, Commit: ev.SHA, Files: ev.Files})
 			return err
@@ -402,7 +402,7 @@ func (s *Server) applyGitHub(ctx context.Context, project string, ev github.Even
 		if m == nil {
 			return nil
 		}
-		for name, def := range p.Cfg.Checks {
+		for name, def := range p.Cfg().Checks {
 			if def.RunsOn != "github-actions" {
 				continue
 			}
@@ -421,7 +421,7 @@ func (s *Server) applyGitHub(ctx context.Context, project string, ev github.Even
 		}
 	case "issue_comment":
 		// "/barnraise approve plan I-42" from a trusted author.
-		if !domain.Contains(p.Cfg.Tracker.Trusted, ev.Author) {
+		if !domain.Contains(p.Cfg().Tracker.Trusted, ev.Author) {
 			return nil
 		}
 		f := strings.Fields(strings.TrimSpace(ev.Body))
@@ -474,7 +474,7 @@ func (s *Server) handleGitLab(w http.ResponseWriter, r *http.Request) {
 	if hook.ObjectKind == "pipeline" && (hook.ObjectAttributes.Status == "success" || hook.ObjectAttributes.Status == "failed") {
 		if m := itemBranch.FindStringSubmatch(hook.ObjectAttributes.Ref); m != nil {
 			p, _ := s.svc.Project(project)
-			for name, def := range p.Cfg.Checks {
+			for name, def := range p.Cfg().Checks {
 				if def.RunsOn == "github-actions" || def.RunsOn == "gitlab-ci" {
 					_, _ = s.svc.ReportCheck(ctx, project, actorFrom(ctx), domain.CheckResult{ItemID: m[1], Check: name, Commit: hook.ObjectAttributes.SHA,
 						Passed: hook.ObjectAttributes.Status == "success", Summary: "pipeline " + hook.ObjectAttributes.Status, RunsOn: def.RunsOn})

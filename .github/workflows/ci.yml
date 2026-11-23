@@ -1,0 +1,138 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint:
+    name: vet, lint, vuln
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.26"
+      - name: go vet
+        run: go vet ./...
+      - name: golangci-lint (with the depguard architecture rules)
+        uses: golangci/golangci-lint-action@v8
+        with:
+          version: v2.13
+      - name: govulncheck
+        run: go run golang.org/x/vuln/cmd/govulncheck@latest ./...
+
+  proto:
+    name: buf lint and breaking
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: bufbuild/buf-action@v1
+        with:
+          setup_only: true
+      - name: buf lint
+        run: buf lint
+      - name: buf breaking against main
+        run: |
+          if [ "$(git rev-list --count HEAD)" -le 1 ]; then
+            echo "First commit; nothing to compare against."
+            exit 0
+          fi
+          if [ "${{ github.event_name }}" = "push" ]; then
+            # On main itself, compare with the previous commit.
+            buf breaking --against ".git#ref=HEAD~1"
+          else
+            if ! git fetch --no-tags origin main:main 2>/dev/null; then
+              echo "No main branch yet; nothing to compare against."
+              exit 0
+            fi
+            buf breaking --against '.git#branch=main'
+          fi
+
+  test:
+    name: tests with -race and coverage
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.26"
+      - name: git identity for the tests
+        run: |
+          git config --global user.name "barnraise-ci"
+          git config --global user.email "ci@barnraise.invalid"
+          git config --global init.defaultBranch main
+      - name: go test -race
+        run: go test -race -short -covermode=atomic -coverprofile=coverage.out ./...
+      - name: coverage of internal/domain and internal/app (minimum 90%)
+        run: |
+          fail=0
+          for p in ./internal/domain ./internal/app; do
+            n=$(basename "$p")
+            go test -short -covermode=atomic -coverprofile="coverage.$n.out" "$p" >/dev/null
+            pct=$(go tool cover -func="coverage.$n.out" | awk '/^total:/ {sub("%","",$3); print $3}')
+            if awk -v p="$pct" 'BEGIN {exit !(p+0 >= 90)}'; then
+              echo "$p: $pct%"
+            else
+              echo "::error::$p coverage is $pct%, below the 90% minimum"
+              fail=1
+            fi
+          done
+          exit $fail
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: coverage
+          path: coverage*.out
+
+  e2e:
+    name: end-to-end and cluster tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.26"
+      - name: git (the e2e tests drive real git)
+        run: |
+          git --version
+          git config --global user.name "barnraise-ci"
+          git config --global user.email "ci@barnraise.invalid"
+          git config --global init.defaultBranch main
+      - name: e2e
+        env:
+          BARNRAISE_NO_TAILSCALE: "1"
+        run: go test -race -timeout 20m -run 'TestEndToEnd|TestTwoMachines' -v ./cmd/barnraise
+
+  build:
+    name: build ${{ matrix.goos }}/${{ matrix.goarch }}
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        goos: [linux, darwin]
+        goarch: [amd64, arm64]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.26"
+      - name: go build
+        env:
+          CGO_ENABLED: "0"
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+        run: go build -trimpath -ldflags "-s -w -X main.version=${GITHUB_SHA::7}" -o dist/barnraise-${{ matrix.goos }}-${{ matrix.goarch }} ./cmd/barnraise
+      - uses: actions/upload-artifact@v4
+        with:
+          name: barnraise-${{ matrix.goos }}-${{ matrix.goarch }}
+          path: dist/

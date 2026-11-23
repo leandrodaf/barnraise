@@ -45,11 +45,11 @@ func (s *Service) Propose(ctx context.Context, project string, a Actor, in domai
 	defer p.mu.Unlock()
 	props := p.state.ProposalList()
 	if a.Kind == ActorAgent {
-		if err := domain.CheckDailyLimit(props, in.By, now, p.Cfg.Proposals.PerAgentPerDay); err != nil {
+		if err := domain.CheckDailyLimit(props, in.By, now, p.Cfg().Proposals.PerAgentPerDay); err != nil {
 			return ProposeResult{}, fmt.Errorf("%w: %v", ErrConflict, err)
 		}
 	}
-	if m, dup := domain.FindDuplicate(&in, props, p.state.ItemList()); dup && p.Cfg.Proposals.Duplicate == "comment" {
+	if m, dup := domain.FindDuplicate(&in, props, p.state.ItemList()); dup && p.Cfg().Proposals.Duplicate == "comment" {
 		comment := fmt.Sprintf("%s (%s): %s — evidence: %s", in.By, now.Format("2006-01-02"), in.Problem, in.Evidence)
 		if strings.HasPrefix(m.ID, "P-") {
 			cur := *p.state.Proposals[m.ID]
@@ -162,11 +162,11 @@ func (s *Service) expireProposals(ctx context.Context, p *Project) int {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	n := 0
-	for _, pr := range domain.ExpireProposals(p.state.ProposalList(), now, p.Cfg.Proposals.Expire) {
+	for _, pr := range domain.ExpireProposals(p.state.ProposalList(), now, p.Cfg().Proposals.Expire) {
 		c := *pr
 		c.Version++
 		c.Status = domain.ProposalExpired
-		c.Reason = fmt.Sprintf("not approved within %s", p.Cfg.Proposals.Expire)
+		c.Reason = fmt.Sprintf("not approved within %s", p.Cfg().Proposals.Expire)
 		c.DecidedAt = now.UTC()
 		c.DecidedBy = "barnraise"
 		if _, err := s.emitLocked(ctx, p, domain.EvProposalUpdated, c.ID, "barnraise", domain.Payload{Proposal: &c}); err == nil {
@@ -197,7 +197,7 @@ func (s *Service) AddTweak(ctx context.Context, project string, a Actor, area, t
 		return nil, nil, err
 	}
 	pending := domain.PendingTweaks(p.state.TweakList(), area)
-	limit := p.Cfg.Tweaks.BecomeItemAt
+	limit := p.Cfg().Tweaks.BecomeItemAt
 	p.mu.Unlock()
 	if limit > 0 && len(pending) >= limit {
 		// Enough tweaks accumulated: they become one item.
@@ -235,7 +235,7 @@ type InventoryEntry struct {
 func (s *Service) inventory(p *Project, spec string) ([]InventoryEntry, error) {
 	kind, arg, _ := strings.Cut(strings.TrimSpace(spec), " ")
 	arg = strings.TrimSpace(arg)
-	root := p.Cfg.Root
+	root := p.Cfg().Root
 	var out []InventoryEntry
 	switch kind {
 	case "screens", "files":

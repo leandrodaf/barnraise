@@ -13,6 +13,7 @@ import (
 	"log/slog"
 	"sort"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/leandrodaf/barnraise/internal/domain"
@@ -61,9 +62,9 @@ type ProjectPorts struct {
 
 // Project is a repository the daemon drives.
 type Project struct {
-	Name  string
-	Cfg   *domain.ProjectConfig
-	Ports ProjectPorts
+	Name   string
+	cfgV   atomic.Pointer[domain.ProjectConfig]
+	portsV atomic.Pointer[ProjectPorts]
 
 	mu    sync.Mutex
 	state *domain.State
@@ -125,7 +126,9 @@ func (s *Service) AddProject(ctx context.Context, cfg *domain.ProjectConfig, pp 
 	if errs := cfg.Validate(); len(errs) > 0 {
 		return nil, fmt.Errorf("project %s: %w", cfg.Name, errors.Join(errs...))
 	}
-	p := &Project{Name: cfg.Name, Cfg: cfg, Ports: pp, state: domain.NewState(cfg.Name), leases: map[string]ports.Lease{}, running: map[string]string{}}
+	p := &Project{Name: cfg.Name, state: domain.NewState(cfg.Name), leases: map[string]ports.Lease{}, running: map[string]string{}}
+	p.cfgV.Store(cfg)
+	p.SetPorts(pp)
 	evs, err := s.d.Store.Load(ctx, cfg.Name, 0)
 	if err != nil {
 		return nil, err
@@ -161,9 +164,7 @@ func (s *Service) ReloadConfig(name string, cfg *domain.ProjectConfig) error {
 	if err != nil {
 		return err
 	}
-	p.mu.Lock()
-	p.Cfg = cfg
-	p.mu.Unlock()
+	p.cfgV.Store(cfg)
 	return nil
 }
 
@@ -194,6 +195,15 @@ func (s *Service) Projects() []string {
 	sort.Strings(out)
 	return out
 }
+
+// Cfg returns the project's configuration (swapped atomically on reload).
+func (p *Project) Cfg() *domain.ProjectConfig { return p.cfgV.Load() }
+
+// Ports returns the project's adapters (swapped atomically on reload).
+func (p *Project) Ports() *ProjectPorts { return p.portsV.Load() }
+
+// SetPorts replaces the project's adapters.
+func (p *Project) SetPorts(pp ProjectPorts) { p.portsV.Store(&pp) }
 
 // Snapshot returns a deep-enough copy of the state for reading.
 func (p *Project) Snapshot() *domain.State {

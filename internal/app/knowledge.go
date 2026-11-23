@@ -113,8 +113,8 @@ func (s *Service) Related(ctx context.Context, project string, a Actor, id strin
 			out["links"] = links
 		}
 	}
-	if p.Ports.Git != nil && strings.HasPrefix(strings.ToUpper(id), "I-") {
-		if commits, err := p.Ports.Git.Log(ctx, "--all", "--grep", domain.CommitTrailer(strings.ToUpper(id)), "-n", "50"); err == nil {
+	if p.Ports().Git != nil && strings.HasPrefix(strings.ToUpper(id), "I-") {
+		if commits, err := p.Ports().Git.Log(ctx, "--all", "--grep", domain.CommitTrailer(strings.ToUpper(id)), "-n", "50"); err == nil {
 			var cs []string
 			for _, c := range commits {
 				cs = append(cs, short(c.SHA)+" "+c.Subject)
@@ -134,7 +134,7 @@ func (s *Service) Why(ctx context.Context, project string, a Actor, target strin
 	if err := a.Require(ScopeItemsRead, p.Name); err != nil {
 		return nil, err
 	}
-	if p.Ports.Git == nil {
+	if p.Ports().Git == nil {
 		return nil, fmt.Errorf("%w: no repository", ErrInvalid)
 	}
 	file, lineStr, ok := strings.Cut(target, ":")
@@ -146,12 +146,12 @@ func (s *Service) Why(ctx context.Context, project string, a Actor, target strin
 		}
 		line = n
 	}
-	sha, err := p.Ports.Git.Blame(ctx, file, line)
+	sha, err := p.Ports().Git.Blame(ctx, file, line)
 	if err != nil {
 		return nil, fmt.Errorf("%w: blame %s: %v", ErrNotFound, target, err)
 	}
 	out := map[string]any{"target": target, "commit": sha}
-	commits, err := p.Ports.Git.Log(ctx, "-n", "1", sha)
+	commits, err := p.Ports().Git.Log(ctx, "-n", "1", sha)
 	if err == nil && len(commits) == 1 {
 		c := commits[0]
 		out["subject"] = c.Subject
@@ -187,18 +187,18 @@ func (s *Service) History(ctx context.Context, project string, a Actor, target s
 	if err := a.Require(ScopeItemsRead, p.Name); err != nil {
 		return nil, err
 	}
-	if p.Ports.Git == nil {
+	if p.Ports().Git == nil {
 		return nil, fmt.Errorf("%w: no repository", ErrInvalid)
 	}
 	var commits []ports.Commit
-	if strings.Contains(target, "/") || strings.Contains(target, ".") && !strings.Contains(target, " ") && fileExists(p.Cfg.Root, target) {
-		commits, err = p.Ports.Git.Log(ctx, "-n", "50", "--", target)
+	if strings.Contains(target, "/") || strings.Contains(target, ".") && !strings.Contains(target, " ") && fileExists(p.Cfg().Root, target) {
+		commits, err = p.Ports().Git.Log(ctx, "-n", "50", "--", target)
 	} else {
 		name := target
 		if i := strings.LastIndexByte(name, '.'); i >= 0 {
 			name = name[i+1:]
 		}
-		commits, err = p.Ports.Git.Log(ctx, "-n", "50", "-S", name)
+		commits, err = p.Ports().Git.Log(ctx, "-n", "50", "-S", name)
 	}
 	if err != nil {
 		return nil, err
@@ -230,7 +230,7 @@ func (s *Service) Rules(ctx context.Context, project string, a Actor, path strin
 	if rp, ok := s.d.Knowledge.(rulesProvider); ok && s.d.Knowledge != nil {
 		return rp.Rules(p.Name, path)
 	}
-	area := p.Cfg.AreaOfFile(strings.TrimSuffix(path, "/") + "/x")
+	area := p.Cfg().AreaOfFile(strings.TrimSuffix(path, "/") + "/x")
 	if area == "" {
 		return nil, nil
 	}
@@ -247,10 +247,10 @@ func (s *Service) Reindex(ctx context.Context, project string, changed []string)
 		return nil
 	}
 	commit := ""
-	if p.Ports.Git != nil {
-		commit, _ = p.Ports.Git.MainHead(ctx)
+	if p.Ports().Git != nil {
+		commit, _ = p.Ports().Git.MainHead(ctx)
 	}
-	if err := s.d.Knowledge.Reindex(ctx, p.Name, p.Cfg.Root, commit, changed); err != nil {
+	if err := s.d.Knowledge.Reindex(ctx, p.Name, p.Cfg().Root, commit, changed); err != nil {
 		return err
 	}
 	snap := p.Snapshot()

@@ -1,0 +1,96 @@
+# yaml-language-server: $schema=https://goreleaser.com/static/schema.json
+version: 2
+
+project_name: barnraise
+
+before:
+  hooks:
+    - go mod tidy -diff
+
+builds:
+  - id: barnraise
+    main: ./cmd/barnraise
+    binary: barnraise
+    env:
+      - CGO_ENABLED=0
+    goos: [linux, darwin]
+    goarch: [amd64, arm64]
+    flags: [-trimpath]
+    ldflags:
+      - -s -w -X main.version={{.Version}}
+    mod_timestamp: "{{ .CommitTimestamp }}"
+
+archives:
+  - id: barnraise
+    ids: [barnraise]
+    formats: [tar.gz]
+    # install.sh expects barnraise_<version>_<os>_<arch>.tar.gz
+    name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    files:
+      - LICENSE
+      - README.md
+      - CHANGELOG.md
+      - docs/*.md
+      - deploy/systemd/barnraise.service
+
+checksum:
+  name_template: checksums.txt
+  algorithm: sha256
+
+sboms:
+  - artifacts: archive
+    cmd: syft
+    args: ["$artifact", "--output", "spdx-json=$document"]
+
+signs:
+  # Keyless cosign signature of checksums.txt (OIDC token from GitHub Actions).
+  - cmd: cosign
+    signature: "${artifact}.sig"
+    certificate: "${artifact}.pem"
+    args:
+      - sign-blob
+      - "--output-certificate=${certificate}"
+      - "--output-signature=${signature}"
+      - "${artifact}"
+      - "--yes"
+    artifacts: checksum
+    output: true
+
+changelog:
+  use: github
+  sort: asc
+  abbrev: 7
+  groups:
+    - title: Features
+      regexp: '^.*?feat(\([[:word:]-]+\))??!?:.+$'
+      order: 0
+    - title: Bug fixes
+      regexp: '^.*?fix(\([[:word:]-]+\))??!?:.+$'
+      order: 1
+    - title: Performance
+      regexp: '^.*?perf(\([[:word:]-]+\))??!?:.+$'
+      order: 2
+    - title: Security
+      regexp: '^.*?sec(urity)?(\([[:word:]-]+\))??!?:.+$'
+      order: 3
+    - title: Others
+      order: 999
+  filters:
+    exclude:
+      - '^docs:'
+      - '^test:'
+      - '^ci:'
+      - '^chore:'
+      - '^style:'
+      - '^refactor:'
+
+release:
+  github:
+    owner: leandrodaf
+    name: barnraise
+  draft: false
+  prerelease: auto
+  footer: |
+    Install: `curl -fsSL https://raw.githubusercontent.com/leandrodaf/barnraise/main/install.sh | sh`
+
+    Verify: `cosign verify-blob --certificate checksums.txt.pem --signature checksums.txt.sig --certificate-identity-regexp 'https://github.com/leandrodaf/barnraise/.github/workflows/release.yml@refs/tags/v.*' --certificate-oidc-issuer https://token.actions.githubusercontent.com checksums.txt`

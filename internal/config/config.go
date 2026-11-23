@@ -82,6 +82,9 @@ func Compile(root string, data []byte) (*domain.ProjectConfig, error) {
 
 // TemplateConfig returns template.yaml of an embedded or saved template.
 func TemplateConfig(name string) ([]byte, error) {
+	if name == "" || strings.ContainsAny(name, `/\`) || strings.Contains(name, "..") {
+		return nil, fmt.Errorf("template name %q is not valid", name)
+	}
 	if data, err := templates.Config(name); err == nil {
 		return data, nil
 	}

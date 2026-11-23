@@ -1,0 +1,48 @@
+# System-wide Barnraise daemon running as a dedicated user.
+#
+#   sudo useradd --system --create-home --home-dir /var/lib/barnraise --shell /usr/sbin/nologin barnraise
+#   sudo install -m 0755 barnraise /usr/local/bin/barnraise
+#   sudo install -m 0644 deploy/systemd/barnraise.service /etc/systemd/system/barnraise.service
+#   sudo systemctl daemon-reload && sudo systemctl enable --now barnraise
+#
+# Use the CLI as the same user: sudo -u barnraise -H barnraise status
+# For a single person's machine prefer the user service: barnraise up --service
+
+[Unit]
+Description=Barnraise daemon
+Documentation=https://github.com/leandrodaf/barnraise/blob/main/docs/operations.md
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=simple
+User=barnraise
+Group=barnraise
+Environment=HOME=/var/lib/barnraise
+Environment=BARNRAISE_DATA_DIR=/var/lib/barnraise/share
+Environment=BARNRAISE_CONFIG_DIR=/var/lib/barnraise/config
+Environment=DISABLE_AUTOUPDATER=1
+# The binary is root-owned and /usr is read-only here: upgrade with the package
+# or install.sh, not with the cluster self-update.
+Environment=BARNRAISE_NO_SELF_UPDATE=1
+WorkingDirectory=/var/lib/barnraise
+ExecStart=/usr/local/bin/barnraise daemon
+Restart=on-failure
+RestartSec=5
+TimeoutStopSec=60
+KillSignal=SIGTERM
+
+StateDirectory=barnraise
+StateDirectoryMode=0700
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+LockPersonality=true
+
+[Install]
+WantedBy=multi-user.target

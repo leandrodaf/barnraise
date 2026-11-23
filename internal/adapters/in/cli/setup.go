@@ -1005,7 +1005,7 @@ func (e *env) machineCmd() *cobra.Command {
 				return err
 			}
 			fmt.Fprintf(e.out, "✔ Joined %s's cluster. Add projects here with `barnraise up` in each repository and accounts with `barnraise account add`.\n", peer.Name)
-			if !e.daemonRunning() {
+			if !e.daemonRunning() && os.Getenv("BARNRAISE_NO_AUTOSTART") == "" {
 				_ = startBackground()
 			}
 			return nil

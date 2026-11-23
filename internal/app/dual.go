@@ -35,7 +35,7 @@ func (s *Service) altDir(project, id string) string { return s.WorktreeDir(proje
 // prepareAlt records the second attempt and creates its branch and worktree
 // from the item's branch.
 func (s *Service) prepareAlt(ctx context.Context, p *Project, id string, st domain.StepDef) (string, error) {
-	g := p.Ports.Git
+	g := p.Ports().Git
 	if g == nil {
 		return "", errors.New("two attempts need a repository")
 	}
@@ -73,8 +73,8 @@ func (s *Service) prepareAlt(ctx context.Context, p *Project, id string, st doma
 	}
 	s.excludeFromGit(dirB, "/.barnraise-session/")
 	s.excludeFromGit(dirB, "/criteria.json")
-	for _, f := range p.Cfg.EnvFiles {
-		if data, err := os.ReadFile(filepath.Join(p.Cfg.Root, f)); err == nil {
+	for _, f := range p.Cfg().EnvFiles {
+		if data, err := os.ReadFile(filepath.Join(p.Cfg().Root, f)); err == nil {
 			_ = os.WriteFile(filepath.Join(dirB, f), data, 0o600)
 		}
 	}
@@ -163,7 +163,7 @@ func (s *Service) resolveDual(ctx context.Context, p *Project, id string) (*doma
 	}
 	it := cur.Clone()
 	p.mu.Unlock()
-	g := p.Ports.Git
+	g := p.Ports().Git
 	main, _ := g.MainHead(ctx)
 	cands := []*attemptScore{
 		{name: "a", d: it.Alt.A, dir: s.WorktreeDir(p.Name, id), branch: it.Branch},
@@ -184,8 +184,8 @@ func (s *Service) resolveDual(ctx context.Context, p *Project, id string) (*doma
 			c.files = len(files)
 		}
 		if s.d.Checks != nil {
-			for _, name := range sortedKeys(p.Cfg.Checks) {
-				def := p.Cfg.Checks[name]
+			for _, name := range sortedKeys(p.Cfg().Checks) {
+				def := p.Cfg().Checks[name]
 				if def.RunsOn != "local" {
 					continue
 				}

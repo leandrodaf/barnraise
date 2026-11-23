@@ -1,0 +1,14 @@
+.git
+.github
+/barnraise
+/dist
+*.test
+*.out
+coverage.*
+**/.barnraise-session
+docs
+action
+deploy
+install.sh
+Dockerfile
+.dockerignore

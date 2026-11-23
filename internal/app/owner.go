@@ -128,7 +128,7 @@ func (s *Service) Answer(ctx context.Context, project string, a Actor, qid, answ
 // applyAnswer turns an owner's answer into the item's next move.
 func (s *Service) applyAnswer(ctx context.Context, p *Project, a Actor, it *domain.Item, choice, note string) error {
 	lc := strings.ToLower(choice)
-	f, err := p.Cfg.FlowFor(it.Kind)
+	f, err := p.Cfg().FlowFor(it.Kind)
 	if err != nil {
 		return err
 	}
@@ -220,7 +220,7 @@ func (s *Service) Approve(ctx context.Context, project string, a Actor, target, 
 		return fmt.Errorf("%w: item %s", ErrNotFound, id)
 	}
 	it = it.Clone()
-	f, _ := p.Cfg.FlowFor(it.Kind)
+	f, _ := p.Cfg().FlowFor(it.Kind)
 	st, _ := f.Step(it.Step)
 	p.mu.Unlock()
 	if st.Type != domain.StepApproval && !(st.Type == domain.StepAgent && st.Review) {
@@ -444,15 +444,19 @@ func (s *Service) Takeover(ctx context.Context, project string, a Actor, id stri
 		if x.Claim != nil && x.Claim.Machine != s.d.Machine {
 			return fmt.Errorf("%w: %s is held by machine %s; take it over there", ErrConflict, x.ID, x.Claim.Machine)
 		}
+		if x.Branch == "" {
+			// Never claimed: name the branch now so the person's work is pushed.
+			x.Branch = domain.BranchName(x.ID, x.Title)
+		}
 		x.Status = domain.StatusPaused
 		return nil
 	}, domain.Payload{Note: "taken over by " + actorName(a)})
 	if err != nil {
 		return "", nil, err
 	}
-	if it.Claim == nil && p.Ports.Arbiter != nil {
+	if it.Claim == nil && p.Ports().Arbiter != nil {
 		// Reserve it so no machine starts it meanwhile.
-		if l, err := p.Ports.Arbiter.Claim(ctx, claimKey(id), s.d.Machine); err == nil {
+		if l, err := p.Ports().Arbiter.Claim(ctx, claimKey(id), s.d.Machine); err == nil {
 			p.mu.Lock()
 			p.leases[id] = l
 			p.mu.Unlock()
@@ -487,7 +491,7 @@ func (s *Service) Handback(ctx context.Context, project string, a Actor, id, not
 			x.Claim = &domain.Claim{Machine: s.d.Machine, Agent: actorName(a), Since: s.d.Clock.Now().UTC()}
 		}
 		if x.Step == "" {
-			f, err := p.Cfg.FlowFor(x.Kind)
+			f, err := p.Cfg().FlowFor(x.Kind)
 			if err != nil {
 				return err
 			}
@@ -518,7 +522,7 @@ func (s *Service) Redo(ctx context.Context, project string, a Actor, id, step, w
 	}
 	s.stopItemSessions(id)
 	it, err := s.mutateItem(ctx, p, id, domain.EvItemRedo, actorName(a), func(x *domain.Item) error {
-		f, err := p.Cfg.FlowFor(x.Kind)
+		f, err := p.Cfg().FlowFor(x.Kind)
 		if err != nil {
 			return err
 		}

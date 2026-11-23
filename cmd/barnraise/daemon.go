@@ -341,6 +341,7 @@ func (d *daemon) startNATS(ctx context.Context) error {
 			}
 			return d.svc.Ingest(context.Background(), e)
 		}, cursors)
+		d.repl.Logf = func(format string, args ...any) { d.log.Warn("replication: " + fmt.Sprintf(format, args...)) }
 	}
 	return nil
 }
@@ -508,7 +509,9 @@ func (d *daemon) reloadRoot(ctx context.Context, root string) error {
 	if err := d.svc.ReloadConfig(cfg.Name, cfg); err != nil {
 		return err
 	}
-	p.Ports.Tracker, p.Ports.CodeHost, p.Ports.Triage = pp.Tracker, pp.CodeHost, pp.Triage
+	cur := *p.Ports()
+	cur.Tracker, cur.CodeHost, cur.Triage = pp.Tracker, pp.CodeHost, pp.Triage
+	p.SetPorts(cur)
 	d.svc.SyncAllToTracker(cfg.Name)
 	return nil
 }
@@ -704,7 +707,7 @@ func (d *daemon) dispatchRemote(project, label string, spec ports.CheckSpec) err
 	var target string
 	now := time.Now()
 	for _, m := range p.Snapshot().Machines {
-		if m.Name != d.df.Machine && m.HasLabel(label) && m.Health(now, p.Cfg.Lease.TTL) != "red" {
+		if m.Name != d.df.Machine && m.HasLabel(label) && m.Health(now, p.Cfg().Lease.TTL) != "red" {
 			target = m.Name
 			break
 		}
@@ -746,7 +749,7 @@ func (d *daemon) serveRemoteChecks(ctx context.Context) {
 		if err != nil {
 			return nil, err
 		}
-		g := p.Ports.Git
+		g := p.Ports().Git
 		if err := g.Fetch(ctx); err != nil {
 			d.log.Warn("fetch for remote check", "err", err)
 		}
@@ -830,7 +833,7 @@ func (d *daemon) forwardWebhooks(ctx context.Context) {
 			if err != nil {
 				continue
 			}
-			for _, w := range p.Cfg.Webhooks {
+			for _, w := range p.Cfg().Webhooks {
 				if !webhook.Matches(w.Events, e.Type) {
 					continue
 				}

@@ -17,7 +17,7 @@ import (
 func (r *Runtime) housekeeping(ctx context.Context, p *Project, m domain.Machine) {
 	s := r.s
 	now := time.Now()
-	every := p.Cfg.Lease.Renew
+	every := p.Cfg().Lease.Renew
 	if every <= 0 || every > 30*time.Second {
 		every = 30 * time.Second
 	}
@@ -44,7 +44,7 @@ func (r *Runtime) housekeeping(ctx context.Context, p *Project, m domain.Machine
 	if n := s.expireProposals(ctx, p); n > 0 {
 		s.d.Log.Info("proposals expired", "project", p.Name, "count", n)
 	}
-	if now.Sub(r.lastImport[p.Name]) > 2*time.Minute && p.Ports.Tracker != nil {
+	if now.Sub(r.lastImport[p.Name]) > 2*time.Minute && p.Ports().Tracker != nil {
 		since := r.lastImport[p.Name]
 		if since.IsZero() {
 			since = now.Add(-30 * 24 * time.Hour)
@@ -81,7 +81,7 @@ func (r *Runtime) housekeeping(ctx context.Context, p *Project, m domain.Machine
 
 // holdHousekeeping claims or renews the housekeeping lease.
 func (s *Service) holdHousekeeping(ctx context.Context, p *Project) bool {
-	a := p.Ports.Arbiter
+	a := p.Ports().Arbiter
 	if a == nil {
 		return true
 	}
@@ -105,7 +105,7 @@ func (s *Service) holdHousekeeping(ctx context.Context, p *Project) bool {
 	}
 	nl, err := a.Claim(ctx, HousekeepingKey, s.d.Machine)
 	if errors.Is(err, ports.ErrTaken) {
-		ttl := p.Cfg.Lease.TTL
+		ttl := p.Cfg().Lease.TTL
 		info, ierr := a.Inspect(ctx, HousekeepingKey)
 		if ierr == nil && info.Holder == s.d.Machine {
 			// Ours from before a restart: adopt it.
@@ -127,11 +127,11 @@ func (s *Service) holdHousekeeping(ctx context.Context, p *Project) bool {
 // The item migrates, not the session: the new machine continues from the
 // last step pushed to the item's branch.
 func (s *Service) takeOverDeadItems(ctx context.Context, p *Project) {
-	a := p.Ports.Arbiter
+	a := p.Ports().Arbiter
 	if a == nil {
 		return
 	}
-	ttl := p.Cfg.Lease.TTL
+	ttl := p.Cfg().Lease.TTL
 	snap := p.Snapshot()
 	byMachine := map[string][]string{}
 	for _, it := range snap.ItemList() {

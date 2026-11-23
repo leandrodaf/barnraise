@@ -87,11 +87,11 @@ func (s *Service) revalidate(ctx context.Context, p *Project, ch domain.Change) 
 
 // triageBudget converts the weekly triage share into a number of items.
 func (s *Service) triageBudget(p *Project, want int) int {
-	if p.Cfg.Budget.TriageWeekPct <= 0 {
+	if p.Cfg().Budget.TriageWeekPct <= 0 {
 		return want
 	}
 	// Roughly 1% of a weekly window ≈ 40 triaged items in one batch; scale by the share.
-	n := int(p.Cfg.Budget.TriageWeekPct * 40)
+	n := int(p.Cfg().Budget.TriageWeekPct * 40)
 	if n < 1 {
 		n = 1
 	}
@@ -103,7 +103,7 @@ func (s *Service) triageBudget(p *Project, want int) int {
 
 // triageItems asks the triage port and applies each verdict.
 func (s *Service) triageItems(ctx context.Context, p *Project, ch domain.Change, items []*domain.Item) ([]domain.TriageResult, error) {
-	if p.Ports.Triage == nil {
+	if p.Ports().Triage == nil {
 		// Without a model: anchors moved, so the base is updated and the analyst sees it in the digest.
 		var out []domain.TriageResult
 		for _, it := range items {
@@ -112,7 +112,7 @@ func (s *Service) triageItems(ctx context.Context, p *Project, ch domain.Change,
 		s.applyVerdicts(ctx, p, ch, out)
 		return out, nil
 	}
-	results, usage, err := p.Ports.Triage.Triage(ctx, ch, items)
+	results, usage, err := p.Ports().Triage.Triage(ctx, ch, items)
 	if err != nil {
 		return nil, err
 	}
@@ -209,28 +209,28 @@ func (s *Service) applyVerdicts(ctx context.Context, p *Project, ch domain.Chang
 // maybeDone runs the checks of the item's criteria on main; if they pass the
 // item closes as done by the change.
 func (s *Service) maybeDone(ctx context.Context, p *Project, v domain.TriageResult, ch domain.Change) {
-	if s.d.Checks == nil || p.Ports.Git == nil {
+	if s.d.Checks == nil || p.Ports().Git == nil {
 		return
 	}
 	it := p.Snapshot().Items[v.ItemID]
 	if it == nil || len(it.Criteria) == 0 {
 		return
 	}
-	main, err := p.Ports.Git.MainHead(ctx)
+	main, err := p.Ports().Git.MainHead(ctx)
 	if err != nil {
 		return
 	}
 	dir := s.WorktreeDir(p.Name, "_main-"+short(main))
-	if err := p.Ports.Git.AddDetachedWorktree(ctx, dir, main); err != nil {
+	if err := p.Ports().Git.AddDetachedWorktree(ctx, dir, main); err != nil {
 		return
 	}
-	defer func() { _ = p.Ports.Git.RemoveWorktree(ctx, dir) }()
+	defer func() { _ = p.Ports().Git.RemoveWorktree(ctx, dir) }()
 	checks := map[string]bool{}
 	for _, c := range it.Criteria {
 		checks[domain.TrimChecks(c.Check)] = true
 	}
 	for name := range checks {
-		def, ok := p.Cfg.Checks[name]
+		def, ok := p.Cfg().Checks[name]
 		if !ok || def.RunsOn != "local" {
 			return // cannot prove it here: leave it
 		}
@@ -279,13 +279,13 @@ func (s *Service) Sweep(ctx context.Context, project string) (RevalidateResult, 
 		return RevalidateResult{}, err
 	}
 	snap := p.Snapshot()
-	stale := domain.StaleItems(snap.ItemList(), s.d.Clock.Now(), p.Cfg.StaleAfter)
+	stale := domain.StaleItems(snap.ItemList(), s.d.Clock.Now(), p.Cfg().StaleAfter)
 	if len(stale) == 0 {
 		return RevalidateResult{}, nil
 	}
 	main := ""
-	if p.Ports.Git != nil {
-		main, _ = p.Ports.Git.MainHead(ctx)
+	if p.Ports().Git != nil {
+		main, _ = p.Ports().Git.MainHead(ctx)
 	}
 	limit := s.triageBudget(p, len(stale))
 	res := RevalidateResult{}
@@ -295,7 +295,7 @@ func (s *Service) Sweep(ctx context.Context, project string) (RevalidateResult, 
 		}
 		stale = stale[:limit]
 	}
-	ch := domain.Change{Kind: "sweep", Cause: "nightly sweep", Commit: main, Summary: "items not validated for more than " + p.Cfg.StaleAfter.String()}
+	ch := domain.Change{Kind: "sweep", Cause: "nightly sweep", Commit: main, Summary: "items not validated for more than " + p.Cfg().StaleAfter.String()}
 	v, err := s.triageItems(ctx, p, ch, stale)
 	res.Verdicts = v
 	return res, err
@@ -363,7 +363,7 @@ func extractJSON(s string) string {
 // syncTracker mirrors an item to the tracker in the background (both ways is
 // handled by ImportFromTracker).
 func (s *Service) syncTracker(p *Project, id string, create bool) {
-	if p.Ports.Tracker == nil {
+	if p.Ports().Tracker == nil {
 		return
 	}
 	go func() {
@@ -374,7 +374,7 @@ func (s *Service) syncTracker(p *Project, id string, create bool) {
 			return
 		}
 		if create || it.TrackerRef == "" {
-			ti, err := p.Ports.Tracker.Create(ctx, it, p.Cfg.Language)
+			ti, err := p.Ports().Tracker.Create(ctx, it, p.Cfg().Language)
 			if err != nil {
 				s.d.Log.Warn("tracker create", "item", id, "err", err)
 				return
@@ -382,10 +382,10 @@ func (s *Service) syncTracker(p *Project, id string, create bool) {
 			_, _ = s.mutateItem(ctx, p, id, domain.EvItemUpdated, "tracker", func(x *domain.Item) error {
 				x.TrackerRef = ti.Ref
 				return nil
-			}, domain.Payload{Note: fmt.Sprintf("item %s appears as %s in %s", id, ti.Ref, p.Ports.Tracker.Name())})
+			}, domain.Payload{Note: fmt.Sprintf("item %s appears as %s in %s", id, ti.Ref, p.Ports().Tracker.Name())})
 			return
 		}
-		if err := p.Ports.Tracker.Update(ctx, it, p.Cfg.Language); err != nil {
+		if err := p.Ports().Tracker.Update(ctx, it, p.Cfg().Language); err != nil {
 			s.d.Log.Warn("tracker update", "item", id, "err", err)
 		}
 	}()
@@ -399,10 +399,10 @@ func (s *Service) ImportFromTracker(ctx context.Context, project string, since t
 	if err != nil {
 		return 0, err
 	}
-	if p.Ports.Tracker == nil {
+	if p.Ports().Tracker == nil {
 		return 0, nil
 	}
-	list, err := p.Ports.Tracker.List(ctx, since)
+	list, err := p.Ports().Tracker.List(ctx, since)
 	if err != nil {
 		return 0, err
 	}
@@ -425,9 +425,9 @@ func (s *Service) ImportFromTracker(ctx context.Context, project string, since t
 		if ti.Closed || strings.Contains(ti.Title, "[I-") {
 			continue
 		}
-		trusted := domain.Contains(p.Cfg.Tracker.Trusted, ti.Author)
+		trusted := domain.Contains(p.Cfg().Tracker.Trusted, ti.Author)
 		for _, l := range ti.Labels {
-			if domain.Contains(p.Cfg.Tracker.Trusted, "label:"+l) {
+			if domain.Contains(p.Cfg().Tracker.Trusted, "label:"+l) {
 				trusted = true
 			}
 		}
@@ -458,7 +458,7 @@ func (s *Service) ImportFromTracker(ctx context.Context, project string, since t
 // (after `tracker migrate` or `tracker connect`).
 func (s *Service) SyncAllToTracker(project string) {
 	p, err := s.Project(project)
-	if err != nil || p.Ports.Tracker == nil {
+	if err != nil || p.Ports().Tracker == nil {
 		return
 	}
 	for _, it := range p.Snapshot().ItemList() {

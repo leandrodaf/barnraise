@@ -47,7 +47,7 @@ func (s *Service) ProcessQueue(ctx context.Context, project string) (int, error)
 	if err != nil {
 		return 0, err
 	}
-	if p.Ports.Git == nil || p.Ports.Arbiter == nil {
+	if p.Ports().Git == nil || p.Ports().Arbiter == nil {
 		return 0, nil
 	}
 	if !p.queueMu.TryLock() {
@@ -73,7 +73,7 @@ func (s *Service) ProcessQueue(ctx context.Context, project string) (int, error)
 		}
 		return queued[i].StepStartedAt.Before(queued[j].StepStartedAt)
 	})
-	batch := p.Cfg.Merge.Batch
+	batch := p.Cfg().Merge.Batch
 	if batch <= 0 {
 		batch = 1
 	}
@@ -146,7 +146,7 @@ func refreshItems(p *Project, items []*domain.Item) []*domain.Item {
 // tryIntegrate rebases each item on top of the previous one and checks the
 // combined tree. failed names an item that could not even be rebased.
 func (s *Service) tryIntegrate(ctx context.Context, p *Project, items []*domain.Item) (ok bool, failed *domain.Item, reason string, err error) {
-	g := p.Ports.Git
+	g := p.Ports().Git
 	if err := g.Fetch(ctx); err != nil {
 		s.d.Log.Warn("fetch before integration", "err", err)
 	}
@@ -161,6 +161,23 @@ func (s *Service) tryIntegrate(ctx context.Context, p *Project, items []*domain.
 		sha string
 	}
 	var done []built
+	// A batch that does not land must leave each worktree as it was: otherwise
+	// an item rebased on top of a rejected one carries its changes into the
+	// next attempt (bisection would then blame the innocent items too).
+	type origin struct{ dir, branch, head string }
+	var origins []origin
+	defer func() {
+		if ok {
+			return
+		}
+		for _, o := range origins {
+			if o.branch != "" {
+				_ = g.ResetBranch(ctx, o.dir, o.branch, o.head)
+			} else {
+				_ = g.Checkout(ctx, o.dir, o.head)
+			}
+		}
+	}()
 	for _, it := range items {
 		dir, err := s.ensureWorkspace(ctx, p, it.ID)
 		if err != nil {
@@ -169,6 +186,9 @@ func (s *Service) tryIntegrate(ctx context.Context, p *Project, items []*domain.
 		if _, err := s.commitStep(ctx, p, it.ID, it.ID+": pending changes before integration"); err != nil && strings.Contains(err.Error(), "secret") {
 			return false, it, err.Error(), nil
 		}
+		if h, err := g.Head(ctx, dir); err == nil {
+			origins = append(origins, origin{dir: dir, branch: it.Branch, head: h})
+		}
 		if err := g.Rebase(ctx, dir, head); err != nil {
 			if errors.Is(err, ports.ErrConflict) {
 				return false, it, "rebase on main conflicts: " + err.Error(), nil
@@ -176,7 +196,7 @@ func (s *Service) tryIntegrate(ctx context.Context, p *Project, items []*domain.
 			return false, it, "rebase failed: " + err.Error(), nil
 		}
 		var sha string
-		if p.Cfg.Merge.Mode == "steps" {
+		if p.Cfg().Merge.Mode == "steps" {
 			sha, err = g.Head(ctx, dir)
 		} else {
 			sha, err = g.SquashOnto(ctx, dir, head, squashMessage(it), ItemFiles...)
@@ -184,7 +204,7 @@ func (s *Service) tryIntegrate(ctx context.Context, p *Project, items []*domain.
 		if err != nil {
 			return false, it, "commit: " + err.Error(), nil
 		}
-		if p.Cfg.Merge.Mode != "steps" {
+		if p.Cfg().Merge.Mode != "steps" {
 			// Point the item worktree at its squash commit so the branch head
 			// lands in main and the PR shows as merged.
 			if err := g.Checkout(ctx, dir, sha); err != nil {
@@ -195,7 +215,7 @@ func (s *Service) tryIntegrate(ctx context.Context, p *Project, items []*domain.
 		lastDir = dir
 		done = append(done, built{it, sha})
 	}
-	if p.Cfg.Merge.Changelog != "" && lastDir != "" {
+	if p.Cfg().Merge.Changelog != "" && lastDir != "" {
 		if sha, err := s.appendChangelog(ctx, p, lastDir, items); err == nil && sha != "" {
 			head = sha
 		}
@@ -216,7 +236,7 @@ func (s *Service) tryIntegrate(ctx context.Context, p *Project, items []*domain.
 			}
 		}
 	}
-	if err := p.Ports.Arbiter.Integrate(ctx, main, head); err != nil {
+	if err := p.Ports().Arbiter.Integrate(ctx, main, head); err != nil {
 		return false, nil, "", err
 	}
 	changed, _ := g.ChangedFiles(ctx, main, head)
@@ -243,7 +263,7 @@ func squashMessage(it *domain.Item) string {
 }
 
 func (s *Service) appendChangelog(ctx context.Context, p *Project, dir string, items []*domain.Item) (string, error) {
-	path := filepath.Join(dir, p.Cfg.Merge.Changelog)
+	path := filepath.Join(dir, p.Cfg().Merge.Changelog)
 	cur, _ := os.ReadFile(path)
 	var b strings.Builder
 	for _, it := range items {
@@ -253,7 +273,7 @@ func (s *Service) appendChangelog(ctx context.Context, p *Project, dir string, i
 	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
 		return "", err
 	}
-	sha, _, err := p.Ports.Git.CommitAll(ctx, dir, "changelog: "+integrationSummary(items))
+	sha, _, err := p.Ports().Git.CommitAll(ctx, dir, "changelog: "+integrationSummary(items))
 	return sha, err
 }
 
@@ -266,8 +286,8 @@ func (s *Service) runQueueChecks(ctx context.Context, p *Project, dir, head stri
 	for _, it := range items {
 		touched = append(touched, it.FilesTouched...)
 	}
-	for _, name := range sortedKeys(p.Cfg.Checks) {
-		def := p.Cfg.Checks[name]
+	for _, name := range sortedKeys(p.Cfg().Checks) {
+		def := p.Cfg().Checks[name]
 		if def.RunsOn != "local" {
 			continue // remote checks already ran in the item flow
 		}
@@ -307,23 +327,27 @@ func (s *Service) markIntegrated(ctx context.Context, p *Project, it *domain.Ite
 	if cur == nil {
 		return
 	}
+	// The merge commit is recorded before the item becomes integrated, so
+	// whoever sees it integrated also sees where it landed.
+	if _, err := s.mutateItem(ctx, p, it.ID, domain.EvItemUpdated, "merge-queue", func(x *domain.Item) error {
+		x.MergeCommit = sha
+		return nil
+	}, domain.Payload{Note: "merged as " + sha}); err != nil {
+		s.d.Log.Warn("record merge commit", "item", it.ID, "err", err)
+	}
 	upd, _, err := s.finishStep(ctx, p, stepOutcome{Item: it.ID, Step: cur.Step, Outcome: domain.OutcomePass, Actor: "merge-queue",
 		Payload: domain.Payload{Note: "integrated as " + sha}})
 	if err != nil {
 		s.d.Log.Warn("mark integrated", "item", it.ID, "err", err)
 		return
 	}
-	_, _ = s.mutateItem(ctx, p, it.ID, domain.EvItemIntegrated, "merge-queue", func(x *domain.Item) error {
-		x.MergeCommit = sha
-		x.Status = domain.StatusIntegrated
-		return nil
-	}, domain.Payload{Note: "integrated into main"})
-	if p.Ports.Git != nil {
-		_ = p.Ports.Git.RemoveWorktree(ctx, s.WorktreeDir(p.Name, it.ID))
+	_, _ = s.emit(ctx, p, domain.EvItemIntegrated, it.ID, "merge-queue", domain.Payload{Item: upd, Note: "integrated into main"})
+	if p.Ports().Git != nil {
+		_ = p.Ports().Git.RemoveWorktree(ctx, s.WorktreeDir(p.Name, it.ID))
 	}
-	if p.Ports.CodeHost != nil && upd != nil && upd.PR != "" {
+	if p.Ports().CodeHost != nil && upd != nil && upd.PR != "" {
 		go func() {
-			_ = p.Ports.CodeHost.Comment(context.Background(), prFromRef(upd.PR), fmt.Sprintf("Integrated into %s as %s by the Barnraise merge queue.", p.Cfg.MainBranch, sha))
+			_ = p.Ports().CodeHost.Comment(context.Background(), prFromRef(upd.PR), fmt.Sprintf("Integrated into %s as %s by the Barnraise merge queue.", p.Cfg().MainBranch, sha))
 		}()
 	}
 	s.unblockDependents(ctx, p)

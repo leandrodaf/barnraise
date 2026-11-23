@@ -133,7 +133,7 @@ func (s *Service) heldWorkLocked(p *Project, slot Slot) *Assignment {
 		if it.Alt != nil && it.Alt.A != nil {
 			continue // attempt a delivered; the second attempt decides when it ends
 		}
-		f, err := p.Cfg.FlowFor(it.Kind)
+		f, err := p.Cfg().FlowFor(it.Kind)
 		if err != nil {
 			continue
 		}
@@ -155,7 +155,7 @@ func (s *Service) heldWorkLocked(p *Project, slot Slot) *Assignment {
 }
 
 func (s *Service) machineFits(p *Project, role string, m domain.Machine) bool {
-	r, ok := p.Cfg.Roles[role]
+	r, ok := p.Cfg().Roles[role]
 	if !ok {
 		return false
 	}
@@ -195,7 +195,7 @@ func (s *Service) candidatesLocked(p *Project, slot Slot) []*domain.Item {
 		if !it.DepsSatisfied(func(id string) *domain.Item { return p.state.Items[id] }) {
 			continue
 		}
-		f, err := p.Cfg.FlowFor(it.Kind)
+		f, err := p.Cfg().FlowFor(it.Kind)
 		if err != nil {
 			continue
 		}
@@ -244,7 +244,7 @@ func (s *Service) candidatesLocked(p *Project, slot Slot) []*domain.Item {
 			selfWeek++
 		}
 	}
-	capacity := p.Cfg.Capacity
+	capacity := p.Cfg().Capacity
 	if focusActive && focus.Share > 0 && focus.Share != capacity.Goal {
 		// The focus takes its share from the goal lane; the rest is split proportionally.
 		rest := 100 - focus.Share
@@ -316,8 +316,8 @@ func firstAgentRole(f *domain.Flow) string {
 // claim reserves the item in the arbiter and starts its first step.
 func (s *Service) claim(ctx context.Context, p *Project, id string, slot Slot) (*Assignment, error) {
 	var lease ports.Lease
-	if p.Ports.Arbiter != nil {
-		l, err := p.Ports.Arbiter.Claim(ctx, claimKey(id), s.d.Machine)
+	if p.Ports().Arbiter != nil {
+		l, err := p.Ports().Arbiter.Claim(ctx, claimKey(id), s.d.Machine)
 		if err != nil {
 			return nil, err
 		}
@@ -330,14 +330,14 @@ func (s *Service) claim(ctx context.Context, p *Project, id string, slot Slot) (
 		s.releaseLeaseValue(ctx, p, lease)
 		return nil, ErrConflict
 	}
-	f, err := p.Cfg.FlowFor(cur.Kind)
+	f, err := p.Cfg().FlowFor(cur.Kind)
 	if err != nil {
 		s.releaseLeaseValue(ctx, p, lease)
 		return nil, err
 	}
 	now := s.d.Clock.Now().UTC()
 	var attached []*domain.Tweak
-	if p.Cfg.Tweaks.AttachOnClaim && cur.Area != "" {
+	if p.Cfg().Tweaks.AttachOnClaim && cur.Area != "" {
 		attached = domain.PendingTweaks(p.state.TweakList(), cur.Area)
 	}
 	it, err := s.mutateItemLocked(ctx, p, id, domain.EvItemClaimed, slot.Agent, func(it *domain.Item) error {
@@ -366,7 +366,7 @@ func (s *Service) claim(ctx context.Context, p *Project, id string, slot Slot) (
 		tt.ItemID = id
 		_, _ = s.emitLocked(ctx, p, domain.EvTweakAttached, t.ID, "barnraise", domain.Payload{Tweak: &tt})
 	}
-	if p.Ports.Arbiter != nil {
+	if p.Ports().Arbiter != nil {
 		p.leases[id] = lease
 	}
 	st, _ := f.Step(it.Step)
@@ -379,14 +379,14 @@ func (s *Service) claim(ctx context.Context, p *Project, id string, slot Slot) (
 // validBeforeStart compares the item's validation base with main: if its
 // anchors changed since, it goes through triage first.
 func (s *Service) validBeforeStart(ctx context.Context, p *Project, it *domain.Item) bool {
-	if p.Ports.Git == nil || it.Anchors.Base == "" || it.Anchors.Empty() {
+	if p.Ports().Git == nil || it.Anchors.Base == "" || it.Anchors.Empty() {
 		return true
 	}
-	main, err := p.Ports.Git.MainHead(ctx)
+	main, err := p.Ports().Git.MainHead(ctx)
 	if err != nil || main == it.Anchors.Base {
 		return true
 	}
-	files, err := p.Ports.Git.ChangedFiles(ctx, it.Anchors.Base, main)
+	files, err := p.Ports().Git.ChangedFiles(ctx, it.Anchors.Base, main)
 	if err != nil {
 		return true
 	}
@@ -436,10 +436,10 @@ func (s *Service) releaseLease(ctx context.Context, p *Project, id string) {
 }
 
 func (s *Service) releaseLeaseValue(ctx context.Context, p *Project, l ports.Lease) {
-	if p.Ports.Arbiter == nil || l.Key == "" {
+	if p.Ports().Arbiter == nil || l.Key == "" {
 		return
 	}
-	if err := p.Ports.Arbiter.Release(ctx, l); err != nil && !errors.Is(err, ports.ErrNotHeld) {
+	if err := p.Ports().Arbiter.Release(ctx, l); err != nil && !errors.Is(err, ports.ErrNotHeld) {
 		s.d.Log.Warn("release lease", "key", l.Key, "err", err)
 	}
 }
@@ -467,7 +467,7 @@ func (s *Service) ClaimForAgent(ctx context.Context, project string, a Actor, m 
 		it, ok := p.state.Items[a.ItemID]
 		p.mu.Unlock()
 		if ok && !it.Status.Terminal() {
-			f, err := p.Cfg.FlowFor(it.Kind)
+			f, err := p.Cfg().FlowFor(it.Kind)
 			if err != nil {
 				return nil, err
 			}

@@ -111,7 +111,7 @@ func TestTwoMachinesFailover(t *testing.T) {
 		cfg := fmt.Sprintf("machine: %s\nlisten: off\nnats_host: 127.0.0.1\nnats_port: %d\nprojects: [%s]\n", name, freePort(t), root)
 		os.WriteFile(filepath.Join(dir, "cfg", "daemon.yaml"), []byte(cfg), 0o600)
 		env := append(os.Environ(), "BARNRAISE_CONFIG_DIR="+filepath.Join(dir, "cfg"), "BARNRAISE_DATA_DIR="+filepath.Join(dir, "data"),
-			"XDG_RUNTIME_DIR="+dir, "BARNRAISE_FAKE_PROVIDER=1", "BARNRAISE_FAKE_MACHINE="+name, "BARNRAISE_NO_TAILSCALE=1",
+			"XDG_RUNTIME_DIR="+dir, "BARNRAISE_FAKE_PROVIDER=1", "BARNRAISE_FAKE_MACHINE="+name, "BARNRAISE_NO_TAILSCALE=1", "BARNRAISE_NO_AUTOSTART=1",
 			"BARNRAISE_PROJECT=", "BARNRAISE_TOKEN=", "GIT_AUTHOR_NAME=t", "GIT_AUTHOR_EMAIL=t@t", "GIT_COMMITTER_NAME=t", "GIT_COMMITTER_EMAIL=t@t")
 		return &machineEnv{name: name, root: root, env: env}
 	}
@@ -194,7 +194,10 @@ func TestTwoMachinesFailover(t *testing.T) {
 		}
 		if time.Now().After(deadline) {
 			b, _ := os.ReadFile(filepath.Join(base, "beta.log"))
-			t.Fatalf("beta never saw alpha's item:\n%s", b)
+			a, _ := os.ReadFile(filepath.Join(base, "alpha.log"))
+			cfgA, _ := os.ReadFile(filepath.Join(base, "alpha", "cfg", "daemon.yaml"))
+			cfgB, _ := os.ReadFile(filepath.Join(base, "beta", "cfg", "daemon.yaml"))
+			t.Fatalf("beta never saw alpha's item:\n%s\n--- alpha\n%s\n--- cfg alpha\n%s\n--- cfg beta\n%s", b, a, cfgA, cfgB)
 		}
 		time.Sleep(200 * time.Millisecond)
 	}

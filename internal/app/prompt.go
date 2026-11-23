@@ -61,7 +61,7 @@ func (s *Service) Context(ctx context.Context, project string, a Actor, id strin
 		return ContextPack{}, fmt.Errorf("%w: item %s", ErrNotFound, id)
 	}
 	if budget <= 0 {
-		budget = p.Cfg.Budget.ContextTokens
+		budget = p.Cfg().Budget.ContextTokens
 	}
 	var parts []domain.ContextPart
 	// 1. The item: criteria, anchors, plan.md, last rework.
@@ -158,7 +158,7 @@ func (s *Service) Context(ctx context.Context, project string, a Actor, id strin
 // itemText renders the item for an agent. Reviewers never see the plan.
 func (s *Service) itemText(p *Project, it *domain.Item, withPlan bool) string {
 	var b strings.Builder
-	fmt.Fprintf(&b, "Kind: %s · Priority: %s · Area: %s · Size: %s · Step: %s\n", it.Kind, it.Priority, def(it.Area, "-"), def(it.Size, p.Cfg.TargetSize), it.Step)
+	fmt.Fprintf(&b, "Kind: %s · Priority: %s · Area: %s · Size: %s · Step: %s\n", it.Kind, it.Priority, def(it.Area, "-"), def(it.Size, p.Cfg().TargetSize), it.Step)
 	if it.GoalID != "" {
 		fmt.Fprintf(&b, "Goal: %s\n", it.GoalID)
 	}
@@ -209,13 +209,13 @@ type StepPrompt struct {
 func (s *Service) BuildStepPrompt(ctx context.Context, p *Project, it *domain.Item, st domain.StepDef, role, agent string) (StepPrompt, error) {
 	var sys strings.Builder
 	if RoleText != nil {
-		txt, err := RoleText(p.Cfg, role)
+		txt, err := RoleText(p.Cfg(), role)
 		if err != nil {
 			return StepPrompt{}, err
 		}
 		sys.WriteString(txt)
 	}
-	if c, err := os.ReadFile(filepath.Join(p.Cfg.Root, ".barnraise", "constitution.md")); err == nil {
+	if c, err := os.ReadFile(filepath.Join(p.Cfg().Root, ".barnraise", "constitution.md")); err == nil {
 		sys.WriteString("\n\n# Project constitution\n" + string(c))
 	}
 	sys.WriteString(barnraiseConventions)
@@ -225,7 +225,7 @@ func (s *Service) BuildStepPrompt(ctx context.Context, p *Project, it *domain.It
 	if reviewer {
 		b.WriteString(s.reviewMaterial(ctx, p, it, st))
 	} else {
-		pack, err := s.Context(ctx, p.Name, System(), it.ID, p.Cfg.Budget.ContextTokens)
+		pack, err := s.Context(ctx, p.Name, System(), it.ID, p.Cfg().Budget.ContextTokens)
 		if err == nil {
 			b.WriteString("\n" + pack.Render())
 		} else {
@@ -285,15 +285,15 @@ func (s *Service) reviewMaterial(ctx context.Context, p *Project, it *domain.Ite
 			fmt.Fprintf(&b, "- %s: passed=%v flaky=%v — %s\n", n, r.Passed, r.Flaky, truncate(r.Summary, 400))
 		}
 	}
-	if p.Ports.Git != nil {
+	if p.Ports().Git != nil {
 		dir := s.WorktreeDir(p.Name, it.ID)
-		main, err1 := p.Ports.Git.MainHead(ctx)
-		head, err2 := p.Ports.Git.Head(ctx, dir)
+		main, err1 := p.Ports().Git.MainHead(ctx)
+		head, err2 := p.Ports().Git.Head(ctx, dir)
 		if err1 == nil && err2 == nil {
-			if mb, err := p.Ports.Git.MergeBase(ctx, main, head); err == nil {
+			if mb, err := p.Ports().Git.MergeBase(ctx, main, head); err == nil {
 				main = mb
 			}
-			diff, err := p.Ports.Git.Diff(ctx, main, head, 60000)
+			diff, err := p.Ports().Git.Diff(ctx, main, head, 60000)
 			if err == nil {
 				diff = filterDiff(diff, ItemFiles)
 				b.WriteString("\n## Diff (main.." + short(head) + ")\n```diff\n" + diff + "\n```\n")
@@ -330,7 +330,7 @@ func stepInstructions(p *Project, it *domain.Item, st domain.StepDef) string {
 			"the area and anchors (files, symbols, contracts, decisions), and keep it 2 to 6 agent hours (split or turn it into a tweak otherwise). "+
 			"Apply it with `barnraise item edit %s -c \"WHEN <trigger>, THE SYSTEM SHALL <response> | <check>\" --area <area> --clear-clarifications` "+
 			"(repeat -c per criterion). If only a person can decide something, ask with the `ask_owner` tool and do not guess. Do not write code. Then stop.",
-			strings.Join(sortedKeys(p.Cfg.Checks), ", "), it.ID)
+			strings.Join(sortedKeys(p.Cfg().Checks), ", "), it.ID)
 	case st.Type == domain.StepApproval:
 		what := approvalWhat(p, it, st)
 		return fmt.Sprintf("Approve the %s or send it back. Submit with the `review` tool: criteria_verdict and code_verdict (pass/fail) and decision APPROVE or REWORK with findings. Then stop.", what)

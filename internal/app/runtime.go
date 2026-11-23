@@ -13,6 +13,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/leandrodaf/barnraise/internal/domain"
@@ -52,6 +53,22 @@ type liveSession struct {
 	sess    ports.Session
 	cancel  context.CancelFunc
 	started time.Time
+	// halted is set when Barnraise stops the session (pause, takeover, close,
+	// shutdown): its end is not the agent's fault.
+	halted atomic.Bool
+}
+
+// stop ends a session on Barnraise's behalf.
+func (ls *liveSession) stop() {
+	ls.halted.Store(true)
+	_ = ls.sess.Stop()
+}
+
+// isStopped reports whether the runtime is shutting down.
+func (r *Runtime) isStopped() bool {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return r.stopped
 }
 
 type sessionRegistry struct{}
@@ -120,8 +137,8 @@ func (r *Runtime) Run(ctx context.Context) {
 func (r *Runtime) tickEvery() time.Duration {
 	every := 5 * time.Second
 	for _, name := range r.s.Projects() {
-		if p, err := r.s.Project(name); err == nil && p.Cfg.Lease.Renew > 0 && p.Cfg.Lease.Renew < every {
-			every = p.Cfg.Lease.Renew
+		if p, err := r.s.Project(name); err == nil && p.Cfg().Lease.Renew > 0 && p.Cfg().Lease.Renew < every {
+			every = p.Cfg().Lease.Renew
 		}
 	}
 	return every
@@ -154,8 +171,8 @@ func (r *Runtime) Tick(ctx context.Context) {
 // slotsFor lists the agent slots of a project on this machine.
 func (r *Runtime) slotsFor(p *Project, m domain.Machine) []Slot {
 	var out []Slot
-	for _, role := range sortedKeys(p.Cfg.Roles) {
-		rd := p.Cfg.Roles[role]
+	for _, role := range sortedKeys(p.Cfg().Roles) {
+		rd := p.Cfg().Roles[role]
 		if !r.s.machineFits(p, role, m) {
 			continue
 		}
@@ -167,7 +184,7 @@ func (r *Runtime) slotsFor(p *Project, m domain.Machine) []Slot {
 }
 
 func (r *Runtime) fillSlots(ctx context.Context, p *Project, m domain.Machine) {
-	if r.stopped || r.MaxSessions < 0 {
+	if r.isStopped() || r.MaxSessions < 0 {
 		return
 	}
 	limit := r.MaxSessions
@@ -245,7 +262,7 @@ func (r *Runtime) start(ctx context.Context, p *Project, slot Slot, a *Assignmen
 	accounts := p.state.AccountList()
 	p.mu.Unlock()
 	role := slot.Role
-	rd := p.Cfg.Roles[role]
+	rd := p.Cfg().Roles[role]
 	class := a.Step.Class
 	if class == "" || class == "auto" {
 		class = def(it.Class, def(rd.Class, "normal"))
@@ -269,7 +286,7 @@ func (r *Runtime) start(ctx context.Context, p *Project, slot Slot, a *Assignmen
 		}
 		return domain.PickAccount(accounts, provider, s.d.Machine, p.Name, now) != nil
 	}
-	choices, err := p.Cfg.Models.Route(domain.RouteRequest{Class: class, FixedModel: a.Step.Model, Tier: it.Tier, AvoidFamily: avoidFamily, AvoidModel: avoidModel, Usable: usable})
+	choices, err := p.Cfg().Models.Route(domain.RouteRequest{Class: class, FixedModel: a.Step.Model, Tier: it.Tier, AvoidFamily: avoidFamily, AvoidModel: avoidModel, Usable: usable})
 	if err != nil {
 		s.notifyAccountsExhausted(ctx, p)
 		return err
@@ -281,7 +298,7 @@ func (r *Runtime) start(ctx context.Context, p *Project, slot Slot, a *Assignmen
 	}
 	prov := s.d.Providers[choice.Provider]
 	experiment := ""
-	for _, ex := range p.Cfg.Experiments {
+	for _, ex := range p.Cfg().Experiments {
 		if (ex.Role == "" || ex.Role == role) && inShare(it.ID+ex.Name, ex.Share) {
 			experiment = ex.Name
 			if ex.Model != "" {
@@ -291,7 +308,7 @@ func (r *Runtime) start(ctx context.Context, p *Project, slot Slot, a *Assignmen
 			}
 		}
 	}
-	family := p.Cfg.Models.Family(choice.Provider)
+	family := p.Cfg().Models.Family(choice.Provider)
 	actor := Actor{Kind: ActorAgent, Name: slot.Agent, Role: role, Project: p.Name, ItemID: it.ID, Step: a.Step.Name, Account: acc.ID,
 		Scopes: RoleScopes(role, a.Step.Review || a.Step.Type == domain.StepApproval), Family: family, Model: choice.Model, Attempt: attempt}
 	token := s.tokens.Issue(actor, r.SessionTimeout+time.Hour)
@@ -301,7 +318,7 @@ func (r *Runtime) start(ctx context.Context, p *Project, slot Slot, a *Assignmen
 		return err
 	}
 	if experiment != "" {
-		for _, ex := range p.Cfg.Experiments {
+		for _, ex := range p.Cfg().Experiments {
 			if ex.Name == experiment && ex.Prompt != "" {
 				prompt.System += "\n\n" + ex.Prompt
 			}
@@ -312,7 +329,7 @@ func (r *Runtime) start(ctx context.Context, p *Project, slot Slot, a *Assignmen
 		"BARNRAISE_TOKEN": token, "BARNRAISE_SOCKET": s.d.SocketPath, "BARNRAISE_PROJECT": p.Name, "BARNRAISE_ITEM": it.ID,
 		"BARNRAISE_STEP": a.Step.Name, "BARNRAISE_AGENT": slot.Agent, "BARNRAISE_ROLE": role, "BARNRAISE_ACCOUNT": acc.ID,
 		"BARNRAISE_POLICY": filepath.Join(sessDir, "policy.json"), "BARNRAISE_WORKTREE": dir,
-		"PORT": strconv.Itoa(ItemPort(p.Cfg.PortBase, it.ID)), "DISABLE_AUTOUPDATER": "1",
+		"PORT": strconv.Itoa(ItemPort(p.Cfg().PortBase, it.ID)), "DISABLE_AUTOUPDATER": "1",
 	}
 	if r.EgressProxy != "" {
 		proxy := "http://" + r.EgressProxy
@@ -324,7 +341,7 @@ func (r *Runtime) start(ctx context.Context, p *Project, slot Slot, a *Assignmen
 	}
 	if experiment != "" {
 		env["BARNRAISE_EXPERIMENT"] = experiment
-		for _, ex := range p.Cfg.Experiments {
+		for _, ex := range p.Cfg().Experiments {
 			if ex.Name == experiment {
 				for k, v := range ex.Env {
 					env[k] = v
@@ -383,10 +400,10 @@ func (r *Runtime) writeSessionFiles(p *Project, sessDir, worktree string, env ma
 		bin = "barnraise"
 	}
 	home, _ := os.UserHomeDir()
-	pol := p.Cfg.Policy
+	pol := p.Cfg().Policy
 	pol.Home = home
 	pol.Worktree = worktree
-	pol.MainBranch = p.Cfg.MainBranch
+	pol.MainBranch = p.Cfg().MainBranch
 	polData, _ := json.MarshalIndent(pol, "", "  ")
 	if err := os.WriteFile(filepath.Join(sessDir, "policy.json"), polData, 0o600); err != nil {
 		return "", "", err
@@ -452,7 +469,7 @@ func (r *Runtime) watch(p *Project, slot Slot, a *Assignment, ls *liveSession, a
 	limited := false
 	var resets time.Time
 	lastState := time.Time{}
-	safety := time.NewTicker(maxDur(p.Cfg.SafetyCommit, time.Minute))
+	safety := time.NewTicker(maxDur(p.Cfg().SafetyCommit, time.Minute))
 	defer safety.Stop()
 	events := ls.sess.Events()
 loop:
@@ -540,7 +557,7 @@ loop:
 	if moved || cur == nil {
 		return
 	}
-	if limited || errors.Is(err, context.Canceled) || r.stopped {
+	if limited || errors.Is(err, context.Canceled) || ls.halted.Load() || r.isStopped() {
 		return // not the agent's fault: another account or a resume picks it up
 	}
 	if attempts+1 < 2 {
@@ -565,18 +582,18 @@ loop:
 
 // refineWorkspace is a read-only checkout of main for the analyst: drafts get no branch or PR.
 func (s *Service) refineWorkspace(ctx context.Context, p *Project, itemID string) (string, error) {
-	if p.Ports.Git == nil {
-		return p.Cfg.Root, nil
+	if p.Ports().Git == nil {
+		return p.Cfg().Root, nil
 	}
 	dir := s.WorktreeDir(p.Name, "_refine-"+itemID)
-	main, err := p.Ports.Git.MainHead(ctx)
+	main, err := p.Ports().Git.MainHead(ctx)
 	if err != nil {
 		return "", err
 	}
 	if _, err := os.Stat(filepath.Join(dir, ".git")); err == nil {
-		return dir, p.Ports.Git.Checkout(ctx, dir, main)
+		return dir, p.Ports().Git.Checkout(ctx, dir, main)
 	}
-	if err := p.Ports.Git.AddDetachedWorktree(ctx, dir, main); err != nil {
+	if err := p.Ports().Git.AddDetachedWorktree(ctx, dir, main); err != nil {
 		return "", err
 	}
 	s.excludeFromGit(dir, "/.barnraise-session/")
@@ -632,7 +649,7 @@ func (r *Runtime) StopAll() {
 	}
 	r.mu.Unlock()
 	for _, ls := range list {
-		_ = ls.sess.Stop()
+		ls.stop()
 	}
 }
 
@@ -647,7 +664,7 @@ func (r *Runtime) StopProject(project string) {
 	}
 	r.mu.Unlock()
 	for _, ls := range list {
-		_ = ls.sess.Stop()
+		ls.stop()
 	}
 }
 
@@ -662,7 +679,7 @@ func (s *Service) stopItemSessions(itemID string) {
 	}
 	r.mu.Unlock()
 	for _, ls := range list {
-		_ = ls.sess.Stop()
+		ls.stop()
 	}
 }
 
@@ -680,10 +697,10 @@ func (r *Runtime) Sessions() []map[string]string {
 
 // renewLeases renews this machine's claims; a lost lease stops the work on it.
 func (r *Runtime) renewLeases(ctx context.Context, p *Project) {
-	if p.Ports.Arbiter == nil {
+	if p.Ports().Arbiter == nil {
 		return
 	}
-	every := p.Cfg.Lease.Renew
+	every := p.Cfg().Lease.Renew
 	if every <= 0 {
 		every = 30 * time.Second
 	}
@@ -698,7 +715,7 @@ func (r *Runtime) renewLeases(ctx context.Context, p *Project) {
 	}
 	p.mu.Unlock()
 	for id, l := range leases {
-		nl, err := p.Ports.Arbiter.Renew(ctx, l)
+		nl, err := p.Ports().Arbiter.Renew(ctx, l)
 		switch {
 		case err == nil:
 			p.mu.Lock()

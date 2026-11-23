@@ -60,7 +60,7 @@ func (s *Service) CreateItem(ctx context.Context, project string, a Actor, in Ne
 	if err != nil {
 		return CreateResult{}, fmt.Errorf("%w: %v", ErrInvalid, err)
 	}
-	if _, err := p.Cfg.FlowFor(in.Kind); err != nil {
+	if _, err := p.Cfg().FlowFor(in.Kind); err != nil {
 		return CreateResult{}, fmt.Errorf("%w: %v", ErrInvalid, err)
 	}
 	// Bugs found by agents at P2/P3 wait as proposals; P0/P1 enter directly.
@@ -96,8 +96,8 @@ func (s *Service) CreateItem(ctx context.Context, project string, a Actor, in Ne
 		return CreateResult{}, err
 	}
 	base := ""
-	if p.Ports.Git != nil {
-		base, _ = p.Ports.Git.MainHead(ctx)
+	if p.Ports().Git != nil {
+		base, _ = p.Ports().Git.MainHead(ctx)
 	}
 	now := s.d.Clock.Now().UTC()
 	p.mu.Lock()
@@ -116,7 +116,7 @@ func (s *Service) CreateItem(ctx context.Context, project string, a Actor, in Ne
 	}
 	area := domain.AreaName(in.Area)
 	if area == "" && len(in.Anchors.Files) > 0 {
-		area = p.Cfg.AreaOfFile(in.Anchors.Files[0])
+		area = p.Cfg().AreaOfFile(in.Anchors.Files[0])
 	}
 	in.Anchors.Base = base
 	it := &domain.Item{
@@ -145,11 +145,11 @@ func (s *Service) allocate(ctx context.Context, p *Project, k domain.IDKind) (in
 	p.mu.Lock()
 	local := p.state.Counters[k] + 1
 	p.mu.Unlock()
-	if p.Ports.Arbiter == nil {
+	if p.Ports().Arbiter == nil {
 		return local, nil
 	}
 	for {
-		n, err := p.Ports.Arbiter.Next(ctx, "ids-"+string(k))
+		n, err := p.Ports().Arbiter.Next(ctx, "ids-"+string(k))
 		if err != nil {
 			return 0, fmt.Errorf("allocate %s id: %w", k, err)
 		}
@@ -223,7 +223,7 @@ func (s *Service) UpdateItem(ctx context.Context, project string, a Actor, id st
 			it.Class = *patch.Class
 		}
 		if patch.Kind != nil {
-			if _, err := p.Cfg.FlowFor(*patch.Kind); err != nil {
+			if _, err := p.Cfg().FlowFor(*patch.Kind); err != nil {
 				return fmt.Errorf("%w: %v", ErrInvalid, err)
 			}
 			if it.Step != "" {
@@ -422,7 +422,7 @@ func (s *Service) CloseItem(ctx context.Context, project string, a Actor, id, re
 	}
 	s.releaseLease(ctx, p, id)
 	s.stopItemSessions(id)
-	if p.Ports.CodeHost != nil && it.PR != "" {
+	if p.Ports().CodeHost != nil && it.PR != "" {
 		go func() {
 			msg := "Closed by Barnraise: " + reason
 			if by != "" {
@@ -431,7 +431,7 @@ func (s *Service) CloseItem(ctx context.Context, project string, a Actor, id, re
 			if note != "" {
 				msg += ". " + note
 			}
-			_ = p.Ports.CodeHost.Close(context.Background(), prFromRef(it.PR), msg)
+			_ = p.Ports().CodeHost.Close(context.Background(), prFromRef(it.PR), msg)
 		}()
 	}
 	s.syncTracker(p, id, false)
