@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	goruntime "runtime"
 	"sort"
 	"strconv"
 	"strings"
@@ -48,7 +49,16 @@ type Runtime struct {
 	Sandbox bool
 	// EgressProxy routes agent traffic through the allow-list proxy (host:port).
 	EgressProxy string
+	// NoSandboxProviders lists providers that cannot run a command on this
+	// machine because their mandatory sandbox does not work here (Codex on
+	// Linux needs bubblewrap). They get no work instead of failing every command.
+	NoSandboxProviders map[string]string // provider -> why, and what to do
 }
+
+// codexNeedsBwrap explains why Codex gets no work on a machine where bubblewrap cannot start.
+const codexNeedsBwrap = "Codex runs every command inside bubblewrap, which cannot create user namespaces on this machine. " +
+	"On Ubuntu: allow it with an AppArmor profile for bwrap, or `sudo sysctl kernel.apparmor_restrict_unprivileged_userns=0`. " +
+	"Until then this machine gives Codex no work"
 
 type liveSession struct {
 	agent   string
@@ -96,9 +106,13 @@ func newRuntime(s *Service) *Runtime {
 	if !sandboxWorks() {
 		bwrapErr = errors.New("sandbox unavailable")
 	}
-	return &Runtime{s: s, poke: make(chan struct{}, 1), running: map[string]*liveSession{}, SessionTimeout: 3 * time.Hour,
+	r := &Runtime{s: s, poke: make(chan struct{}, 1), running: map[string]*liveSession{}, SessionTimeout: 3 * time.Hour,
 		lastHK: map[string]time.Time{}, lastRenew: map[string]time.Time{}, lastImport: map[string]time.Time{}, lastSweep: map[string]time.Time{},
-		lastDigest: map[string]time.Time{}, lastWeekly: map[string]time.Time{}, Sandbox: bwrapErr == nil}
+		lastDigest: map[string]time.Time{}, lastWeekly: map[string]time.Time{}, Sandbox: bwrapErr == nil, NoSandboxProviders: map[string]string{}}
+	if bwrapErr != nil && goruntime.GOOS == "linux" {
+		r.NoSandboxProviders["codex"] = codexNeedsBwrap
+	}
+	return r
 }
 
 // SetProbe installs the machine capability probe.
@@ -238,8 +252,11 @@ func (r *Runtime) fillSlots(ctx context.Context, p *Project, m domain.Machine) {
 			if r.newStartErr(p.Name+"/"+a.Item.ID, err.Error()) {
 				r.s.d.Log.Warn("start session", "agent", slot.Agent, "item", a.Item.ID, "err", err)
 				r.s.sessionState(ctx, p, slot, a, "failed", err.Error(), "", "", "")
-				if errors.Is(err, domain.ErrNoOtherModel) {
+				switch {
+				case errors.Is(err, domain.ErrNoOtherModel):
 					r.s.notifyOwner(ctx, p, "model_rule", a.Item.ID+" cannot be reviewed", err.Error())
+				case strings.Contains(err.Error(), "bubblewrap"):
+					r.s.notifyOwner(ctx, p, "model_rule", a.Item.ID+" waits: a provider cannot run here", err.Error())
 				}
 			}
 			continue
@@ -315,8 +332,15 @@ func (r *Runtime) start(ctx context.Context, p *Project, slot Slot, a *Assignmen
 		}
 	}
 	now := s.d.Clock.Now()
+	blocked := ""
 	usable := func(provider string) bool {
 		if _, ok := s.d.Providers[provider]; !ok {
+			return false
+		}
+		if why, no := r.NoSandboxProviders[provider]; no {
+			if domain.PickAccount(accounts, provider, s.d.Machine, p.Name, now) != nil {
+				blocked = why // an account is ready, only the sandbox stops it
+			}
 			return false
 		}
 		if len(rd.Providers) > 0 && !domain.Contains(rd.Providers, provider) {
@@ -328,6 +352,9 @@ func (r *Runtime) start(ctx context.Context, p *Project, slot Slot, a *Assignmen
 	if errors.Is(err, domain.ErrNoOtherModel) {
 		return fmt.Errorf("step %s of %s must run on a different model from step %s: %w (add a second model to the class in `models.classes`, or an account of another provider)",
 			a.Step.Name, it.ID, a.Step.DifferentFrom(), err)
+	}
+	if err != nil && blocked != "" {
+		return fmt.Errorf("%w: %s", err, blocked)
 	}
 	if err != nil {
 		s.notifyAccountsExhausted(ctx, p)

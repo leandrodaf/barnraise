@@ -11,6 +11,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/leandrodaf/barnraise/internal/adapters/out/fakeprovider"
 	"github.com/leandrodaf/barnraise/internal/domain"
 	"github.com/leandrodaf/barnraise/internal/ports"
 	"github.com/leandrodaf/barnraise/internal/testkit"
@@ -489,4 +490,59 @@ func TestRuntimeSessionGetsOnlyTheAllowedMCPServers(t *testing.T) {
 	if len(bad.prov.Specs()) != 0 {
 		t.Fatal("no session without the server's secret")
 	}
+}
+
+// Codex on Linux runs every command inside bubblewrap. Where bubblewrap
+// cannot start, Codex gets no work (it would fail every command and spend
+// tokens doing it), and the owner is told why once.
+func TestRuntimeGivesNoWorkToAProviderWhoseSandboxCannotRun(t *testing.T) {
+	onlyCodex := withCfg(func(c *domain.ProjectConfig) {
+		for class := range c.Models.Classes {
+			c.Models.Classes[class] = []domain.ModelChoice{{Provider: "codex", Model: "gpt"}, {Provider: "fake", Model: "fake-large"}}
+		}
+	})
+	e := newEnv(t, onlyCodex)
+	codex := fakeprovider.New("codex", "openai")
+	e.svc.d.Providers["codex"] = codex
+	e.svc.Runtime().NoSandboxProviders = map[string]string{"codex": codexNeedsBwrap}
+	if _, err := e.svc.UpsertAccount(e.ctx, "demo", owner(), domain.Account{ID: "codex-1", Provider: "codex", CeilingPct: 100}); err != nil {
+		t.Fatal(err)
+	}
+	it := e.ready("simple", "codex only", "x")
+	e.fill()
+	e.fill()
+	if len(codex.Specs()) != 0 || len(e.prov.Specs()) != 0 {
+		t.Fatal("no session may start: codex cannot run here and no other account exists")
+	}
+	var told []string
+	for _, n := range e.notes.Sent() {
+		if strings.Contains(n.Body, "bubblewrap") {
+			told = append(told, n.Body)
+		}
+	}
+	if len(told) != 1 || !strings.Contains(told[0], "apparmor_restrict_unprivileged_userns") {
+		t.Fatalf("the owner is told once, with the fix: %v", told)
+	}
+	// With another provider's account the work goes there instead.
+	e.account("fake-1")
+	e.fill()
+	if len(codex.Specs()) != 0 || len(e.prov.Specs()) != 1 || e.prov.Specs()[0].Env["BARNRAISE_ITEM"] != it.ID {
+		t.Fatalf("the item goes to the provider that can run: codex %d fake %d", len(codex.Specs()), len(e.prov.Specs()))
+	}
+	e.idle()
+
+	// Where the sandbox works, Codex is used normally.
+	ok := newEnv(t, onlyCodex)
+	codex2 := fakeprovider.New("codex", "openai")
+	ok.svc.d.Providers["codex"] = codex2
+	ok.svc.Runtime().NoSandboxProviders = nil
+	if _, err := ok.svc.UpsertAccount(ok.ctx, "demo", owner(), domain.Account{ID: "codex-1", Provider: "codex", CeilingPct: 100}); err != nil {
+		t.Fatal(err)
+	}
+	ok.ready("simple", "codex fine", "x")
+	ok.fill()
+	if len(codex2.Specs()) != 1 {
+		t.Fatalf("codex sessions %d", len(codex2.Specs()))
+	}
+	ok.idle()
 }
