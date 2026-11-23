@@ -3614,6 +3614,13 @@ components:
           type: string
           title: health
           description: green, yellow, red (gray when it left).
+        platform:
+          type: string
+          title: platform
+        binary:
+          type: string
+          title: binary
+          description: sha256 of the machine's barnraise binary (single version across the cluster).
       title: Machine
       additionalProperties: false
     barnraise.v1.MachinesResponse:

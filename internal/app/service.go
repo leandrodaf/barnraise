@@ -320,6 +320,17 @@ func (s *Service) Ingest(ctx context.Context, e domain.Event) error {
 	if err != nil {
 		return nil // project not driven here
 	}
+	if e.Type == domain.EvMachineUpdated || e.Type == domain.EvAgentSession {
+		// Live-only state (heartbeats, sessions): applied, never stored.
+		p.mu.Lock()
+		err := p.state.Apply(e)
+		delete(p.state.Seen, e.ID)
+		p.mu.Unlock()
+		if err == nil {
+			s.hub.Publish(e)
+		}
+		return err
+	}
 	stored, err := s.d.Store.Append(ctx, e)
 	if err != nil {
 		return err

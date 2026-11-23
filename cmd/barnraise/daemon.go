@@ -85,6 +85,8 @@ type daemon struct {
 	machine atomic.Pointer[domain.Machine]
 	dataDir string
 	opts    cli.DaemonOptions
+	pidFile string
+	binary  string
 	fake    *fakeAgent
 }
 
@@ -108,6 +110,7 @@ func runDaemon(ctx context.Context, opts cli.DaemonOptions) error {
 		return err
 	}
 	pidFile := filepath.Join(d.dataDir, "daemon.pid")
+	d.pidFile = pidFile
 	_ = os.WriteFile(pidFile, []byte(strconv.Itoa(os.Getpid())), 0o600)
 	defer os.Remove(pidFile)
 	owner, err := ownerToken()
@@ -196,6 +199,8 @@ func runDaemon(ctx context.Context, opts cli.DaemonOptions) error {
 		}
 	}
 
+	d.binary = d.publishBinary(ctx)
+	go d.watchVersions(ctx, d.binary)
 	go d.forwardWebhooks(ctx)
 	go d.reindexOnIntegration(ctx)
 	go d.watchDaemonFile(ctx)
@@ -774,6 +779,8 @@ func (d *daemon) probe() domain.Machine {
 	m.Name = d.df.Machine
 	m.Slots = sysinfo.Slots(m, 4, m.Emulators)
 	m.Version = version
+	m.Platform = platform()
+	m.Binary = d.binary
 	m.LastSeen = time.Now()
 	if d.natsSrv != nil {
 		m.Address = d.natsSrv.ClientURL()

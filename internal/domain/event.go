@@ -128,6 +128,8 @@ type Machine struct {
 	Accounts  []string  `json:"accounts,omitempty"`
 	LastSeen  time.Time `json:"last_seen,omitzero"`
 	Leaving   bool      `json:"leaving,omitempty"`
+	Platform  string    `json:"platform,omitempty"` // linux/amd64
+	Binary    string    `json:"binary,omitempty"`   // sha256 of the barnraise binary, fetchable from the machine's object store
 	Left      bool      `json:"left,omitempty"`
 }
 

@@ -311,6 +311,9 @@ message Machine {
   bool left = 15;
   // green, yellow, red (gray when it left).
   string health = 16;
+  string platform = 17;
+  // sha256 of the machine's barnraise binary (single version across the cluster).
+  string binary = 18;
 }
 
 message SessionInfo {

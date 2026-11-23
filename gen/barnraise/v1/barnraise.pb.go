@@ -2520,7 +2520,10 @@ type Machine struct {
 	Leaving   bool                   `protobuf:"varint,14,opt,name=leaving,proto3" json:"leaving,omitempty"`
 	Left      bool                   `protobuf:"varint,15,opt,name=left,proto3" json:"left,omitempty"`
 	// green, yellow, red (gray when it left).
-	Health        string `protobuf:"bytes,16,opt,name=health,proto3" json:"health,omitempty"`
+	Health   string `protobuf:"bytes,16,opt,name=health,proto3" json:"health,omitempty"`
+	Platform string `protobuf:"bytes,17,opt,name=platform,proto3" json:"platform,omitempty"`
+	// sha256 of the machine's barnraise binary (single version across the cluster).
+	Binary        string `protobuf:"bytes,18,opt,name=binary,proto3" json:"binary,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -2663,6 +2666,20 @@ func (x *Machine) GetLeft() bool {
 func (x *Machine) GetHealth() string {
 	if x != nil {
 		return x.Health
+	}
+	return ""
+}
+
+func (x *Machine) GetPlatform() string {
+	if x != nil {
+		return x.Platform
+	}
+	return ""
+}
+
+func (x *Machine) GetBinary() string {
+	if x != nil {
+		return x.Binary
 	}
 	return ""
 }
@@ -8178,7 +8195,7 @@ const file_barnraise_v1_barnraise_proto_rawDesc = "" +
 	"\x05usage\x18\t \x01(\v2\x13.barnraise.v1.UsageR\x05usage\x12\x1a\n" +
 	"\bprojects\x18\n" +
 	" \x03(\tR\bprojects\x12\x19\n" +
-	"\badded_at\x18\v \x01(\tR\aaddedAt\"\x88\x03\n" +
+	"\badded_at\x18\v \x01(\tR\aaddedAt\"\xbc\x03\n" +
 	"\aMachine\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x18\n" +
 	"\aversion\x18\x02 \x01(\tR\aversion\x12\x18\n" +
@@ -8196,7 +8213,9 @@ const file_barnraise_v1_barnraise_proto_rawDesc = "" +
 	"\tlast_seen\x18\r \x01(\tR\blastSeen\x12\x18\n" +
 	"\aleaving\x18\x0e \x01(\bR\aleaving\x12\x12\n" +
 	"\x04left\x18\x0f \x01(\bR\x04left\x12\x16\n" +
-	"\x06health\x18\x10 \x01(\tR\x06health\"\xa5\x02\n" +
+	"\x06health\x18\x10 \x01(\tR\x06health\x12\x1a\n" +
+	"\bplatform\x18\x11 \x01(\tR\bplatform\x12\x16\n" +
+	"\x06binary\x18\x12 \x01(\tR\x06binary\"\xa5\x02\n" +
 	"\vSessionInfo\x12\x14\n" +
 	"\x05agent\x18\x01 \x01(\tR\x05agent\x12\x12\n" +
 	"\x04role\x18\x02 \x01(\tR\x04role\x12\x18\n" +

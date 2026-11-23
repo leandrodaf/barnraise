@@ -1,0 +1,251 @@
+# API
+
+Barnraise is API first. Everything the CLI, the MCP server, the hooks and the panel do goes through one public API and one event stream, so any other interface, CI job or bot can do the same without touching the core.
+
+| Surface | Where |
+| --- | --- |
+| RPC service (Connect: gRPC, gRPC-Web and JSON over HTTP) | `POST /barnraise.v1.BarnraiseService/<Method>` |
+| OpenAPI document, generated from the proto | `GET /v1/openapi.yaml` |
+| Live events (CloudEvents over Server-Sent Events) | `GET /v1/events` |
+| Inbound webhooks | `POST /v1/webhooks/github`, `POST /v1/webhooks/gitlab`, `POST /v1/webhooks/inbound/{project}` |
+| Health (no token) | `GET /healthz` |
+| Web panel | `GET /` |
+
+The contract is [`proto/barnraise/v1/barnraise.proto`](../proto/barnraise/v1/barnraise.proto). `buf breaking` runs in CI, so incompatible changes only land in a new version (`barnraise.v2`).
+
+## Where the daemon listens
+
+- **Unix socket** (always): `~/.local/share/barnraise/barnraise.sock`, mode 0600. It moves with `BARNRAISE_DATA_DIR` or is set directly with `BARNRAISE_SOCKET`; when the path would be longer than a socket allows, it is `$XDG_RUNTIME_DIR/barnraise-<hash>.sock`.
+- **TCP**: `127.0.0.1:7420` by default (`listen:` in `daemon.yaml`, or `barnraise daemon --listen`; `off` disables it). Any address that is not loopback requires `--tls-cert` and `--tls-key`. Prefer a reverse proxy or Tailscale in front of it.
+
+The CLI uses the socket unless `--url` or `BARNRAISE_URL` points elsewhere.
+
+## Authentication
+
+Every RPC and `/v1/events` need `Authorization: Bearer <token>`. There are three kinds of token:
+
+| Token | Prefix | Who | Scopes |
+| --- | --- | --- | --- |
+| Owner token | `bro_` | The owner; created on the first `barnraise daemon` in `~/.config/barnraise/owner.token` (0600). Agents cannot read it: the hook denies `~/.config/barnraise/**` | everything (`*`) |
+| Agent session token | `brs_` | One per agent session, in memory, revoked when the session ends | by role (below) |
+| API token | `brt_` | Created with `barnraise token create`; shown once, stored hashed | the scopes you give, optionally for one project, with a lifetime |
+
+Each token is rate limited (50 requests per second, bursts of 100); over the limit the API answers `429` with `Retry-After: 1`. Every write is in the audit log (`barnraise audit`, RPC `ListAudit`).
+
+### Scopes
+
+| Scope | Allows |
+| --- | --- |
+| `items:read` | Read items, status, queue, metrics, timeline, knowledge (`context`, `find`, `get`, `related`, `why`, `history`, `rules`), proposals; also the event stream |
+| `items:write` | Create, edit and close items; revalidation |
+| `items:claim` | Take the next item (`NextItem`) |
+| `deliveries:write` | Submit a delivery |
+| `reviews:write` | Submit a review |
+| `checks:report` | Report a check result (`ReportCheck`) |
+| `approve` | Approve or reject a plan or delivery; takeover, handback, redo |
+| `focus` | Set or clear the focus; set the goal |
+| `pause` | Pause and resume every agent |
+| `proposals:write` | Propose |
+| `proposals:decide` | Approve, refuse or postpone a proposal |
+| `messages:write` | Send a message tied to an item |
+| `owner:ask` | Ask the owner a question |
+| `owner:answer` | Answer a question |
+| `tweaks:write` | Add a tweak |
+| `accounts:write` | Add or change accounts |
+| `machines:write` | Machine operations |
+| `usage:report` | Report account usage (the status line) |
+| `journal:write` | Write the end-of-step journal |
+| `events:read` | Read the event stream |
+| `admin` | Projects, tokens, audit |
+
+Agent roles get: `items:read`, `proposals:write`, `messages:write`, `events:read`, `journal:write`, `tweaks:write`, `items:claim`, plus `deliveries:write` and `owner:ask` for implementers, `reviews:write` for reviewers, and for the analyst also `approve`, `focus`, `pause`, `items:write`, `proposals:decide`.
+
+```sh
+# A CI job only reports check results, for one project, for 90 days.
+barnraise token create -p demo --name github-ci --scope checks:report --ttl 90d
+barnraise token list
+barnraise token revoke tok-dn2lw57ghm87
+```
+
+## Calling the API with curl
+
+The Connect protocol is plain HTTP: `POST` the request message as JSON to `/<package>.<Service>/<Method>`.
+
+```sh
+SOCK=~/.local/share/barnraise/barnraise.sock
+TOKEN=$(cat ~/.config/barnraise/owner.token)
+
+# Status of a project, over the unix socket
+curl -s --unix-socket "$SOCK" \
+  -X POST http://localhost/barnraise.v1.BarnraiseService/Status \
+  -H 'Content-Type: application/json' \
+  -H "Authorization: Bearer $TOKEN" \
+  -d '{"project":"demo"}'
+
+# The same over TCP
+curl -s -X POST http://127.0.0.1:7420/barnraise.v1.BarnraiseService/Status \
+  -H 'Content-Type: application/json' -H "Authorization: Bearer $TOKEN" \
+  -d '{"project":"demo"}'
+
+# List items
+curl -s --unix-socket "$SOCK" -X POST http://localhost/barnraise.v1.BarnraiseService/ListItems \
+  -H 'Content-Type: application/json' -H "Authorization: Bearer $TOKEN" \
+  -d '{"project":"demo"}'
+
+# Report a check result (what the check action does)
+curl -s -X POST https://barnraise.example/barnraise.v1.BarnraiseService/ReportCheck \
+  -H 'Content-Type: application/json' -H "Authorization: Bearer $CI_TOKEN" \
+  -d '{"project":"demo","result":{"item_id":"I-42","check":"unit","passed":true,"summary":"212 tests passed","commit":"3f2c9e1"}}'
+```
+
+**Field names.** Requests accept the proto field names in snake_case (`item_id`, `done_when`), which match the JSON the daemon uses in its events, and also the lowerCamelCase form (`itemId`). Responses use the standard proto3 JSON mapping, lowerCamelCase (`goalId`, `doneWhen`); event payloads (`data` of a CloudEvent) keep the daemon's snake_case. Unknown request fields are ignored, so a typo silently does nothing: check the OpenAPI document for exact shapes.
+
+**Errors** from a method use the Connect error format: an HTTP status plus `{"code": "permission_denied", "message": "forbidden: token \"ci\" lacks items:read"}` (`invalid_argument`, `not_found`, `failed_precondition`, …). A missing or invalid token is refused before the method runs, with `401` and `{"error": "invalid or expired token"}`; the rate limit answers `429` the same way.
+
+gRPC clients use the same service with HTTP/2; generated clients in Go are in `gen/barnraise/v1/barnraisev1connect`, and any language with a protobuf toolchain can generate its own from the proto.
+
+### Methods
+
+| Group | Methods |
+| --- | --- |
+| Projects | `ListProjects`, `RegisterProject`, `ReloadProject` |
+| Items | `CreateItem`, `GetItem`, `ListItems`, `UpdateItem`, `CloseItem`, `NextItem`, `Deliver`, `SubmitReview`, `ReportCheck`, `Timeline`, `Estimate`, `Takeover`, `Handback`, `Redo` |
+| Proposals and tweaks | `Propose`, `ListProposals`, `DecideProposal`, `AddTweak` |
+| Owner | `AskOwner`, `ListQuestions`, `Answer`, `Approve`, `SetGoal`, `SetFocus`, `ClearFocus`, `Pause`, `Resume` |
+| Views | `Status`, `Metrics`, `Digest`, `Queue`, `ProcessQueue`, `ListEvents` |
+| Messaging | `SendMessage`, `Inbox`, `Journal`, `ReportViolation` |
+| Knowledge | `Context`, `Find`, `Get`, `Related`, `Why`, `History`, `Rules`, `Revalidate`, `Sweep` |
+| Accounts and machines | `UpsertAccount`, `ListAccounts`, `ReportUsage`, `ListMachines`, `LeaveMachine` |
+| Tokens and audit | `CreateToken`, `ListTokens`, `RevokeToken`, `ListAudit` |
+
+## Events
+
+Everything that happens becomes an event in an append-only log. Event types are versioned names, the same in the API, in CloudEvents, in webhooks and on NATS.
+
+| Group | Types |
+| --- | --- |
+| Item lifecycle | `item.created`, `item.updated`, `item.claimed`, `item.released`, `item.step.started`, `item.step.finished`, `item.waiting_owner`, `item.blocked`, `item.queued`, `item.integrated`, `item.closed`, `item.paused`, `item.resumed`, `item.redo` |
+| Living plan | `item.impacted`, `item.revalidated`, `item.updated_by_change`, `item.superseded`, `item.obsoleted`, `item.merged_into` |
+| Work | `delivery.submitted`, `review.submitted`, `check.requested`, `check.completed`, `rework.started` |
+| Goal and focus | `goal.set`, `goal.finished`, `focus.changed` |
+| Proposals and tweaks | `proposal.created`, `proposal.updated`, `tweak.added`, `tweak.attached` |
+| Owner | `owner.question.asked`, `owner.question.answered` |
+| Messages | `message.sent`, `message.delivered` |
+| Accounts and machines | `account.updated`, `account.limit.reached`, `machine.updated`, `machine.left` |
+| Agents | `agent.session`, `agent.usage`, `journal.entry` |
+| Security and control | `policy.violation.blocked`, `secret.blocked`, `system.paused`, `system.resumed` |
+
+### CloudEvents
+
+Events leave the daemon as [CloudEvents 1.0](https://cloudevents.io/) in structured JSON mode. The CloudEvents `type` is the Barnraise type with the reverse-DNS prefix `dev.barnraise.`; filters (`types`, webhook `events`) use the plain Barnraise type.
+
+```json
+{
+  "specversion": "1.0",
+  "id": "01JD3…",
+  "source": "barnraise://leandro-pc/demo",
+  "type": "dev.barnraise.item.integrated",
+  "subject": "I-42",
+  "time": "2026-11-23T12:57:44Z",
+  "datacontenttype": "application/json",
+  "data": { "item": { "id": "I-42", "status": "integrated", "…": "…" } },
+  "barnraiseproject": "demo",
+  "barnraisemachine": "leandro-pc",
+  "barnraiseactor": "barnraise"
+}
+```
+
+`data` carries snapshots of the entities involved (`item`, `proposal`, `goal`, `focus`, `delivery`, `review`, `check`, `rework`, `account`, `machine`, …) plus `cause` (the link to the change that caused it) and `note`.
+
+### Live stream (SSE)
+
+```sh
+# live only
+curl -N --unix-socket "$SOCK" -H "Authorization: Bearer $TOKEN" \
+  "http://localhost/v1/events?project=demo&types=item.*,check.completed"
+
+# replay from a sequence number, then live
+curl -N --unix-socket "$SOCK" -H "Authorization: Bearer $TOKEN" \
+  "http://localhost/v1/events?project=demo&after_seq=120"
+```
+
+| Parameter | Meaning |
+| --- | --- |
+| `project` | Project; a token bound to one project always gets that project |
+| `types` | Comma-separated types or prefixes (`item.*`) |
+| `after_seq` | Replay events after this local sequence number first |
+| `backlog=1` | Replay the recent backlog first |
+| `token` | The bearer token, for `EventSource` clients that cannot set headers |
+
+Each SSE message has `id:` (the local sequence number), `event:` (the Barnraise type) and `data:` (the CloudEvent). Reconnecting with `Last-Event-ID` resumes after that sequence. The stream sends `: ping` every 20 seconds. The scope needed is `events:read` or `items:read`.
+
+The RPC `ListEvents` and `barnraise events [--after N] [--types …] [-f]` read the same log.
+
+## Webhooks
+
+### Outgoing
+
+Declared in `barnraise.yaml` (see [configuration.md](configuration.md#webhooks)). Each matching event is POSTed as a CloudEvent with `Content-Type: application/cloudevents+json` and these headers:
+
+| Header | Value |
+| --- | --- |
+| `X-Barnraise-Timestamp` | Unix seconds |
+| `X-Barnraise-Signature` | `sha256=<hex HMAC-SHA256(secret, timestamp + "." + body)>` (when `secret_ref` is set) |
+| `X-Barnraise-Delivery` | The CloudEvent id, for deduplication |
+
+The timestamp is part of the signed message, so the replay window cannot be bypassed by changing the header. Failed deliveries are retried up to 6 times with exponential backoff starting at 20 s (capped at 5 min, honouring `Retry-After`); a `4xx` other than `408` and `429` is not retried. `agent.session` and `machine.updated` are only on the live stream, not on webhooks.
+
+Verifying a delivery (any language; shell shown):
+
+```sh
+expected="sha256=$(printf '%s.%s' "$TIMESTAMP" "$BODY" | openssl dgst -sha256 -hmac "$SECRET" -hex | sed 's/^.* //')"
+[ "$expected" = "$SIGNATURE" ] && [ $(( $(date +%s) - TIMESTAMP )) -le 300 ]
+```
+
+Compare in constant time in real code, and reject timestamps outside your window (Barnraise itself uses 5 minutes inbound).
+
+### Inbound
+
+| Endpoint | Verified with | Does |
+| --- | --- | --- |
+| `POST /v1/webhooks/github` | `X-Hub-Signature-256` (GitHub's `sha256=` HMAC of the body) | `push` to main revalidates affected items; completed `check_run` / `workflow_run` on a `br/I-<n>-…` branch reports the matching `github-actions` check; `issues` imports from the tracker; an `issue_comment` `/barnraise approve plan I-42` (or `reject`, `delivery`) from a `tracker.trusted` author approves |
+| `POST /v1/webhooks/gitlab` | `X-Gitlab-Token` (shared token) | Finished `pipeline` on an item branch reports its CI checks |
+| `POST /v1/webhooks/inbound/{project}` | `X-Barnraise-Signature` and `X-Barnraise-Timestamp`, same scheme as outgoing, 5-minute window | Generic: check results from any system |
+
+The project of a GitHub or GitLab webhook is found from the repository in the payload. The generic body:
+
+```json
+{"type": "check.result", "item": "I-42", "check": "security-scan", "commit": "3f2c9e1",
+ "passed": false, "summary": "2 high findings", "log_url": "https://scanner.example/r/91"}
+```
+
+The secrets are read from the secrets store under the keys `webhook/<project>/github`, `webhook/<project>/gitlab` and `webhook/<project>/inbound`. A webhook without a configured secret is refused. There is no CLI command to set these keys yet; with the Linux Secret Service backend they can be stored with `secret-tool store --label "barnraise webhook" service barnraise username webhook/demo/github`. When `webhook/<project>/inbound` exists, `webhook` checks get the callback URL `http://<listen>/v1/webhooks/inbound/<project>` and sign their requests with it.
+
+### GitHub Actions checks
+
+For a check with `runs_on: github-actions`, Barnraise emits `check.requested` and dispatches the workflow (`workflow_dispatch`) on the item's branch with the inputs `item`, `commit` and `check`. The workflow reports back either through the GitHub webhook (`workflow_run`) or explicitly with [`action/check`](../action/check) and a `checks:report` token. Green moves the item on; red sends it back as rework with the summary.
+
+## MCP
+
+`barnraise mcp` is an MCP server on stdio that talks to the local daemon. Agents get it in their session configuration automatically; the owner can add it to any MCP client, for example `claude mcp add barnraise -- barnraise mcp`.
+
+The tools a session sees follow its role (`BARNRAISE_ROLE`; empty is the owner). An implementer simply does not see `approve`.
+
+| Tool | Scope behind it | Who sees it | What it does |
+| --- | --- | --- | --- |
+| `next_item` | `items:claim` | every agent role, owner | Atomically reserves the next item and returns the step, instructions and context; with no authorized work the agent records its state and ends its turn |
+| `deliver` | `deliveries:write` | implementers, analyst, owner | Ends a step with a fixed status (`DONE`, `DONE_WITH_CONCERNS`, `NEEDS_CONTEXT`, `BLOCKED`), criteria marked with evidence, files touched |
+| `review` | `reviews:write` | reviewers, analyst, owner | Two verdicts (criteria, code), a decision (`APPROVE`, `REWORK`, `REJECT`) and findings; a review without both verdicts is refused |
+| `propose` | `proposals:write` | everyone | A proposal in the fixed shape, with a daily limit per agent |
+| `ask_owner` | `owner:ask` | analyst, implementers by exception, owner | Context, decision, 2 to 4 options with one recommended, and what happens if nobody answers |
+| `message` | `messages:write` | everyone | A short message to an agent, a role or whoever works on an item |
+| `status` | `items:read` | everyone | Goal and progress, focus, counts, queue, questions, agents, accounts, alerts |
+| `context` | `items:read` | everyone | The item's context pack, cut to the token budget |
+| `find` | `items:read` | everyone | Layered search over items, decisions, standards, learnings and code anchors |
+| `approve` | `approve` | analyst, owner | Approve or refuse a plan, a delivery or a proposal, saying which |
+| `focus` | `focus` | analyst, owner | Set the focus, with a preview |
+| `pause` | `pause` | analyst, owner | Stop every agent of the project, or resume |
+| `answer` | owner only | owner | Answer a question an agent asked |
+| `create_item` | owner only | owner | Create an item with EARS criteria, area and size |
+
+The same operations exist on the CLI (`barnraise next`, `deliver`, `review`, `propose`, `ask`, `message`, `status`, `context`, `find`, `approve`, `focus`, `pause`, `answer`, `item add`), so agents without MCP use the CLI through Bash.
