@@ -193,6 +193,8 @@ type SessionSpec struct {
 	// of the account's subscription login. The key itself travels only in
 	// Env, under EndpointKeyEnv.
 	Endpoint *Endpoint `json:"endpoint,omitempty"`
+	// ACP, when set, is the agent program of a provider of `type: acp`.
+	ACP *ACPAgent `json:"acp,omitempty"`
 }
 
 // EndpointKeyEnv is the environment variable that carries the API key of

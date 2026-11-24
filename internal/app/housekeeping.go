@@ -379,6 +379,9 @@ func (s *Service) UpsertAccount(ctx context.Context, project string, a Actor, ac
 		if _, ok := s.d.Providers[EndpointCLI]; ok {
 			known = append(known, sortedKeys(p.Cfg().APIProviders)...)
 		}
+		if s.d.ACP != nil {
+			known = append(known, sortedKeys(p.Cfg().ACPProviders)...)
+		}
 		return nil, fmt.Errorf("%w: provider %q is not available (known: %s)", ErrInvalid, acc.Provider, strings.Join(known, ", "))
 	}
 	if acc.Status == "" {

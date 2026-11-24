@@ -972,7 +972,13 @@ func (e *env) accountCmd() *cobra.Command {
 			prov := args[0]
 			apis := apiProviders()
 			api, isAPI := apis[prov]
-			if prov != "claude" && prov != "codex" && prov != "gemini" && !isAPI {
+			_, isACP := acpProviders()[prov]
+			if isACP {
+				// The agent program has its own login, done by hand once (as
+				// the account's isolated user with --isolate); Barnraise keeps no key.
+				skipLogin = true
+			}
+			if prov != "claude" && prov != "codex" && prov != "gemini" && !isAPI && !isACP {
 				return fmt.Errorf("provider %q: use %s (other key-based providers go under `providers:` in barnraise.yaml)", prov, providerChoices(apis))
 			}
 			if isAPI && configDir != "" {
@@ -1034,6 +1040,9 @@ func (e *env) accountCmd() *cobra.Command {
 			if acc == nil {
 				acc = &pb.Account{Id: id, Provider: prov, Plan: plan, ConfigDir: dir, CeilingPct: ceiling, Status: "ok", Machine: machine}
 			}
+			if isACP && acc.Plan == "" {
+				acc.Plan = ACPPlan
+			}
 			if isolate {
 				if why := isolateProblem(dir); why != "" {
 					return errors.New(why)
@@ -1052,7 +1061,7 @@ func (e *env) accountCmd() *cobra.Command {
 			for _, p := range targets {
 				if _, err := cl.UpsertAccount(ctx, req(&pb.AccountRequest{Project: p, Account: acc})); err != nil {
 					// A provider declared in one project's barnraise.yaml is unknown to the others.
-					if isAPI && len(targets) > 1 {
+					if (isAPI || isACP) && len(targets) > 1 {
 						fmt.Fprintf(e.out, "  %s: not added (%v)\n", p, err)
 						continue
 					}

@@ -587,6 +587,11 @@ func (r *Runtime) start(ctx context.Context, p *Project, slot Slot, a *Assignmen
 		}
 		spec.Container = cs
 	}
+	if spec.ACP, err = s.acpAgent(p.Cfg(), choice.Provider); err != nil {
+		s.tokens.Revoke(token)
+		cancel()
+		return err
+	}
 	if endpoint != nil {
 		// Last, after every file of the session is written: the key lives
 		// only in the CLI's environment.
@@ -910,6 +915,8 @@ loop:
 					usage.CacheWrite = maxI(usage.CacheWrite, ev.Usage.CacheWrite)
 					usage.CostUSD = ev.Usage.CostUSD
 				}
+			case ports.PEPermission:
+				s.providerViolation(ctx, p, slot.Agent, a.Item.ID, ev)
 			case ports.PELimit:
 				limited = true
 				resets = ev.ResetsAt

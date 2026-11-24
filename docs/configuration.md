@@ -335,6 +335,7 @@ models:
 | `claude` | Claude Code (`claude -p`, stream JSON) | Claude subscription | `anthropic` | Blocking PreToolUse hook, plus the native sandbox when `bwrap` works | Hook; the container is the sandbox |
 | `codex` | Codex CLI (`codex exec --json`) | ChatGPT login | `openai` | `--sandbox workspace-write` (bubblewrap on Linux) | Own sandbox off; the container is the boundary |
 | `gemini` | Gemini CLI (`gemini --output-format stream-json`) | Google account | `google` | A reader: shell, write and edit tools are excluded and the approval mode stays `default` | `--approval-mode yolo`; the container is the boundary |
+| any name, [`type: acp`](#agent-programs-type-acp) | Any agent program that speaks the Agent Client Protocol on stdio | The agent's own | The provider's name | Permission requests, file reads and writes answered by the policy; terminals in bubblewrap when it works | The agent and its terminals in the container |
 
 Accounts are added with `barnraise account add <claude|codex|gemini>`. Each one gets its own config dir: `CLAUDE_CONFIG_DIR`, `CODEX_HOME`, or `GEMINI_CLI_HOME` (the Gemini CLI keeps its login in `$GEMINI_CLI_HOME/.gemini`). For a Gemini account, Barnraise selects the Google login in that folder's settings and starts `gemini` once. You sign in in the browser, or with `--headless` by pasting a code, and type `/quit`.
 
@@ -374,6 +375,38 @@ The model is everything after the provider: `openrouter/<vendor>/<model>`, e.g. 
 Accounts: `barnraise account add openrouter` asks for the key on standard input (never as a flag, so it stays out of the shell history and the process list) and keeps it in the system keychain as `account/<id>/api-key`. `--test-model deepseek/deepseek-chat` asks that model one minimal question to check the key. The account is bound to the machine whose keychain holds the key (`--machine` to choose another); `barnraise account relogin <id>` replaces the key. An API account has no 5-hour or weekly window, so Barnraise sends it work until the endpoint refuses: a rate limit (429) or the key running out of credits (402) marks the account limited and it is tried again an hour later. **Set the spending limit on the key itself**, at the provider (OpenRouter keys take a credit limit); that is the ceiling, and `--ceiling` does not apply.
 
 The endpoint must speak the Responses API: current Codex CLIs refuse `wire_api = "chat"`. OpenRouter does. A provider that only offers Chat Completions (DeepSeek's own API at `https://api.deepseek.com`, for example) cannot run sessions this way; reach its models through OpenRouter instead (`openrouter/deepseek/deepseek-chat`).
+
+### Agent programs (`type: acp`)
+
+A provider of `type: acp` is any agent program that speaks the [Agent Client Protocol](https://agentclientprotocol.com) (JSON-RPC 2.0 on its stdin and stdout, version 1). Barnraise is the protocol's client, so a new agent needs no adapter of its own: one entry in `providers:` is enough. Off unless declared.
+
+| Key | Default | Meaning |
+| --- | --- | --- |
+| `<name>.type` | none | `acp`. Without a type, the entry is a key-based provider (`base_url`) |
+| `<name>.command` | none (required) | The agent program, found on the `PATH` or given as an absolute path. Inside a [container](#container), the image must have it on its `PATH` |
+| `<name>.args` | `[]` | Its arguments, e.g. `[--acp]` or `[--experimental-acp]` |
+| `<name>.env` | `{}` | Variables added to the session's environment. A value may be a secret reference (`keychain:<key>`, `env:<VAR>`), resolved when the session starts. The variables Barnraise sets for every session (`BARNRAISE_*`) cannot be replaced |
+
+```yaml
+providers:
+  myagent:
+    type: acp
+    command: my-agent
+    args: [--acp]
+    env:
+      MY_AGENT_API_KEY: keychain:my-agent-key
+models:
+  classes:
+    normal: [myagent/default, claude/sonnet]
+  families:
+    myagent: openai          # the family of the model it runs, for steps that want a different family
+```
+
+The name follows the rules of a key-based provider (lower-case letters and digits; not `claude`, `codex`, `gemini`, `fake` or `acp`); an ACP provider named like a built-in key-based one (`openrouter`) replaces it. The model is what follows the name: `myagent/<model>` is selected in the session when the agent lists that model (`session/set_model` or a `model` configuration option), and `myagent/default` keeps the agent's own choice. Effort, `max_turns` and JSON schemas have no ACP equivalent and are ignored. A session started with a resume id resumes with `session/load` when the agent can.
+
+Accounts: `barnraise account add myagent` puts an account in the rotation (plan `acp`). The agent keeps its own login: log in once by hand, as the user the sessions run as (the account's isolated user, with `--isolate`). A session whose agent answers that it needs a login ends with that message. An ACP account has no 5-hour or weekly window: a refusal that says it hit a limit marks the account limited, like an API account.
+
+How the [policy](#policy) applies to these agents is in [security.md](security.md#14-agents-over-the-agent-client-protocol).
 
 ## policy
 

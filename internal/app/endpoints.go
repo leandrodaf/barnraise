@@ -19,6 +19,12 @@ func (s *Service) providerFor(cfg *domain.ProjectConfig, name string) (ports.Pro
 	if prov, ok := s.d.Providers[name]; ok {
 		return prov, name, nil, true
 	}
+	if _, ok := cfg.ACPProviders[name]; ok {
+		if s.d.ACP == nil {
+			return nil, "", nil, false
+		}
+		return s.d.ACP, ACPCLI, nil, true
+	}
 	def, ok := cfg.APIProviders[name]
 	if !ok {
 		return nil, "", nil, false

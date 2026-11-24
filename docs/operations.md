@@ -278,6 +278,23 @@ When the daemon loads a project it adjusts the repository's local git settings, 
 - With `mergiraf` on the daemon's `PATH`: the `merge.barnraise-structural` section in `.git/config` (its absolute path, so agents with a different `PATH` use it too) and a managed block in `.git/info/attributes`. Install or remove mergiraf, then restart the daemon or touch `barnraise.yaml` to reload; the log says `structural merge driver in use` with the number of patterns. To stop using it for the project, set `merge.structural: off`. mergiraf is GPL-3.0 software you install yourself (for example `cargo install --locked mergiraf`, or your package manager); Barnraise only runs it. git 2.44 or newer is recommended for it.
 - `merge.conflicts.reapplied` in `barnraise events` and the item's timeline says when a conflict was resolved from a recorded resolution; the merge queue then runs every local check on the result.
 
+## ACP agents
+
+A provider of [`type: acp`](configuration.md#agent-programs-type-acp) runs any agent program that speaks the Agent Client Protocol. To add one:
+
+1. Install the agent program on each machine that should run it (or in the project's container image), and log in to it once by hand, as the user the sessions run as.
+2. Declare it under `providers:` in `barnraise.yaml` and name it in a model class (`myagent/default`).
+3. `barnraise account add myagent` in the repository adds an account to the rotation.
+
+Each session writes its whole conversation with the agent, one JSON line per message in either direction, to `.barnraise-session/acp-<name>.jsonl` in the item's worktree. That file is the first place to look when an agent misbehaves. It is capped at 64 MB and is never committed. The errors that end a session are reported in the session's state (`barnraise status`, the panel):
+
+- `the agent needs a login`: the agent answered `auth_required`. Log in by hand as that user.
+- `the agent speaks protocol version N`: Barnraise speaks version 1 of the protocol. Update the agent, or check its flag for the stable protocol.
+- `the agent program ended (exit code N) before answering …`: the program crashed or is not an ACP agent. The last lines of its stderr follow.
+- a refusal that says it hit a limit marks the account limited. It is tried again later, like any other account.
+
+Barnraise asks for the model of the session when the agent lists it and ignores it otherwise. Policy refusals show up as `policy.violation` events (`barnraise events`, `barnraise audit`). Terminals run in bubblewrap when the probe succeeds on the machine. Where it does not (AppArmor forbids unprivileged namespaces, or macOS), they run after the policy check, as the session's user, the way Claude Code's commands run when its sandbox is off.
+
 ## Capacity
 
 A machine runs as many sessions as its CPUs and total memory allow (`barnraise cluster status` shows `busy n/slots`). On top of that, **no new session starts while the machine has less than 3 GB of memory available, or no idle CPU**: the builds, tests and emulators of the items in progress keep the memory instead of being killed by the kernel. Sessions already running are never stopped for it, and work resumes by itself when the pressure passes. The daemon logs the reason once.

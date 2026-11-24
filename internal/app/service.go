@@ -49,6 +49,7 @@ type Deps struct {
 	// value; optional. Used for the environment of the owner's MCP servers.
 	ResolveSecret func(ref string) (string, error)
 	Providers     map[string]ports.Provider
+	ACP           ports.Provider  // optional: runs the providers of `type: acp`
 	Blobs         ports.BlobStore // optional
 	Knowledge     ports.Knowledge // optional
 	Exec          ports.Exec      // optional

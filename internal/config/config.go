@@ -276,6 +276,11 @@ type rawConfig struct {
 	} `yaml:"models"`
 	Providers map[string]struct {
 		BaseURL string `yaml:"base_url"`
+		// type: acp (an agent program speaking the Agent Client Protocol)
+		Type    string            `yaml:"type"`
+		Command string            `yaml:"command"`
+		Args    []string          `yaml:"args"`
+		Env     map[string]string `yaml:"env"`
 	} `yaml:"providers"`
 	Policy struct {
 		DenyWrite    []string `yaml:"deny_write"`
@@ -557,6 +562,16 @@ func (r *rawConfig) compile(root, tmpl string) (*domain.ProjectConfig, error) {
 
 	c.APIProviders = domain.DefaultAPIProviders()
 	for name, d := range r.Providers {
+		if acp, err := acpProvider(name, d.Type, d.BaseURL, d.Command, d.Args, d.Env); err != nil {
+			return nil, err
+		} else if acp != nil {
+			if c.ACPProviders == nil {
+				c.ACPProviders = map[string]domain.ACPProviderDef{}
+			}
+			c.ACPProviders[name] = *acp
+			delete(c.APIProviders, name) // an agent program in place of a built-in endpoint
+			continue
+		}
 		base := strings.TrimSpace(d.BaseURL)
 		if err := checkBaseURL(name, base); err != nil {
 			return nil, err
@@ -1049,6 +1064,9 @@ func Explain(cfg *domain.ProjectConfig) (string, error) {
 		"providers": cfg.APIProviders,
 		"worktree": map[string]any{"include": cfg.EnvFiles, "port_base": cfg.PortBase, "safety_commit": cfg.SafetyCommit.String(), "setup": cfg.WorktreeSetup,
 			"seed": cfg.WorktreeSeed, "strip": cfg.WorktreeStrip, "strip_after": cfg.WorktreeStripAfter.String(), "stores": cfg.WorktreeStores},
+	}
+	if v := acpView(cfg); len(v) > 0 {
+		view["acp_providers"] = v
 	}
 	var buf bytes.Buffer
 	enc := yaml.NewEncoder(&buf)

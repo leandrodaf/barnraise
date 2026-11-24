@@ -446,6 +446,9 @@ type ProjectConfig struct {
 	// APIProviders are the providers reached with an API key (OpenRouter
 	// and other endpoints), by provider name.
 	APIProviders map[string]APIProviderDef `json:"api_providers,omitempty"`
+	// ACPProviders are agent programs that speak the Agent Client Protocol
+	// (`providers.<name>.type: acp`), by provider name.
+	ACPProviders map[string]ACPProviderDef `json:"acp_providers,omitempty"`
 }
 
 // FlowFor returns the flow of an item kind.
@@ -513,6 +516,7 @@ func (c *ProjectConfig) Validate() []error {
 	}
 	errs = append(errs, c.validateMCP()...)
 	errs = append(errs, c.validateAPIProviders()...)
+	errs = append(errs, c.validateACPProviders()...)
 	errs = append(errs, c.validatePlugins()...)
 	if ct := c.Container; ct.Image == "" && (ct.Engine != "" || ct.Network != "" || len(ct.Mounts) > 0) {
 		errs = append(errs, fmt.Errorf("container needs an image (one with the AI CLI and the project's tools)"))
