@@ -71,6 +71,30 @@ func (d *daemon) shareProject(ctx context.Context, r *pb.ShareProjectRequest) (*
 	return &pb.ShareProjectResponse{Machines: res}, nil
 }
 
+// scpURL is git's short SSH form: git@host:owner/repo.git.
+var scpURL = regexp.MustCompile(`^[A-Za-z0-9._-]+@([A-Za-z0-9.-]+):([^/].*)$`)
+
+// cloneURLs are the addresses to try for a repository: as given, then the
+// HTTPS form of an SSH address.
+func cloneURLs(u string) []string {
+	out := []string{u}
+	switch {
+	case scpURL.MatchString(u):
+		m := scpURL.FindStringSubmatch(u)
+		out = append(out, "https://"+m[1]+"/"+m[2])
+	case strings.HasPrefix(u, "ssh://"):
+		rest := strings.TrimPrefix(u, "ssh://")
+		if i := strings.Index(rest, "@"); i >= 0 {
+			rest = rest[i+1:]
+		}
+		if host, path, ok := strings.Cut(rest, "/"); ok {
+			host, _, _ = strings.Cut(host, ":")
+			out = append(out, "https://"+host+"/"+path)
+		}
+	}
+	return out
+}
+
 // serveRemoteProject clones and registers a project a paired machine shares.
 // The repository goes to <data dir>/projects/<name>; a clone already there
 // is kept. Git never asks a question: missing credentials are an error.
@@ -98,11 +122,24 @@ func (d *daemon) serveRemoteProject(ctx context.Context) {
 			if err := os.MkdirAll(filepath.Dir(dir), 0o755); err != nil {
 				return nil, err
 			}
-			cmd := exec.CommandContext(cctx, "git", "clone", "--quiet", "--", rp.URL, dir)
-			cmd.Env = append(os.Environ(), "GIT_TERMINAL_PROMPT=0", "GIT_SSH_COMMAND=ssh -o BatchMode=yes")
-			if out, err := cmd.CombinedOutput(); err != nil {
+			// The address as the sharing machine has it, then its HTTPS form:
+			// a machine may reach the host over HTTPS only (a credential
+			// helper, no SSH key).
+			var errs []string
+			cloned := false
+			for _, u := range cloneURLs(rp.URL) {
+				cmd := exec.CommandContext(cctx, "git", "clone", "--quiet", "--", u, dir)
+				cmd.Env = append(os.Environ(), "GIT_TERMINAL_PROMPT=0", "GIT_SSH_COMMAND=ssh -o BatchMode=yes")
+				out, err := cmd.CombinedOutput()
+				if err == nil {
+					cloned = true
+					break
+				}
 				_ = os.RemoveAll(dir)
-				return nil, fmt.Errorf("git clone %s on %s: %v: %s", rp.URL, d.df.Machine, err, strings.TrimSpace(string(out)))
+				errs = append(errs, fmt.Sprintf("%s: %v: %s", u, err, strings.TrimSpace(string(out))))
+			}
+			if !cloned {
+				return nil, fmt.Errorf("git clone on %s: %s", d.df.Machine, strings.Join(errs, " · "))
 			}
 		}
 		if err := d.register(cctx, dir, rp.Paused); err != nil {
