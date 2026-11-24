@@ -339,13 +339,67 @@ func (r *Replicator) runLive(ctx context.Context, js jetstream.JetStream, p *pee
 	}
 }
 
-func (r *Replicator) consumeLive(ctx context.Context, js jetstream.JetStream, p *peerLink) error {
+// reader makes a plain pull consumer on a peer's stream. The library's
+// ordered consumer is not used: when the peer's server is away it recreates
+// its consumer forever while holding the lock its own Stop needs, so closing
+// a peer that is down never returned. Here every call has a deadline, the
+// order is checked by read, and the caller makes a new reader from where it
+// stopped after any error or reconnection.
+func (r *Replicator) reader(ctx context.Context, js jetstream.JetStream, stream, kind string, cfg jetstream.ConsumerConfig) (jetstream.Consumer, error) {
+	cfg.Name = fmt.Sprintf("%s_%s_%x", kind, Token(r.machine), rand.Uint64())
+	cfg.AckPolicy = jetstream.AckNonePolicy
+	cfg.InactiveThreshold = time.Minute // the server drops it by itself when we stop asking
+	cfg.Replicas = 1
+	cfg.MemoryStorage = true
 	ictx, cancel := context.WithTimeout(ctx, 10*time.Second)
-	cons, err := js.OrderedConsumer(ictx, LiveStreamName, jetstream.OrderedConsumerConfig{
-		DeliverPolicy: jetstream.DeliverLastPerSubjectPolicy,
-		NamePrefix:    fmt.Sprintf("live_%s_%x", Token(r.machine), rand.Uint64()),
-	})
-	cancel()
+	defer cancel()
+	return js.CreateOrUpdateConsumer(ictx, stream, cfg)
+}
+
+// errGap: a message is missing between two reads; the reader is made again.
+var errGap = errors.New("a message is missing in the sequence")
+
+// read fetches batches until ctx ends, the link reconnects or something
+// fails, handing each message to f in order. Each batch waits at most
+// fetchWait, so the loop never sits on a dead link.
+func (r *Replicator) read(ctx context.Context, p *peerLink, cons jetstream.Consumer, size int, f func(jetstream.Msg, *jetstream.MsgMetadata) error) error {
+	wake := p.reconnects()
+	var last uint64
+	for {
+		select {
+		case <-wake:
+			return nil // the peer came back: the caller makes a new reader
+		case <-ctx.Done():
+			return ctx.Err()
+		default:
+		}
+		batch, err := cons.Fetch(size, jetstream.FetchMaxWait(fetchWait))
+		if err != nil {
+			return err
+		}
+		for msg := range batch.Messages() {
+			md, err := msg.Metadata()
+			if err != nil {
+				return err
+			}
+			if md.Sequence.Consumer != last+1 {
+				return errGap
+			}
+			last = md.Sequence.Consumer
+			if err := f(msg, md); err != nil {
+				return err
+			}
+		}
+		if err := batch.Error(); err != nil && !errors.Is(err, nats.ErrTimeout) {
+			return err
+		}
+	}
+}
+
+func (r *Replicator) consumeLive(ctx context.Context, js jetstream.JetStream, p *peerLink) error {
+	// The latest value of each subject, then every change. No cursor: a new
+	// reader simply reads the latest values again.
+	cons, err := r.reader(ctx, js, LiveStreamName, "live", jetstream.ConsumerConfig{DeliverPolicy: jetstream.DeliverLastPerSubjectPolicy, FilterSubject: LiveSubjectRoot + ".>"})
 	if err != nil {
 		if errors.Is(err, jetstream.ErrStreamNotFound) {
 			// An older peer without the live stream: nothing to follow, try again later.
@@ -357,31 +411,17 @@ func (r *Replicator) consumeLive(ctx context.Context, js jetstream.JetStream, p 
 		}
 		return fmt.Errorf("live consumer: %w", err)
 	}
-	wake := p.reconnects()
-	for {
-		// Batches with a bounded wait: between two of them the loop sees a
-		// reconnection or the end of ctx, and never waits on a dead link.
-		select {
-		case <-wake:
-			return nil // the peer came back: a new consumer reads from its latest values
-		case <-ctx.Done():
-			return ctx.Err()
-		default:
+	err = r.read(ctx, p, cons, 64, func(msg jetstream.Msg, _ *jetstream.MsgMetadata) error {
+		var e domain.Event
+		if json.Unmarshal(msg.Data(), &e) == nil && e.Machine == p.name && e.LiveOnly() {
+			_ = r.apply(e) // a lost reading is replaced by the next one
 		}
-		batch, err := cons.Fetch(64, jetstream.FetchMaxWait(fetchWait))
-		if err != nil {
-			return fmt.Errorf("live messages: %w", err)
-		}
-		for msg := range batch.Messages() {
-			var e domain.Event
-			if json.Unmarshal(msg.Data(), &e) == nil && e.Machine == p.name && e.LiveOnly() {
-				_ = r.apply(e) // a lost reading is replaced by the next one
-			}
-		}
-		if err := batch.Error(); err != nil && !errors.Is(err, nats.ErrTimeout) {
-			return fmt.Errorf("live messages: %w", err)
-		}
+		return nil
+	})
+	if err != nil && ctx.Err() == nil {
+		return fmt.Errorf("live messages: %w", err)
 	}
+	return err
 }
 
 func (p *peerLink) setErr(err error) {
@@ -414,53 +454,36 @@ func (r *Replicator) consume(ctx context.Context, js jetstream.JetStream, p *pee
 			return false, err
 		}
 	}
-	cfg := jetstream.OrderedConsumerConfig{DeliverPolicy: jetstream.DeliverAllPolicy, NamePrefix: fmt.Sprintf("replica_%s_%x", Token(r.machine), rand.Uint64())}
+	cfg := jetstream.ConsumerConfig{DeliverPolicy: jetstream.DeliverAllPolicy}
 	if cursor > 0 {
 		cfg.DeliverPolicy = jetstream.DeliverByStartSequencePolicy
 		cfg.OptStartSeq = cursor + 1
 	}
-	cons, err := st.OrderedConsumer(ictx, cfg)
 	cancel()
+	cons, err := r.reader(ctx, js, StreamName, "replica", cfg)
 	if err != nil {
 		return false, fmt.Errorf("consumer: %w", err)
 	}
-	wake := p.reconnects()
-	for {
-		select {
-		case <-wake:
-			return progressed, nil // a new consumer goes on from the cursor
-		case <-ctx.Done():
-			return progressed, ctx.Err()
-		default:
-		}
-		batch, err := cons.Fetch(256, jetstream.FetchMaxWait(fetchWait))
-		if err != nil {
-			return progressed, fmt.Errorf("messages: %w", err)
-		}
-		for msg := range batch.Messages() {
-			md, err := msg.Metadata()
-			if err != nil {
-				continue
-			}
-			seq := md.Sequence.Stream
-			if origin := msg.Headers().Get(HeaderMachine); origin == "" || origin == p.name {
-				var e domain.Event
-				if json.Unmarshal(msg.Data(), &e) == nil && e.Machine == p.name {
-					if err := r.apply(e); err != nil {
-						// Do not move the cursor: the event comes again after the backoff.
-						return progressed, fmt.Errorf("apply %s: %w", e.ID, err)
-					}
+	err = r.read(ctx, p, cons, 256, func(msg jetstream.Msg, md *jetstream.MsgMetadata) error {
+		if origin := msg.Headers().Get(HeaderMachine); origin == "" || origin == p.name {
+			var e domain.Event
+			if json.Unmarshal(msg.Data(), &e) == nil && e.Machine == p.name {
+				if err := r.apply(e); err != nil {
+					// Do not move the cursor: the event comes again after the backoff.
+					return fmt.Errorf("apply %s: %w", e.ID, err)
 				}
 			}
-			if err := r.store.SetCursor(p.name, seq); err != nil {
-				return progressed, fmt.Errorf("cursor: %w", err)
-			}
-			progressed = true
 		}
-		if err := batch.Error(); err != nil && !errors.Is(err, nats.ErrTimeout) {
-			return progressed, fmt.Errorf("messages: %w", err)
+		if err := r.store.SetCursor(p.name, md.Sequence.Stream); err != nil {
+			return fmt.Errorf("cursor: %w", err)
 		}
+		progressed = true
+		return nil
+	})
+	if err != nil && ctx.Err() == nil {
+		return progressed, fmt.Errorf("messages: %w", err)
 	}
+	return progressed, err
 }
 
 // RPCSubject is the request subject for a method served by a machine.

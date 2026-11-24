@@ -122,3 +122,39 @@ func TestLiveStateSurvivesAPeerRestart(t *testing.T) {
 	}
 	waitFor(t, "a heartbeat after alpha restarted", 30*time.Second, func() bool { return rec.has("hb-2") })
 }
+
+// Closing the replication of a peer that is down returns: a daemon stops
+// (and `barnraise down` ends) while another machine is off.
+func TestClosingAPeerThatIsDownReturns(t *testing.T) {
+	seed, pub, err := NewMachineKey()
+	if err != nil {
+		t.Fatal(err)
+	}
+	a := startMachine(t, "alpha", t.TempDir(), freePort(t), PeerPermissions(pub, "alpha"))
+	auth, err := NkeyOption(seed)
+	if err != nil {
+		t.Fatal(err)
+	}
+	rec := newRecorder()
+	rep := NewReplicator("beta", rec.apply, nil)
+	rep.MaxBackoff = time.Second
+	if err := rep.AddPeer("alpha", a.srv.ClientURL(), auth); err != nil {
+		t.Fatal(err)
+	}
+	if err := a.bus.Publish(context.Background(), heartbeat("hb-1", "alpha", 1)); err != nil {
+		t.Fatal(err)
+	}
+	waitFor(t, "the first heartbeat", 10*time.Second, func() bool { return rec.has("hb-1") })
+	a.stop()
+	time.Sleep(3 * time.Second) // the readers are now asking a server that is gone
+	closed := make(chan struct{})
+	go func() {
+		rep.Close()
+		close(closed)
+	}()
+	select {
+	case <-closed:
+	case <-time.After(20 * time.Second):
+		t.Fatal("closing the replication of a peer that is down did not return")
+	}
+}
