@@ -130,6 +130,22 @@ func (f *fakeAgent) handle(ctx context.Context, spec ports.SessionSpec, emit fun
 		files := []string{}
 		wrote := false
 		for line := range strings.SplitSeq(it.Body, "\n") {
+			if path, ok := strings.CutPrefix(strings.TrimSpace(line), "fake: env-file "); ok {
+				// The session's own environment, as a file of the change (the
+				// per-item isolation an end-to-end run checks).
+				var env strings.Builder
+				for _, k := range []string{"PORT", "BARNRAISE_PORTS", "COMPOSE_PROJECT_NAME", "BARNRAISE_ITEM_SLUG"} {
+					fmt.Fprintf(&env, "%s=%s\n", k, spec.Env[k])
+				}
+				full := filepath.Join(spec.Workdir, filepath.Clean("/" + path)[1:])
+				_ = os.MkdirAll(filepath.Dir(full), 0o755)
+				if err := os.WriteFile(full, []byte(env.String()), 0o644); err != nil {
+					return ports.SessionResult{}, err
+				}
+				files = append(files, path)
+				wrote = true
+				continue
+			}
 			rest, ok := strings.CutPrefix(strings.TrimSpace(line), "fake: write ")
 			if !ok {
 				continue

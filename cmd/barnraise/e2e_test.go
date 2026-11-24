@@ -200,6 +200,23 @@ func TestEndToEnd(t *testing.T) {
 		}
 	})
 
+	t.Run("the session has the item's own services and the map lands on main", func(t *testing.T) {
+		it := h.create(&pb.CreateItemRequest{Title: "Session env", Area: "env", Body: "fake: env-file app/env.txt",
+			Criteria: crit("WHEN the item runs, THE SYSTEM SHALL give it its own services")})
+		h.waitStatus(it.Id, "integrated")
+		env := git(t, h.root, "--git-dir", h.remote, "show", "main:app/env.txt")
+		slug := strings.ToLower(strings.ReplaceAll(it.Id, "-", ""))
+		lines := strings.Split(env, "\n")
+		if !slices.Contains(lines, "COMPOSE_PROJECT_NAME=demo-"+slug) || !slices.Contains(lines, "BARNRAISE_ITEM_SLUG="+slug) ||
+			slices.Contains(lines, "PORT=") {
+			t.Fatalf("session env on main: %q", env)
+		}
+		m := git(t, h.root, "--git-dir", h.remote, "show", "main:.barnraise/map.md")
+		if !strings.Contains(m, "app/env.txt") {
+			t.Fatalf("repository map on main:\n%s", m)
+		}
+	})
+
 	t.Run("rework with the reason, then integrates", func(t *testing.T) {
 		it := h.create(&pb.CreateItemRequest{Title: "Wallet", Area: "wallet", Body: "fake: rework-once\nfake: write app/wallet.txt balance",
 			Criteria: crit("WHEN the user opens the wallet, THE SYSTEM SHALL show the balance")})
