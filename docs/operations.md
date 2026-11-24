@@ -19,7 +19,7 @@ Release archives, `checksums.txt`, SBOMs and a keyless cosign signature of the c
 
 ```sh
 cosign verify-blob \
-  --certificate checksums.txt.pem --signature checksums.txt.sig \
+  --bundle checksums.txt.sigstore.json \
   --certificate-identity-regexp 'https://github.com/leandrodaf/barnraise/.github/workflows/release.yml@refs/tags/v.*' \
   --certificate-oidc-issuer https://token.actions.githubusercontent.com \
   checksums.txt

@@ -46,14 +46,14 @@ sboms:
     args: ["$artifact", "--output", "spdx-json=$document"]
 
 signs:
-  # Keyless cosign signature of checksums.txt (OIDC token from GitHub Actions).
+  # Keyless cosign signature of checksums.txt (OIDC token from GitHub Actions),
+  # as one Sigstore bundle: cosign 3 writes the signature, the certificate and
+  # the transparency log entry together.
   - cmd: cosign
-    signature: "${artifact}.sig"
-    certificate: "${artifact}.pem"
+    signature: "${artifact}.sigstore.json"
     args:
       - sign-blob
-      - "--output-certificate=${certificate}"
-      - "--output-signature=${signature}"
+      - "--bundle=${signature}"
       - "${artifact}"
       - "--yes"
     artifacts: checksum
