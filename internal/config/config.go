@@ -329,6 +329,15 @@ type rawConfig struct {
 	Revalidation struct {
 		StaleAfter string `yaml:"stale_after"`
 	} `yaml:"revalidation"`
+	Outfilter struct {
+		Delegate string `yaml:"delegate"`
+		Keep     string `yaml:"keep"`
+		KeepSize string `yaml:"keep_size"`
+	} `yaml:"outfilter"`
+	Terse struct {
+		Mode  string   `yaml:"mode"`
+		Steps []string `yaml:"steps"`
+	} `yaml:"terse"`
 	Notifications []domain.NotifierDef `yaml:"notifications"`
 	Webhooks      []struct {
 		URL       string   `yaml:"url"`
@@ -644,6 +653,9 @@ func (r *rawConfig) compile(root, tmpl string) (*domain.ProjectConfig, error) {
 			return nil, fmt.Errorf("budget.compact_at: %w", err)
 		}
 		c.Budget.CompactAtPct = float64(p)
+	}
+	if err := r.compileTokens(c); err != nil {
+		return nil, err
 	}
 	c.StaleAfter = 14 * 24 * time.Hour
 	if v := r.Revalidation.StaleAfter; v != "" {

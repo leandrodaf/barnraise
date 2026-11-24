@@ -93,6 +93,8 @@ type liveSession struct {
 	sess    ports.Session
 	cancel  context.CancelFunc
 	started time.Time
+	// run marks the outputs this session's filter kept, in outputs.
+	run, outputs string
 	// halted is set when Barnraise stops the session (pause, takeover, close,
 	// shutdown): its end is not the agent's fault.
 	halted atomic.Bool
@@ -553,6 +555,8 @@ func (r *Runtime) start(ctx context.Context, p *Project, slot Slot, a *Assignmen
 		"PORT": strconv.Itoa(ItemPort(p.Cfg().PortBase, it.ID)), "DISABLE_AUTOUPDATER": "1",
 	}
 	maps.Copy(env, s.StoreEnv(p))
+	run := s.d.IDs.NewID()
+	maps.Copy(env, domain.OutfilterEnv(p.Cfg().Outfilter, run))
 	if r.EgressProxy != "" {
 		proxy := "http://" + r.EgressProxy
 		env["HTTPS_PROXY"], env["HTTP_PROXY"], env["https_proxy"], env["http_proxy"] = proxy, proxy, proxy, proxy
@@ -603,7 +607,8 @@ func (r *Runtime) start(ctx context.Context, p *Project, slot Slot, a *Assignmen
 		s.tokens.Revoke(token)
 		return err
 	}
-	ls := &liveSession{agent: slot.Agent, project: p.Name, itemID: it.ID, step: a.Step.Name, sess: sess, cancel: cancel, started: s.d.Clock.Now()}
+	ls := &liveSession{agent: slot.Agent, project: p.Name, itemID: it.ID, step: a.Step.Name, sess: sess, cancel: cancel, started: s.d.Clock.Now(),
+		run: run, outputs: filepath.Join(sessDir, domain.OutputsDir)}
 	r.mu.Lock()
 	r.running[slot.Agent] = ls
 	r.mu.Unlock()
@@ -947,6 +952,7 @@ loop:
 	usage.Agent, usage.Account, usage.Provider, usage.Model, usage.Role, usage.ItemID, usage.Step = slot.Agent, acc.ID, choice.Provider, choice.Model, slot.Role, a.Item.ID, a.Step.Name
 	usage.Duration = s.d.Clock.Now().Sub(ls.started)
 	usage.CPUSeconds, usage.PeakRSSBytes = s.procSince(procDir, procMark)
+	usage.FilteredRuns, usage.FilterSaved = filterSavings(ls.outputs, ls.run)
 	_, _ = s.emit(ctx, p, domain.EvAgentUsage, a.Item.ID, slot.Agent, domain.Payload{Usage: &usage})
 	if limited {
 		s.markAccountLimited(ctx, p, acc.ID, resets)

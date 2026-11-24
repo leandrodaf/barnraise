@@ -15,6 +15,7 @@ import (
 	"strings"
 
 	"github.com/leandrodaf/barnraise/internal/adapters/out/imagex"
+	"github.com/leandrodaf/barnraise/internal/adapters/out/outfilter"
 	"github.com/leandrodaf/barnraise/internal/domain"
 )
 
@@ -147,8 +148,21 @@ type PreToolResult struct {
 	Call     domain.ToolCall
 }
 
-// noisy commands get wrapped by `barnraise filter --`.
-var noisyRe = regexp.MustCompile(`^\s*(\./gradlew|gradle|go\s+test|go\s+build|npm\s+(run\s+)?test|npx\s+(jest|vitest)|yarn\s+test|pnpm\s+test|pytest|python\s+-m\s+pytest|maestro\s+test|mvn|cargo\s+(test|build)|make(\s|$))`)
+// lookRTK finds rtk for commands without a native filter (a variable for the tests).
+var lookRTK = outfilter.LookRTK
+
+// wrapped reports whether a command goes through `barnraise filter --`: a
+// simple command (no shell syntax) that is a tool with a native filter, or
+// one rtk may take when outfilter.delegate allows it and rtk is installed.
+func wrapped(command string) bool {
+	if strings.Contains(command, "barnraise filter") || strings.ContainsAny(command, "|;&><`$") {
+		return false
+	}
+	if _, lead := outfilter.DetectLeading(command); lead {
+		return true
+	}
+	return outfilter.Delegable(outfilter.DelegateFromEnv(), outfilter.ToolGeneric, command) && lookRTK() != ""
+}
 
 // PreTool decides a tool call. bin is the barnraise binary used for the filter wrapper.
 func PreTool(in Input, pol *domain.Policy, exists func(string) bool, bin string) PreToolResult {
@@ -184,8 +198,7 @@ func PreTool(in Input, pol *domain.Policy, exists func(string) bool, bin string)
 			}}}
 		}
 	}
-	if tc.Command != "" && bin != "" && noisyRe.MatchString(tc.Command) && !strings.Contains(tc.Command, "barnraise filter") &&
-		!strings.ContainsAny(tc.Command, "|;&><`$") {
+	if tc.Command != "" && bin != "" && wrapped(tc.Command) {
 		var ti map[string]any
 		_ = json.Unmarshal(in.ToolInput, &ti)
 		if ti == nil {
@@ -194,7 +207,7 @@ func PreTool(in Input, pol *domain.Policy, exists func(string) bool, bin string)
 		ti["command"] = bin + " filter -- " + tc.Command
 		return PreToolResult{Decision: d, Call: tc, Output: map[string]any{"hookSpecificOutput": map[string]any{
 			"hookEventName": "PreToolUse", "permissionDecision": "allow",
-			"permissionDecisionReason": "output filtered by Barnraise (full log path is printed at the end)",
+			"permissionDecisionReason": "output filtered by Barnraise; the full text stays readable with the `barnraise output show <id>` printed at the end",
 			"updatedInput":             ti,
 		}}}
 	}

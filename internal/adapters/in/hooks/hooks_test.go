@@ -78,6 +78,39 @@ func TestPreToolAllowsAndWraps(t *testing.T) {
 	}
 }
 
+func TestWrappedCommands(t *testing.T) {
+	old := lookRTK
+	defer func() { lookRTK = old }()
+	lookRTK = func() string { return "" }
+	for cmd, want := range map[string]bool{
+		"git status":                       true,
+		"git diff main":                    true,
+		"rg -n TODO":                       true,
+		"golangci-lint run ./...":          true,
+		"CGO_ENABLED=0 go build ./cmd/...": true,
+		"kubectl describe pod web":         true,
+		"npm ci":                           true,
+		"echo go test":                     false,
+		"git commit -m wip":                false,
+		"curl -s https://example.com":      false,
+		"barnraise filter -- go test":      false,
+		"git status > out.txt":             false,
+	} {
+		if got := wrapped(cmd); got != want {
+			t.Errorf("wrapped(%q) = %v", cmd, got)
+		}
+	}
+	// With rtk installed, auto also sends commands without a native filter.
+	lookRTK = func() string { return "/usr/bin/rtk" }
+	if !wrapped("curl -s https://example.com") || wrapped("echo hi") {
+		t.Error("rtk delegation")
+	}
+	t.Setenv(domain.EnvOutfilterDelegate, domain.DelegateOff)
+	if wrapped("curl -s https://example.com") || !wrapped("git status") {
+		t.Error("off keeps the native filters only")
+	}
+}
+
 func TestReadInputAndContext(t *testing.T) {
 	i, err := ReadInput(strings.NewReader(`{"hook_event_name":"SessionStart","source":"compact"}`))
 	if err != nil || i.Source != "compact" {

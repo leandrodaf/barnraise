@@ -196,7 +196,8 @@ func TestDetect(t *testing.T) {
 		"pytest -x":                        ToolPytest,
 		"python3 -m pytest":                ToolPytest,
 		"maestro test .maestro/login.yaml": ToolMaestro,
-		"ls -la":                           ToolGeneric,
+		"ls -la":                           ToolList,
+		"curl -s https://x":                ToolGeneric,
 	}
 	for cmd, want := range cases {
 		if got := Detect(cmd); got != want {
@@ -207,24 +208,31 @@ func TestDetect(t *testing.T) {
 
 func TestRun(t *testing.T) {
 	dir := t.TempDir()
-	sum, code, logPath, err := Run(context.Background(), []string{"sh", "-c", "echo one; echo two >&2; exit 4"}, dir)
+	cmd := "for i in $(seq 1 300); do echo line $i; done; echo two >&2; exit 4"
+	res, err := RunCommand(context.Background(), []string{"sh", "-c", cmd}, Options{Store: Store{Dir: dir}, Run: "r1"})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if code != 4 {
-		t.Fatalf("code %d", code)
+	if res.Exit != 4 || !res.Shortened || res.Record.ID == "" {
+		t.Fatalf("%+v", res)
 	}
-	full, err := os.ReadFile(logPath)
+	full, err := os.ReadFile(Store{Dir: dir}.Path(res.Record.ID))
 	if err != nil {
 		t.Fatal(err)
 	}
-	if string(full) != "one\ntwo\n" {
+	if !strings.HasPrefix(string(full), "line 1\n") || !strings.HasSuffix(string(full), "line 300\ntwo\n") {
 		t.Fatalf("log %q", full)
 	}
-	if !strings.Contains(sum, "two") || !strings.HasSuffix(sum, "full log: "+logPath) || !strings.HasSuffix(logPath, "-generic.log") {
-		t.Fatalf("%s / %s", sum, logPath)
+	if !strings.Contains(res.Text, "two") || !strings.HasSuffix(res.Text, "--lines a:b for a part)") || !strings.Contains(res.Text, "barnraise output show "+res.Record.ID+" (301 lines") {
+		t.Fatalf("%s", res.Text)
 	}
-	if _, _, _, err := Run(context.Background(), []string{"/no/such/bin"}, dir); err == nil {
+	if res.Record.Run != "r1" || res.Record.Saved() <= 0 || res.Record.Exit != 4 {
+		t.Fatalf("%+v", res.Record)
+	}
+	if _, err := RunCommand(context.Background(), []string{"/no/such/bin"}, Options{Store: Store{Dir: dir}}); err == nil {
 		t.Fatal("expected start error")
+	}
+	if _, err := RunCommand(context.Background(), nil, Options{}); err == nil {
+		t.Fatal("expected empty command error")
 	}
 }

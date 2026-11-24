@@ -45,6 +45,7 @@ var vocabAllowed = []struct{ file, phrase, why string }{
 	{"internal/app/local.go", "node", "the Node.js program, as its process is named"},
 	{"internal/adapters/out/jira/jira.go", "task", `Jira's own issue type name ("Task")`},
 	{"internal/adapters/out/outfilter/outfilter.go", "> Task ", "Gradle prints failed tasks as \"> Task :app:test FAILED\""},
+	{"internal/adapters/out/outfilter/filters.go", "|Node|", "kubectl describe prints the Kubernetes field \"Node:\""},
 }
 
 func vocabRoot(t *testing.T) string {

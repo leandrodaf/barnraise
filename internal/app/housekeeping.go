@@ -257,6 +257,8 @@ type Digest struct {
 	Waiting     []string               `json:"waiting"`
 	Alerts      []string               `json:"alerts"`
 	GeneratedAt time.Time              `json:"generated_at"`
+	// Savings is what the output filter kept out of the agents' context in the week.
+	Savings string `json:"savings,omitempty"`
 }
 
 // BuildDigest summarizes the last day.
@@ -294,6 +296,7 @@ func (s *Service) BuildDigest(ctx context.Context, project string) (Digest, erro
 	m, err := s.Metrics(ctx, p.Name, Owner(""), 7*24*time.Hour)
 	if err == nil {
 		d.Alerts = m.Alerts
+		d.Savings = m.filterSavingsLine()
 	}
 	return d, nil
 }
@@ -320,6 +323,9 @@ func (d Digest) Text() string {
 	}
 	for _, a := range d.Alerts {
 		b.WriteString("Alert: " + a + "\n")
+	}
+	if d.Savings != "" {
+		b.WriteString("Output filter: " + d.Savings + "\n")
 	}
 	return b.String()
 }

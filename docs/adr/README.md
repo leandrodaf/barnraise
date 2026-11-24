@@ -31,3 +31,4 @@ One short record per decision: context, decision, consequences. A decision that 
 | [ADR-0025](0025-embedded-tailscale-behind-a-build-tag.md) | Embedded Tailscale (tsnet) behind a build tag |
 | [ADR-0033](0033-recorded-resolutions-and-structural-merge.md) | Recorded conflict resolutions, and a structural merge driver when installed |
 | [ADR-0044](0044-generic-acp-provider.md) | A generic provider for agents that speak the Agent Client Protocol |
+| [ADR-0036](0036-output-filters-and-recoverable-compression.md) | Output filters, recoverable compression and short answers |

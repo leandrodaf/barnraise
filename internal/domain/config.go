@@ -449,6 +449,10 @@ type ProjectConfig struct {
 	// ACPProviders are agent programs that speak the Agent Client Protocol
 	// (`providers.<name>.type: acp`), by provider name.
 	ACPProviders map[string]ACPProviderDef `json:"acp_providers,omitempty"`
+	// Outfilter configures the output filter and the full outputs it keeps.
+	Outfilter OutfilterDef `json:"outfilter,omitzero"`
+	// Terse decides which steps ask the agent for short answers.
+	Terse TerseDef `json:"terse,omitzero"`
 }
 
 // FlowFor returns the flow of an item kind.

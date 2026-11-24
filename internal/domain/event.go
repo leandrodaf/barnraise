@@ -249,6 +249,10 @@ type TokenUsage struct {
 	// (the CLI and every process under its worktree); zero when not measured.
 	CPUSeconds   float64 `json:"cpu_seconds,omitempty"`
 	PeakRSSBytes int64   `json:"peak_rss_bytes,omitempty"`
+	// FilteredRuns counts the command outputs the output filter shortened in
+	// this step; FilterSaved is the tokens it kept out of the context.
+	FilteredRuns int   `json:"filtered_runs,omitempty"`
+	FilterSaved  int64 `json:"filter_saved_tokens,omitempty"`
 }
 
 // Total tokens counted against limits.

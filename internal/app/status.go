@@ -122,6 +122,12 @@ type Metrics struct {
 	ExploreReads     map[string]int     `json:"explore_reads_by_area"`
 	FixedCostRatio   map[string]float64 `json:"fixed_cost_ratio_by_area"`
 	Alerts           []string           `json:"alerts,omitempty"`
+
+	// FilteredRuns and FilterSaved: outputs the output filter shortened and
+	// the tokens it kept out of the agents' context (FilterSavedByRole per role).
+	FilteredRuns      int              `json:"filtered_runs,omitempty"`
+	FilterSaved       int64            `json:"filter_saved_tokens,omitempty"`
+	FilterSavedByRole map[string]int64 `json:"filter_saved_by_role,omitempty"`
 }
 
 // Metrics measures time, tokens and rework by step, item and role.
@@ -182,6 +188,7 @@ func (s *Service) Metrics(ctx context.Context, project string, a Actor, window t
 					area = it.Area
 				}
 				m.ExploreReads[area] += u.ExploreReads
+				m.addFilterSavings(u)
 				if u.Role == "implementer" && (u.Step == "implement" || u.Step == "draft") {
 					implTimeByArea[area] += u.Duration
 				} else {
@@ -322,6 +329,9 @@ func (s *Service) Timeline(ctx context.Context, project string, a Actor, id stri
 			te.Summary = truncate(pl.Journal.Text, 200)
 		case pl.Usage != nil:
 			te.Summary = fmt.Sprintf("%s used %d tokens on %s/%s in %s", pl.Usage.Agent, pl.Usage.Total(), pl.Usage.Provider, pl.Usage.Model, pl.Usage.Duration.Round(time.Second))
+			if pl.Usage.FilterSaved > 0 {
+				te.Summary += fmt.Sprintf("; output filter saved %d tokens on %d outputs", pl.Usage.FilterSaved, pl.Usage.FilteredRuns)
+			}
 		case pl.Note != "" && te.Summary == "":
 			te.Summary = pl.Note
 		case pl.Note != "":

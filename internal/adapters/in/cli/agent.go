@@ -16,8 +16,6 @@ import (
 	pb "github.com/leandrodaf/barnraise/gen/barnraise/v1"
 	"github.com/leandrodaf/barnraise/internal/adapters/in/hooks"
 	"github.com/leandrodaf/barnraise/internal/adapters/in/mcp"
-	"github.com/leandrodaf/barnraise/internal/adapters/out/outfilter"
-	"github.com/leandrodaf/barnraise/internal/paths"
 )
 
 func (e *env) nextCmd() *cobra.Command {
@@ -384,36 +382,6 @@ func normTime(v string) string {
 		return t.UTC().Format(time.RFC3339)
 	}
 	return ""
-}
-
-func (e *env) filterCmd() *cobra.Command {
-	return &cobra.Command{Use: "filter -- <command…>", Short: "Run a noisy command and print only the errors or the tail, with the full log path", Args: cobra.MinimumNArgs(1),
-		DisableFlagParsing: true,
-		RunE: func(cmd *cobra.Command, args []string) error {
-			if len(args) > 0 && args[0] == "--" {
-				args = args[1:]
-			}
-			if len(args) == 0 {
-				return fmt.Errorf("usage: barnraise filter -- <command>")
-			}
-			logDir := filepath.Join(paths.DataDir(), "logs")
-			if wt := os.Getenv("BARNRAISE_WORKTREE"); wt != "" {
-				logDir = filepath.Join(wt, ".barnraise-session", "logs")
-			}
-			_ = os.MkdirAll(logDir, 0o700)
-			if len(args) == 1 && strings.Contains(args[0], " ") {
-				args = []string{"sh", "-c", args[0]}
-			}
-			summary, code, _, err := outfilter.Run(context.Background(), args, logDir)
-			if err != nil {
-				return err
-			}
-			fmt.Fprintln(e.out, summary)
-			if code != 0 {
-				return exitCode(code)
-			}
-			return nil
-		}}
 }
 
 func (e *env) mcpCmd() *cobra.Command {

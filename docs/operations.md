@@ -213,13 +213,14 @@ Inside the data dir:
 | `blobs/` | Object store: logs, screenshots, diffs and binaries by content hash |
 | `cursors.json` | How far this machine has read each peer's stream |
 | `tsnet/` (0700) | The embedded Tailscale's state: the device's private keys (`tailscaled.state`), `self.json` (its tailnet name and addresses, for the commands while the daemon holds the device) and a lock file. Treat it like `daemon.yaml`: whoever copies it can be this machine on the tailnet. `tsnet-pairing/` is a short-lived ephemeral device, removed after `machine join` |
-| `worktrees/<project>/<item>/` | Item worktrees (with `.barnraise-session/` for the agent's settings) |
+| `worktrees/<project>/<item>/` | Item worktrees (with `.barnraise-session/` for the agent's settings, and `.barnraise-session/outputs/` for the full text of the outputs `barnraise filter` shortened) |
+| `outputs/` | Full text of the outputs `barnraise filter` shortened outside agent sessions |
 | `stores/<project>/<name>/` | Stores shared by the project's worktrees (`worktree.stores`) |
-| `logs/<project>/` | Full logs of checks and filtered commands |
+| `logs/<project>/` | Full logs of checks |
 | `accounts/<id>/` | Provider config dirs of each account |
 | `daemon.log`, `daemon.pid` | Log and pid of a background daemon |
 
-Environment variables used by the CLI and the hooks: `BARNRAISE_URL`, `BARNRAISE_SOCKET`, `BARNRAISE_TOKEN`, `BARNRAISE_PROJECT`; inside agent sessions also `BARNRAISE_ITEM`, `BARNRAISE_STEP`, `BARNRAISE_ROLE`, `BARNRAISE_AGENT`, `BARNRAISE_POLICY`. `BARNRAISE_NO_TAILSCALE=1` turns Tailscale off (installed or embedded); `BARNRAISE_TS_AUTHKEY` is the embedded Tailscale's auth key; `BARNRAISE_NO_SELF_UPDATE=1` turns off the cluster self-update; `BARNRAISE_EGRESS` is the default of `daemon --egress`.
+Environment variables used by the CLI and the hooks: `BARNRAISE_URL`, `BARNRAISE_SOCKET`, `BARNRAISE_TOKEN`, `BARNRAISE_PROJECT`; inside agent sessions also `BARNRAISE_ITEM`, `BARNRAISE_STEP`, `BARNRAISE_ROLE`, `BARNRAISE_AGENT`, `BARNRAISE_POLICY`, and for the output filter `BARNRAISE_OUTFILTER_DELEGATE`, `BARNRAISE_OUTPUT_KEEP`, `BARNRAISE_OUTPUT_KEEP_BYTES` and `BARNRAISE_RUN` (the session's run id, which ties kept outputs to the step's token usage). `BARNRAISE_NO_TAILSCALE=1` turns Tailscale off (installed or embedded); `BARNRAISE_TS_AUTHKEY` is the embedded Tailscale's auth key; `BARNRAISE_NO_SELF_UPDATE=1` turns off the cluster self-update; `BARNRAISE_EGRESS` is the default of `daemon --egress`.
 
 ## Backups
 
@@ -314,6 +315,46 @@ Agents read screenshots through the `pre-tool` hook, which hands them a copy 540
 | 540 px (default) | 721 | 43.5% |
 
 A mobile item with the mean of 31 prints goes from ~40,000 to ~22,500 tokens of images; one at the 90th percentile, from ~113,000 to ~63,000.
+
+## Output filter
+
+The `pre-tool` hook rewrites an agent's simple shell command (no pipes, redirections or `;`) into `barnraise filter -- <command>` when Barnraise has a native filter for it. The filter runs the command, prints what matters and keeps the rest:
+
+| Commands | What the agent sees |
+| --- | --- |
+| `go test/build/vet`, Gradle, jest, vitest, `npm/pnpm/yarn test`, pytest, Maestro | Failures with their messages, panics, race reports; passing packages and tests counted |
+| `cargo`, `mvn`/`mvnw`, `make`, `tsc`, `golangci-lint`, `eslint` | Errors (deduplicated, with their location), the final summary; compile progress, downloads and warnings counted (eslint: warnings by rule) |
+| `npm/pnpm/yarn install`, `npm ci`, `pip install`, `uv sync`, `bundle install` | Errors, what was added, vulnerabilities; deprecation and progress lines counted |
+| `git status` | Branch state and files grouped (staged, not staged, untracked, conflicts), long groups capped and untracked folders folded |
+| `git diff`, `git show` | Commit header, a `+added -removed` line per file, the first lines of each file's changes; lock and generated files only in the stat |
+| `git log` | One line per commit: hash, subject, author, date |
+| `git push/pull/fetch/clone` | Everything but the transfer progress |
+| `ls`, `tree`, `find`, `fd`, `docker ps/images`, `kubectl get` | The first entries; `find` also counts by folder |
+| `grep`, `rg`, `ag`, `git grep` | Matches counted per file, with the first lines of the first files |
+| `docker build`, `docker compose build` | The failing step and its error; step lines counted |
+| `docker logs`, `kubectl logs`, `docker compose up` | Problem lines (deduplicated) and the last lines |
+| `kubectl describe/apply/rollout` | Status fields, the last events; unchanged objects counted |
+
+Repeated lines anywhere are collapsed into one with a count. Git, listings, searches and logs are printed unchanged when they are short (40 lines and 4 KB at most); so is any output whose summary would not be shorter.
+
+**Nothing is lost.** A shortened output ends with `full output: barnraise output show <id> (<n> lines; …)`. The full text is kept in the item worktree's `.barnraise-session/outputs/` (outside a session, in the data folder's `outputs/`), at most 16 MB per output (the first and last 8 MB of a bigger one, with the size of the gap), removed after `outfilter.keep` (7 days) or when the folder passes `outfilter.keep_size` (64 MB), oldest first. To read it:
+
+```sh
+barnraise output show o1a2b3c4                 # all of it
+barnraise output show o1a2b3c4 --grep 'FAIL|panic'   # matching lines, with their numbers
+barnraise output show o1a2b3c4 --lines 120:180 # a range
+barnraise output list                          # kept outputs, newest first
+barnraise output stats                         # tokens saved, by tool
+barnraise output list --dir ~/.local/share/barnraise/worktrees/<project>/<item>/.barnraise-session/outputs
+```
+
+`barnraise filter --raw -- <command>` prints the whole output (an agent's way out when the filter hides something it needs).
+
+**Savings in the ledger.** Each kept output records the tokens of the whole output and of what was shown. At the end of a step the daemon adds those of the session to the step's `agent.usage` event (`filtered_runs`, `filter_saved_tokens`); `barnraise events --json` and the CloudEvents carry them, the item's timeline shows them (`… output filter saved 5400 tokens on 2 outputs`), and the digest (`barnraise digest`, the daily notification) has a line with the week's total. `barnraise output stats` gives the same numbers from the kept outputs of one folder, by tool.
+
+**rtk.** When [rtk](https://github.com/rtk-ai/rtk) is installed, `outfilter.delegate: auto` (the default) also wraps simple commands that have no native filter and runs them as `rtk <command>`; `rtk` sends every simple command there, native ones included; `off` keeps rtk out. If rtk refuses a command it does not know (a usage error before anything ran), Barnraise runs the command itself. rtk runs the command itself too, so what Barnraise keeps of a delegated command is rtk's output, not the raw one: use `barnraise filter --raw -- <command>` when the raw text matters. Barnraise never installs rtk.
+
+**Short answers.** Mechanical steps (model class `cheap` or `simple`, or a step pinned to the cheapest model of a ladder, like the critic's haiku) get an "Answer style" section asking for terse prose; see [terse](configuration.md#terse).
 
 ## Readings and moving checks between machines
 

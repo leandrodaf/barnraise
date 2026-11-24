@@ -43,6 +43,8 @@ Formats used below:
 | `merge` | mapping | `{mode: squash, batch: 4}` | See [merge](#merge) |
 | `lease` | mapping | `{renew: 30s, ttl: 2m}` | See [lease](#lease) |
 | `budget` | mapping | `{triage_week: 2%, context_tokens: 6000, compact_at: 60%}` | See [budget](#budget) |
+| `outfilter` | mapping | `{delegate: auto, keep: 7d, keep_size: 64MB}` | Output filter of agents' commands; see [outfilter](#outfilter) |
+| `terse` | mapping | `{mode: auto}` | Short answers in mechanical steps; see [terse](#terse) |
 | `revalidation` | mapping | `{stale_after: 14d}` | See [revalidation](#revalidation) |
 | `notifications` | list | none | See [notifications](#notifications) |
 | `plugins` | mapping | none | External plugins; see [plugins](#plugins) |
@@ -547,6 +549,29 @@ The same description writes the changelog. On integration the item's line goes u
 | `goal_week` | none | Most of the accounts' week the goal may use |
 | `context_tokens` | `6000` | Token budget of an item's context pack (`barnraise context`) |
 | `compact_at` | `60%` | Context use at which the agent is asked to update `plan.md` and the context is cleared |
+
+## outfilter
+
+Agents' shell commands with a long output (builds, tests, linters, `git status/diff/log`, listings, searches, `docker`, `kubectl`, package installs) go through `barnraise filter`, which prints the errors, the summaries and the counts, and keeps the full text: the last line of a shortened output is `full output: barnraise output show <id>`. A short output is printed as it is. See [operations.md](operations.md#output-filter) for the tools covered and how to read a kept output.
+
+| Key | Default | Meaning |
+| --- | --- | --- |
+| `delegate` | `auto` | Use [rtk](https://github.com/rtk-ai/rtk) when it is installed on the machine. `auto`: only for commands Barnraise has no native filter for; `rtk`: for every simple command, the native filters included; `off`: never. Without rtk on the `PATH` every mode behaves as `off` |
+| `keep` | `7d` | Kept outputs older than this are removed (duration) |
+| `keep_size` | `64MB` | Most space the kept outputs of one item worktree (or of the data folder, outside sessions) may take; the oldest go first, the newest always stays. Sizes take `KB`, `MB` or `GB` |
+
+```yaml
+outfilter: { delegate: off, keep: 2d, keep_size: 32MB }
+```
+
+## terse
+
+Mechanical steps get a short "Answer style" section in their prompt: no preamble, no recap, no closing remarks, while code, commands, paths, errors and the fields of the delivery or review stay exact. The agent's own words are what it pays output tokens for; a step that follows a recipe does not need them.
+
+| Key | Default | Meaning |
+| --- | --- | --- |
+| `mode` | `auto` | `auto`: only mechanical steps, those whose model class is `cheap` or `simple`, or that are pinned to the first (cheapest) model of a provider's ladder, like the critic's `model: haiku`; `all`: every agent step; `off`: never |
+| `steps` | none | Step names that always get it (unless `mode: off`), e.g. `[quick-look, lint-fix]` |
 
 ## revalidation
 

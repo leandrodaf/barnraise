@@ -1,13 +1,14 @@
-// Package outfilter turns long build and test output into a short summary
-// for an agent: the errors or the tail, plus the path of the full log. It
+// Package outfilter turns long command output into a short summary for an
+// agent: the errors, the summary lines and a handle to the full text. It
 // backs `barnraise filter -- <cmd>`, which a PreToolUse hook wraps around
-// noisy commands (Gradle, test runners, Maestro).
+// noisy commands (builds, test runners, linters, git, listings, searches),
+// and the check runner. Commands without a native filter may be delegated
+// to rtk when it is installed (ADR-0036).
 package outfilter
 
 import (
 	"bytes"
 	"fmt"
-	"path/filepath"
 	"regexp"
 	"strings"
 )
@@ -22,6 +23,24 @@ const (
 	ToolPytest  = "pytest"
 	ToolMaestro = "maestro"
 	ToolGeneric = "generic"
+
+	ToolGitStatus   = "git-status"
+	ToolGitDiff     = "git-diff" // diff and show
+	ToolGitLog      = "git-log"
+	ToolGitSync     = "git-sync" // push, pull, fetch, clone
+	ToolLint        = "golangci-lint"
+	ToolCargo       = "cargo"
+	ToolMaven       = "mvn"
+	ToolMake        = "make"
+	ToolTSC         = "tsc"
+	ToolESLint      = "eslint"
+	ToolList        = "list" // ls, tree, docker ps, kubectl get
+	ToolFind        = "find"
+	ToolGrep        = "grep" // grep, rg, ag, git grep
+	ToolDockerBuild = "docker-build"
+	ToolLogs        = "logs" // docker logs, kubectl logs, compose up
+	ToolKubectl     = "kubectl"
+	ToolInstall     = "install" // npm/pnpm/yarn/pip/bundle install
 )
 
 const (
@@ -30,7 +49,20 @@ const (
 	// TailLines is what the generic filter keeps.
 	TailLines  = 40
 	maxLineLen = 300
+	// Transparent tools print short outputs unchanged.
+	smallLines = 40
+	smallBytes = 4 << 10
 )
+
+// transparent tools (git, listings, searches, logs) keep a short output as
+// it is: the agent asked for that text, not for a verdict.
+var transparent = map[string]bool{
+	ToolGitStatus: true, ToolGitDiff: true, ToolGitLog: true, ToolGitSync: true, ToolList: true,
+	ToolFind: true, ToolGrep: true, ToolLogs: true, ToolKubectl: true,
+}
+
+// headFirst tools keep the beginning when nothing better is known.
+var headFirst = map[string]bool{ToolGitDiff: true, ToolGitLog: true, ToolList: true, ToolFind: true, ToolGrep: true}
 
 // Filter summarizes output for a tool.
 func Filter(tool string, output []byte, exitCode int) string {
@@ -40,37 +72,71 @@ func Filter(tool string, output []byte, exitCode int) string {
 // FilterWithLog summarizes output and ends with "full log: <path>" when
 // logPath is set.
 func FilterWithLog(tool string, output []byte, exitCode int, logPath string) string {
+	footer := ""
+	if logPath != "" {
+		footer = "full log: " + logPath
+	}
+	s, _ := Summarize(tool, output, exitCode, footer)
+	return s
+}
+
+// Summarize returns what the agent sees and whether it is shorter than the
+// output. A short output of a transparent tool comes back unchanged (only
+// colors and progress redraws removed), without footer.
+func Summarize(tool string, output []byte, exitCode int, footer string) (string, bool) {
 	lines := splitLines(output)
 	tool = normalizeTool(tool)
+	if transparent[tool] && len(lines) <= smallLines && len(output) <= smallBytes {
+		return strings.Join(lines, "\n"), false
+	}
 	status := "passed"
 	if exitCode != 0 {
 		status = fmt.Sprintf("failed (exit %d)", exitCode)
 	}
 	var body, summary []string
-	if r, ok := rules[tool]; ok {
+	if f, ok := funcs[tool]; ok {
+		body, summary = f(lines, exitCode)
+	} else if r, ok := rules[tool]; ok {
 		body, summary = r.apply(lines, exitCode)
 	}
 	if len(body) == 0 && (exitCode != 0 || len(summary) == 0) {
 		n := TailLines
-		if exitCode == 0 {
+		if exitCode == 0 && !transparent[tool] {
 			n = 5
 		}
-		body = tail(lines, n)
+		runs := collapseRuns(lines)
+		if headFirst[tool] && exitCode == 0 {
+			body = head(runs, n)
+		} else {
+			body = tail(runs, n)
+		}
 		summary = nil
 	}
-	body = capLines(body, MaxLines-len(summary))
+	limit := MaxLines
+	if n := bigBodies[tool]; n > 0 {
+		limit = n
+	}
+	body = capLines(collapseRuns(body), limit-len(summary))
 	body = append(body, summary...)
 
 	var b strings.Builder
-	fmt.Fprintf(&b, "%s: %s\n", tool, status)
+	if transparent[tool] {
+		fmt.Fprintf(&b, "%s: %d lines shortened", tool, len(lines))
+		if exitCode != 0 {
+			fmt.Fprintf(&b, ", exit %d", exitCode)
+		}
+		b.WriteByte('\n')
+	} else {
+		fmt.Fprintf(&b, "%s: %s\n", tool, status)
+	}
 	for _, l := range body {
 		b.WriteString(l)
 		b.WriteByte('\n')
 	}
-	if logPath != "" {
-		fmt.Fprintf(&b, "full log: %s\n", logPath)
+	if footer != "" {
+		b.WriteString(footer + "\n")
 	}
-	return strings.TrimRight(b.String(), "\n")
+	return strings.TrimRight(b.String(), "\n"), true
 }
 
 func normalizeTool(t string) string {
@@ -85,52 +151,14 @@ func normalizeTool(t string) string {
 	case "npm", "yarn", "pnpm", "bun":
 		return ToolJS
 	}
-	return ToolGeneric
-}
-
-// Detect guesses the tool from a shell command.
-func Detect(command string) string {
-	f := strings.Fields(command)
-	for i, w := range f {
-		base := filepath.Base(strings.Trim(w, `"'`))
-		next := ""
-		if i+1 < len(f) {
-			next = f[i+1]
-		}
-		switch base {
-		case "gradlew", "gradle", "gradlew.bat":
-			return ToolGradle
-		case "go":
-			if next == "test" || next == "vet" || next == "build" {
-				return ToolGo
-			}
-		case "jest":
-			return ToolJest
-		case "vitest":
-			return ToolVitest
-		case "pytest", "py.test":
-			return ToolPytest
-		case "maestro":
-			return ToolMaestro
-		case "python", "python3":
-			if next == "-m" && i+2 < len(f) && f[i+2] == "pytest" {
-				return ToolPytest
-			}
-		}
+	if _, ok := funcs[t]; ok {
+		return t
 	}
-	for i, w := range f {
-		base := filepath.Base(w)
-		if (base == "npm" || base == "yarn" || base == "pnpm" || base == "bun" || base == "npx") && i+1 < len(f) {
-			rest := strings.Join(f[i+1:], " ")
-			switch {
-			case strings.Contains(rest, "vitest"):
-				return ToolVitest
-			case strings.Contains(rest, "jest"):
-				return ToolJest
-			case strings.Contains(rest, "test"):
-				return ToolJS
-			}
-		}
+	if _, ok := rules[t]; ok {
+		return t
+	}
+	if t == ToolList || t == ToolLogs {
+		return t
 	}
 	return ToolGeneric
 }
@@ -144,18 +172,37 @@ type rule struct {
 	stop  *regexp.Regexp
 }
 
+// collapse counts lines matching the pattern instead of listing them all.
+type collapse struct {
+	re    *regexp.Regexp
+	label string
+}
+
 type toolRules struct {
 	fail    []rule // used when exit != 0
 	success []rule // used when exit == 0 (and as summary lines on failure)
-	// collapse counts lines matching the pattern instead of listing them all.
-	collapse      *regexp.Regexp
-	collapseLabel string
+	// collapses are counted, never listed.
+	collapses []collapse
+	// skip are lines never picked (help noise around errors).
+	skip *regexp.Regexp
+	// dedupe merges identical picked lines wherever they are.
+	dedupe bool
+	// failAlways also picks failure lines when the exit code is 0
+	// (linters and compilers that report problems and still succeed).
+	failAlways bool
 }
 
 // apply returns the failure lines and the summary lines.
 func (t toolRules) apply(lines []string, exit int) (fail, summary []string) {
 	var picked []string
 	seen := map[int]bool{}
+	if t.skip != nil {
+		for i, l := range lines {
+			if t.skip.MatchString(l) {
+				seen[i] = true
+			}
+		}
+	}
 	add := func(i int) {
 		if !seen[i] {
 			seen[i] = true
@@ -166,6 +213,9 @@ func (t toolRules) apply(lines []string, exit int) (fail, summary []string) {
 	}
 	run := func(rs []rule) {
 		for i := range lines {
+			if seen[i] {
+				continue
+			}
 			for _, r := range rs {
 				if !r.re.MatchString(lines[i]) {
 					continue
@@ -188,22 +238,31 @@ func (t toolRules) apply(lines []string, exit int) (fail, summary []string) {
 			}
 		}
 	}
-	if exit != 0 {
+	if exit != 0 || t.failAlways {
 		run(t.fail)
 	}
 	fail, picked = picked, nil
-	collapsed := 0
-	if t.collapse != nil {
-		for i, l := range lines {
-			if t.collapse.MatchString(l) && !seen[i] {
-				collapsed++
+	if t.dedupe {
+		fail = dedupeAll(fail)
+	}
+	counts := make([]int, len(t.collapses))
+	for i, l := range lines {
+		if seen[i] {
+			continue
+		}
+		for k, c := range t.collapses {
+			if c.re.MatchString(l) {
+				counts[k]++
 				seen[i] = true
+				break
 			}
 		}
 	}
 	run(t.success)
-	if collapsed > 0 {
-		picked = append(picked, fmt.Sprintf("%d %s", collapsed, t.collapseLabel))
+	for k, n := range counts {
+		if n > 0 {
+			picked = append(picked, fmt.Sprintf("%d %s", n, t.collapses[k].label))
+		}
 	}
 	if len(picked) > 10 {
 		picked = picked[len(picked)-10:]
@@ -245,8 +304,7 @@ var rules = map[string]toolRules{
 		success: []rule{
 			{re: regexp.MustCompile(`^(ok|\?)\s+\S+.*\[(no test files|setup failed)\]`)},
 		},
-		collapse:      regexp.MustCompile(`^ok\s+\S+`),
-		collapseLabel: "packages ok",
+		collapses: []collapse{{regexp.MustCompile(`^ok\s+\S+`), "packages ok"}},
 	},
 	ToolJest:   jsRules,
 	ToolVitest: jsRules,
@@ -319,6 +377,13 @@ func tail(lines []string, n int) []string {
 	return append([]string{fmt.Sprintf("… %d earlier lines omitted", len(lines)-n)}, lines[len(lines)-n:]...)
 }
 
+func head(lines []string, n int) []string {
+	if len(lines) <= n {
+		return lines
+	}
+	return append(append([]string(nil), lines[:n]...), fmt.Sprintf("… %d more lines omitted", len(lines)-n))
+}
+
 func capLines(lines []string, n int) []string {
 	if n < 2 {
 		n = 2
@@ -328,4 +393,44 @@ func capLines(lines []string, n int) []string {
 	}
 	out := append([]string(nil), lines[:n-1]...)
 	return append(out, fmt.Sprintf("… %d more lines omitted", len(lines)-(n-1)))
+}
+
+// collapseRuns turns a run of identical lines into one line with a count.
+func collapseRuns(lines []string) []string {
+	out := make([]string, 0, len(lines))
+	for i := 0; i < len(lines); {
+		j := i + 1
+		for j < len(lines) && lines[j] == lines[i] {
+			j++
+		}
+		if n := j - i; n > 2 && strings.TrimSpace(lines[i]) != "" {
+			out = append(out, fmt.Sprintf("%s (×%d)", lines[i], n))
+		} else {
+			out = append(out, lines[i:j]...)
+		}
+		i = j
+	}
+	return out
+}
+
+// dedupeAll keeps the first of identical lines anywhere, with a count.
+func dedupeAll(lines []string) []string {
+	count := map[string]int{}
+	for _, l := range lines {
+		count[l]++
+	}
+	out := make([]string, 0, len(count))
+	done := map[string]bool{}
+	for _, l := range lines {
+		if done[l] {
+			continue
+		}
+		done[l] = true
+		if n := count[l]; n > 1 {
+			out = append(out, fmt.Sprintf("%s (×%d)", l, n))
+		} else {
+			out = append(out, l)
+		}
+	}
+	return out
 }
