@@ -212,10 +212,12 @@
 			/* no clipboard: the text stays selectable */
 		}
 	}
+	// Switched off is not a problem: what could not run, off, counts as off.
+	const shown = (i: CapabilityItem) => (!i.on && needsAttention(i.status) ? 'available' : i.status);
 	const segments = (m: MachineCapabilities) => {
 		const n = m.items.length || 1;
 		return ['active', 'available', 'degraded', 'missing', 'unsupported']
-			.map((s) => ({ s, n: m.items.filter((i) => i.status === s).length }))
+			.map((s) => ({ s, n: m.items.filter((i) => shown(i) === s).length }))
 			.filter((x) => x.n)
 			.map((x) => ({ ...x, pct: (x.n * 100) / n }));
 	};
