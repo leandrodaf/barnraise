@@ -11,7 +11,6 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
-	"os"
 	"sort"
 	"sync"
 	"sync/atomic"
@@ -63,6 +62,8 @@ type Deps struct {
 	BinaryPath string // the barnraise binary, for hooks and MCP config
 	// Isolation are Barnraise's own confinement layers (Landlock, microVM).
 	Isolation Isolation
+	// Cloner copies build caches copy-on-write; optional.
+	Cloner ports.TreeCloner
 }
 
 // ProjectPorts are per-project adapters.
@@ -429,12 +430,8 @@ func (s *Service) dropFinishedWorkspace(ctx context.Context, p *Project, e domai
 	if err != nil || pl.Item == nil || !pl.Item.Status.Terminal() {
 		return
 	}
-	for _, dir := range []string{s.WorktreeDir(p.Name, pl.Item.ID), s.altDir(p.Name, pl.Item.ID)} {
-		if _, err := os.Stat(dir); err == nil {
-			if err := g.RemoveWorktree(ctx, dir); err != nil {
-				s.d.Log.Warn("remove the worktree of a finished item", "item", pl.Item.ID, "err", err)
-			}
-		}
+	for _, key := range []string{pl.Item.ID, altKey(pl.Item.ID)} {
+		s.retireWorktree(ctx, p, key, s.WorktreeDir(p.Name, key), retireRemove)
 	}
 }
 

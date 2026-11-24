@@ -73,13 +73,18 @@ func (s *Service) prepareAlt(ctx context.Context, p *Project, id string, st doma
 	}
 	s.excludeFromGit(dirB, "/.barnraise-session/")
 	s.excludeFromGit(dirB, "/criteria.json")
-	if err := s.SetupWorktree(ctx, p, dirB); err != nil {
-		return "", err
-	}
 	for _, f := range p.Cfg().EnvFiles {
 		if data, err := os.ReadFile(filepath.Join(p.Cfg().Root, f)); err == nil {
 			_ = os.WriteFile(filepath.Join(dirB, f), data, 0o600)
 		}
+	}
+	// The first attempt's build artifacts are the freshest for the second.
+	var cacheFrom []string
+	if len(p.Cfg().Worktree.BuildCache) > 0 {
+		cacheFrom = append([]string{dirA}, s.buildCacheSources(p)...)
+	}
+	if err := s.prepareWorktree(ctx, p, dirB, altKey(id), cacheFrom); err != nil {
+		return "", err
 	}
 	return dirB, nil
 }
@@ -193,7 +198,11 @@ func (s *Service) resolveDual(ctx context.Context, p *Project, id string) (*doma
 					continue
 				}
 				def.Scope, def.FlakyRetries = "all", 1
-				res, pending, err := s.d.Checks.Run(ctx, ports.CheckSpec{Def: def, ItemID: id, Dir: c.dir, Commit: c.head})
+				key := id
+				if c.name == "b" {
+					key = altKey(id)
+				}
+				res, pending, err := s.d.Checks.Run(ctx, ports.CheckSpec{Def: def, ItemID: id, Dir: c.dir, Commit: c.head, Env: s.worktreeCmdEnv(p, key, c.dir)})
 				if err == nil && !pending && res.Passed {
 					c.passed++
 				} else if err == nil && !pending {
@@ -222,7 +231,7 @@ func (s *Service) resolveDual(ctx context.Context, p *Project, id string) (*doma
 			s.d.Log.Warn("push adopted attempt", "item", id, "err", err)
 		}
 	}
-	_ = g.RemoveWorktree(ctx, cands[1].dir)
+	s.retireWorktree(ctx, p, altKey(id), cands[1].dir, retireRemove)
 	_ = g.DeleteBranch(ctx, it.Alt.Branch)
 	winner := it.Alt.A
 	if best != nil {

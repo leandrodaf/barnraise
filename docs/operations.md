@@ -234,11 +234,21 @@ Inside the data dir:
 | `worktrees/<project>/<item>/` | Item worktrees (with `.barnraise-session/` for the agent's settings, and `.barnraise-session/outputs/` for the full text of the outputs `barnraise filter` shortened) |
 | `outputs/` | Full text of the outputs `barnraise filter` shortened outside agent sessions |
 | `stores/<project>/<name>/` | Stores shared by the project's worktrees (`worktree.stores`) |
+| `buildcache/<project>/` | The build caches (`worktree.build_cache`) of the last integrated item, copy-on-write; safe to delete |
 | `logs/<project>/` | Full logs of checks |
 | `accounts/<id>/` | Provider config dirs of each account |
 | `daemon.log`, `daemon.pid` | Log and pid of a background daemon |
 
-Environment variables used by the CLI and the hooks: `BARNRAISE_URL`, `BARNRAISE_SOCKET`, `BARNRAISE_TOKEN`, `BARNRAISE_PROJECT`; inside agent sessions also `BARNRAISE_ITEM`, `BARNRAISE_STEP`, `BARNRAISE_ROLE`, `BARNRAISE_AGENT`, `BARNRAISE_POLICY`, `BARNRAISE_POLICY_SHA256` (the hash the hook checks the policy file against), and for the output filter `BARNRAISE_OUTFILTER_DELEGATE`, `BARNRAISE_OUTPUT_KEEP`, `BARNRAISE_OUTPUT_KEEP_BYTES` and `BARNRAISE_RUN` (the session's run id, which ties kept outputs to the step's token usage). `BARNRAISE_NO_TAILSCALE=1` turns Tailscale off (installed or embedded); `BARNRAISE_TS_AUTHKEY` is the embedded Tailscale's auth key; `BARNRAISE_NO_SELF_UPDATE=1` turns off the cluster self-update; `BARNRAISE_EGRESS` is the default of `daemon --egress`.
+Environment variables used by the CLI and the hooks: `BARNRAISE_URL`, `BARNRAISE_SOCKET`, `BARNRAISE_TOKEN`, `BARNRAISE_PROJECT`; inside agent sessions also `BARNRAISE_ITEM`, `BARNRAISE_STEP`, `BARNRAISE_ROLE`, `BARNRAISE_AGENT`, `BARNRAISE_POLICY`, `BARNRAISE_POLICY_SHA256` (the hash the hook checks the policy file against), and for the output filter `BARNRAISE_OUTFILTER_DELEGATE`, `BARNRAISE_OUTPUT_KEEP`, `BARNRAISE_OUTPUT_KEEP_BYTES` and `BARNRAISE_RUN` (the session's run id, which ties kept outputs to the step's token usage). Sessions, checks, `worktree.setup` and the worktree hooks of an item also get its own `PORT`, `BARNRAISE_PORTS`, `COMPOSE_PROJECT_NAME`, `BARNRAISE_ITEM_SLUG` and the project's `worktree.isolate.env` ([configuration](configuration.md#services-per-item)); hooks get `BARNRAISE_HOOK` with their phase. `BARNRAISE_NO_TAILSCALE=1` turns Tailscale off (installed or embedded); `BARNRAISE_TS_AUTHKEY` is the embedded Tailscale's auth key; `BARNRAISE_NO_SELF_UPDATE=1` turns off the cluster self-update; `BARNRAISE_EGRESS` is the default of `daemon --egress`.
+
+## Services and build caches of item worktrees
+
+Each item worktree has its own compose project (`COMPOSE_PROJECT_NAME=<project>-<item>`), its own ports and, with `worktree.isolate.env`, its own database, so items in parallel never share test data ([configuration](configuration.md#services-per-item)). What to expect on a machine:
+
+- **Containers per item.** `docker compose ls` shows one project per item that started services (`shop-i42`, `shop-i43`). They go away, volumes included, when the item is integrated or closed: Barnraise runs `worktree.isolate.teardown`, then `docker compose -p <name> down -v --remove-orphans`, once, and logs (`compose project down`) what it did. An item that ended while the daemon was down keeps its containers until the hourly pass removes its worktree, which tears them down the same way. Barnraise never touches a compose project of another name, such as the one you run in the main checkout.
+- **Ports.** With `worktree.port_range: N`, item `I-n` owns `N` ports from `port_base + (n % slots) * N`; `BARNRAISE_PORTS` says which. Keep the range clear of other services of the machine.
+- **Build caches.** `worktree.build_cache` directories reach a new worktree copy-on-write. The log says `build cache cloned` with the time it took, or `build cache skipped` when the filesystem cannot clone (ext4, tmpfs, the data dir and the checkout on two filesystems): put the data dir on Btrfs, XFS or APFS, on the same filesystem as the repository, to get them, or set `build_cache_fallback: copy`. The snapshot of the last integrated item lives in `buildcache/<project>/` of the data dir; deleting it only makes the next worktree start from the main checkout.
+- **Hooks.** `worktree.hooks` run in the worktree like `setup`, as the daemon's user, inside the `worktree.sandbox` profile where Landlock works. A failing `post_create` or `pre_session` holds the item's work and shows in the log with the last lines of its output; a failing `post_integrate` or `pre_remove` is only logged, because the item already ended.
 
 ## Backups
 
@@ -247,7 +257,7 @@ What matters most is already off the machine: every step ends with a commit push
 - **State**: `barnraise.db`. It runs in WAL mode; take a consistent copy with `sqlite3 ~/.local/share/barnraise/barnraise.db ".backup /backup/barnraise.db"`, or stop the daemon (`barnraise down`) and copy the file together with `-wal` and `-shm`.
 - **Identity and secrets**: `~/.config/barnraise/` (owner token, `daemon.yaml` with the NATS key and peers, the `secrets/` store). The file store's key and sealed data are both in `secrets/`; a backup that holds both can open it, so keep it encrypted.
 - **Optional**: `blobs/` (logs and screenshots) and `accounts/` (provider logins; you can also log in again).
-- **Not needed**: `worktrees/` (recreated from the item branches), `stores/` (caches), `nats/` (rebuilt from peers), logs.
+- **Not needed**: `worktrees/` (recreated from the item branches), `stores/` and `buildcache/` (caches), `nats/` (rebuilt from peers), logs.
 
 **Desktop file indexers stay out.** Worktrees hold hundreds of thousands of files (dependencies, build output). At every start the daemon writes two empty marker files, `.trackerignore` and `.nomedia`, in the data directory: Tracker and LocalSearch (GNOME) skip a directory that holds one of them, with everything below it. This matters when the data directory sits in a place the indexer walks (`BARNRAISE_DATA_DIR` or `XDG_DATA_HOME` under Documents, or an indexer set to walk the whole home). `locate`'s nightly `updatedb` has no per-directory marker; add the data directory to `PRUNEPATHS` in `/etc/updatedb.conf` if it bothers.
 

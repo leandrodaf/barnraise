@@ -41,6 +41,7 @@ import (
 	natsx "github.com/leandrodaf/barnraise/internal/adapters/out/nats"
 	"github.com/leandrodaf/barnraise/internal/adapters/out/notify"
 	"github.com/leandrodaf/barnraise/internal/adapters/out/plugin"
+	"github.com/leandrodaf/barnraise/internal/adapters/out/reflink"
 	"github.com/leandrodaf/barnraise/internal/adapters/out/secretscan"
 	"github.com/leandrodaf/barnraise/internal/adapters/out/sqlite"
 	"github.com/leandrodaf/barnraise/internal/adapters/out/sysinfo"
@@ -184,6 +185,7 @@ func runDaemon(ctx context.Context, opts cli.DaemonOptions) error {
 		Notifier: d.notifier(), Blobs: blobsOrNil(d.blobs), Host: sysinfo.NewHost(),
 		ResolveSecret: func(ref string) (string, error) { return notify.SecretRef(d.secrets, ref) },
 		Isolation:     d.isolation(exe),
+		Cloner:        reflink.New(),
 	})
 	d.svc = svc
 	app.RoleText = config.RolePrompt
@@ -1005,8 +1007,12 @@ func (d *daemon) serveRemoteChecks(ctx context.Context) {
 		if err := g.AddDetachedWorktree(ctx, dir, rc.Spec.Commit); err != nil {
 			return nil, fmt.Errorf("checkout %s: %w", rc.Spec.Commit, err)
 		}
-		defer func() { _ = g.RemoveWorktree(context.Background(), dir) }()
-		if err := d.svc.SetupWorktree(ctx, p, dir); err != nil {
+		defer func() {
+			// What the check started (its compose project) goes with the checkout.
+			d.svc.ReleaseServices(context.Background(), p, rc.Spec.ItemID, dir)
+			_ = g.RemoveWorktree(context.Background(), dir)
+		}()
+		if err := d.svc.SetupWorktreeFor(ctx, p, dir, rc.Spec.ItemID); err != nil {
 			return nil, err // the asking machine runs the check itself
 		}
 		rc.Spec.Dir = dir

@@ -384,6 +384,9 @@ type rawConfig struct {
 		StripAfter   string            `yaml:"strip_after"`
 		Stores       map[string]string `yaml:"stores"`
 		Sandbox      string            `yaml:"sandbox"`
+
+		// port_range, isolate, build_cache, hooks (worktree.go).
+		rawWorktreeOpts `yaml:",inline"`
 	} `yaml:"worktree"`
 	StaleReads staleReadsRaw `yaml:"stale_reads"`
 	Lessons    lessonsRaw    `yaml:"lessons"`
@@ -777,6 +780,11 @@ func (r *rawConfig) compile(root, tmpl string) (*domain.ProjectConfig, error) {
 		}
 		c.SafetyCommit = d
 	}
+	wo, err := r.Worktree.convert()
+	if err != nil {
+		return nil, err
+	}
+	c.Worktree = wo
 	return c, nil
 }
 
@@ -1101,6 +1109,7 @@ func Explain(cfg *domain.ProjectConfig) (string, error) {
 			"sandbox": cfg.Sandbox.SetupSandbox()},
 		"sandbox": cfg.Sandbox,
 	}
+	addWorktreeView(view["worktree"].(map[string]any), cfg)
 	if v := acpView(cfg); len(v) > 0 {
 		view["acp_providers"] = v
 	}

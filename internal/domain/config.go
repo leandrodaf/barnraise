@@ -461,6 +461,9 @@ type ProjectConfig struct {
 	Lessons LessonsDef `json:"lessons"`
 	// Sandbox is how confined commands of the project are (profiles, extra paths and ports).
 	Sandbox SandboxDef `json:"sandbox,omitzero"`
+	// Worktree are the per-item isolation, build caches and phase hooks of
+	// item worktrees (worktree_opts.go).
+	Worktree WorktreeOpts `json:"worktree"`
 }
 
 // FlowFor returns the flow of an item kind.

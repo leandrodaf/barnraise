@@ -389,6 +389,18 @@ type Exec interface {
 	Run(ctx context.Context, c Cmd) (ExecResult, error)
 }
 
+// ErrCloneUnsupported says the filesystem cannot clone files copy-on-write
+// (and a full copy was not asked for).
+var ErrCloneUnsupported = errors.New("copy-on-write clone not supported here")
+
+// TreeCloner copies a directory tree copy-on-write: a reflink on Linux
+// (FICLONE), clonefile on macOS. dst must not exist. When the filesystem
+// cannot clone, it copies the files in full if fullCopy is set, else it
+// leaves nothing at dst and returns ErrCloneUnsupported.
+type TreeCloner interface {
+	CloneTree(ctx context.Context, src, dst string, fullCopy bool) error
+}
+
 // Triage asks a cheap model for verdicts on candidates.
 type Triage interface {
 	Triage(ctx context.Context, change domain.Change, items []*domain.Item) ([]domain.TriageResult, domain.TokenUsage, error)

@@ -239,6 +239,9 @@ func TestRuntimeStartsBothAttemptsOfARiskyItem(t *testing.T) {
 	if specs[0].Workdir == specs[1].Workdir {
 		t.Fatal("each attempt has its own worktree")
 	}
+	if specs[0].Env["COMPOSE_PROJECT_NAME"] == specs[1].Env["COMPOSE_PROJECT_NAME"] || specs[1].Env["BARNRAISE_ITEM_SLUG"] != domain.ItemSlug(it.ID)+"b" {
+		t.Fatalf("each attempt has its own services: %q / %q", specs[0].Env["COMPOSE_PROJECT_NAME"], specs[1].Env["COMPOSE_PROJECT_NAME"])
+	}
 	if got := e.item(it.ID); got.Alt == nil || got.Alt.Step != "implement" {
 		t.Fatalf("alt %+v", got.Alt)
 	}

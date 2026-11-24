@@ -538,6 +538,13 @@ func (r *Runtime) start(ctx context.Context, p *Project, slot Slot, a *Assignmen
 			}
 		}
 	}
+	wtKey := it.ID
+	if attempt == "b" {
+		wtKey = altKey(it.ID)
+	}
+	if err := s.runHook(ctx, p, domain.HookPreSession, wtKey, dir); err != nil {
+		return err
+	}
 	family := p.Cfg().Models.Family(choice.Provider)
 	actor := Actor{Kind: ActorAgent, Name: slot.Agent, Role: role, Project: p.Name, ItemID: it.ID, Step: a.Step.Name, Account: acc.ID,
 		Scopes: RoleScopes(role, a.Step.Review || a.Step.Type == domain.StepApproval), Family: family, Model: choice.Model, Attempt: attempt,
@@ -560,8 +567,9 @@ func (r *Runtime) start(ctx context.Context, p *Project, slot Slot, a *Assignmen
 		"BARNRAISE_TOKEN": token, "BARNRAISE_SOCKET": s.d.SocketPath, "BARNRAISE_PROJECT": p.Name, "BARNRAISE_ITEM": it.ID,
 		"BARNRAISE_STEP": a.Step.Name, "BARNRAISE_AGENT": slot.Agent, "BARNRAISE_ROLE": role, "BARNRAISE_ACCOUNT": acc.ID,
 		"BARNRAISE_POLICY": filepath.Join(sessDir, "policy.json"), "BARNRAISE_WORKTREE": dir,
-		"PORT": strconv.Itoa(ItemPort(p.Cfg().PortBase, it.ID)), "DISABLE_AUTOUPDATER": "1",
+		"DISABLE_AUTOUPDATER": "1",
 	}
+	mergeEnv(env, s.worktreeEnv(p, wtKey, dir)) // its own ports, compose project, database
 	maps.Copy(env, s.StoreEnv(p))
 	run := s.d.IDs.NewID()
 	maps.Copy(env, domain.OutfilterEnv(p.Cfg().Outfilter, run))

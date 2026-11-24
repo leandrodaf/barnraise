@@ -50,7 +50,7 @@ Formats used below:
 | `plugins` | mapping | none | External plugins; see [plugins](#plugins) |
 | `webhooks` | list | none | See [webhooks](#webhooks) |
 | `experiments` | list | none | See [experiments](#experiments) |
-| `worktree` | mapping | `{include: [.env, .env.local], port_base: 4100, safety_commit: 15m}` | See [worktree](#worktree) |
+| `worktree` | mapping | `{include: [.env, .env.local], port_base: 4100, safety_commit: 15m}` | See [worktree](#worktree): also per-item services, build caches and hooks |
 | `stale_reads` | mapping | `{enabled: true, rebase: false, max_files: 10}` | See [stale_reads](#stale_reads) |
 | `lessons` | mapping | `{enabled: true, max: 5}` | See [lessons](#lessons) |
 
@@ -752,7 +752,19 @@ Send a share of the items to a change before the whole fleet gets it.
 | `stores` | none | Directories shared by every worktree of the project: store name to the environment variable that receives its path (`pnpm: npm_config_store_dir`) |
 | `strip` | none | Rebuildable directories removed from the worktree of an item that waits for the owner or is blocked (`web/node_modules`, `mobile/android/app/build`) |
 | `strip_after` | `1h` | How long an item waits before `strip` empties its worktree |
-| `sandbox` | `setup` | [Sandbox profile](#sandbox) of `setup`; `none` runs it unconfined |
+| `sandbox` | `setup` | [Sandbox profile](#sandbox) of `setup`, the `hooks` and `isolate.teardown`; `none` runs them unconfined |
+| `port_range` | `1` | Ports each item gets, from its `PORT` up (`BARNRAISE_PORTS` holds the range, `4120-4129`). With more than one, item `I-n` starts at `port_base + (n % slots) * port_range`; ranges never overlap and never pass 65535 |
+| `isolate.compose` | `auto` | `auto`: an item whose worktree has a compose file at its root (`compose.yaml`, `compose.yml`, `docker-compose.yaml`, `docker-compose.yml`) has its compose project taken down with its volumes when the item ends. `on`: always (the compose file is elsewhere). `off`: never |
+| `isolate.env` | none | Extra variables per item, by name, as Go templates (below): a database name, a `DATABASE_URL` that points at it |
+| `isolate.teardown` | none | Command run in the worktree when the item ends (integrated or closed), before its compose project goes down: drop the item's database, stop what `post_create` started |
+| `isolate.teardown_timeout` | `5m` | How long `teardown` and `docker compose down` may each take |
+| `build_cache` | none | Directories of build artifacts (`target/`, `.next/cache`, `build/`, `.gradle`) that a new worktree receives copy-on-write from the last integrated worktree or, before there is one, from the main checkout |
+| `build_cache_fallback` | `skip` | On a filesystem without copy-on-write: `skip` (the build starts cold) or `copy` (copy the files in full) |
+| `hooks.post_create` | none | Command run once in a new item worktree, after `setup` |
+| `hooks.pre_session` | none | Command run in the worktree before each agent session there; when it fails, the session does not start and is tried again later |
+| `hooks.post_integrate` | none | Command run in the worktree after the item landed on main, before the worktree is removed |
+| `hooks.pre_remove` | none | Command run in the worktree just before it is removed |
+| `hooks.timeout` | `10m` | How long each hook may take |
 
 `include` copies files that are not in git into every worktree. It is empty by default, because such files (`.env`) usually hold what an agent must not have: secrets, or the address of a real database. List a file only when it is safe in an agent's hands.
 
@@ -776,6 +788,57 @@ worktree:
 **`strip`** empties the worktrees that only wait. When an item has been `waiting_owner` or `blocked` for `strip_after`, the listed directories leave its worktree; the branch, the commits and every other file stay. When the item moves again, the worktree is seeded and set up again before anything runs there. An item with a session running is never touched. List only what `setup` (or a build) puts back.
 
 Paths in `seed` and `strip` are relative to the repository root and stay inside it; `.git` and Barnraise's own folders are refused.
+
+### Services per item
+
+Items run in parallel, each in its own worktree, and without help they share whatever the project's services are: the same database, the same docker compose project, the same ports. One item's tests then drop the tables another item's tests are using. Barnraise gives every item worktree an identity of its own, and passes it to the `setup` command, the hooks, every check and the agent's session:
+
+| Variable | Value |
+| --- | --- |
+| `PORT` | The item's first port (as before: `port_base + n % 1000` with one port per item) |
+| `BARNRAISE_PORTS` | The item's port range, `first-last` |
+| `COMPOSE_PROJECT_NAME` | `<project>-<item>`, for example `shop-i42`: `docker compose up` in one worktree never touches another item's containers or volumes |
+| `BARNRAISE_ITEM`, `BARNRAISE_ITEM_SLUG` | `I-42` and `i42` |
+
+The second attempt of a risky item (`I-42~b`) has its own compose project and database (`i42b`) and shares the item's ports. `isolate.env` adds the project's own variables. Each value is a Go template with `{{.Item}}` (`i42`), `{{.ItemID}}` (`I-42`), `{{.Project}}`, `{{.Compose}}`, `{{.Dir}}`, `{{.Port}}` and `{{.Ports}}` (`{{index .Ports 1}}` is the second port), and three functions: `env "NAME"` reads a variable of the worktree's `include` files, `dbURL url name` points a database URL at another database, and `replace old new` works in a pipe:
+
+```yaml
+worktree:
+  include: [.env]          # DATABASE_URL=postgres://dev@localhost:5432/shop
+  port_range: 10
+  setup: pnpm install --frozen-lockfile
+  isolate:
+    env:
+      DB_NAME: "shop_{{.Item}}"
+      DATABASE_URL: '{{dbURL (env "DATABASE_URL") (print "shop_" .Item)}}'
+      REDIS_URL: '{{env "REDIS_URL" | replace "/0" (print "/" .Port)}}'
+    teardown: dropdb --if-exists "$DB_NAME"
+  hooks:
+    post_create: createdb "$DB_NAME" && pnpm db:migrate
+```
+
+Variables set in the process environment win over a `.env` file for most loaders (dotenv does not override what is already set), so the worktree's copy of `.env` can stay as it is. A variable cannot be one of Barnraise's (`BARNRAISE_*`), `PORT`, `COMPOSE_PROJECT_NAME`, `PATH`, `HOME`, `USER`, `SHELL`, `TMPDIR`, a proxy variable, or `LD_*`/`DYLD_*`; a template that does not compile or names an unknown field is a configuration error.
+
+When the item ends, Barnraise frees what it started, once: `teardown`, then `docker compose -p <name> down -v --remove-orphans` when compose was used (see `isolate.compose`; on a machine without docker nothing happens). Then the worktree is removed: an integrated item's after `post_integrate`, a closed item's too (nothing uses it again). The hourly pass that removes leftover worktrees ([operations](operations.md#backups)) runs `pre_remove` and frees their services the same way. A check run for another machine gets the item's identity there too, and its compose project goes down with its scratch checkout.
+
+### Build caches
+
+A fresh worktree has the dependencies `setup` installs (or `seed` copies), but none of the build: the first `cargo build`, `next build` or `gradle build` of every item starts from nothing. `build_cache` lists the directories that hold the build's artifacts, and each new item worktree receives them copy-on-write: the files share their blocks with the source until one side changes them, so gigabytes arrive in a moment and cost no disk. The source is the build of the last integrated item (kept in `buildcache/<project>/` of the data dir when the item lands, also copy-on-write), which matches main closely; before any item landed, the main checkout's. The second attempt of a risky item starts from the first attempt's.
+
+Copy-on-write needs a filesystem that has it: Btrfs, XFS (with reflinks, the default since 2019), bcachefs on Linux (the `FICLONE` ioctl), APFS on macOS (`clonefile`). On ext4, tmpfs or across two filesystems a full copy would cost the time and disk the cache was meant to save, so the directory is skipped and the build starts cold, as without a cache; `build_cache_fallback: copy` copies it in full instead. A directory already in the worktree (because git tracks it) is left alone. The caches arrive before `seed` and `setup`, in the same pass: a directory listed in both `build_cache` and `seed` comes from the cache when it can be cloned, and from `seed` otherwise. A worktree that `strip` emptied receives them again before its setup runs again. The caches arrive before  and , in the same pass: a directory listed in both  and  comes from the cache when it can be cloned, and from  otherwise. A worktree that  emptied receives them again before its setup runs again. Build tools check their caches, so a cache from a slightly different tree is only a head start.
+
+### Worktree hooks
+
+`hooks` run commands at four phases of an item worktree's life, the way `setup` runs (`sh -c` in the worktree, the daemon's user, confined by the `worktree.sandbox` profile where the machine has [Landlock](#sandbox), the isolation variables above and the [shared stores](#many-worktrees-one-set-of-dependencies), plus `BARNRAISE_HOOK` with the phase, `BARNRAISE_PROJECT` and `BARNRAISE_WORKTREE`, output kept in the log when they fail):
+
+| Hook | When | When it fails |
+| --- | --- | --- |
+| `post_create` | Once, after `setup`, in a new item worktree (not in the scratch checkouts of checks; put what those need in `setup`) | Like `setup`: the work waits and it runs again next time |
+| `pre_session` | Before each agent session in the worktree | The session does not start; it is tried again on the next round |
+| `post_integrate` | After the item landed on main, in its worktree | Logged |
+| `pre_remove` | Before the worktree is removed | Logged |
+
+`barnraise.yaml` is the owner's file: agents may not change it (see the default `deny_write`), so the hooks, like `setup`, run only what the owner wrote.
 
 ## stale_reads
 

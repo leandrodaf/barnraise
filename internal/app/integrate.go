@@ -405,7 +405,8 @@ func (s *Service) runQueueChecksWith(ctx context.Context, p *Project, dir, head 
 			continue // remote checks already ran in the item flow; the others do not concern this batch
 		}
 		def.Scope = "all" // the selection above already decided
-		res, pending, err := s.d.Checks.Run(ctx, ports.CheckSpec{Def: def, ItemID: items[0].ID, Commit: head, Dir: dir, Touched: touched})
+		res, pending, err := s.d.Checks.Run(ctx, ports.CheckSpec{Def: def, ItemID: items[0].ID, Commit: head, Dir: dir, Touched: touched,
+			Env: s.worktreeCmdEnv(p, items[0].ID, dir)})
 		if err != nil {
 			return false, fmt.Sprintf("check %s could not run: %v", name, err)
 		}
@@ -456,7 +457,7 @@ func (s *Service) markIntegrated(ctx context.Context, p *Project, it *domain.Ite
 	}
 	_, _ = s.emit(ctx, p, domain.EvItemIntegrated, it.ID, "merge-queue", domain.Payload{Item: upd, Note: "integrated into main"})
 	if p.Ports().Git != nil {
-		_ = p.Ports().Git.RemoveWorktree(ctx, s.WorktreeDir(p.Name, it.ID))
+		s.retireWorktree(ctx, p, it.ID, s.WorktreeDir(p.Name, it.ID), retireIntegrate)
 	}
 	if p.Ports().CodeHost != nil && upd != nil && upd.PR != "" {
 		go func() {
