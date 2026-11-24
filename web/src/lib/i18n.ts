@@ -781,7 +781,7 @@ Object.assign(pt, {
 });
 
 Object.assign(en, {
-  mMachinesN: '{0} machines', mAgentsAll: '{0} of {1} agents', mAgentsHelp: 'Agents working now, of all the machines can run at once (machines in standby run none).',
+  mMachinesN: '{0} machines', mAgentsAll: '{0} of {1} agents', mAgentsHelp: 'Agents working now, of all the machines can run at once (machines in standby run none).', mAllStandby: 'all in standby',
   mAgentsShort: '{0} of {1}', mStandbyShort: 'standby', mMore: '+{0} machines', mCores: '{0} cores', mMem: '{0} of {1} GB in use', mStandby: 'In standby: runs no agent',
   mAgents: '{0} of {1} agents working', mAgentsLabel: 'agents', mUpTo: 'Runs up to {0} agents at once',
   mLimit_cpu: 'Measured from its {0} cores: 2 per agent.', mLimit_memory: 'Measured from its {1} GB of memory: 4 GB per agent, 2 GB kept for the system.',
@@ -791,7 +791,7 @@ Object.assign(en, {
 });
 
 Object.assign(pt, {
-  mMachinesN: '{0} máquinas', mAgentsAll: '{0} de {1} agentes', mAgentsHelp: 'Agentes trabalhando agora, do total que as máquinas rodam ao mesmo tempo (as em standby não rodam nenhum).',
+  mMachinesN: '{0} máquinas', mAgentsAll: '{0} de {1} agentes', mAgentsHelp: 'Agentes trabalhando agora, do total que as máquinas rodam ao mesmo tempo (as em standby não rodam nenhum).', mAllStandby: 'todas em standby',
   mAgentsShort: '{0} de {1}', mStandbyShort: 'standby', mMore: '+{0} máquinas', mCores: '{0} núcleos', mMem: '{0} de {1} GB em uso', mStandby: 'Em standby: não roda agente',
   mAgents: '{0} de {1} agentes trabalhando', mAgentsLabel: 'agentes', mUpTo: 'Roda até {0} agentes ao mesmo tempo',
   mLimit_cpu: 'Medido pelos {0} núcleos: 2 por agente.', mLimit_memory: 'Medido pelos {1} GB de memória: 4 GB por agente, 2 GB ficam para o sistema.',

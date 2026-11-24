@@ -30,7 +30,7 @@
 	<span class="hidden sm:inline {session.outdated ? 'text-st-needs' : ''}">{t('sbDaemon', session.version, session.machine)}{session.outdated ? ' · ' + t('updateAvailable') : ''}</span>
 	{#each machines as m (m.name)}
 		<a href={href('machines')} class="hidden items-center gap-1 hover:text-foreground md:flex">
-			{#if m.standby}<MoonStarIcon class="size-3 text-st-needs" />{:else}<Dot tone={m.health === 'green' ? 'done' : m.health === 'red' ? 'fail' : 'needs'} />{/if}{m.name} <span class="opacity-70">{m.busy}/{m.slots}</span>
+			{#if m.standby}<MoonStarIcon class="size-3 text-st-needs" />{:else}<Dot tone={m.health === 'green' ? 'done' : m.health === 'red' ? 'fail' : 'needs'} />{/if}{m.name} <span class="opacity-70" title={t('mAgents', m.busy, m.slots)}>{m.standby ? t('mStandbyShort') : t('mAgentsShort', m.busy, m.slots)}</span>
 		</a>
 	{/each}
 	{#if tight}<a href={href('accounts')} class="ml-auto truncate hover:text-foreground {tight.limited ? 'text-st-fail' : tight.short ? 'text-st-needs' : ''}">{t('sbTight', tight.id, pct(tight.v))}</a>{/if}

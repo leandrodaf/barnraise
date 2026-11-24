@@ -154,7 +154,7 @@
 				by.set(it.id, r);
 			}
 		const worst = (r: { cells: Record<string, CapabilityItem> }) => Math.max(...Object.values(r.cells).map((c) => st(c.status).rank));
-		const list = [...by.values()].filter((r) => !onlyAttention || Object.values(r.cells).some((c) => needsAttention(c.status)));
+		const list = [...by.values()].filter((r) => !onlyAttention || Object.values(r.cells).some((c) => c.on && needsAttention(c.status)));
 		const groups = new Map<string, typeof list>();
 		for (const r of list) {
 			const g = GROUPS.includes(r.item.group) ? r.item.group : 'other';
@@ -165,7 +165,7 @@
 			.map((g) => ({ group: g, rows: groups.get(g)!.sort((a, b) => worst(b) - worst(a) || a.item.title.localeCompare(b.item.title)) }));
 	});
 	const total = $derived(machines.reduce((n, m) => n + m.items.filter((i) => i.status === 'active').length, 0));
-	const attention = $derived(machines.reduce((n, m) => n + m.items.filter((i) => needsAttention(i.status)).length, 0));
+	const attention = $derived(machines.reduce((n, m) => n + m.items.filter((i) => i.on && needsAttention(i.status)).length, 0));
 	// Tools any machine misses and Barnraise can install there.
 	const missingTools = (m: MachineCapabilities) =>
 		[...new Set(m.items.filter((i) => needsAttention(i.status) && i.tool && !i.needsRoot).map((i) => i.tool))].filter((id) => m.tools.find((t) => t.id === id)?.available !== false);
@@ -326,7 +326,7 @@
 	<div class="mb-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
 		{#each machines as m (m.machine)}
 			{@const miss = missingTools(m)}
-			{@const att = m.items.filter((i) => needsAttention(i.status)).length}
+			{@const att = m.items.filter((i) => i.on && needsAttention(i.status)).length}
 			<article class="space-y-2.5 rounded-xl border bg-card p-3.5 {m.error ? 'border-dashed opacity-70' : ''}">
 				<div class="flex items-start justify-between gap-2">
 					<div class="min-w-0">

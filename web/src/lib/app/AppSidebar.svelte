@@ -62,7 +62,8 @@
 	const SHOWN = 4;
 	const ordered = $derived([...machines].sort((a, b) => b.busy - a.busy || Number(a.standby) - Number(b.standby) || a.name.localeCompare(b.name)));
 	const busyAll = $derived(machines.reduce((n, m) => n + m.busy, 0));
-	const slotsAll = $derived(machines.reduce((n, m) => n + (m.standby ? 0 : m.slots), 0));
+	const slotsAll = $derived(machines.reduce((n, m) => n + m.slots, 0));
+	const allStandby = $derived(machines.length > 0 && machines.every((m) => m.standby));
 	const memUsed = (m: { memGb: number; freeMemGb: number }) => (m.memGb && m.freeMemGb > 0 ? m.memGb - m.freeMemGb : 0);
 	const machineTitle = (m: { name: string; cpus: number; memGb: number; freeMemGb: number; slots: number; busy: number; slotsBy: string; standby: boolean }) =>
 		[m.name, t('mCores', m.cpus) + ' · ' + t('mMem', fmt1(memUsed(m)), fmt1(m.memGb)), m.standby ? t('mStandby') : t('mAgents', m.busy, m.slots) + ' · ' + t('mLimit_' + (m.slotsBy || 'cpu'))].join('\n');
@@ -139,7 +140,7 @@
 		<div class="space-y-2 rounded-lg border bg-background/40 p-2 group-data-[collapsible=icon]:hidden">
 			<a href={href('machines')} class="flex items-baseline justify-between gap-2 text-[11px]">
 				<span class="font-medium">{t('mMachinesN', machines.length)}</span>
-				<span class="num text-muted-foreground" title={t('mAgentsHelp')}>{t('mAgentsAll', busyAll, slotsAll)}</span>
+				<span class="num text-muted-foreground" title={t('mAgentsHelp')}>{allStandby ? t('mAllStandby') : t('mAgentsAll', busyAll, slotsAll)}</span>
 			</a>
 			{#each ordered.slice(0, SHOWN) as m (m.name)}
 				<a href={href('machines')} class="block space-y-1 rounded-md px-1 py-0.5 text-[11px] hover:bg-muted/60" title={machineTitle(m)}>
