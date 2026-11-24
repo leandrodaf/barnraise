@@ -2,8 +2,9 @@
 // external runner (smolvm by default, or any program the owner configures
 // with a command template). It is opt-in: daemon.yaml turns it on, and a
 // machine without the runner, or without hardware virtualization, reports
-// it unavailable and keeps using Landlock. Barnraise does not ship or
-// download the runner.
+// it unavailable and keeps using Landlock. Barnraise does not ship the
+// runner; `barnraise tools install smolvm` downloads its official build
+// on the owner's request (ADR-0045).
 package microvm
 
 import (
@@ -212,6 +213,10 @@ func (c *Confiner) values(conf domain.Confinement, name string, args []string) m
 			continue
 		}
 		vol(p, false)
+	}
+	// The tools Barnraise installed reach the VM read-only at the same path.
+	for _, t := range conf.Tools {
+		vol(t, true)
 	}
 	for _, m := range c.o.Mounts {
 		p, ro := strings.CutSuffix(m, ":ro")

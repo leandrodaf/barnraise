@@ -73,6 +73,9 @@ func plan(c domain.Confinement, f fsys, ephemeral func() (int, int)) Ruleset {
 			rs.ROFiles = append(rs.ROFiles, p)
 		}
 	}
+	for _, t := range cleanAll(c.Tools) {
+		add(t, false) // the tools Barnraise installed, inside its denied data folder
+	}
 	for _, w := range cleanAll(c.Work) {
 		add(w, true)
 	}

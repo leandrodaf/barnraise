@@ -23,6 +23,9 @@ type Isolation struct {
 	// Opt-in (daemon.yaml); optional.
 	MicroVM    ports.Confiner
 	MicroVMFor func(kind string) bool
+	// ToolDirs are read-only in every confinement: the tools Barnraise
+	// installed (ADR-0045), inside its otherwise denied data folder.
+	ToolDirs []string
 }
 
 // Kinds of confined command.
@@ -99,7 +102,7 @@ func (s *Service) confinement(p *Project, profile string, work []string, command
 	work = append(append([]string(nil), work...), s.storeDirs(p)...)
 	return domain.BuildConfinement(domain.ConfineInput{
 		Profile: profile, Home: home, Work: work, TmpDir: os.TempDir(), Proxy: s.runtime.proxyPort(),
-		DenyRead: cfg.Policy.DenyRead, Project: cfg.Sandbox, Command: command, Hosts: cfg.Policy.AllowHosts, Env: env,
+		DenyRead: cfg.Policy.DenyRead, Project: cfg.Sandbox, Command: command, Hosts: cfg.Policy.AllowHosts, Env: env, Tools: s.d.Isolation.ToolDirs,
 	})
 }
 

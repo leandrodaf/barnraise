@@ -30,6 +30,10 @@ func probeSandbox() bool {
 	return exec.CommandContext(ctx, "bwrap", "--die-with-parent", "--unshare-pid", "--ro-bind", "/", "/", "--dev", "/dev", "--proc", "/proc", "true").Run() == nil
 }
 
+// BubblewrapWorks reports whether bubblewrap can start a sandbox on this
+// machine, the way ACP terminals are confined (for the capability probe).
+func BubblewrapWorks() bool { return probeSandbox() }
+
 // sandboxArgs wraps a command in bubblewrap.
 func sandboxArgs(pol domain.Policy, worktree, socket, cwd, name string, args []string) (string, []string) {
 	out := []string{"--die-with-parent", "--new-session", "--unshare-pid", "--unshare-ipc",
@@ -41,6 +45,13 @@ func sandboxArgs(pol domain.Policy, worktree, socket, cwd, name string, args []s
 			} else {
 				out = append(out, "--ro-bind", "/dev/null", m)
 			}
+		}
+	}
+	// The tools Barnraise installed live in its hidden data folder too:
+	// they come back read-only, so the PATH finds them (ADR-0045).
+	if tools := os.Getenv(domain.EnvToolsDir); filepath.IsAbs(tools) {
+		if st, err := os.Stat(tools); err == nil && st.IsDir() {
+			out = append(out, "--ro-bind", tools, tools)
 		}
 	}
 	// Writable binds come after the hidden folders: the worktree lives
