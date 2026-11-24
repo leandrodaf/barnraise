@@ -494,3 +494,31 @@ func TestLoadPolicyAndMCP(t *testing.T) {
 		t.Fatal(safeName("My Agent!"))
 	}
 }
+
+// Without bubblewrap, a terminal runs inside the session's Landlock
+// confinement when Barnraise confines the session; a microVM wrapper is not
+// applied per command.
+func TestTerminalUsesLandlockWithoutBubblewrap(t *testing.T) {
+	dir := t.TempDir()
+	c, _ := testClient(t, dir)
+	var wrapped []string
+	c.confine = &ports.Confine{Backend: "landlock", Wrap: func(name string, args []string) (string, []string, error) {
+		wrapped = append([]string{name}, args...)
+		return "sh", []string{"-c", "echo confined"}, nil
+	}}
+	ctx := context.Background()
+	id, rerr := c.createTerminal(ctx, "echo", []string{"plain"}, nil, "", 0)
+	if rerr != nil {
+		t.Fatal(rerr)
+	}
+	_, _ = c.waitTerminal(ctx, id)
+	if out, _, _, _ := c.terminalOutput(id); strings.TrimSpace(out) != "confined" || len(wrapped) != 2 || wrapped[0] != "echo" {
+		t.Fatalf("the terminal must go through the confiner: %q %v", out, wrapped)
+	}
+	c.confine.Backend, wrapped = "microvm", nil
+	id, _ = c.createTerminal(ctx, "echo", []string{"plain"}, nil, "", 0)
+	_, _ = c.waitTerminal(ctx, id)
+	if out, _, _, _ := c.terminalOutput(id); strings.TrimSpace(out) != "plain" || wrapped != nil {
+		t.Fatalf("a microVM does not wrap each terminal: %q %v", out, wrapped)
+	}
+}

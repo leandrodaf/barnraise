@@ -86,6 +86,13 @@ func (c *client) createTerminal(_ context.Context, command string, args []string
 			}
 			sock, _ := e.Get("BARNRAISE_SOCKET")
 			name, a = sandboxArgs(c.pol, c.workdir, sock, cwd, name, a)
+		} else if c.confine != nil && c.confine.Backend == "landlock" {
+			// No bubblewrap here: the command runs inside the session's
+			// Landlock profile instead (the worktree writable, deny_read hidden).
+			var err error
+			if name, a, err = c.confine.Apply(name, a); err != nil {
+				return "", &RPCError{Code: codeInternal, Message: "confine " + command + ": " + err.Error()}
+			}
 		}
 		if c.runAs != "" {
 			name, a = provcommon.SudoArgs(c.runAs, e, name, a)

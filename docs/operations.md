@@ -323,7 +323,7 @@ Each session writes its whole conversation with the agent, one JSON line per mes
 - `the agent program ended (exit code N) before answering …`: the program crashed or is not an ACP agent. The last lines of its stderr follow.
 - a refusal that says it hit a limit marks the account limited. It is tried again later, like any other account.
 
-Barnraise asks for the model of the session when the agent lists it and ignores it otherwise. Policy refusals show up as `policy.violation` events (`barnraise events`, `barnraise audit`). Terminals run in bubblewrap when the probe succeeds on the machine. Where it does not (AppArmor forbids unprivileged namespaces, or macOS), they run after the policy check, as the session's user, the way Claude Code's commands run when its sandbox is off.
+Barnraise asks for the model of the session when the agent lists it and ignores it otherwise. Policy refusals show up as `policy.violation` events (`barnraise events`, `barnraise audit`). Terminals run in bubblewrap when the probe succeeds on the machine. Where it does not (AppArmor forbids unprivileged namespaces) and the kernel has Landlock, they run in the session's [Landlock profile](configuration.md#sandbox) instead. Without either (macOS, old kernels), they run after the policy check, as the session's user, the way Claude Code's commands run when its sandbox is off.
 
 ## Capacity
 

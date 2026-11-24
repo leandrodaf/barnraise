@@ -31,9 +31,12 @@ type client struct {
 	container *ports.ContainerSpec
 	runAs     string
 	sandbox   bool
-	env       *provcommon.Env // the session's environment, for terminals
-	emit      func(ports.ProviderEvent)
-	terms     terminals
+	// confine is Barnraise's own confinement of the session (Landlock),
+	// used for terminals where bubblewrap cannot start.
+	confine *ports.Confine
+	env     *provcommon.Env // the session's environment, for terminals
+	emit    func(ports.ProviderEvent)
+	terms   terminals
 
 	mu     sync.Mutex
 	calls  map[string]*toolCall
@@ -43,7 +46,7 @@ type client struct {
 
 func newClient(command provcommon.CommandFunc, pol domain.Policy, exists func(string) bool, spec ports.SessionSpec, sandbox bool, env *provcommon.Env, emit func(ports.ProviderEvent)) *client {
 	return &client{command: command, pol: pol, exists: exists, workdir: spec.Workdir, container: spec.Container, runAs: spec.RunAsUser,
-		sandbox: sandbox && spec.Container == nil, env: env, emit: emit, terms: terminals{m: map[string]*terminal{}},
+		sandbox: sandbox && spec.Container == nil, confine: spec.Confine, env: env, emit: emit, terms: terminals{m: map[string]*terminal{}},
 		calls: map[string]*toolCall{}, denied: map[string]bool{}, late: map[string]bool{}}
 }
 
