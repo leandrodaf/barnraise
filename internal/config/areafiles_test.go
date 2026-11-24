@@ -51,7 +51,9 @@ func TestAreaFilesAreFoundAndMerged(t *testing.T) {
 	}
 	var names []string
 	for n := range cfg.Checks {
-		names = append(names, n)
+		if n != domain.DependencyCheck { // the built-in one is always there
+			names = append(names, n)
+		}
 	}
 	if len(names) != 4 || cfg.Checks["main"].Name != "" {
 		t.Fatalf("the parts' checks replace the template's guess: %v", names)

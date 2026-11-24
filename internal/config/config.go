@@ -94,6 +94,8 @@ func Compile(root string, data []byte) (*domain.ProjectConfig, error) {
 	if err := loadAreaFiles(root, cfg, userChecks); err != nil {
 		return nil, err
 	}
+	cfg.Dependencies = raw.Dependencies.policy()
+	cfg.AddDependencyCheck()
 	return cfg, nil
 }
 
@@ -316,7 +318,8 @@ type rawConfig struct {
 		Mounts  []string `yaml:"mounts"`
 		GPU     string   `yaml:"gpu"`
 	} `yaml:"container"`
-	Selection struct {
+	Dependencies dependenciesField `yaml:"dependencies"`
+	Selection    struct {
 		AllWhen  []string `yaml:"all_when"`
 		NoneWhen []string `yaml:"none_when"`
 	} `yaml:"selection"`
@@ -1004,7 +1007,8 @@ func def(v, d string) string {
 }
 
 // Check compiles and validates, returning plain sentences. Besides Validate,
-// it reports plugins whose program cannot be found on this machine.
+// it reports plugins whose program cannot be found on this machine, and
+// built-in ast-grep checks that cannot run here.
 func Check(root string) ([]string, error) {
 	cfg, err := Load(root)
 	if err != nil {
@@ -1016,6 +1020,7 @@ func Check(root string) ([]string, error) {
 			problems = append(problems, msg)
 		}
 	}
+	problems = append(problems, builtinCheckProblems(root, cfg)...)
 	sort.Strings(problems)
 	return problems, nil
 }

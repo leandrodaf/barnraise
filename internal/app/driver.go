@@ -507,7 +507,7 @@ func (s *Service) runCheckStep(ctx context.Context, p *Project, it *domain.Item,
 		def.Scope = "all" // the selection above already decided
 		_, _ = s.emit(ctx, p, domain.EvCheckRequested, it.ID, "barnraise", domain.Payload{Note: n, Extra: map[string]any{"check": n, "runs_on": def.RunsOn, "commit": head, "why": dec.Why}})
 		spec := ports.CheckSpec{Def: def, ItemID: it.ID, Branch: it.Branch, Commit: head, Dir: dir, Touched: touched, Areas: areaList,
-			Env: s.worktreeCmdEnv(p, it.ID, dir)}
+			Env: s.worktreeCmdEnv(p, it.ID, dir), Base: s.checkBase(ctx, p, main, head)}
 		res, pending, err := s.d.Checks.Run(ctx, spec)
 		if err != nil {
 			res = domain.CheckResult{Check: n, Passed: false, Summary: "check could not run: " + err.Error()}

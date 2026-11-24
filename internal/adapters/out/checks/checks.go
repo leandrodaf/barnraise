@@ -60,6 +60,15 @@ type Options struct {
 	// Now and NewID are injectable for tests.
 	Now   func() time.Time
 	NewID func() string
+	// Dependencies is the project's policy for the built-in dependencies
+	// check; MainRefs are the refs tried for main when a check comes
+	// without its base; Machine names this machine in messages.
+	Dependencies domain.DependencyPolicy
+	MainRefs     []string
+	Machine      string
+	// Builtin runs the built-in check kinds (default: dependencies and
+	// ast-grep), by runs_on.
+	Builtin map[string]Builtin
 }
 
 // Runner implements ports.CheckRunner.
@@ -89,6 +98,9 @@ func NewRunner(o Options) *Runner {
 	}
 	if o.NewID == nil {
 		o.NewID = func() string { return fmt.Sprintf("chk-%d", time.Now().UnixNano()) }
+	}
+	if o.Builtin == nil {
+		o.Builtin = defaultBuiltins(o)
 	}
 	return &Runner{o: o}
 }
@@ -136,6 +148,9 @@ func (r *Runner) Run(ctx context.Context, spec ports.CheckSpec) (domain.CheckRes
 		}
 		res.Summary = "sent to " + def.URL
 		return res, true, nil
+	case strings.HasPrefix(def.RunsOn, "builtin:"):
+		err := r.runBuiltin(ctx, spec, &res)
+		return res, false, err
 	case strings.HasPrefix(def.RunsOn, "plugin:"):
 		name := strings.TrimPrefix(def.RunsOn, "plugin:")
 		if r.o.Plugin == nil {
@@ -157,7 +172,7 @@ func (r *Runner) Run(ctx context.Context, spec ports.CheckSpec) (domain.CheckRes
 		}
 		return res, pending, nil
 	}
-	return res, false, fmt.Errorf("check %s: runs_on %q must be local, github-actions, machine:<label>, webhook or plugin:<name>", def.Name, def.RunsOn)
+	return res, false, fmt.Errorf("check %s: runs_on %q must be local, github-actions, machine:<label>, webhook, plugin:<name> or builtin:<kind>", def.Name, def.RunsOn)
 }
 
 // outOfScope skips a check the change does not concern (see CheckDef.Applies).

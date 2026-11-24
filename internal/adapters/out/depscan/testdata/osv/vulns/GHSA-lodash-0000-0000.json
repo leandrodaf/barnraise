@@ -1,0 +1,14 @@
+{
+  "id": "GHSA-lodash-0000-0000",
+  "modified": "2021-05-01T00:00:00Z",
+  "aliases": ["CVE-2020-28500"],
+  "summary": "Regular expression denial of service in lodash",
+  "affected": [
+    {
+      "package": {"name": "lodash", "ecosystem": "npm"},
+      "ranges": [{"type": "SEMVER", "events": [{"introduced": "4.0.0"}, {"fixed": "4.17.21"}]}],
+      "database_specific": {"source": "https://github.com/github/advisory-database"}
+    }
+  ],
+  "database_specific": {"severity": "MODERATE"}
+}

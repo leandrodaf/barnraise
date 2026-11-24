@@ -785,6 +785,7 @@ func (d *daemon) projectPorts(cfg *domain.ProjectConfig) (app.ProjectPorts, erro
 func (d *daemon) newRunner(cfg *domain.ProjectConfig, ch ports.CodeHost) *checks.Runner {
 	project := cfg.Name
 	o := checks.Options{Exec: execx.New(), LogDir: filepath.Join(d.dataDir, "logs", project), Blobs: blobsOrNil(d.blobs), AreaOf: cfg.AreaOfFile,
+		Dependencies: cfg.Dependencies, MainRefs: mainRefs(cfg), Machine: d.df.Machine,
 		Remote: func(ctx context.Context, label string, spec ports.CheckSpec) error {
 			return d.dispatchRemote(project, label, spec)
 		},

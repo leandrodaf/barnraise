@@ -1,0 +1,7 @@
+{
+  "name": "old", "lockfileVersion": 1,
+  "dependencies": {
+    "express": {"version": "4.17.1", "dependencies": {"qs": {"version": "6.7.0"}}},
+    "local": {"version": "file:../local"}
+  }
+}

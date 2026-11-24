@@ -1,0 +1,11 @@
+__metadata:
+  version: 6
+  cacheKey: 8
+
+"axios@npm:^1.6.0":
+  version: 1.6.2
+  resolution: "axios@npm:1.6.2"
+
+"shop@workspace:.":
+  version: 0.0.0-use.local
+  resolution: "shop@workspace:."

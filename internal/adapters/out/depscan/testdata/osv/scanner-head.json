@@ -1,0 +1,25 @@
+{
+  "results": [
+    {
+      "source": {"path": "/work/go.mod", "type": "lockfile"},
+      "packages": [
+        {
+          "package": {"name": "golang.org/x/net", "version": "0.7.0", "ecosystem": "Go"},
+          "vulnerabilities": [
+            {"id": "GO-2023-0001", "aliases": ["CVE-2023-1111", "GHSA-net1-xxxx-yyyy"], "summary": "Excessive resource use from rapid stream resets",
+             "affected": [{"package": {"name": "golang.org/x/net", "ecosystem": "Go"}, "ranges": [{"type": "SEMVER", "events": [{"introduced": "0"}, {"fixed": "0.17.0"}]}]}]},
+            {"id": "GHSA-net1-xxxx-yyyy", "aliases": ["CVE-2023-1111", "GO-2023-0001"], "summary": "HTTP/2 rapid reset can cause excessive work"}
+          ],
+          "groups": [{"ids": ["GO-2023-0001", "GHSA-net1-xxxx-yyyy"], "aliases": ["CVE-2023-1111", "GHSA-net1-xxxx-yyyy", "GO-2023-0001"], "max_severity": "7.5"}]
+        },
+        {
+          "package": {"name": "golang.org/x/text", "version": "0.3.5", "ecosystem": "Go"},
+          "vulnerabilities": [
+            {"id": "GHSA-text-old0-0000", "aliases": ["CVE-2020-14040"], "summary": "Infinite loop", "database_specific": {"severity": "HIGH"}}
+          ],
+          "groups": [{"ids": ["GHSA-text-old0-0000"], "aliases": ["CVE-2020-14040", "GHSA-text-old0-0000"], "max_severity": ""}]
+        }
+      ]
+    }
+  ]
+}

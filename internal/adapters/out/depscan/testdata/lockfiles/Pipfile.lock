@@ -1,0 +1,1 @@
+{"_meta": {}, "default": {"urllib3": {"version": "==1.26.5"}}, "develop": {"pytest": {"version": "==7.4.0"}}}

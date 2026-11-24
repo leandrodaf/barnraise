@@ -59,6 +59,7 @@ func (s *Service) finishStep(ctx context.Context, p *Project, o stepOutcome) (*d
 	focusActive := focus.Active(p.state.ItemList(), now)
 	park := false
 	evType := domain.EvItemStepFinished
+	o.Payload = withStepOutcome(o.Payload, o.Step, o.Outcome)
 	it, err := s.mutateItemLocked(ctx, p, o.Item, evType, o.Actor, func(it *domain.Item) error {
 		for _, m := range o.Criteria {
 			if err := it.MarkCriterion(m.ID, m.Met, m.Evidence); err != nil {
@@ -545,7 +546,7 @@ func (s *Service) checkNames(p *Project, st domain.StepDef) []string {
 	if name == "all" || name == "checks" {
 		return sortedKeys(p.Cfg().Checks)
 	}
-	return []string{name}
+	return p.Cfg().AutoChecks(st, []string{name})
 }
 
 func (s *Service) checkResultsSince(ctx context.Context, p *Project, itemID string, since interface{ IsZero() bool }) map[string]domain.CheckResult {

@@ -1,0 +1,6 @@
+{
+  "Go golang.org/x/net 0.7.0": ["GO-2023-0001", "GHSA-net1-xxxx-yyyy"],
+  "Go golang.org/x/text 0.3.0": ["GHSA-text-old0-0000"],
+  "Go golang.org/x/text 0.3.5": ["GHSA-text-old0-0000"],
+  "npm lodash 4.17.20": ["GHSA-lodash-0000-0000"]
+}

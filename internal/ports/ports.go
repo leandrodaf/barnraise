@@ -327,6 +327,9 @@ type CheckSpec struct {
 	Areas   []string          `json:"areas,omitempty"`
 	Env     map[string]string `json:"env,omitempty"`
 	Main    bool              `json:"main,omitempty"` // run against main for flaky comparison
+	// Base is the commit the change is measured against (where the branch
+	// forked from main); empty when unknown.
+	Base string `json:"base,omitempty"`
 }
 
 // CheckRunner runs a check, or dispatches it and reports pending.

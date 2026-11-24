@@ -1,0 +1,16 @@
+{
+  "results": [
+    {
+      "source": {"path": "/tmp/base/go.mod", "type": "lockfile"},
+      "packages": [
+        {
+          "package": {"name": "golang.org/x/text", "version": "0.3.0", "ecosystem": "Go"},
+          "vulnerabilities": [
+            {"id": "GHSA-text-old0-0000", "aliases": ["CVE-2020-14040"], "summary": "Infinite loop", "database_specific": {"severity": "HIGH"}}
+          ],
+          "groups": [{"ids": ["GHSA-text-old0-0000"], "aliases": ["CVE-2020-14040", "GHSA-text-old0-0000"], "max_severity": ""}]
+        }
+      ]
+    }
+  ]
+}

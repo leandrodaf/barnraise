@@ -149,6 +149,9 @@ func (c *ProjectConfig) SelectChecks(names, touched, touchedAreas []string) []Ch
 
 func (c *ProjectConfig) claimedByCheck(f string) bool {
 	for _, d := range c.Checks {
+		if d.RunsOn == RunsOnDependencies {
+			continue // it rides along; a manifest outside every area still runs every check
+		}
 		if matchAny(d.Paths, f) {
 			return true
 		}
@@ -413,6 +416,7 @@ type ProjectConfig struct {
 	Egress          EgressDef               `json:"egress"`
 	Merge           MergeDef                `json:"merge"`
 	Selection       SelectionDef            `json:"selection,omitzero"`
+	Dependencies    DependencyPolicy        `json:"dependencies,omitzero"`
 	Container       ContainerDef            `json:"container,omitzero"`
 	Lease           LeaseDef                `json:"lease"`
 	Budget          BudgetDef               `json:"budget"`
@@ -611,8 +615,9 @@ func (c *ProjectConfig) Validate() []error {
 			}
 		case strings.HasPrefix(ch.RunsOn, "plugin:"):
 			// validatePlugins checks the name
+		case isBuiltinCheck(ch.RunsOn):
 		default:
-			errs = append(errs, fmt.Errorf("check %s: runs_on %q must be local, github-actions, machine:<label>, webhook or plugin:<name>", n, ch.RunsOn))
+			errs = append(errs, fmt.Errorf("check %s: runs_on %q must be local, github-actions, machine:<label>, webhook, plugin:<name>, %s or %s", n, ch.RunsOn, RunsOnDependencies, RunsOnASTGrep))
 		}
 	}
 	switch c.Approves {
@@ -630,6 +635,7 @@ func (c *ProjectConfig) Validate() []error {
 	if c.Lease.TTL > 0 && c.Lease.Renew >= c.Lease.TTL {
 		errs = append(errs, fmt.Errorf("lease renew (%s) must be shorter than the ttl (%s)", c.Lease.Renew, c.Lease.TTL))
 	}
+	errs = append(errs, c.Dependencies.Validate()...)
 	return errs
 }
 
