@@ -367,11 +367,20 @@ func (s *Service) worktreeChanges(ctx context.Context, p *Project, itemID, dir s
 	if err != nil {
 		return nil, err
 	}
+	// The main the worktree branched from (or was last rebased on) is main's
+	// too: without it, every file main changes since, like the repository
+	// map Barnraise rewrites at each integration, would refuse the session.
+	base := ""
+	if head, err := g.Head(ctx, dir); err == nil && head != "" {
+		if b, err := g.MergeBase(ctx, head, main); err == nil && b != main {
+			base = b
+		}
+	}
 	var out []domain.TrustChange
 	for _, rel := range sortedKeys(cur) {
 		got := cur[rel]
 		want := s.trust.mainFile(ctx, g, main, rel)
-		if got == want || acc[rel+"\x00"+got] {
+		if got == want || acc[rel+"\x00"+got] || (base != "" && got == s.trust.mainFile(ctx, g, base, rel)) {
 			continue
 		}
 		kind := "changed"

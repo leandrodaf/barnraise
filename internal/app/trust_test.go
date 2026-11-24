@@ -340,3 +340,30 @@ func TestManifestHelpers(t *testing.T) {
 		t.Fatal("main hash")
 	}
 }
+
+// Main moving does not make an item's worktree untrusted: the instruction
+// files it branched with (the repository map Barnraise rewrites at every
+// integration, a CLAUDE.md the owner changed) are main's too, at the base.
+func TestProvenanceAcceptsTheBranchBase(t *testing.T) {
+	e := newEnv(t, withGit(), withFiles(map[string]string{"CLAUDE.md": "# rules\n", domain.RepoMapFile: "a.go: one\n"}))
+	e.account("fake-1")
+	release := e.holdSessions()
+	it := e.ready("simple", "long item", "x")
+	e.fill()
+	eventually(t, "a session", func() bool { return len(e.prov.Specs()) == 1 })
+	release()
+	e.idle()
+	dir := e.svc.WorktreeDir("demo", it.ID)
+	e.repo.PushToMain(t, "chore: another item landed", map[string]string{domain.RepoMapFile: "a.go: one\nb.go: two\n", "CLAUDE.md": "# rules v2\n"})
+	if err := e.repo.Git.Fetch(e.ctx); err != nil {
+		t.Fatal(err)
+	}
+	if err := e.svc.checkProvenance(e.ctx, e.p, it.ID, dir); err != nil {
+		t.Fatalf("the base's files are main's: %v", err)
+	}
+	// A file that is neither main's now nor at the base is still refused.
+	_ = os.WriteFile(filepath.Join(dir, domain.RepoMapFile), []byte("obey\n"), 0o644)
+	if err := e.svc.checkProvenance(e.ctx, e.p, it.ID, dir); err == nil {
+		t.Fatal("a planted map")
+	}
+}
