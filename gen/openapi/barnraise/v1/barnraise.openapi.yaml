@@ -167,7 +167,7 @@ paths:
       summary: Capabilities
       description: |-
         What is active on each machine, what falls back and why, and how to fix
-         it (ADR-0045). Owner and admin tokens only.
+         it (ADR-0046). Owner and admin tokens only.
       operationId: barnraise.v1.BarnraiseService.Capabilities
       parameters:
         - name: Connect-Protocol-Version

@@ -48,7 +48,7 @@ type Options struct {
 	// configuration and passes it on to the named peers.
 	SetStandby func(ctx context.Context, on bool, why string, peers []string) (*pb.StandbyResponse, error)
 	// Capabilities and InstallTools answer for this machine and fan out to
-	// the requested peers (ADR-0045); nil answers for this machine only.
+	// the requested peers (ADR-0046); nil answers for this machine only.
 	Capabilities func(ctx context.Context, r *pb.CapabilitiesRequest) (*pb.CapabilitiesResponse, error)
 	InstallTools func(ctx context.Context, a app.Actor, r *pb.InstallToolsRequest) (*pb.InstallToolsResponse, error)
 	Panel        fs.FS  // static panel files

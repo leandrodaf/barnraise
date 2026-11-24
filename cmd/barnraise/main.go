@@ -7,8 +7,8 @@ import (
 	"time"
 
 	"github.com/leandrodaf/barnraise/internal/adapters/in/cli"
-	"github.com/leandrodaf/barnraise/internal/domain"
 	"github.com/leandrodaf/barnraise/internal/adapters/out/toolinstall"
+	"github.com/leandrodaf/barnraise/internal/domain"
 	"github.com/leandrodaf/barnraise/internal/paths"
 )
 

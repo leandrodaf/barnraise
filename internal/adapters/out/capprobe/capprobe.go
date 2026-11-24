@@ -1,5 +1,5 @@
 // Package capprobe finds what this machine has for Barnraise's capability
-// catalog (ADR-0045): the programs of the catalog and of the projects'
+// catalog (ADR-0046): the programs of the catalog and of the projects'
 // configuration, with their versions (each `--version` under a timeout),
 // the kernel's Landlock ABI, whether bubblewrap can start, access to
 // /dev/kvm, copy-on-write clones on the data folder, the egress CA and the

@@ -16,7 +16,7 @@ type ProbeRequest struct {
 
 // CapabilityProber finds what this machine has (programs and their
 // versions, kernel and filesystem features) for the capability catalog
-// (ADR-0045). Answers are cached for a while.
+// (ADR-0046). Answers are cached for a while.
 type CapabilityProber interface {
 	Probe(ctx context.Context, r ProbeRequest) domain.MachineProbe
 	// Invalidate drops the cached answer (after an install).

@@ -7,7 +7,7 @@ import (
 )
 
 // CapabilitySettings are the machine's switches the capability catalog
-// reads (ADR-0045); egress is the egress proxy's address ("" when it does
+// reads (ADR-0046); egress is the egress proxy's address ("" when it does
 // not run).
 func (f *File) CapabilitySettings(egress string) domain.MachineSettings {
 	m := domain.MachineSettings{Egress: strings.TrimSpace(egress), Network: f.Network}

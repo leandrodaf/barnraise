@@ -9,7 +9,7 @@ import (
 	"time"
 )
 
-// Capabilities (ADR-0045): what Barnraise does on one machine, what is
+// Capabilities (ADR-0046): what Barnraise does on one machine, what is
 // switched off, what runs on a fallback and why, and the exact fix. The
 // catalog (capability_catalog.go) declares every feature with its
 // requirements; EvaluateCapabilities turns a probe of the machine and the

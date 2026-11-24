@@ -48,7 +48,7 @@ func sandboxArgs(pol domain.Policy, worktree, socket, cwd, name string, args []s
 		}
 	}
 	// The tools Barnraise installed live in its hidden data folder too:
-	// they come back read-only, so the PATH finds them (ADR-0045).
+	// they come back read-only, so the PATH finds them (ADR-0046).
 	if tools := os.Getenv(domain.EnvToolsDir); filepath.IsAbs(tools) {
 		if st, err := os.Stat(tools); err == nil && st.IsDir() {
 			out = append(out, "--ro-bind", tools, tools)

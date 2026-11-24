@@ -63,7 +63,7 @@ const (
 	EvLessonLearned      = "lesson.learned"
 	EvLessonMerged       = "lesson.merged"
 	EvLessonDeleted      = "lesson.deleted"
-	// A tool Barnraise installs without root (ADR-0045) was installed,
+	// A tool Barnraise installs without root (ADR-0046) was installed,
 	// upgraded or removed on a machine, or the attempt failed.
 	EvMachineToolInstalled = "machine.tool.installed"
 	EvMachineToolRemoved   = "machine.tool.removed"
@@ -192,7 +192,7 @@ type Machine struct {
 	Platform string `json:"platform,omitempty"` // linux/amd64
 	Binary   string `json:"binary,omitempty"`   // sha256 of the barnraise binary, fetchable from the machine's object store
 	Left     bool   `json:"left,omitempty"`
-	// CapabilityCounts are the machine's capability statuses -> count (ADR-0045).
+	// CapabilityCounts are the machine's capability statuses -> count (ADR-0046).
 	CapabilityCounts map[string]int `json:"capability_counts,omitempty"`
 }
 

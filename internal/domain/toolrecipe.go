@@ -1,6 +1,6 @@
 package domain
 
-// Tool recipes (ADR-0045): the optional tools Barnraise installs without
+// Tool recipes (ADR-0046): the optional tools Barnraise installs without
 // root, each at a pinned version, from its project's official release, with
 // the sha256 of every asset written here. The installer refuses an archive
 // whose digest differs. The digests were computed from the downloaded

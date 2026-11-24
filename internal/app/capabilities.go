@@ -11,7 +11,7 @@ import (
 	"github.com/leandrodaf/barnraise/internal/ports"
 )
 
-// What runs on this machine (ADR-0045): the capability catalog evaluated
+// What runs on this machine (ADR-0046): the capability catalog evaluated
 // against a probe of the machine and the projects it drives, and the
 // rootless installs of the optional tools.
 

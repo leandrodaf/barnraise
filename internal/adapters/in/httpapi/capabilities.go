@@ -12,7 +12,7 @@ import (
 	"github.com/leandrodaf/barnraise/internal/domain"
 )
 
-// What runs on each machine and the rootless tool installs (ADR-0045).
+// What runs on each machine and the rootless tool installs (ADR-0046).
 // Owner and admin tokens only; a session token never reaches them (they
 // are not on the session allow-list of internal/app/grant.go).
 

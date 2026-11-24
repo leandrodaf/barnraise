@@ -4,7 +4,7 @@
 // machine without the runner, or without hardware virtualization, reports
 // it unavailable and keeps using Landlock. Barnraise does not ship the
 // runner; `barnraise tools install smolvm` downloads its official build
-// on the owner's request (ADR-0045).
+// on the owner's request (ADR-0046).
 package microvm
 
 import (

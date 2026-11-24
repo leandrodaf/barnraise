@@ -24,7 +24,7 @@ type Isolation struct {
 	MicroVM    ports.Confiner
 	MicroVMFor func(kind string) bool
 	// ToolDirs are read-only in every confinement: the tools Barnraise
-	// installed (ADR-0045), inside its otherwise denied data folder.
+	// installed (ADR-0046), inside its otherwise denied data folder.
 	ToolDirs []string
 }
 

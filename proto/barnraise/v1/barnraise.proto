@@ -1477,7 +1477,7 @@ service BarnraiseService {
   // starts the way it stopped.
   rpc SetStandby(StandbyRequest) returns (StandbyResponse);
   // What is active on each machine, what falls back and why, and how to fix
-  // it (ADR-0045). Owner and admin tokens only.
+  // it (ADR-0046). Owner and admin tokens only.
   rpc Capabilities(CapabilitiesRequest) returns (CapabilitiesResponse);
   // Installs (or removes) the optional tools Barnraise ships recipes for,
   // without root, on this machine and the named ones.

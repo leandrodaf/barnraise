@@ -69,7 +69,7 @@ type Deps struct {
 	// Cloner copies build caches copy-on-write; optional.
 	Cloner ports.TreeCloner
 	// Prober and Installer answer what runs on this machine and install
-	// the optional tools (ADR-0045); optional.
+	// the optional tools (ADR-0046); optional.
 	Prober    ports.CapabilityProber
 	Installer ports.ToolInstaller
 }

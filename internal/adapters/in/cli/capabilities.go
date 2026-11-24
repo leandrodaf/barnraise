@@ -23,7 +23,7 @@ import (
 	"github.com/leandrodaf/barnraise/internal/ports"
 )
 
-// `barnraise capabilities` and `barnraise tools` (ADR-0045): what runs on
+// `barnraise capabilities` and `barnraise tools` (ADR-0046): what runs on
 // each machine, what falls back and why, and the rootless installs of the
 // optional tools. With the daemon down they work on this machine alone.
 

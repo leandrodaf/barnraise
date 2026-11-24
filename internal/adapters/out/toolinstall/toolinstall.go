@@ -1,5 +1,5 @@
 // Package toolinstall installs the optional tools of domain.ToolRecipes
-// without root (ADR-0045): it downloads the release asset of this system
+// without root (ADR-0046): it downloads the release asset of this system
 // over HTTPS, straight from the daemon (never through the agents' egress
 // proxy), checks its sha256 against the digest pinned in the recipe before
 // anything is unpacked, unpacks it safely (no absolute or parent paths, no

@@ -18,7 +18,7 @@ import (
 	"github.com/leandrodaf/barnraise/internal/domain"
 )
 
-// What runs on each machine (ADR-0045): this daemon answers for itself and
+// What runs on each machine (ADR-0046): this daemon answers for itself and
 // asks its peers over NATS, the way standby and stop are passed on.
 
 // Timeouts of the requests to a peer.

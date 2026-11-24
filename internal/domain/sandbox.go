@@ -204,7 +204,7 @@ type Confinement struct {
 	ReadWrite []string `json:"read_write,omitempty"`
 	// ReadOnly are the system, the toolchains and the dependencies.
 	ReadOnly []string `json:"read_only,omitempty"`
-	// Tools are the folders of the tools Barnraise installed (ADR-0045):
+	// Tools are the folders of the tools Barnraise installed (ADR-0046):
 	// read-only, and kept even inside a denied folder (they live in the data
 	// folder, which is denied).
 	Tools []string `json:"tools,omitempty"`

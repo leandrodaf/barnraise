@@ -306,7 +306,7 @@ type BarnraiseServiceClient interface {
 	// starts the way it stopped.
 	SetStandby(context.Context, *connect.Request[v1.StandbyRequest]) (*connect.Response[v1.StandbyResponse], error)
 	// What is active on each machine, what falls back and why, and how to fix
-	// it (ADR-0045). Owner and admin tokens only.
+	// it (ADR-0046). Owner and admin tokens only.
 	Capabilities(context.Context, *connect.Request[v1.CapabilitiesRequest]) (*connect.Response[v1.CapabilitiesResponse], error)
 	// Installs (or removes) the optional tools Barnraise ships recipes for,
 	// without root, on this machine and the named ones.
@@ -1197,7 +1197,7 @@ type BarnraiseServiceHandler interface {
 	// starts the way it stopped.
 	SetStandby(context.Context, *connect.Request[v1.StandbyRequest]) (*connect.Response[v1.StandbyResponse], error)
 	// What is active on each machine, what falls back and why, and how to fix
-	// it (ADR-0045). Owner and admin tokens only.
+	// it (ADR-0046). Owner and admin tokens only.
 	Capabilities(context.Context, *connect.Request[v1.CapabilitiesRequest]) (*connect.Response[v1.CapabilitiesResponse], error)
 	// Installs (or removes) the optional tools Barnraise ships recipes for,
 	// without root, on this machine and the named ones.
