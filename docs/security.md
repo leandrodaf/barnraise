@@ -154,6 +154,10 @@ Before each session the daemon checks ([ADR-0030](adr/0030-provenance-of-hooks-a
 
 On a mismatch the session is refused, `trust.mismatch` is recorded and the owner is told which files changed and how to re-trust. `barnraise trust --status` lists what would refuse a session.
 
+## Tools Barnraise installs
+
+`barnraise tools install` (ADR-0045) downloads the official release builds of mergiraf, rtk, osv-scanner, ast-grep and smolvm on the owner's request. Each version and the sha256 of each asset are pinned in Barnraise's code; an asset whose digest differs is refused before anything is unpacked. The download is HTTPS only, from the daemon itself (not through the agents' egress proxy). Unpacking refuses absolute and parent paths, hard links, devices, writes through a symbolic link and links that leave the tool's folder (absolute links are kept only inside smolvm's guest file system), drops setuid bits, and limits bytes and entries. Tools land in `<data dir>/tools`, which agents cannot write; confined commands read it, read-only. The RPCs are owner and admin only, never reachable with a session token, audited, and every install is an event. Nothing that needs root is ever run: bubblewrap, Docker, the `kvm` group and AppArmor settings are shown as commands for the owner.
+
 ## What is never the agent's
 
 Production secrets and variables, signing keys, store submissions, manual deploys, permission and policy changes. Those go to the owner as a question, with options and a recommendation. Changes to Barnraise's own policy, hooks, permissions and arbiter need the owner's approval, even when Barnraise drives its own development.

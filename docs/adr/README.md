@@ -49,3 +49,4 @@ One short record per decision: context, decision, consequences. A decision that 
 | [ADR-0043](0043-lessons-from-rework.md) | Lessons from rework |
 | [ADR-0044](0044-generic-acp-provider.md) | A generic provider for agents that speak the Agent Client Protocol |
 | [ADR-0045](0045-panel-and-desktop-app.md) | One panel for the browser and the desktop app, with no rules in it |
+| [ADR-0046](0046-capability-catalog-and-rootless-tool-installs.md) | A native capability catalog, and pinned, checksum-verified, rootless tool installs |

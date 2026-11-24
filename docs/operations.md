@@ -145,6 +145,53 @@ On Ubuntu 23.10 and later, AppArmor forbids unprivileged user namespaces, so bub
 
 A check or setup that fails with `Permission denied` on a path, or a connection refused, after this change needs that path or port in [`sandbox:`](configuration.md#sandbox) (`read`, `write`, `ports`), or another profile (`sandbox: open` keeps the network open; `sandbox: none` turns the confinement off for that command).
 
+## What runs on each machine
+
+`barnraise capabilities` lists every feature whose working depends on the machine or on a switch, grouped (security, isolation, merge, checks, context, tokens, worktrees, providers, telemetry, cluster, plugins), each with its status:
+
+| Status | Meaning |
+| --- | --- |
+| `active` ✔ | Switched on (or always on) and running as designed |
+| `available` ○ | All it needs is here; it is switched off. The fix is the switch |
+| `degraded` ◐ | Switched on, running on a fallback; `falls back:` says what runs instead |
+| `missing` ✘ | It cannot run here; the reason says what is missing |
+| `unsupported` - | Not for this system (Landlock and bubblewrap on macOS, smolvm on macOS amd64) |
+
+Each line says why, and the exact fix: `barnraise tools install <tool>` for the tools Barnraise installs itself, or the command or configuration key you run, marked `needs root` when it does (`sudo usermod -aG kvm $USER`, `sudo apt install bubblewrap`, the AppArmor setting for user namespaces). Barnraise never runs anything that needs root.
+
+```sh
+barnraise capabilities                 # this machine
+barnraise capabilities --all           # every connected machine
+barnraise capabilities --machine studio --project shop --json
+barnraise capabilities --refresh       # probe again now
+```
+
+What it looks at: the programs of the catalog and of the configuration (git, docker and `docker compose`, claude, codex, gemini, mergiraf, rtk, osv-scanner, ast-grep, smolvm, bwrap, tailscale, gitleaks, every plugin's and ACP agent's command) with their versions, the kernel's Landlock ABI (4 or later also restricts TCP), whether bubblewrap really starts a sandbox, whether this user may open `/dev/kvm`, whether the data folder's filesystem clones files (a real clone of a temporary file), the egress proxy (`--egress`) and its CA, and the provider accounts logged in with `barnraise account add`. Switches come from `daemon.yaml` (`isolation`, `network`) and from `barnraise.yaml` of `--project` (default: the project of the current folder; none: every project of the machine, where one project that turns a feature on is enough).
+
+The daemon probes once at start, logs every capability that is switched on but degraded or missing, and probes again every ten minutes and after an install; answers come from that report unless `--refresh` is given. `barnraise up` names the capabilities switched on that do not run as designed. The count per status travels with each machine's heartbeat (`capability_counts` in `barnraise machine list --json`). With the daemon stopped, `barnraise capabilities` probes this machine itself (other machines are reached through the daemon).
+
+## Installing optional tools
+
+```sh
+barnraise tools list --all                       # what is installed where, and the pinned versions
+barnraise tools install mergiraf rtk             # on this machine
+barnraise tools install osv-scanner --all        # on every connected machine
+barnraise tools install smolvm --machine studio
+barnraise tools remove rtk
+```
+
+| Tool | Pinned | Builds | Used by |
+| --- | --- | --- | --- |
+| `mergiraf` | 0.20.0 | Linux amd64/arm64 (static), macOS arm64/amd64 | `merge.structural` |
+| `rtk` | 1.2.1 | Linux amd64/arm64 (static), macOS arm64/amd64 | `outfilter.delegate` |
+| `osv-scanner` | 2.7.1 | Linux amd64/arm64, macOS arm64/amd64 | the `builtin:dependencies` check |
+| `ast-grep` | 0.51.3 | Linux amd64/arm64 (glibc), macOS arm64/amd64 | `knowledge.symbols`, `builtin:ast-grep` checks |
+| `smolvm` | 1.37.0 | Linux amd64/arm64, macOS arm64 | `isolation.backend: microvm` |
+
+The daemon downloads the official release asset of the machine's system over HTTPS, directly (not through the agents' egress proxy), checks it against the sha256 written in Barnraise before unpacking anything, and unpacks it into `<data dir>/tools/<tool>/<version>/` with no path outside that folder, no link that leaves it, and size limits. The program is linked into `<data dir>/tools/bin/`, which is first on the `PATH` of the daemon and of everything it starts: setup, checks, hooks, agent sessions and plugins. Landlock profiles read `<data dir>/tools`, microVMs get it read-only at the same path, and the bubblewrap sandbox of ACP terminals binds it read-only. Installing again does nothing; when a release of Barnraise pins a newer version, `tools install` replaces the old one and removes it. `tools remove` removes only what Barnraise installed: a program you installed elsewhere stays. Each install, upgrade, removal and failure is an event (`machine.tool.installed`, `machine.tool.removed`, `machine.tool.failed`) in every project of the machine, and an audit entry. Without the daemon, `tools install` works on this machine (no events).
+
+The tools keep their own licenses (mergiraf is GPL-3.0; rtk's engine is under the Business Source License 1.1). Restart the daemon, or touch `barnraise.yaml`, for a project to pick up mergiraf as its merge driver; the other tools are looked up when they are used. Tools that need root (bubblewrap, Docker, the `kvm` group) are never installed by Barnraise: `barnraise capabilities` shows the command.
+
 ## Servers without a browser
 
 Subscriptions are logged in with the flow each provider offers for headless machines:
@@ -237,9 +284,10 @@ Inside the data dir:
 | `buildcache/<project>/` | The build caches (`worktree.build_cache`) of the last integrated item, copy-on-write; safe to delete |
 | `logs/<project>/` | Full logs of checks |
 | `accounts/<id>/` | Provider config dirs of each account |
+| `tools/<tool>/<version>/`, `tools/bin/` | The optional tools installed with `barnraise tools install`, and the links to their programs (first on the `PATH`); safe to delete, `barnraise tools install` puts them back |
 | `daemon.log`, `daemon.pid` | Log and pid of a background daemon |
 
-Environment variables used by the CLI and the hooks: `BARNRAISE_URL`, `BARNRAISE_SOCKET`, `BARNRAISE_TOKEN`, `BARNRAISE_PROJECT`; inside agent sessions also `BARNRAISE_ITEM`, `BARNRAISE_STEP`, `BARNRAISE_ROLE`, `BARNRAISE_AGENT`, `BARNRAISE_POLICY`, `BARNRAISE_POLICY_SHA256` (the hash the hook checks the policy file against), and for the output filter `BARNRAISE_OUTFILTER_DELEGATE`, `BARNRAISE_OUTPUT_KEEP`, `BARNRAISE_OUTPUT_KEEP_BYTES` and `BARNRAISE_RUN` (the session's run id, which ties kept outputs to the step's token usage). Sessions, checks, `worktree.setup` and the worktree hooks of an item also get its own `PORT`, `BARNRAISE_PORTS`, `COMPOSE_PROJECT_NAME`, `BARNRAISE_ITEM_SLUG` and the project's `worktree.isolate.env` ([configuration](configuration.md#services-per-item)); hooks get `BARNRAISE_HOOK` with their phase. `BARNRAISE_NO_TAILSCALE=1` turns Tailscale off (installed or embedded); `BARNRAISE_TS_AUTHKEY` is the embedded Tailscale's auth key; `BARNRAISE_NO_SELF_UPDATE=1` turns off the cluster self-update; `BARNRAISE_EGRESS` is the default of `daemon --egress`.
+Environment variables used by the CLI and the hooks: `BARNRAISE_URL`, `BARNRAISE_SOCKET`, `BARNRAISE_TOKEN`, `BARNRAISE_PROJECT`; inside agent sessions also `BARNRAISE_ITEM`, `BARNRAISE_STEP`, `BARNRAISE_ROLE`, `BARNRAISE_AGENT`, `BARNRAISE_POLICY`, `BARNRAISE_POLICY_SHA256` (the hash the hook checks the policy file against), and for the output filter `BARNRAISE_OUTFILTER_DELEGATE`, `BARNRAISE_OUTPUT_KEEP`, `BARNRAISE_OUTPUT_KEEP_BYTES` and `BARNRAISE_RUN` (the session's run id, which ties kept outputs to the step's token usage). Sessions, checks, `worktree.setup` and the worktree hooks of an item also get its own `PORT`, `BARNRAISE_PORTS`, `COMPOSE_PROJECT_NAME`, `BARNRAISE_ITEM_SLUG` and the project's `worktree.isolate.env` ([configuration](configuration.md#services-per-item)); hooks get `BARNRAISE_HOOK` with their phase. `BARNRAISE_NO_TAILSCALE=1` turns Tailscale off (installed or embedded); `BARNRAISE_TS_AUTHKEY` is the embedded Tailscale's auth key; `BARNRAISE_NO_SELF_UPDATE=1` turns off the cluster self-update; `BARNRAISE_EGRESS` is the default of `daemon --egress`. Barnraise sets `BARNRAISE_TOOLS_DIR` (the `tools/` folder of the data dir) and puts `tools/bin` first on `PATH` for everything it starts.
 
 ## Services and build caches of item worktrees
 
@@ -324,7 +372,7 @@ A second machine is where this matters most: give it its own credential for the 
 When the daemon loads a project it adjusts the repository's local git settings, never a tracked file ([merge](configuration.md#recorded-resolutions-and-structural-merge)):
 
 - `rerere.enabled` and `rerere.autoupdate` in `.git/config`, unless you set them yourself; `barnraise.rerere = true` marks that Barnraise added them, and `merge.rerere: false` removes them. They also apply to your own checkout of the repository. Recorded resolutions are in `.git/rr-cache`; `git rerere forget <file>` during a conflicted rebase drops a bad one, and deleting the folder drops them all.
-- With `mergiraf` on the daemon's `PATH`: the `merge.barnraise-structural` section in `.git/config` (its absolute path, so agents with a different `PATH` use it too) and a managed block in `.git/info/attributes`. Install or remove mergiraf, then restart the daemon or touch `barnraise.yaml` to reload; the log says `structural merge driver in use` with the number of patterns. To stop using it for the project, set `merge.structural: off`. mergiraf is GPL-3.0 software you install yourself (for example `cargo install --locked mergiraf`, or your package manager); Barnraise only runs it. git 2.44 or newer is recommended for it.
+- With `mergiraf` on the daemon's `PATH`: the `merge.barnraise-structural` section in `.git/config` (its absolute path, so agents with a different `PATH` use it too) and a managed block in `.git/info/attributes`. Install or remove mergiraf, then restart the daemon or touch `barnraise.yaml` to reload; the log says `structural merge driver in use` with the number of patterns. To stop using it for the project, set `merge.structural: off`. mergiraf is GPL-3.0 software: install it with `barnraise tools install mergiraf` (the official build, pinned and checksum-verified, no root; see [Installing optional tools](#installing-optional-tools)), `cargo install --locked mergiraf` or your package manager; Barnraise only runs it. git 2.44 or newer is recommended for it.
 - `merge.conflicts.reapplied` in `barnraise events` and the item's timeline says when a conflict was resolved from a recorded resolution; the merge queue then runs every local check on the result.
 
 ## ACP agents

@@ -199,7 +199,7 @@ When a change touches a dependency manifest or lockfile, Barnraise checks the de
 | `fail_at` | `high` | The least severity that fails: `low`, `medium`, `high` or `critical` |
 | `unknown` | `high` | The severity of an advisory that gives none |
 | `ignore` | none | Advisory ids the owner accepts (`GHSA-…`, `CVE-…`, `GO-…`); an alias matches too |
-| `scanner` | `auto` | `auto` runs [osv-scanner](https://github.com/google/osv-scanner) when it is installed and asks the OSV API otherwise; `osv-scanner` requires it; `api` never runs it |
+| `scanner` | `auto` | `auto` runs [osv-scanner](https://github.com/google/osv-scanner) when it is installed and asks the OSV API otherwise; `osv-scanner` requires it; `api` never runs it. `barnraise tools install osv-scanner` installs it without root ([operations](operations.md#installing-optional-tools)) |
 | `api` | `https://api.osv.dev` | An OSV-compatible service (a mirror inside the company) |
 
 ```yaml
@@ -562,7 +562,7 @@ With `squash`, the item's own files (`plan.md`, `criteria.json`) are left out of
 Barnraise never commits merge settings to the project. At each start and reload of the project it writes them where git keeps local, untracked settings, shared by the main checkout and every worktree (the item worktrees and the merge queue's checkouts alike):
 
 - `rerere`: `rerere.enabled` and `rerere.autoupdate` are set to `true` in the repository's local config (`.git/config`) when no git config sets them; a value you set yourself, in any scope, is kept. Resolutions live in the shared `.git/rr-cache`, so a conflict an agent resolves while rebasing its item is reapplied by the merge queue, by another item or by a retry. When git reapplies one, the item's timeline gets `merge.conflicts.reapplied` with the files, and the merge queue runs every local check on the result (it never skips a check because the tree looks like one already checked). If the checks fail, the reason tells the agent which files came from a recorded resolution and how to forget it (`git rerere forget <file>` during a rebase on main).
-- `structural`: with `mergiraf` on the `PATH`, Barnraise registers it as the merge driver `barnraise-structural` in the local config and writes the patterns it supports (from `mergiraf languages --gitattributes`) in a block marked as managed in `.git/info/attributes`. Patterns your `.gitattributes` already gives a merge behaviour (`merge=…`, `-merge`, `binary`) are left out, so your choice wins. Lines of `.git/info/attributes` outside the block are yours and stay. When mergiraf cannot merge a file structurally it falls back to a line merge and leaves conflict markers, and the conflict is handled as any other; where mergiraf is not available to git (an agent in a container), the driver falls back to git's own line merge. With `off`, or when mergiraf is no longer installed, the block and the driver are removed and git merges as before. Barnraise does not ship or vendor mergiraf (GPL-3.0); it only runs it when you installed it.
+- `structural`: with `mergiraf` on the `PATH`, Barnraise registers it as the merge driver `barnraise-structural` in the local config and writes the patterns it supports (from `mergiraf languages --gitattributes`) in a block marked as managed in `.git/info/attributes`. Patterns your `.gitattributes` already gives a merge behaviour (`merge=…`, `-merge`, `binary`) are left out, so your choice wins. Lines of `.git/info/attributes` outside the block are yours and stay. When mergiraf cannot merge a file structurally it falls back to a line merge and leaves conflict markers, and the conflict is handled as any other; where mergiraf is not available to git (an agent in a container), the driver falls back to git's own line merge. With `off`, or when mergiraf is no longer installed, the block and the driver are removed and git merges as before. Barnraise does not ship or vendor mergiraf (GPL-3.0); it only runs it when it is installed, by you or with `barnraise tools install mergiraf` ([operations](operations.md#installing-optional-tools)).
 
 ### Commits and the changelog
 
@@ -617,7 +617,7 @@ Agents' shell commands with a long output (builds, tests, linters, `git status/d
 
 | Key | Default | Meaning |
 | --- | --- | --- |
-| `delegate` | `auto` | Use [rtk](https://github.com/rtk-ai/rtk) when it is installed on the machine. `auto`: only for commands Barnraise has no native filter for; `rtk`: for every simple command, the native filters included; `off`: never. Without rtk on the `PATH` every mode behaves as `off` |
+| `delegate` | `auto` | Use [rtk](https://github.com/rtk-ai/rtk) when it is installed on the machine. `auto`: only for commands Barnraise has no native filter for; `rtk`: for every simple command, the native filters included; `off`: never. Without rtk on the `PATH` every mode behaves as `off`. `barnraise tools install rtk` installs it without root |
 | `keep` | `7d` | Kept outputs older than this are removed (duration) |
 | `keep_size` | `64MB` | Most space the kept outputs of one item worktree (or of the data folder, outside sessions) may take; the oldest go first, the newest always stays. Sizes take `KB`, `MB` or `GB` |
 
@@ -649,7 +649,7 @@ knowledge:
 
 | Key | Default | Meaning |
 | --- | --- | --- |
-| `symbols` | `auto` | How symbols outside Go are found (Go always uses `go/ast`). `auto`: with a syntax tree through [ast-grep](https://ast-grep.github.io) when it is installed (`ast-grep`, or `sg` when `sg --version` says ast-grep), for TypeScript, JavaScript, Python, Rust, Java, Kotlin and Swift; with the native extractor otherwise, and for a language or a file ast-grep could not handle. `native`: never run ast-grep. The native extractor knows comments, strings and template literals, follows bodies by braces (indentation in Python), qualifies methods by their class and leaves locals out (ADR-0037) |
+| `symbols` | `auto` | How symbols outside Go are found (Go always uses `go/ast`). `auto`: with a syntax tree through [ast-grep](https://ast-grep.github.io) when it is installed (`ast-grep`, or `sg` when `sg --version` says ast-grep), for TypeScript, JavaScript, Python, Rust, Java, Kotlin and Swift; with the native extractor otherwise, and for a language or a file ast-grep could not handle. `native`: never run ast-grep. The native extractor knows comments, strings and template literals, follows bodies by braces (indentation in Python), qualifies methods by their class and leaves locals out (ADR-0037). `barnraise tools install ast-grep` installs ast-grep without root |
 | `map.enabled` | `true` | Keep the repository map `.barnraise/map.md`: one line per file (path, what it is for, its main symbols), written by Barnraise when an item is integrated, inside the item's own commit (ADR-0039) |
 | `map.max_files` | `5000` | Lines of the map; past it the least described files are counted per folder |
 | `map.prompt_tokens` | `1200` | Tokens of the map in each session's context pack: the whole map when it fits, otherwise the lines of the item's files, their folders, its area and the words of its title. `0` leaves it out of the prompt (the file stays) |
@@ -987,7 +987,7 @@ The machine's own configuration is not part of any repository. It lives in `~/.c
 | `network_plugin.options` | none | The plugin's own settings, sent in `initialize` (edit `daemon.yaml`) |
 | `notify` | none | Machine-level notification channels (`type`, `target`, `secret`) |
 | `isolation.backend` | empty | Empty: Landlock where the kernel has it (setup, checks, and agent sessions where bubblewrap cannot start). `microvm`: also run the kinds of command in `isolation.microvm.for` inside a microVM, through an external runner; off by default (see [security.md](security.md#next-layer)) |
-| `isolation.microvm.runner` | `smolvm` | The runner program, on the `PATH` or absolute |
+| `isolation.microvm.runner` | `smolvm` | The runner program, on the `PATH` or absolute. `barnraise tools install smolvm` installs smolvm without root (Linux amd64/arm64, macOS arm64); `/dev/kvm` access (`sudo usermod -aG kvm $USER`) is yours to give. `barnraise capabilities` says what is missing |
 | `isolation.microvm.image` | none | OCI image the VM boots: the project's toolchain, and the AI CLIs when sessions run there. Required with the default command |
 | `isolation.microvm.cpus`, `isolation.microvm.memory_mb` | the runner's | VM size (`--cpus`, `--mem`) |
 | `isolation.microvm.mounts` | none | More host paths given to every VM (`path` or `path:ro`); the command's worktree and `.git` always are |

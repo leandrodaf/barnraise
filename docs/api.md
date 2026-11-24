@@ -119,6 +119,7 @@ gRPC clients use the same service with HTTP/2; generated clients in Go are in `g
 | Knowledge | `Context`, `Find`, `Get`, `Related`, `Why`, `History`, `Rules`, `Revalidate`, `Sweep` |
 | Accounts and machines | `UpsertAccount`, `ListAccounts`, `ReportUsage`, `ListMachines`, `MachineHistory`, `LeaveMachine` |
 | Tokens and audit | `CreateToken`, `ListTokens`, `RevokeToken`, `ListAudit` |
+| Machine capabilities | `Capabilities`, `InstallTools` (owner and admin tokens only; see [below](#capabilities-and-tools)) |
 
 ## Overview
 
@@ -159,6 +160,25 @@ The answer has three parts.
 
 **What it costs.** An answer reads only the memory of the daemon that is asked: no git, no disk, no other machine. Totals are added up as events are applied, so finished items are counted and not walked: with 5,000 finished items an answer takes about a third of a millisecond. What only a machine can see is read there on a timer and sent to the others as live state (the event `machine.worktrees`, never stored): the list of worktrees every 30 seconds while something runs and every 2 minutes otherwise; the processes of the machine in one pass of at most every 15 seconds (about 7 ms with 500 processes), less often when a pass turns out slow; sizes in the background, one worktree at a time, and again only for a worktree that was used since it was measured. A machine that just started is complete in the others' answers after its first report.
 
+## Capabilities and tools
+
+`Capabilities` says what is active on each machine ([operations](operations.md#what-runs-on-each-machine)); `InstallTools` installs or removes the optional tools without root ([operations](operations.md#installing-optional-tools)). Both answer for the machine whose daemon is asked and pass the request on to the named peers (`machines`) or to every connected one (`all`); a peer that cannot be reached comes back with `error` set. They need an owner or admin token; a session token is always refused.
+
+```sh
+curl -s --unix-socket ~/.local/share/barnraise/barnraise.sock \
+  -X POST http://localhost/barnraise.v1.BarnraiseService/Capabilities \
+  -H 'Content-Type: application/json' -d '{"all": true, "project": "shop"}'
+... InstallTools -d '{"tools": ["mergiraf", "rtk"], "machines": ["studio"]}'
+... InstallTools -d '{"tools": ["rtk"], "all": true, "remove": true}'
+```
+
+| Request | Fields |
+| --- | --- |
+| `CapabilitiesRequest` | `machines` (empty and `all` false: this machine), `all`, `project` (the project whose `barnraise.yaml` switches count; empty: every project of the machine), `refresh` (probe again instead of the report of the last minutes) |
+| `InstallToolsRequest` | `tools` (`mergiraf`, `rtk`, `osv-scanner`, `ast-grep`, `smolvm`), `machines`, `all`, `remove` |
+
+`CapabilitiesResponse.machines[]` has `machine`, `platform`, `probed_at`, `counts` (status -> number), `error`, `tools[]` (`id`, `title`, `installed`, `pinned`, `managed`, `available`, `path`) and `items[]`: `id` (`sandbox.landlock`, `merge.structural`, `tokens.rtk`, `plugins.<name>`, `providers.acp.<name>`…), `title`, `group`, `kind` (`native`, `optional`, `plugin`), `status` (`active`, `available`, `degraded`, `missing`, `unsupported`), `reason`, `fallback`, `fix`, `tool` (set when `InstallTools` with that tool is the fix), `version` and `needs_root`. `InstallToolsResponse.results[]` has `machine`, `tool`, `ok`, `version`, `error` and `changed`. `ListMachines` carries each machine's `capability_counts`.
+
 ## Events
 
 Everything that happens becomes an event in an append-only log. Event types are versioned names, the same in the API, in CloudEvents, in webhooks and on NATS.
@@ -174,7 +194,7 @@ Everything that happens becomes an event in an append-only log. Event types are 
 | Proposals and tweaks | `proposal.created`, `proposal.updated`, `tweak.added`, `tweak.attached` |
 | Owner | `owner.question.asked`, `owner.question.answered` |
 | Messages | `message.sent`, `message.delivered` |
-| Accounts and machines | `account.updated`, `account.limit.reached`, `machine.updated`, `machine.left` |
+| Accounts and machines | `account.updated`, `account.limit.reached`, `machine.updated`, `machine.left`, `machine.tool.installed`, `machine.tool.removed`, `machine.tool.failed` |
 | Agents | `agent.session`, `agent.usage`, `journal.entry` |
 | Security and control | `policy.violation.blocked`, `secret.blocked`, `system.paused`, `system.resumed` |
 
