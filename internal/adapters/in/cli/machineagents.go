@@ -3,7 +3,9 @@ package cli
 import (
 	"errors"
 	"fmt"
+	"io"
 	"strconv"
+	"strings"
 
 	"github.com/spf13/cobra"
 
@@ -58,7 +60,7 @@ func (e *env) machineAgentsCmd() *cobra.Command {
 // machineShareCmd has other machines clone this project and work on it too.
 func (e *env) machineShareCmd() *cobra.Command {
 	var machines []string
-	var all, paused bool
+	var all, paused, tokenStdin bool
 	c := &cobra.Command{Use: "share", Short: "Have other machines clone this project's repository and work on it too",
 		Long: "Each machine named clones the project's repository (its origin) into its data folder and registers it,\n" +
 			"so its agents take items of the project. The machine needs read and write access to the repository.",
@@ -67,10 +69,20 @@ func (e *env) machineShareCmd() *cobra.Command {
 			if all == (len(machines) > 0) {
 				return errors.New("name the machines with --machine, or --all")
 			}
+			token := ""
+			if tokenStdin {
+				b, err := io.ReadAll(io.LimitReader(e.in, 4096))
+				if err != nil {
+					return err
+				}
+				if token = strings.TrimSpace(string(b)); token == "" {
+					return errors.New("--token-stdin: no token on standard input")
+				}
+			}
 			ctx, cancel := e.ctx()
 			defer cancel()
 			project := e.proj(ctx)
-			res, err := e.client().ShareProject(ctx, req(&pb.ShareProjectRequest{Project: project, Machines: machines, All: all, Paused: paused}))
+			res, err := e.client().ShareProject(ctx, req(&pb.ShareProjectRequest{Project: project, Machines: machines, All: all, Paused: paused, Token: token}))
 			if err != nil {
 				return err
 			}
@@ -91,5 +103,6 @@ func (e *env) machineShareCmd() *cobra.Command {
 	c.Flags().StringSliceVar(&machines, "machine", nil, "the machines (repeat, or comma-separated)")
 	c.Flags().BoolVar(&all, "all", false, "every connected machine")
 	c.Flags().BoolVar(&paused, "paused", false, "register it paused there")
+	c.Flags().BoolVar(&tokenStdin, "token-stdin", false, "read a token for the repository from standard input; each machine keeps it in its keychain for this repository only")
 	return c
 }

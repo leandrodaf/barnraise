@@ -39,3 +39,12 @@ func TestBuildNewer(t *testing.T) {
 		}
 	}
 }
+
+func TestGitTokenSecret(t *testing.T) {
+	if got := GitTokenSecret("GitHub.com", "/alchemistfy/one-more-bastion.git"); got != "git/github.com/alchemistfy/one-more-bastion" {
+		t.Fatalf("%q", got)
+	}
+	if GitTokenSecret("github.com", "") != "" || GitTokenSecret("", "a/b") != "" {
+		t.Fatal("a key without host or path")
+	}
+}

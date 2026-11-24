@@ -177,3 +177,18 @@ func TestPanelAddress(t *testing.T) {
 		t.Fatal("listen off gave an address")
 	}
 }
+
+func TestGitCredentialRequest(t *testing.T) {
+	host, path := readCredentialRequest(strings.NewReader("protocol=https\nhost=github.com\npath=alchemistfy/one-more-bastion.git\n\nignored=1\n"))
+	if host != "github.com" || path != "alchemistfy/one-more-bastion.git" {
+		t.Fatalf("%q %q", host, path)
+	}
+	// Another repository, or none: the helper answers nothing.
+	var out bytes.Buffer
+	e := &env{out: &out, errOut: &out, in: strings.NewReader("protocol=https\nhost=github.com\n\n")}
+	root := e.rootCmd()
+	root.SetArgs([]string{"git-credential", "get"})
+	if err := root.Execute(); err != nil || out.Len() != 0 {
+		t.Fatalf("%v %q", err, out.String())
+	}
+}

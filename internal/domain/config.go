@@ -649,3 +649,14 @@ func trimChecks(s string) string {
 	}
 	return s
 }
+
+// GitTokenSecret is the keychain key of the token for one repository at a
+// host (github.com, alchemistfy/one-more-bastion), "" without both.
+func GitTokenSecret(host, path string) string {
+	host = strings.ToLower(strings.TrimSpace(host))
+	path = strings.Trim(strings.TrimSuffix(strings.TrimSpace(path), ".git"), "/")
+	if host == "" || path == "" {
+		return ""
+	}
+	return "git/" + host + "/" + path
+}

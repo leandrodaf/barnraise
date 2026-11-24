@@ -1068,6 +1068,11 @@ message ShareProjectRequest {
   bool all = 3;
   // Register it paused there.
   bool paused = 4;
+  // A token for the repository, for machines whose own git credential does
+  // not reach it: each machine keeps it in its keychain, for this
+  // repository only, and git reads it from there. Never logged or stored
+  // in the event log.
+  string token = 5;
 }
 
 message ShareProjectResponse {

@@ -9190,7 +9190,12 @@ type ShareProjectRequest struct {
 	// Every connected machine.
 	All bool `protobuf:"varint,3,opt,name=all,proto3" json:"all,omitempty"`
 	// Register it paused there.
-	Paused        bool `protobuf:"varint,4,opt,name=paused,proto3" json:"paused,omitempty"`
+	Paused bool `protobuf:"varint,4,opt,name=paused,proto3" json:"paused,omitempty"`
+	// A token for the repository, for machines whose own git credential does
+	// not reach it: each machine keeps it in its keychain, for this
+	// repository only, and git reads it from there. Never logged or stored
+	// in the event log.
+	Token         string `protobuf:"bytes,5,opt,name=token,proto3" json:"token,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -9251,6 +9256,13 @@ func (x *ShareProjectRequest) GetPaused() bool {
 		return x.Paused
 	}
 	return false
+}
+
+func (x *ShareProjectRequest) GetToken() string {
+	if x != nil {
+		return x.Token
+	}
+	return ""
 }
 
 type ShareProjectResponse struct {
@@ -14113,12 +14125,13 @@ const file_barnraise_v1_barnraise_proto_rawDesc = "" +
 	"PeerResult\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x0e\n" +
 	"\x02ok\x18\x02 \x01(\bR\x02ok\x12\x14\n" +
-	"\x05error\x18\x03 \x01(\tR\x05error\"u\n" +
+	"\x05error\x18\x03 \x01(\tR\x05error\"\x8b\x01\n" +
 	"\x13ShareProjectRequest\x12\x18\n" +
 	"\aproject\x18\x01 \x01(\tR\aproject\x12\x1a\n" +
 	"\bmachines\x18\x02 \x03(\tR\bmachines\x12\x10\n" +
 	"\x03all\x18\x03 \x01(\bR\x03all\x12\x16\n" +
-	"\x06paused\x18\x04 \x01(\bR\x06paused\"L\n" +
+	"\x06paused\x18\x04 \x01(\bR\x06paused\x12\x14\n" +
+	"\x05token\x18\x05 \x01(\tR\x05token\"L\n" +
 	"\x14ShareProjectResponse\x124\n" +
 	"\bmachines\x18\x01 \x03(\v2\x18.barnraise.v1.PeerResultR\bmachines\"M\n" +
 	"\x10MaxAgentsRequest\x12\x1d\n" +

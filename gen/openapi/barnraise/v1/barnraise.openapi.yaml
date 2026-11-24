@@ -6901,6 +6901,14 @@ components:
           type: boolean
           title: paused
           description: Register it paused there.
+        token:
+          type: string
+          title: token
+          description: |-
+            A token for the repository, for machines whose own git credential does
+             not reach it: each machine keeps it in its keychain, for this
+             repository only, and git reads it from there. Never logged or stored
+             in the event log.
       title: ShareProjectRequest
       additionalProperties: false
       description: |-

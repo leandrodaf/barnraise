@@ -7,6 +7,7 @@ All notable changes to Barnraise are recorded here. The format follows [Keep a C
 ### Added
 
 - **machines:** `barnraise machine share --machine <name>` (and **Work here on** in each machine of the panel) has another machine clone the project's repository and register it, so its agents work on it too.
+- **machines:** `barnraise machine share --token-stdin` hands the other machines a token for the repository when their own git credential does not reach it; each keeps it in its keychain for that repository only, and git reads it through `barnraise git-credential`.
 - **tools:** Godot 4.7.2 joins the tools Barnraise installs (`barnraise tools install godot --machine <name>`), at a pinned version checked against the official checksums.
 - **owner:** A new question, proposal or approval wakes the autopilot at the next housekeeping instead of after its interval.
 
