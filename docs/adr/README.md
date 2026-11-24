@@ -39,3 +39,5 @@ One short record per decision: context, decision, consequences. A decision that 
 | [ADR-0026](0026-egress-key-broker-and-local-ca.md) | Egress key broker and a local CA |
 | [ADR-0027](0027-egress-inspection-and-signed-receipts.md) | Outbound inspection and signed receipts |
 | [ADR-0028](0028-egress-rules-by-method-host-path.md) | Egress rules by method, host and path |
+| [ADR-0031](0031-landlock-and-sandbox-profiles.md) | Landlock confinement and built-in sandbox profiles |
+| [ADR-0032](0032-opt-in-microvm-isolation.md) | Opt-in microVM isolation through an external runner |

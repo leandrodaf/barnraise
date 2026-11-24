@@ -328,8 +328,12 @@ func (p *Provider) OpenSession(ctx context.Context, spec ports.SessionSpec) (*pr
 	env.Set("GEMINI_CLI_SYSTEM_SETTINGS_PATH", path)
 	if spec.Container != nil {
 		name, args = provcommon.ContainerArgs(spec.Container, env, spec.Workdir, name, args)
-	} else if spec.RunAsUser != "" {
-		name, args = provcommon.SudoArgs(spec.RunAsUser, env, name, args)
+	} else {
+		var err error
+		if name, args, err = provcommon.HostArgs(spec, env, name, args); err != nil {
+			cleanup()
+			return nil, err
+		}
 	}
 	cmd := p.opts.Command(ctx, name, args...)
 	cmd.Dir = spec.Workdir

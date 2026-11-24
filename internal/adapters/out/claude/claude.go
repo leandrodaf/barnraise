@@ -227,8 +227,11 @@ func (p *Provider) OpenSession(ctx context.Context, spec ports.SessionSpec) (*pr
 	env := p.Env(spec)
 	if spec.Container != nil {
 		name, args = provcommon.ContainerArgs(spec.Container, env, spec.Workdir, name, args)
-	} else if spec.RunAsUser != "" {
-		name, args = provcommon.SudoArgs(spec.RunAsUser, env, name, args)
+	} else {
+		var err error
+		if name, args, err = provcommon.HostArgs(spec, env, name, args); err != nil {
+			return nil, err
+		}
 	}
 	cmd := p.opts.Command(ctx, name, args...)
 	cmd.Dir = spec.Workdir

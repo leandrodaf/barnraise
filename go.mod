@@ -5,6 +5,7 @@ go 1.27.4
 require (
 	connectrpc.com/connect v1.21.1
 	filippo.io/cpace v0.0.0-20210101143347-24d601e2e469
+	github.com/landlock-lsm/go-landlock v0.11.2
 	github.com/nats-io/nats-server/v2 v2.15.3
 	github.com/nats-io/nats.go v1.56.0
 	github.com/nats-io/nkeys v0.4.17
@@ -126,6 +127,7 @@ require (
 	golang.zx2c4.com/wireguard/windows v1.0.1 // indirect
 	gvisor.dev/gvisor v0.0.0-20260915211658-a6f909f08a72 // indirect
 	honnef.co/go/tools v0.8.1 // indirect
+	kernel.org/pub/linux/libs/security/libcap/psx v1.2.78 // indirect
 	modernc.org/libc v1.80.1 // indirect
 	modernc.org/mathutil v1.7.1 // indirect
 	modernc.org/memory v1.12.1 // indirect

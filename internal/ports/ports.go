@@ -195,6 +195,9 @@ type SessionSpec struct {
 	Endpoint *Endpoint `json:"endpoint,omitempty"`
 	// ACP, when set, is the agent program of a provider of `type: acp`.
 	ACP *ACPAgent `json:"acp,omitempty"`
+	// Confine, when set, runs the session's CLI confined by Barnraise
+	// (Landlock or a microVM); never together with Container.
+	Confine *Confine `json:"confine,omitempty"`
 }
 
 // EndpointKeyEnv is the environment variable that carries the API key of

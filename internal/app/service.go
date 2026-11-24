@@ -61,6 +61,8 @@ type Deps struct {
 	DataDir    string // worktrees, logs, policy files
 	SocketPath string
 	BinaryPath string // the barnraise binary, for hooks and MCP config
+	// Isolation are Barnraise's own confinement layers (Landlock, microVM).
+	Isolation Isolation
 }
 
 // ProjectPorts are per-project adapters.

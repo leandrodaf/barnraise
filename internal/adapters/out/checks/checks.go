@@ -53,6 +53,10 @@ type Options struct {
 	HTTPClient *http.Client
 	// DefaultTimeout applies when Def.Timeout is zero (default 30m).
 	DefaultTimeout time.Duration
+	// Confine, when set, says how a local run is confined on this machine
+	// (its sandbox profile through Landlock or a microVM): the wrapper (nil
+	// runs it unconfined) and variables to add (the egress proxy).
+	Confine func(spec ports.CheckSpec, dir string, env map[string]string) (*ports.Confine, map[string]string, error)
 	// Now and NewID are injectable for tests.
 	Now   func() time.Time
 	NewID func() string
@@ -284,6 +288,18 @@ func (r *Runner) once(ctx context.Context, spec ports.CheckSpec, dir string, onM
 	// Merge stderr into stdout inside the shell so the log keeps the order.
 	// A check of one part of the repository runs inside its folder.
 	cmd := ports.Cmd{Name: "sh", Args: []string{"-c", "exec 2>&1\n" + def.Run}, Dir: filepath.Join(dir, def.Dir), Env: env, Timeout: timeout}
+	if r.o.Confine != nil {
+		cf, extra, err := r.o.Confine(spec, dir, spec.Env)
+		if err != nil {
+			return runOutcome{}, fmt.Errorf("check %s: sandbox: %w", def.Name, err)
+		}
+		for k, v := range extra {
+			cmd.Env = append(cmd.Env, k+"="+v)
+		}
+		if cmd.Name, cmd.Args, err = cf.Apply(cmd.Name, cmd.Args); err != nil {
+			return runOutcome{}, fmt.Errorf("check %s: sandbox: %w", def.Name, err)
+		}
+	}
 	res, err := r.o.Exec.Run(ctx, cmd)
 	timedOut := errors.Is(err, execx.ErrTimeout)
 	if err != nil && !timedOut {

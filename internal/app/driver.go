@@ -8,6 +8,7 @@ import (
 	"maps"
 	"os"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -120,8 +121,13 @@ func (s *Service) SetupWorktree(ctx context.Context, p *Project, dir string) err
 		timeout = 30 * time.Minute
 	}
 	started := s.d.Clock.Now()
-	run := ports.Cmd{Name: "sh", Args: []string{"-c", "exec 2>&1\n" + cmd}, Dir: dir, Timeout: timeout}
-	if stores := s.StoreEnv(p); len(stores) > 0 {
+	stores := s.StoreEnv(p)
+	name, args, backend, err := s.wrapCommand(p, ConfineSetup, p.Cfg().Sandbox.SetupSandbox(), dir, slices.Sorted(maps.Keys(stores)), "sh", []string{"-c", "exec 2>&1\n" + cmd})
+	if err != nil {
+		return fmt.Errorf("worktree setup (%s): %w", cmd, err)
+	}
+	run := ports.Cmd{Name: name, Args: args, Dir: dir, Timeout: timeout}
+	if len(stores) > 0 {
 		// A non-empty Env replaces the process environment: keep it and add the stores.
 		run.Env = os.Environ()
 		for k, v := range stores {
@@ -139,7 +145,7 @@ func (s *Service) SetupWorktree(ctx context.Context, p *Project, dir string) err
 	if err := os.MkdirAll(filepath.Dir(marker), 0o700); err != nil {
 		return err
 	}
-	s.d.Log.Info("worktree ready", "dir", dir, "setup", cmd, "took", s.d.Clock.Now().Sub(started).Round(time.Second))
+	s.d.Log.Info("worktree ready", "dir", dir, "setup", cmd, "sandbox", def(backend, "none"), "took", s.d.Clock.Now().Sub(started).Round(time.Second))
 	return os.WriteFile(marker, []byte(cmd+"\n"), 0o600)
 }
 

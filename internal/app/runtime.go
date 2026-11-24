@@ -176,7 +176,8 @@ func newRuntime(s *Service) *Runtime {
 	r := &Runtime{s: s, poke: make(chan struct{}, 1), running: map[string]*liveSession{}, SessionTimeout: 3 * time.Hour,
 		lastHK: map[string]time.Time{}, lastRenew: map[string]time.Time{}, lastImport: map[string]time.Time{}, importedTo: map[string]time.Time{}, lastSweep: map[string]time.Time{}, lastTrim: map[string]time.Time{},
 		lastDigest: map[string]time.Time{}, lastWeekly: map[string]time.Time{}, Sandbox: bwrapErr == nil, NoSandboxProviders: map[string]string{}}
-	if bwrapErr != nil && goruntime.GOOS == "linux" {
+	// Where Landlock works, Codex runs confined by it instead of bubblewrap.
+	if bwrapErr != nil && goruntime.GOOS == "linux" && !s.landlockReady() {
 		r.NoSandboxProviders["codex"] = codexNeedsBwrap
 	}
 	return r
@@ -608,6 +609,10 @@ func (r *Runtime) start(ctx context.Context, p *Project, slot Slot, a *Assignmen
 			return err
 		}
 		spec.Container = cs
+	} else if spec.Confine, err = r.sessionConfine(p, dir, acc, cli, endpoint, env); err != nil {
+		s.tokens.Revoke(token)
+		cancel()
+		return err
 	}
 	if spec.ACP, err = s.acpAgent(p.Cfg(), choice.Provider); err != nil {
 		s.tokens.Revoke(token)
@@ -827,6 +832,12 @@ func (r *Runtime) writeSessionFiles(p *Project, sessDir, worktree string, env ma
 	pol.Worktree = worktree
 	pol.MainBranch = p.Cfg().MainBranch
 	pol.PrivateTmp = p.Cfg().Container.Image != "" // the container's /tmp is in memory and its own
+	// The agent profile's command rules join the project's.
+	for _, rx := range domain.AgentDenyCommands() {
+		if !domain.Contains(pol.DenyCommands, rx) {
+			pol.DenyCommands = append(pol.DenyCommands, rx)
+		}
+	}
 	polData, _ := json.MarshalIndent(pol, "", "  ")
 	if err := os.WriteFile(filepath.Join(sessDir, "policy.json"), polData, 0o600); err != nil {
 		return "", "", err
@@ -885,7 +896,7 @@ func (r *Runtime) writeSessionFiles(p *Project, sessDir, worktree string, env ma
 		"env":         map[string]string{"DISABLE_AUTOUPDATER": "1"},
 	}
 	// Inside a container the container is the sandbox (bubblewrap cannot nest there).
-	if r.Sandbox && p.Cfg().Container.Image == "" {
+	if r.Sandbox && p.Cfg().Container.Image == "" && !r.microVMSessions() {
 		settings["sandbox"] = map[string]any{"enabled": true, "failIfUnavailable": true, "allowUnsandboxedCommands": false,
 			"network": map[string]any{"allowedDomains": domain.AllowHostNames(pol.AllowHosts)}}
 	}

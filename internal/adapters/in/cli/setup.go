@@ -857,6 +857,9 @@ func machineLive(m *pb.Machine) string {
 		}
 		parts = append(parts, s)
 	}
+	if len(m.Labels) > 0 {
+		parts = append(parts, "labels "+strings.Join(m.Labels, ", "))
+	}
 	return strings.Join(parts, " · ")
 }
 

@@ -32,8 +32,8 @@ const Sandbox = "workspace-write"
 const ContainerSandbox = "danger-full-access"
 
 func sandboxFor(spec ports.SessionSpec) string {
-	if spec.Container != nil {
-		return ContainerSandbox
+	if spec.Container != nil || spec.Confine != nil {
+		return ContainerSandbox // the container or Barnraise's own confinement is the boundary
 	}
 	return Sandbox
 }
@@ -403,8 +403,11 @@ func (p *Provider) OpenSession(ctx context.Context, spec ports.SessionSpec) (*pr
 	env := p.Env(spec)
 	if spec.Container != nil {
 		name, args = provcommon.ContainerArgs(spec.Container, env, spec.Workdir, name, args)
-	} else if spec.RunAsUser != "" {
-		name, args = provcommon.SudoArgs(spec.RunAsUser, env, name, args)
+	} else {
+		var err error
+		if name, args, err = provcommon.HostArgs(spec, env, name, args); err != nil {
+			return fail(err)
+		}
 	}
 	cmd := p.opts.Command(ctx, name, args...)
 	cmd.Dir = spec.Workdir

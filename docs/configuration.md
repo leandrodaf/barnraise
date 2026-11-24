@@ -136,6 +136,7 @@ Each check is a command string or a mapping:
 | `order` | `0` | Lower runs first, cheap before expensive; the step stops at the first failure |
 | `dir` | root | Folder the command runs in (set by itself for the checks of a part's own file) |
 | `offload` | `true` | `false` keeps the check on the machine that works on the item, even when that machine is loaded and another is idle (for a check that needs something only this machine has) |
+| `sandbox` | `check` | [Sandbox profile](#sandbox) of a local run: `check`, `build`, `setup`, `open` or `none` (unconfined, as before profiles) |
 
 ```yaml
 checks:
@@ -751,6 +752,7 @@ Send a share of the items to a change before the whole fleet gets it.
 | `stores` | none | Directories shared by every worktree of the project: store name to the environment variable that receives its path (`pnpm: npm_config_store_dir`) |
 | `strip` | none | Rebuildable directories removed from the worktree of an item that waits for the owner or is blocked (`web/node_modules`, `mobile/android/app/build`) |
 | `strip_after` | `1h` | How long an item waits before `strip` empties its worktree |
+| `sandbox` | `setup` | [Sandbox profile](#sandbox) of `setup`; `none` runs it unconfined |
 
 `include` copies files that are not in git into every worktree. It is empty by default, because such files (`.env`) usually hold what an agent must not have: secrets, or the address of a real database. List a file only when it is safe in an agent's hands.
 
@@ -798,6 +800,43 @@ When an item's work is sent back (a failed check, a review asking for rework, th
 | `enabled` | `true` | Learn lessons from resolved rework and give them to later items |
 | `max` | `5` | Most lessons in one prompt (0 to 20; 0 keeps learning without giving them) |
 
+## sandbox
+
+On a machine whose kernel has [Landlock](security.md#4-native-sandboxes) (Linux 5.13 or later), Barnraise confines the worktree setup, every local check and, where bubblewrap cannot start, the agent sessions, with no root and no user namespaces. Each kind of command runs under a built-in profile; `checks.<name>.sandbox` and `worktree.sandbox` pick another one. Nothing changes on a machine without Landlock.
+
+| Profile | Network (outbound TCP) | Command rules on top of `policy.deny_commands` |
+| --- | --- | --- |
+| `setup` (default of `worktree.setup`) | ports 80 and 443, the egress proxy, loopback test servers | wiping `/`, the home or a disk, fork bombs |
+| `build` | the same | the above, plus `curl … \| sh`, `sh <(curl …)` and `sudo` |
+| `check` (default of checks) | the egress proxy and loopback services only; without `--egress`, ports 80 and 443 too | the above, plus `git push`, `ssh`/`scp`/`rsync` to `user@host` and `nc -e` |
+| `agent` (agent sessions confined by Barnraise) | like `check`: the provider's API through the egress proxy | like `build` (they also join the hook's policy in every session) |
+| `open` | not restricted | wiping `/`, the home or a disk |
+| `none` | not confined at all | none |
+
+Every confined profile may write the command's worktree, the repository's `.git`, the temporary folders, `/dev` and the package stores in the home (`~/.cache`, `~/go`, `~/.npm`, `~/.pnpm-store`, `~/.yarn`, `~/.gradle`, `~/.m2`, `~/.cargo`, `~/.pub-cache`, `~/.nuget`, `~/.bundle`, `~/.gem`, `~/.android`, `~/.konan`, `~/.expo`, …); it may read the system (`/usr`, `/etc`, `/opt`, `/nix`, …) and the toolchains in the home (`~/.local/bin`, `~/.nvm`, `~/.rustup`, `~/.sdkman`, `~/Android`, `~/flutter`, `~/.gitconfig`, …); nothing else of the home. The `deny_read` folders of the [policy](#policy) (and the credentials kept inside stores, such as `~/.cargo/credentials.toml`, `~/.gradle/gradle.properties` and `~/.m2/settings.xml`) are never granted, even inside a granted folder. Landlock filters connections by port, not by host: with the egress proxy (`barnraise daemon --egress`), checks and agents get `HTTPS_PROXY` and reach the internet only through its allow-list.
+
+A command that matches a rule is refused before it starts, with exit code 126 and the rule in the log.
+
+| Key | Default | Meaning |
+| --- | --- | --- |
+| `read` | none | More paths (absolute or `~/…`) every confined command may read (an SDK outside the usual places) |
+| `write` | none | More paths every confined command may write (`~/.cache/ms-playwright` is already covered by `~/.cache`) |
+| `ports` | none | More TCP ports a confined command may connect to: a local database (`5432`), an emulator (`5554`, `5555`) |
+| `deny_commands` | none | More command rules (regular expressions) for every confined profile; `policy.deny_commands` is added too |
+
+```yaml
+worktree:
+  setup: pnpm install --frozen-lockfile
+  sandbox: setup          # the default
+sandbox:
+  ports: [5432]           # the tests use the machine's PostgreSQL
+checks:
+  unit: { run: go test ./... }            # profile check
+  e2e:  { run: pnpm e2e, sandbox: open }  # talks to a staging server
+```
+
+`barnraise sandbox status` shows what this machine offers (bubblewrap, the Landlock ABI version, the microVM runner) and the profiles.
+
 ## Machine configuration (`daemon.yaml`)
 
 The machine's own configuration is not part of any repository. It lives in `~/.config/barnraise/daemon.yaml` (mode 0600) and is written by `barnraise up`, `barnraise machine invite/join/leave` and `barnraise machine network`; people do not edit it by hand, except for `network_plugin.options`. The Tailscale auth key is never in it (see [operations.md](operations.md#machines-on-a-tailnet)).
@@ -821,3 +860,20 @@ The machine's own configuration is not part of any repository. It lives in `~/.c
 | `network_plugin.timeout` | `10s` | How long each `network.status` may take (`--timeout`) |
 | `network_plugin.options` | none | The plugin's own settings, sent in `initialize` (edit `daemon.yaml`) |
 | `notify` | none | Machine-level notification channels (`type`, `target`, `secret`) |
+| `isolation.backend` | empty | Empty: Landlock where the kernel has it (setup, checks, and agent sessions where bubblewrap cannot start). `microvm`: also run the kinds of command in `isolation.microvm.for` inside a microVM, through an external runner; off by default (see [security.md](security.md#next-layer)) |
+| `isolation.microvm.runner` | `smolvm` | The runner program, on the `PATH` or absolute |
+| `isolation.microvm.image` | none | OCI image the VM boots: the project's toolchain, and the AI CLIs when sessions run there. Required with the default command |
+| `isolation.microvm.cpus`, `isolation.microvm.memory_mb` | the runner's | VM size (`--cpus`, `--mem`) |
+| `isolation.microvm.mounts` | none | More host paths given to every VM (`path` or `path:ro`); the command's worktree and `.git` always are |
+| `isolation.microvm.for` | all | What runs in the VM: `sessions`, `checks`, `setup` |
+| `isolation.microvm.command` | smolvm's | The runner's command line as a list, with placeholders `{runner}`, `{image}`, `{cpus}`, `{memory}`, `{volumes}`, `{network}`, `{env}`, `{workdir}` and `{command}` (required, as a whole item), for another runner |
+
+```yaml
+# daemon.yaml: checks in a microVM, sessions and setup with Landlock
+isolation:
+  backend: microvm
+  microvm:
+    image: ghcr.io/acme/toolchain:2026.11
+    memory_mb: 4096
+    for: [checks]
+```

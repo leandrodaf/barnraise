@@ -103,7 +103,9 @@ type File struct {
 		Target string `yaml:"target"`
 		Secret string `yaml:"secret,omitempty"`
 	} `yaml:"notify,omitempty"`
-	path string
+	// Isolation is an extra layer around sessions and checks (microVM).
+	Isolation Isolation `yaml:"isolation,omitempty"`
+	path      string
 }
 
 // Load reads daemon.yaml (an empty file if missing).

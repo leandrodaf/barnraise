@@ -137,6 +137,14 @@ barnraise egress receipts verify --file archive/receipts.jsonl --pub archive/rec
 
 A refused request shows in the panel and in `barnraise events` as a `policy.violation` event of the `network` tool, with the rule (`egress` for a host off the list, `egress-path-rule`, `egress-secret`, `egress-sealed-key-foreign-host`). `barnraise egress proxy --allow` also takes method/path rules; the standalone proxy only tunnels and checks hosts and plain HTTP (no CA, no broker, no receipts).
 
+### Confinement on this machine
+
+`barnraise sandbox status` shows, without the daemon, what this machine can confine commands with: whether bubblewrap works (Claude Code and Codex use it as their own sandbox), the Landlock ABI version (`landlock ABI v8, filesystem and TCP`), the microVM runner when `isolation.backend: microvm` is set in `daemon.yaml`, and the [sandbox profiles](configuration.md#sandbox). The daemon logs the same at start, and machines with Landlock or a working microVM carry the `landlock` and `microvm` labels in `barnraise machine list` (a check can ask for one with `runs_on: machine:landlock`).
+
+On Ubuntu 23.10 and later, AppArmor forbids unprivileged user namespaces, so bubblewrap cannot start. Such a machine used to give Codex no work and run Claude Code without its sandbox; with Landlock (Ubuntu's kernels have it) both run confined by Barnraise instead, and setup and checks are confined on every machine. Nothing needs root. If `barnraise status` alerts that a machine has no sandbox, its kernel lacks Landlock: allow bubblewrap with an AppArmor profile, upgrade the kernel, or use [`container:`](configuration.md#container).
+
+A check or setup that fails with `Permission denied` on a path, or a connection refused, after this change needs that path or port in [`sandbox:`](configuration.md#sandbox) (`read`, `write`, `ports`), or another profile (`sandbox: open` keeps the network open; `sandbox: none` turns the confinement off for that command).
+
 ## Servers without a browser
 
 Subscriptions are logged in with the flow each provider offers for headless machines:

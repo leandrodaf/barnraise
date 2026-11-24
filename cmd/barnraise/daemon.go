@@ -98,6 +98,7 @@ type daemon struct {
 	fake    *fakeAgent
 	// stopSelf ends the daemon as a signal would; a paired machine can ask for it.
 	stopSelf context.CancelFunc
+	iso      app.Isolation // Barnraise's own confinement layers
 }
 
 func runDaemon(ctx context.Context, opts cli.DaemonOptions) error {
@@ -182,6 +183,7 @@ func runDaemon(ctx context.Context, opts cli.DaemonOptions) error {
 		Machine: df.Machine, Version: version, DataDir: d.dataDir, SocketPath: paths.Socket(), BinaryPath: exe,
 		Notifier: d.notifier(), Blobs: blobsOrNil(d.blobs), Host: sysinfo.NewHost(),
 		ResolveSecret: func(ref string) (string, error) { return notify.SecretRef(d.secrets, ref) },
+		Isolation:     d.isolation(exe),
 	})
 	d.svc = svc
 	app.RoleText = config.RolePrompt
@@ -791,6 +793,9 @@ func (d *daemon) newRunner(cfg *domain.ProjectConfig, ch ports.CodeHost) *checks
 			}
 			return h.RunCheck(ctx, spec)
 		},
+		Confine: func(spec ports.CheckSpec, dir string, env map[string]string) (*ports.Confine, map[string]string, error) {
+			return d.svc.CheckConfine(project, spec.Def, dir, env)
+		},
 	}
 	if ch != nil {
 		o.Dispatch = func(ctx context.Context, workflow, branch string, inputs map[string]string) error {
@@ -1178,6 +1183,7 @@ func (d *daemon) probe() domain.Machine {
 	m.Slots = sysinfo.Slots(m, 4, m.Emulators)
 	m.Version = version
 	m.Platform = platform()
+	m.Labels = append(m.Labels, d.sandboxLabels()...)
 	m.Binary = d.binary
 	m.LastSeen = time.Now()
 	if d.natsSrv != nil {
