@@ -26,6 +26,7 @@ import (
 	"github.com/leandrodaf/barnraise/internal/adapters/in/httpapi"
 	"github.com/leandrodaf/barnraise/internal/adapters/in/panel"
 	"github.com/leandrodaf/barnraise/internal/adapters/out/acp"
+	"github.com/leandrodaf/barnraise/internal/adapters/out/capprobe"
 	"github.com/leandrodaf/barnraise/internal/adapters/out/checks"
 	"github.com/leandrodaf/barnraise/internal/adapters/out/claude"
 	"github.com/leandrodaf/barnraise/internal/adapters/out/codex"
@@ -46,6 +47,7 @@ import (
 	"github.com/leandrodaf/barnraise/internal/adapters/out/sqlite"
 	"github.com/leandrodaf/barnraise/internal/adapters/out/sysinfo"
 	"github.com/leandrodaf/barnraise/internal/adapters/out/tailnet"
+	"github.com/leandrodaf/barnraise/internal/adapters/out/toolinstall"
 	"github.com/leandrodaf/barnraise/internal/adapters/out/webhook"
 	"github.com/leandrodaf/barnraise/internal/app"
 	"github.com/leandrodaf/barnraise/internal/config"
@@ -187,11 +189,14 @@ func runDaemon(ctx context.Context, opts cli.DaemonOptions) error {
 		ResolveSecret: func(ref string) (string, error) { return notify.SecretRef(d.secrets, ref) },
 		Isolation:     d.isolation(exe),
 		Cloner:        reflink.New(),
+		Prober:        capprobe.New(capprobe.Options{Exec: ex, DataDir: d.dataDir, ToolsBin: toolinstall.BinDir(toolinstall.Root(d.dataDir))}),
+		Installer:     toolinstall.New(toolinstall.Options{Root: toolinstall.Root(d.dataDir)}),
 	})
 	d.svc = svc
 	app.RoleText = config.RolePrompt
 	app.SetSecretScanner(scanWorktree)
 	svc.Runtime().SetProbe(d.probe)
+	svc.SetMachineSettings(d.machineSettings)
 	if opts.NoAgents {
 		svc.Runtime().MaxSessions = -1
 	}
@@ -220,6 +225,8 @@ func runDaemon(ctx context.Context, opts cli.DaemonOptions) error {
 	d.stopSelf = stopSelf
 	go d.serveRemoteStop(ctx)
 	go d.serveRemoteStandby(ctx)
+	go d.serveRemoteCapabilities(ctx)
+	go d.watchCapabilities(ctx)
 	go newChainWatch(d).run(ctx)
 
 	srv := httpapi.New(svc, httpapi.Options{
@@ -245,6 +252,7 @@ func runDaemon(ctx context.Context, opts cli.DaemonOptions) error {
 		},
 		Reload: d.reloadProject,
 		Peers:  d.peers, StopPeers: d.stopPeers, SetStandby: d.setStandby,
+		Capabilities: d.capabilities, InstallTools: d.installTools,
 		VerifyAnchor: natsx.AnchorVerifier(df.NKeyPublic),
 		WebhookSecret: func(project, source string) string {
 			v, _ := d.secrets.Get("webhook/" + project + "/" + source)
@@ -530,6 +538,7 @@ func (d *daemon) watchDaemonFile(ctx context.Context) {
 				// The subscriptions went with the old connection.
 				go d.serveRemoteStop(ctx)
 				go d.serveRemoteStandby(ctx)
+				go d.serveRemoteCapabilities(ctx)
 			}
 		}
 		if d.repl != nil {
@@ -1193,6 +1202,9 @@ func (d *daemon) probe() domain.Machine {
 	m.Platform = platform()
 	m.Labels = append(m.Labels, d.sandboxLabels()...)
 	m.Binary = d.binary
+	if d.svc != nil {
+		m.CapabilityCounts = d.svc.CapabilityCounts()
+	}
 	m.LastSeen = time.Now()
 	if d.natsSrv != nil {
 		m.Address = d.natsSrv.ClientURL()

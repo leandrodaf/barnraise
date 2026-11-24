@@ -3,6 +3,7 @@ package main
 import (
 	"github.com/leandrodaf/barnraise/internal/adapters/out/landlock"
 	"github.com/leandrodaf/barnraise/internal/adapters/out/microvm"
+	"github.com/leandrodaf/barnraise/internal/adapters/out/toolinstall"
 	"github.com/leandrodaf/barnraise/internal/app"
 	"github.com/leandrodaf/barnraise/internal/daemoncfg"
 )
@@ -11,7 +12,7 @@ import (
 // reports itself unavailable where the kernel has none), the microVM only
 // when daemon.yaml turns it on.
 func (d *daemon) isolation(binary string) app.Isolation {
-	iso := app.Isolation{Landlock: landlock.New(binary)}
+	iso := app.Isolation{Landlock: landlock.New(binary), ToolDirs: []string{toolinstall.Root(d.dataDir)}}
 	cfg := d.df.Isolation
 	if err := cfg.Validate(); err != nil {
 		d.log.Error("daemon.yaml: isolation ignored", "err", err)

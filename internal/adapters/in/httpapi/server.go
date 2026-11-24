@@ -47,8 +47,12 @@ type Options struct {
 	// SetStandby switches this machine's standby, keeps it in the machine's
 	// configuration and passes it on to the named peers.
 	SetStandby func(ctx context.Context, on bool, why string, peers []string) (*pb.StandbyResponse, error)
-	Panel      fs.FS  // static panel files
-	OpenAPI    []byte // generated document
+	// Capabilities and InstallTools answer for this machine and fan out to
+	// the requested peers (ADR-0045); nil answers for this machine only.
+	Capabilities func(ctx context.Context, r *pb.CapabilitiesRequest) (*pb.CapabilitiesResponse, error)
+	InstallTools func(ctx context.Context, a app.Actor, r *pb.InstallToolsRequest) (*pb.InstallToolsResponse, error)
+	Panel        fs.FS  // static panel files
+	OpenAPI      []byte // generated document
 	// WebhookSecret returns the secret for inbound webhooks of a project and source (github, gitlab, inbound).
 	WebhookSecret func(project, source string) string
 	RatePerSec    float64
