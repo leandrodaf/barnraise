@@ -96,6 +96,7 @@ func (e *env) rootCmd() *cobra.Command {
 	add("setup", e.initCmd(), e.upCmd(), e.daemonCmd(), e.checkCmd(), e.explainCmd(), e.templateCmd(), e.accountCmd(), e.trackerCmd(), e.webhookCmd(), e.machineCmd(), e.clusterCmd(), e.tokenCmd(), e.auditCmd(), e.downCmd(), e.pluginCmd())
 	add("agent", e.imageCmd(), e.firewallCmd(), e.nextCmd(), e.deliverCmd(), e.reviewCmd(), e.askCmd(), e.messageCmd(), e.inboxCmd(), e.journalCmd(), e.hookCmd(), e.statuslineCmd(), e.filterCmd(), e.outputCmd(), e.mcpCmd())
 	add("setup", e.sandboxCmd())
+	add("setup", e.capabilitiesCmd(), e.toolsCmd())
 	root.AddCommand(e.sandboxExecCmd())
 	root.AddCommand(&cobra.Command{Use: "version", Short: "Print the version", Run: func(*cobra.Command, []string) { fmt.Fprintln(e.out, e.hooks.Version) }})
 	return root

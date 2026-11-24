@@ -435,6 +435,7 @@ func (e *env) upCmd() *cobra.Command {
 				return err
 			}
 			fmt.Fprintf(e.out, "✔ Barnraise is up on machine %s with projects: %s\n", res.Msg.Machine, strings.Join(res.Msg.Projects, ", "))
+			e.capabilityHint(ctx, cfg.Name)
 			if res.Msg.Standby {
 				fmt.Fprintln(e.out, "  This machine is in standby: nothing starts here until `barnraise standby off`.")
 			}
