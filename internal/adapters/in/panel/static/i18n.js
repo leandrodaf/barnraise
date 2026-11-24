@@ -250,6 +250,8 @@ const en = {
     'merge.conflicts.reapplied': 'Conflict resolved again from a recorded resolution',
     'item.stale_read': 'Main changed what it read', 'lesson.learned': 'Lesson learned', 'lesson.merged': 'Lesson seen again',
     'lesson.deleted': 'Lesson deleted',
+    'trust.recorded': 'Project files trusted', 'trust.accepted': 'Instruction files accepted', 'trust.mismatch': 'Files changed outside Barnraise',
+    'security.token.denied': 'Session token refused', 'security.chain.broken': 'Event log tampered with',
   },
 };
 
@@ -492,6 +494,8 @@ const pt = {
     'merge.conflicts.reapplied': 'Conflito resolvido de novo por uma resolução gravada',
     'item.stale_read': 'A main mudou o que ele leu', 'lesson.learned': 'Lição aprendida', 'lesson.merged': 'Lição vista de novo',
     'lesson.deleted': 'Lição apagada',
+    'trust.recorded': 'Arquivos do projeto confiáveis', 'trust.accepted': 'Arquivos de instrução aceitos', 'trust.mismatch': 'Arquivos mudados fora do Barnraise',
+    'security.token.denied': 'Token de sessão recusado', 'security.chain.broken': 'Registro de eventos adulterado',
   },
 };
 

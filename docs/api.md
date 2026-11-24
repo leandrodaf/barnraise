@@ -169,6 +169,7 @@ Everything that happens becomes an event in an append-only log. Event types are 
 | Living plan | `item.impacted`, `item.revalidated`, `item.updated_by_change`, `item.superseded`, `item.obsoleted`, `item.merged_into` |
 | Work | `delivery.submitted`, `review.submitted`, `check.requested`, `check.completed`, `rework.started`, `merge.conflicts.reapplied` |
 | Main moving and rework lessons | `item.stale_read`, `lesson.learned`, `lesson.merged`, `lesson.deleted` |
+| Trust | `trust.recorded`, `trust.accepted`, `trust.mismatch`, `security.token.denied`, `security.chain.broken` |
 | Goal and focus | `goal.set`, `goal.finished`, `focus.changed` |
 | Proposals and tweaks | `proposal.created`, `proposal.updated`, `tweak.added`, `tweak.attached` |
 | Owner | `owner.question.asked`, `owner.question.answered` |

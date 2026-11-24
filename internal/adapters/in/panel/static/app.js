@@ -778,6 +778,7 @@ const EVENT_TYPES = [
   'account.limit.reached', 'machine.updated', 'machine.left', 'agent.session', 'agent.usage', 'message.sent',
   'message.delivered', 'journal.entry', 'policy.violation.blocked', 'secret.blocked', 'merge.conflicts.reapplied',
   'item.stale_read', 'lesson.learned', 'lesson.merged', 'lesson.deleted',
+  'trust.recorded', 'trust.accepted', 'trust.mismatch', 'security.token.denied', 'security.chain.broken',
 ];
 
 const live = { es: null, lastSeq: 0, backoff: 1000, timer: 0, countdown: 0 };
