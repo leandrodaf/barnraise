@@ -4,9 +4,15 @@ All notable changes to Barnraise are recorded here. The format follows [Keep a C
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-11-24
+
 ### Added
 
 - **owner:** Autopilot (`barnraise autopilot on|off [--all]`, the switch at the top of the panel): the advisor answers the questions agents ask, approves or sends back the plans and deliveries that wait, and decides the proposals, in every project, each with its reasons. What only the owner can do (an account, money, a device, an access, a personal choice) is left to the owner with what to do, and not asked again until it changes.
+
+### Fixed
+
+- **cluster:** A build made after a release (`0.1.0-1-gebe2f36`) is newer than the release: a machine running it no longer replaces its own binary with a peer's older one.
 
 ## [0.1.0] - 2026-11-24
 
@@ -85,4 +91,5 @@ First version: one Go binary that is the daemon, the CLI, the MCP server and the
 - **Web panel** served by the daemon, in English and Portuguese.
 - **Packaging**: release archives for linux and darwin (amd64, arm64) with checksums, SBOMs and keyless cosign signatures, `install.sh`, a container image, a systemd user service (`up --service`) and a system unit.
 
+[0.1.1]: https://github.com/leandrodaf/barnraise/releases/tag/v0.1.1
 [0.1.0]: https://github.com/leandrodaf/barnraise/releases/tag/v0.1.0
