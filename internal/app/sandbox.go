@@ -90,10 +90,13 @@ func (r *Runtime) proxyPort() int {
 	return n
 }
 
-// confinement resolves a profile for a command of the project.
+// confinement resolves a profile for a command of the project. The
+// project's shared stores (worktree.stores) are writable to every confined
+// command, like its worktree: setup fills them, checks and sessions use them.
 func (s *Service) confinement(p *Project, profile string, work []string, command string, env []string) (domain.Confinement, error) {
 	home, _ := os.UserHomeDir()
 	cfg := p.Cfg()
+	work = append(append([]string(nil), work...), s.storeDirs(p)...)
 	return domain.BuildConfinement(domain.ConfineInput{
 		Profile: profile, Home: home, Work: work, TmpDir: os.TempDir(), Proxy: s.runtime.proxyPort(),
 		DenyRead: cfg.Policy.DenyRead, Project: cfg.Sandbox, Command: command, Hosts: cfg.Policy.AllowHosts, Env: env,

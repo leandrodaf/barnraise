@@ -87,6 +87,34 @@ func TestWorktreeSetupRunsConfined(t *testing.T) {
 	}
 }
 
+// The project's shared stores reach a confined setup: their variables pass
+// through and their directories are writable, like the worktree.
+func TestConfinedSetupWritesTheStores(t *testing.T) {
+	ll := landlockOK()
+	e := newEnv(t, withGit(), withExec(), withIsolation(Isolation{Landlock: ll}),
+		withCfg(func(c *domain.ProjectConfig) {
+			c.WorktreeSetup = "pnpm install"
+			c.WorktreeStores = map[string]string{"pnpm": "npm_config_store_dir"}
+		}))
+	it := e.ready("simple", "needs its dependencies", "x")
+	e.start(it.ID)
+	e.workspace(it.ID, nil)
+	conf := ll.last(t)
+	store := e.svc.storeDir(e.cfg.Name, "pnpm")
+	if !domain.Contains(conf.Work, store) || !domain.Contains(conf.Env, "npm_config_store_dir") {
+		t.Fatalf("the store must be writable and its variable passed: work %v env %v", conf.Work, conf.Env)
+	}
+	var setup *ports.Cmd
+	for _, c := range e.exec.Cmds() {
+		if strings.Contains(strings.Join(c.Args, " "), "pnpm install") {
+			setup = &c
+		}
+	}
+	if setup == nil || !domain.Contains(setup.Env, "npm_config_store_dir="+store) {
+		t.Fatalf("setup gets the store's path: %+v", setup)
+	}
+}
+
 // A check is confined by its profile; with the egress proxy it keeps the
 // network to loopback and the proxy, and gets the proxy's variables.
 func TestCheckConfine(t *testing.T) {
