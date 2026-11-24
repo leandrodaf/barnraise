@@ -12320,6 +12320,7 @@ type CapabilityItem struct {
 	Tool          string                 `protobuf:"bytes,9,opt,name=tool,proto3" json:"tool,omitempty"`                              // installable tool id when `barnraise tools install <tool>` fixes it, else ""
 	Version       string                 `protobuf:"bytes,10,opt,name=version,proto3" json:"version,omitempty"`                       // detected version of the tool/feature, if any
 	NeedsRoot     bool                   `protobuf:"varint,11,opt,name=needs_root,json=needsRoot,proto3" json:"needs_root,omitempty"` // the fix needs root (shown, never automated)
+	On            bool                   `protobuf:"varint,12,opt,name=on,proto3" json:"on,omitempty"`                                // a project or the machine switched it on (or it is always on)
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -12427,6 +12428,13 @@ func (x *CapabilityItem) GetVersion() string {
 func (x *CapabilityItem) GetNeedsRoot() bool {
 	if x != nil {
 		return x.NeedsRoot
+	}
+	return false
+}
+
+func (x *CapabilityItem) GetOn() bool {
+	if x != nil {
+		return x.On
 	}
 	return false
 }
@@ -14056,7 +14064,7 @@ const file_barnraise_v1_barnraise_proto_rawDesc = "" +
 	"\bmachines\x18\x01 \x03(\tR\bmachines\x12\x10\n" +
 	"\x03all\x18\x02 \x01(\bR\x03all\x12\x18\n" +
 	"\aproject\x18\x03 \x01(\tR\aproject\x12\x18\n" +
-	"\arefresh\x18\x04 \x01(\bR\arefresh\"\x8b\x02\n" +
+	"\arefresh\x18\x04 \x01(\bR\arefresh\"\x9b\x02\n" +
 	"\x0eCapabilityItem\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n" +
 	"\x05title\x18\x02 \x01(\tR\x05title\x12\x14\n" +
@@ -14070,7 +14078,8 @@ const file_barnraise_v1_barnraise_proto_rawDesc = "" +
 	"\aversion\x18\n" +
 	" \x01(\tR\aversion\x12\x1d\n" +
 	"\n" +
-	"needs_root\x18\v \x01(\bR\tneedsRoot\"\xb8\x01\n" +
+	"needs_root\x18\v \x01(\bR\tneedsRoot\x12\x0e\n" +
+	"\x02on\x18\f \x01(\bR\x02on\"\xb8\x01\n" +
 	"\x0eCapabilityTool\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n" +
 	"\x05title\x18\x02 \x01(\tR\x05title\x12\x1c\n" +

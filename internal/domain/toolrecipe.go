@@ -5,7 +5,7 @@ package domain
 // the sha256 of every asset written here. The installer refuses an archive
 // whose digest differs. The digests were computed from the downloaded
 // assets and compared with the upstream checksum file where the release
-// publishes one (rtk, osv-scanner, smolvm) or with the digest GitHub shows
+// publishes one (rtk, osv-scanner, smolvm, gitleaks) or with the digest GitHub shows
 // for the asset (ast-grep); mergiraf's release (Codeberg) publishes none.
 // Raising a version means downloading the new assets and pinning their
 // digests again. ast-grep on Linux is the glibc build: its musl build
@@ -122,6 +122,20 @@ func ToolRecipes() []ToolRecipe {
 					URL: "https://github.com/ast-grep/ast-grep/releases/download/0.51.3/app-aarch64-apple-darwin.zip"},
 				{OS: "darwin", Arch: "amd64", Format: FormatZip, SHA256: "af04ed50179e51316a0139b8bb39502a3841d6c8e9fd9a4bac40987a8c7c3acd",
 					URL: "https://github.com/ast-grep/ast-grep/releases/download/0.51.3/app-x86_64-apple-darwin.zip"},
+			},
+		},
+		{
+			ID: "gitleaks", Title: "Secret scanner", Version: "8.30.1", Bin: "gitleaks",
+			License: "MIT", Home: "https://github.com/gitleaks/gitleaks",
+			Assets: []ToolAsset{
+				{OS: "linux", Arch: "amd64", Format: FormatTarGz, SHA256: "551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb",
+					URL: "https://github.com/gitleaks/gitleaks/releases/download/v8.30.1/gitleaks_8.30.1_linux_x64.tar.gz"},
+				{OS: "linux", Arch: "arm64", Format: FormatTarGz, SHA256: "e4a487ee7ccd7d3a7f7ec08657610aa3606637dab924210b3aee62570fb4b080",
+					URL: "https://github.com/gitleaks/gitleaks/releases/download/v8.30.1/gitleaks_8.30.1_linux_arm64.tar.gz"},
+				{OS: "darwin", Arch: "arm64", Format: FormatTarGz, SHA256: "b40ab0ae55c505963e365f271a8d3846efbc170aa17f2607f13df610a9aeb6a5",
+					URL: "https://github.com/gitleaks/gitleaks/releases/download/v8.30.1/gitleaks_8.30.1_darwin_arm64.tar.gz"},
+				{OS: "darwin", Arch: "amd64", Format: FormatTarGz, SHA256: "dfe101a4db2255fc85120ac7f3d25e4342c3c20cf749f2c20a18081af1952709",
+					URL: "https://github.com/gitleaks/gitleaks/releases/download/v8.30.1/gitleaks_8.30.1_darwin_x64.tar.gz"},
 			},
 		},
 		{

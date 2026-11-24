@@ -127,7 +127,7 @@ func TestEvaluateCapabilities(t *testing.T) {
 		{name: "network tailscale missing", probe: without(fullProbe(), "tailscale"), settings: MachineSettings{Network: "tailscale"}, id: "cluster.network", status: CapMissing},
 		{name: "network plugin unset", probe: fullProbe(), settings: MachineSettings{Network: "plugin"}, id: "cluster.network", status: CapMissing, fix: "network_plugin"},
 		{name: "network plugin missing", probe: fullProbe(), settings: MachineSettings{Network: "plugin", NetworkPlugin: "mynet"}, id: "cluster.network", status: CapMissing, fix: "mynet"},
-		{name: "gitleaks missing", probe: without(fullProbe(), "gitleaks"), id: "security.gitleaks", status: CapDegraded, fallback: "built-in"},
+		{name: "gitleaks missing", probe: without(fullProbe(), "gitleaks"), id: "security.gitleaks", status: CapDegraded, fallback: "built-in", tool: "gitleaks"},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {

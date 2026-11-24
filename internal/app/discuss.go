@@ -5,10 +5,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"maps"
 	"os"
 	"path/filepath"
 	"slices"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/leandrodaf/barnraise/internal/domain"
@@ -428,8 +430,23 @@ type ProposalVerdict struct {
 	Reason   string `json:"reason"`
 }
 
-// TriageProposals asks the advisor, once, for a decision on every open
-// proposal of the project. Nothing is applied: the owner confirms.
+// triageBatch is how many proposals one answer of the advisor weighs, and
+// triageParallel how many answers run at once: a long list read in one go
+// spends the advisor's turns on the code and ends without the verdicts.
+const (
+	triageBatch    = 8
+	triageParallel = 3
+)
+
+type triageEntry struct {
+	ID, Title, Kind, Area, Size, Problem, Evidence, Impact, Goal string
+	Priority                                                     int
+}
+
+// TriageProposals asks the advisor for a decision on every open proposal of
+// the project, a few at a time. Nothing is applied: the owner confirms. A
+// batch whose answer is not the JSON asked is asked again once to put its
+// answer in that shape; when every batch fails, the advisor's own words say why.
 func (s *Service) TriageProposals(ctx context.Context, project string, a Actor) ([]ProposalVerdict, error) {
 	p, err := s.Project(project)
 	if err != nil {
@@ -443,51 +460,107 @@ func (s *Service) TriageProposals(ctx context.Context, project string, a Actor) 
 		return nil, ErrNoAdvisor
 	}
 	snap := p.Snapshot()
-	type entry struct {
-		ID, Title, Kind, Area, Size, Problem, Evidence, Impact, Goal string
-		Priority                                                     int
-	}
-	var open []entry
+	var open []triageEntry
 	for _, pr := range snap.Proposals {
 		if pr.Status == domain.ProposalOpen || pr.Status == "later" {
-			open = append(open, entry{pr.ID, pr.Title, pr.Kind, pr.Area, pr.Size, pr.Problem, pr.Evidence, pr.Impact, pr.GoalLink, int(pr.Priority)})
+			open = append(open, triageEntry{pr.ID, pr.Title, pr.Kind, pr.Area, pr.Size, pr.Problem, pr.Evidence, pr.Impact, pr.GoalLink, int(pr.Priority)})
 		}
 	}
 	if len(open) == 0 {
 		return nil, nil
 	}
-	slices.SortFunc(open, func(x, y entry) int { return strings.Compare(x.ID, y.ID) })
-	in, _ := json.Marshal(open)
+	slices.SortFunc(open, func(x, y triageEntry) int { return strings.Compare(x.ID, y.ID) })
 	goal := ""
 	if g := snap.ActiveGoal(); g != nil {
 		goal = g.Name + " (done when: " + g.DoneWhen + ")"
 	}
+	var batches [][]triageEntry
+	for len(open) > 0 {
+		n := min(triageBatch, len(open))
+		batches = append(batches, open[:n])
+		open = open[n:]
+	}
+	results := make([][]ProposalVerdict, len(batches))
+	errs := make([]error, len(batches))
+	sem := make(chan struct{}, triageParallel)
+	var wg sync.WaitGroup
+	for i, b := range batches {
+		wg.Go(func() {
+			sem <- struct{}{}
+			defer func() { <-sem }()
+			results[i], errs[i] = s.triageBatch(ctx, p, adv, goal, b)
+		})
+	}
+	wg.Wait()
+	var verdicts []ProposalVerdict
+	for _, r := range results {
+		verdicts = append(verdicts, r...)
+	}
+	if len(verdicts) == 0 {
+		return nil, errors.Join(errs...)
+	}
+	for _, err := range errs {
+		if err != nil && s.d.Log != nil {
+			s.d.Log.Warn("triage: a batch of proposals got no verdicts", "project", p.Name, "err", err)
+		}
+	}
+	return verdicts, nil
+}
+
+// triageBatch asks for the verdicts of a few proposals.
+func (s *Service) triageBatch(ctx context.Context, p *Project, adv Advisor, goal string, open []triageEntry) ([]ProposalVerdict, error) {
 	lang := ownerLanguageName(p.Cfg().Language)
 	if lang == "" {
 		lang = "English"
 	}
-	actx, cancel := context.WithTimeout(ctx, 2*adviceTimeout)
+	in, _ := json.Marshal(open)
+	shape := "{\"verdicts\":[{\"id\":\"P-1\",\"decision\":\"approve\",\"reason\":\"one sentence in " + lang + "\"}]}"
+	actx, cancel := context.WithTimeout(ctx, adviceTimeout)
 	defer cancel()
 	ans, err := adv.Advise(actx, AdviceRequest{
 		System: advisorSystem(p, true),
 		Prompt: "The owner cannot read every proposal. For EACH proposal below decide: approve (worth an item now, for the goal), " +
-			"reject (not worth it, duplicate, or wrong) or later (good, not now). Check the code when a claim matters. Goal: " + goal + ".\n" +
-			"Answer ONLY with JSON: {\"verdicts\":[{\"id\":\"P-1\",\"decision\":\"approve\",\"reason\":\"one sentence in " + lang + "\"}]}\n" +
+			"reject (not worth it, duplicate, or wrong) or later (good, not now). Goal: " + goal + ".\n" +
+			"Read the code only when a claim decides the verdict, and only a few files: the verdicts matter more than the proof.\n" +
+			"Your whole answer is this JSON and nothing else, even when you could not check everything: " + shape + "\n" +
 			"<<<UNTRUSTED proposals\n" + string(in) + "\n>>>END UNTRUSTED",
 		Workdir: p.Cfg().Root,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("the advisor did not answer: %w", err)
 	}
-	var out struct {
-		Verdicts []ProposalVerdict `json:"verdicts"`
-	}
-	if err := json.Unmarshal([]byte(extractJSON(ans.Text)), &out); err != nil {
-		return nil, fmt.Errorf("the advisor's triage is not the fixed shape: %w", err)
-	}
 	known := map[string]bool{}
 	for _, e := range open {
 		known[e.ID] = true
+	}
+	v, perr := parseVerdicts(ans.Text, known)
+	if perr == nil {
+		return v, nil
+	}
+	// Once more: the same answer, put in the shape, without reading anything.
+	rctx, rcancel := context.WithTimeout(ctx, adviceTimeout)
+	defer rcancel()
+	again, err := adv.Advise(rctx, AdviceRequest{
+		System:  "You turn a text into JSON. You read no file. Your whole answer is the JSON.",
+		Prompt:  "Proposals: " + strings.Join(slices.Collect(maps.Keys(known)), ", ") + ".\nRewrite the verdicts of the text below as " + shape + " (decision: approve, reject or later; a proposal the text does not decide is later, with the reason that it was not weighed).\n<<<UNTRUSTED text\n" + ans.Text + "\n>>>END UNTRUSTED",
+		Workdir: p.Cfg().Root,
+	})
+	if err == nil {
+		if v, err := parseVerdicts(again.Text, known); err == nil {
+			return v, nil
+		}
+	}
+	return nil, fmt.Errorf("%w: the advisor answered without the verdicts (%s)", ErrConflict, truncate(strings.TrimSpace(ans.Text), 200))
+}
+
+// parseVerdicts reads the verdicts of an answer: only the proposals asked,
+// only approve, reject or later.
+func parseVerdicts(text string, known map[string]bool) ([]ProposalVerdict, error) {
+	var out struct {
+		Verdicts []ProposalVerdict `json:"verdicts"`
+	}
+	if err := json.Unmarshal([]byte(extractJSON(text)), &out); err != nil {
+		return nil, err
 	}
 	var verdicts []ProposalVerdict
 	for _, v := range out.Verdicts {
@@ -495,6 +568,9 @@ func (s *Service) TriageProposals(ctx context.Context, project string, a Actor) 
 		if known[v.ID] && (v.Decision == "approve" || v.Decision == "reject" || v.Decision == "later") {
 			verdicts = append(verdicts, v)
 		}
+	}
+	if len(verdicts) == 0 {
+		return nil, errors.New("no verdict for the proposals asked")
 	}
 	return verdicts, nil
 }

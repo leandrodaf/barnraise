@@ -201,7 +201,7 @@ type CapabilityItem struct {
 	Version   string `json:"version,omitempty"`
 	NeedsRoot bool   `json:"needs_root,omitempty"`
 	// On: a project or the machine switched it on (or it is always on).
-	On bool `json:"-"`
+	On bool `json:"on,omitempty"`
 }
 
 // Attention reports whether the owner should look at it: switched on

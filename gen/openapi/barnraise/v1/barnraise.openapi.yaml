@@ -3352,6 +3352,10 @@ components:
           type: boolean
           title: needs_root
           description: the fix needs root (shown, never automated)
+        on:
+          type: boolean
+          title: on
+          description: a project or the machine switched it on (or it is always on)
       title: CapabilityItem
       additionalProperties: false
     barnraise.v1.CapabilityTool:

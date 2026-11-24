@@ -766,6 +766,20 @@ Object.assign(pt, {
   loginState: { running: 'Esperando você', done: 'Login feito', failed: 'Falhou', cancelled: 'Parado' },
 });
 
+Object.assign(en, {
+  partsWaitingN: '{0} waiting for you', partWaitOne: 'To go on, this part needs one answer from you:', partWaitMany: 'To go on, this part needs {0} answers from you:',
+  partWaitFor: 'for {0} · {1}', partWaitPlan: 'The plan is ready: approve it or send it back.', partWaitDelivery: 'The delivery is ready: approve it or send it back.',
+  partWaitOpen: 'Open the item to see what it waits for.', partNothingForYou: 'Nothing here waits for you.', partWorkingNow: 'Working now',
+  partHow: 'How this part is set up', partContracts: 'Contracts',
+});
+
+Object.assign(pt, {
+  partsWaitingN: '{0} esperam você', partWaitOne: 'Para seguir, esta parte precisa de uma resposta sua:', partWaitMany: 'Para seguir, esta parte precisa de {0} respostas suas:',
+  partWaitFor: 'do {0} · {1}', partWaitPlan: 'O plano está pronto: aprove ou mande de volta.', partWaitDelivery: 'A entrega está pronta: aprove ou mande de volta.',
+  partWaitOpen: 'Abra o item para ver o que ele espera.', partNothingForYou: 'Nada aqui espera você.', partWorkingNow: 'Trabalhando agora',
+  partHow: 'Como esta parte está configurada', partContracts: 'Contratos',
+});
+
 import { locale } from './locale.svelte';
 
 // The current language; t() and tm() read it, so the screen follows a switch.

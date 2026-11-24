@@ -11,12 +11,14 @@ import (
 
 const (
 	fixBwrapInstall = "sudo apt install bubblewrap  (Fedora: sudo dnf install bubblewrap; Arch: sudo pacman -S bubblewrap)"
-	fixBwrapUserns  = "allow unprivileged user namespaces for bwrap: sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0 (or an AppArmor profile for /usr/bin/bwrap)"
-	fixKVM          = "sudo usermod -aG kvm $USER, then log out and in again (and turn on virtualization in the firmware if /dev/kvm is missing)"
-	fixLandlock     = "boot Linux 5.13 or later with landlock in the lsm= list of the kernel command line (most distributions since 2022 have it)"
-	fixEgress       = "start the daemon with the egress proxy: barnraise up --egress 127.0.0.1:7421 (or BARNRAISE_EGRESS=127.0.0.1:7421)"
-	fixDocker       = "install Docker Engine with the compose plugin (https://docs.docker.com/engine/install/) and add yourself to the docker group: sudo usermod -aG docker $USER"
-	fixGit          = "install git 2.25 or later (sudo apt install git, brew install git)"
+	// An AppArmor profile lets bwrap alone make user namespaces, and it lasts
+	// across reboots; the sysctl opens them to every program and is lost.
+	fixBwrapUserns = `printf 'abi <abi/4.0>,\ninclude <tunables/global>\nprofile bwrap /usr/bin/bwrap flags=(unconfined) {\n  userns,\n}\n' | sudo tee /etc/apparmor.d/bwrap >/dev/null && sudo apparmor_parser -r /etc/apparmor.d/bwrap`
+	fixKVM         = "sudo usermod -aG kvm $USER, then log out and in again (and turn on virtualization in the firmware if /dev/kvm is missing)"
+	fixLandlock    = "boot Linux 5.13 or later with landlock in the lsm= list of the kernel command line (most distributions since 2022 have it)"
+	fixEgress      = "start the daemon with the egress proxy: barnraise up --egress 127.0.0.1:7421 (or BARNRAISE_EGRESS=127.0.0.1:7421)"
+	fixDocker      = "install Docker Engine with the compose plugin (https://docs.docker.com/engine/install/) and add yourself to the docker group: sudo usermod -aG docker $USER"
+	fixGit         = "install git 2.25 or later (sudo apt install git, brew install git)"
 )
 
 func cfgOr(cfg *ProjectConfig) *ProjectConfig {
@@ -80,7 +82,7 @@ var staticCapabilities = []Capability{
 		Requires: []Requirement{{Kind: ReqEgressCA, Auto: true, Fix: "let the daemon write <data dir>/egress (it creates the CA when the proxy starts)",
 			Fallback: "path rules apply to plain HTTP only; HTTPS is filtered by host"}}},
 	{ID: "security.gitleaks", Title: "Secret scan with gitleaks", Group: CapGroupSecurity, Kind: CapOptional,
-		Requires: []Requirement{{Kind: ReqTool, Name: "gitleaks", Fix: "install gitleaks (https://github.com/gitleaks/gitleaks#installing)",
+		Requires: []Requirement{{Kind: ReqTool, Name: "gitleaks", Tool: "gitleaks", Fix: "install gitleaks (https://github.com/gitleaks/gitleaks#installing)",
 			Fallback: "Barnraise's built-in secret patterns scan every delivery"}}},
 
 	// isolation

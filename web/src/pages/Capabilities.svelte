@@ -19,6 +19,10 @@
 	import XIcon from '@lucide/svelte/icons/circle-x';
 	import MinusIcon from '@lucide/svelte/icons/circle-minus';
 	import ShieldIcon from '@lucide/svelte/icons/shield';
+	import LogInIcon from '@lucide/svelte/icons/log-in';
+	import ChevronRightIcon from '@lucide/svelte/icons/chevron-right';
+	import * as Collapsible from '$lib/components/ui/collapsible';
+	import { loginPanel } from '$lib/app/login.svelte';
 	import { api, errorText } from '$lib/api';
 	import { getLang } from '$lib/i18n';
 	import { ago } from '$lib/format';
@@ -42,7 +46,11 @@
 		st_active: 'Active', st_available: 'Available, off', st_degraded: 'On a fallback', st_missing: 'Missing', st_unsupported: 'Not for this OS',
 		k_native: 'native', k_optional: 'optional', k_plugin: 'plugin', version: 'version {0}', pinned: 'pinned {0}', managed: 'by Barnraise',
 		g_security: 'Security', g_isolation: 'Isolation', g_merge: 'Merge', g_checks: 'Checks', g_context: 'Context and search',
-		g_tokens: 'Tokens', g_worktrees: 'Worktrees', g_providers: 'Agents and providers', g_telemetry: 'Telemetry', g_cluster: 'Machines network', g_plugins: 'Plugins', g_other: 'Other'
+		g_tokens: 'Tokens', g_worktrees: 'Worktrees', g_providers: 'Agents and providers', g_telemetry: 'Telemetry', g_cluster: 'Machines network', g_plugins: 'Plugins', g_other: 'Other',
+		todoTitle: 'What needs you', todoNone: 'Everything that is switched on works on every machine.', todoOn: 'On {0}', todoNow: 'Meanwhile: {0}',
+		doInstall: 'Install on {0}', doLogin: 'Log in to the account', doRun: 'Run this once in a terminal of {0}:', doRunRoot: 'It needs your password (sudo): Barnraise never runs it for you.',
+		doCopy: 'Copy the command', doConfig: 'Change this in the configuration:', working: 'Working ({0})', optional: 'Optional, switched off ({0})',
+		optionalHelp: 'None of these is a problem: they are extras you can switch on when you want them.', details: 'Each machine, item by item', turnOn: 'To switch it on'
 	};
 	const PT: Record<string, string> = {
 		title: 'Capacidades', help: 'O que roda em cada máquina, o que cai num plano B e por quê, e um clique para instalar o que falta.',
@@ -57,7 +65,45 @@
 		st_active: 'Ativo', st_available: 'Disponível, desligado', st_degraded: 'No plano B', st_missing: 'Faltando', st_unsupported: 'Não é para este SO',
 		k_native: 'nativo', k_optional: 'opcional', k_plugin: 'plugin', version: 'versão {0}', pinned: 'fixada {0}', managed: 'pelo Barnraise',
 		g_security: 'Segurança', g_isolation: 'Isolamento', g_merge: 'Merge', g_checks: 'Checks', g_context: 'Contexto e busca',
-		g_tokens: 'Tokens', g_worktrees: 'Worktrees', g_providers: 'Agentes e provedores', g_telemetry: 'Telemetria', g_cluster: 'Rede entre máquinas', g_plugins: 'Plugins', g_other: 'Outros'
+		g_tokens: 'Tokens', g_worktrees: 'Worktrees', g_providers: 'Agentes e provedores', g_telemetry: 'Telemetria', g_cluster: 'Rede entre máquinas', g_plugins: 'Plugins', g_other: 'Outros',
+		todoTitle: 'O que precisa de você', todoNone: 'Tudo que está ligado funciona em todas as máquinas.', todoOn: 'Em {0}', todoNow: 'Enquanto isso: {0}',
+		doInstall: 'Instalar em {0}', doLogin: 'Entrar com a conta', doRun: 'Rode isto uma vez num terminal da {0}:', doRunRoot: 'Pede a sua senha (sudo): o Barnraise nunca roda isso por você.',
+		doCopy: 'Copiar o comando', doConfig: 'Mude isto na configuração:', working: 'Funcionando ({0})', optional: 'Opcionais desligados ({0})',
+		optionalHelp: 'Nada disto é problema: são extras que você liga quando quiser.', details: 'Cada máquina, item por item', turnOn: 'Para ligar'
+	};
+	// What each capability is, in plain words, for who does not know the name.
+	const ABOUT_PT: Record<string, string> = {
+		'security.gitleaks': 'Procura senhas e chaves esquecidas no código antes de integrar.',
+		'security.trust': 'Cada agente só usa o próprio acesso, e o histórico não pode ser adulterado.',
+		'egress.proxy': 'Deixa os agentes acessarem só os sites liberados na internet.',
+		'egress.rules': 'Na internet, os agentes só escrevem no repositório do projeto.',
+		'egress.broker': 'As chaves dos provedores ficam fora do alcance dos agentes.',
+		'egress.inspect': 'Confere o que os agentes enviam para fora e guarda um recibo assinado.',
+		'sandbox.bubblewrap': 'Caixa de areia que prende o Codex e os terminais dos agentes.',
+		'sandbox.landlock': 'O próprio Linux impede os agentes de mexer fora da pasta do item.',
+		'sandbox.microvm': 'Roda cada agente numa máquina virtual pequena e separada.',
+		'sandbox.profiles': 'Regras do que cada etapa (preparo, verificação, sessão) pode tocar.',
+		'merge.rerere': 'Lembra como um conflito foi resolvido e repete sozinho.',
+		'merge.structural': 'Junta mudanças entendendo o código, com menos conflitos.',
+		'checks.ast-grep': 'Verificação de padrões de código pela estrutura.',
+		'checks.dependencies': 'Avisa quando uma dependência tem falha de segurança conhecida.',
+		'context.lessons': 'O que deu errado numa entrega vira lição para as próximas.',
+		'context.map': 'Um mapa do repositório para o agente se achar rápido.',
+		'context.search': 'Busca rápida no código.',
+		'context.stale-reads': 'Avisa o agente quando um arquivo que ele leu mudou na main.',
+		'context.symbols': 'Encontra funções e tipos pela estrutura do código.',
+		'tokens.outfilter': 'Corta saídas longas de comandos para gastar menos tokens.',
+		'tokens.rtk': 'Comprime ainda mais a saída dos comandos.',
+		'worktrees.build-cache': 'Reaproveita o build entre itens para não compilar tudo de novo.',
+		'worktrees.containers': 'Roda os agentes dentro de contêineres.',
+		'worktrees.git': 'Cada item trabalha numa cópia separada do repositório.',
+		'worktrees.hooks': 'Comandos seus que rodam ao criar ou apagar a cópia de um item.',
+		'worktrees.services': 'Sobe banco e serviços separados para cada item.',
+		'providers.claude': 'Os agentes que usam o Claude.',
+		'providers.codex': 'Os agentes que usam o Codex (OpenAI).',
+		'providers.gemini': 'Os agentes que usam o Gemini (Google).',
+		'telemetry.otel': 'Manda métricas e rastros para um painel externo (Grafana etc.).',
+		'cluster.network': 'A rede que liga as suas máquinas.'
 	};
 	const w = (k: string, ...a: unknown[]) =>
 		((getLang() === 'pt-BR' ? PT : EN)[k] ?? EN[k] ?? k).replace(/\{(\d)\}/g, (_, i) => String(a[Number(i)] ?? ''));
@@ -173,6 +219,31 @@
 			.filter((x) => x.n)
 			.map((x) => ({ ...x, pct: (x.n * 100) / n }));
 	};
+	const about = (id: string, title: string) => (getLang() === 'pt-BR' ? ABOUT_PT[id] || title : title);
+	// What needs the owner: switched on (the daemon's word) and not running as
+	// designed, one entry per capability with the machines it touches.
+	type Todo = { item: CapabilityItem; cells: { m: string; c: CapabilityItem }[] };
+	const todos = $derived.by(() => {
+		const by = new Map<string, Todo>();
+		for (const m of machines)
+			for (const c of m.items)
+				if (c.on && needsAttention(c.status)) {
+					const t = by.get(c.id) || { item: c, cells: [] };
+					t.cells.push({ m: m.machine, c });
+					by.set(c.id, t);
+				}
+		return [...by.values()].sort((a, b) => st(b.item.status).rank - st(a.item.status).rank);
+	});
+	const isLogin = (c: CapabilityItem) => /^barnraise account add (claude|codex)$/.test(c.fix);
+	const cmdOf = (fix: string) => {
+		const m = fix.match(/(?:^|: )((?:sudo |npm |printf |barnraise ).*)$/);
+		return m ? m[1].replace(/\s+\(.*\)$/, '') : '';
+	};
+	const isConfig = (fix: string) => /^(barnraise\.yaml|daemon\.yaml):/.test(fix);
+	const working = $derived(rows.flatMap((g) => g.rows).filter((r) => Object.values(r.cells).every((c) => c.status === 'active')));
+	const optional = $derived(rows.flatMap((g) => g.rows).filter((r) => Object.values(r.cells).some((c) => !c.on && c.status !== 'active' && c.status !== 'unsupported')));
+	let showDetails = $state(false);
+
 	const BAR: Record<string, string> = { active: 'bg-st-done', available: 'bg-st-idle/50', degraded: 'bg-st-needs', missing: 'bg-st-fail', unsupported: 'bg-st-idle/25' };
 </script>
 
@@ -202,6 +273,55 @@
 {#if !report}<Empty text="…" />{:else if !machines.length}<Empty />{/if}
 
 {#if machines.length}
+	<!-- What needs the owner, in plain words, with the one thing to do. -->
+	<section class="mb-6 space-y-3">
+		<h2 class="text-sm font-semibold">{w('todoTitle')}</h2>
+		{#if !todos.length}
+			<p class="flex items-center gap-2 rounded-xl border bg-card px-4 py-3 text-sm"><CheckIcon class="size-4 {TEXT.done}" />{w('todoNone')}</p>
+		{/if}
+		{#each todos as td (td.item.id)}
+			{@const s0 = st(td.item.status)}
+			{@const names = td.cells.map((x) => x.m)}
+			{@const tools = td.cells.filter((x) => x.c.tool && !x.c.needsRoot)}
+			<article class="space-y-3 rounded-xl border bg-card p-4 {td.item.status === 'missing' ? 'border-st-fail/40' : 'border-st-needs/40'}">
+				<div class="flex flex-wrap items-start gap-3">
+					<s0.icon class="mt-0.5 size-4 shrink-0 {TEXT[s0.tone]}" />
+					<div class="min-w-0 flex-1 space-y-1">
+						<p class="font-medium">{about(td.item.id, td.item.title)}</p>
+						<p class="num text-[11px] text-muted-foreground">{td.item.title} · {w('todoOn', names.join(', '))}</p>
+						{#each td.cells as x (x.m)}<p class="text-sm text-muted-foreground">{names.length > 1 ? x.m + ': ' : ''}{x.c.reason}</p>{/each}
+						{#if td.item.fallback}<p class="text-xs text-muted-foreground">{w('todoNow', td.item.fallback)}</p>{/if}
+					</div>
+				</div>
+				<div class="space-y-2 sm:pl-7">
+					{#if tools.length}
+						<Button size="sm" disabled={busy['todo/' + td.item.id]} onclick={() => Promise.all(tools.map((x) => install([x.c.tool], [x.m], false, 'todo/' + td.item.id)))}>
+							{#if busy['todo/' + td.item.id]}<Spinner class="size-3.5" />{:else}<DownloadIcon class="size-3.5" />{/if}{w('doInstall', tools.map((x) => x.m).join(', '))}
+						</Button>
+					{:else if isLogin(td.item)}
+						<Button size="sm" onclick={() => loginPanel.show('', td.item.fix.split(' ').pop())}><LogInIcon class="size-3.5" />{w('doLogin')}</Button>
+					{:else}
+						{#each td.cells as x (x.m)}
+							{@const cmd = cmdOf(x.c.fix)}
+							{#if cmd}
+								<div class="space-y-1.5">
+									<p class="text-sm">{w('doRun', x.m)}</p>
+									<div class="flex items-start gap-2">
+										<code class="num min-w-0 flex-1 rounded-md bg-muted px-3 py-2 text-[11px] break-all">{cmd}</code>
+										<Button size="sm" variant="outline" onclick={() => copy(cmd)}><CopyIcon class="size-3.5" />{w('doCopy')}</Button>
+									</div>
+									{#if x.c.needsRoot}<p class="flex items-center gap-1 text-xs text-muted-foreground"><ShieldIcon class="size-3" />{w('doRunRoot')}</p>{/if}
+								</div>
+							{:else if x.c.fix}
+								<p class="text-sm">{isConfig(x.c.fix) ? w('doConfig') : ''} <code class="num rounded bg-muted px-1.5 py-0.5 text-[11px] break-all">{x.c.fix}</code></p>
+							{/if}
+						{/each}
+					{/if}
+				</div>
+			</article>
+		{/each}
+	</section>
+
 	<!-- One card per machine: the share of each state and the one-click fix. -->
 	<div class="mb-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
 		{#each machines as m (m.machine)}
@@ -236,6 +356,32 @@
 		{/each}
 	</div>
 
+	<!-- Extras switched off: not problems, said once, with how to switch them on. -->
+	{#if optional.length}
+		<Collapsible.Root class="mb-4">
+			<Collapsible.Trigger class="group flex w-full items-center gap-2 rounded-xl border bg-card px-4 py-3 text-sm font-medium hover:bg-muted">
+				<PowerIcon class="size-4 text-muted-foreground" />{w('optional', optional.length)}<ChevronRightIcon class="ml-auto size-4 transition-transform group-data-[state=open]:rotate-90" />
+			</Collapsible.Trigger>
+			<Collapsible.Content>
+				<div class="mt-2 divide-y rounded-xl border bg-card">
+					<p class="px-4 py-2.5 text-xs text-muted-foreground">{w('optionalHelp')}</p>
+					{#each optional as r (r.item.id)}
+						{@const fix = Object.values(r.cells).find((c) => c.fix)?.fix || ''}
+						<div class="space-y-1 px-4 py-2.5">
+							<p class="text-sm">{about(r.item.id, r.item.title)}</p>
+							<p class="num text-[11px] text-muted-foreground">{r.item.title}{fix ? ' · ' + w('turnOn') + ': ' : ''}{#if fix}<code class="break-all">{fix}</code>{/if}</p>
+						</div>
+					{/each}
+				</div>
+			</Collapsible.Content>
+		</Collapsible.Root>
+	{/if}
+
+	<Collapsible.Root bind:open={showDetails} class="mb-4">
+		<Collapsible.Trigger class="group flex w-full items-center gap-2 rounded-xl border bg-card px-4 py-3 text-sm font-medium hover:bg-muted">
+			<BlocksIcon class="size-4 text-muted-foreground" />{w('details')}<span class="num text-xs font-normal text-muted-foreground">{w('working', working.length)}</span><ChevronRightIcon class="ml-auto size-4 transition-transform group-data-[state=open]:rotate-90" />
+		</Collapsible.Trigger>
+		<Collapsible.Content class="mt-3">
 	<!-- The matrix: a row per capability, a column per machine. -->
 	{#if !rows.length}
 		<p class="mb-6 rounded-xl border bg-card px-4 py-6 text-center text-sm text-muted-foreground"><CheckIcon class="mx-auto mb-2 size-6 {TEXT.done}" />{w('allGood')}</p>
@@ -301,6 +447,9 @@
 			{/each}
 		</div>
 	</Tooltip.Provider>
+
+		</Collapsible.Content>
+	</Collapsible.Root>
 
 	<!-- Tools: what each machine has, and install, update or remove on one or all. -->
 	{#if toolIds.length}

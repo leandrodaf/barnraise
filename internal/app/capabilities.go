@@ -4,6 +4,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"maps"
+	"os"
+	"path/filepath"
 	"strings"
 	"sync"
 
@@ -83,6 +86,7 @@ func (s *Service) Capabilities(ctx context.Context, project string, refresh bool
 	cfgs := s.capabilityConfigs(project)
 	settings := s.machineSettings()
 	probe := s.d.Prober.Probe(ctx, ports.ProbeRequest{Programs: domain.CapabilityPrograms(cfgs, settings), Refresh: refresh})
+	probe.Logins = s.accountLogins(probe.Logins)
 	rep := domain.BuildCapabilityReport(s.d.Machine, domain.CapabilityInput{Probe: probe, Settings: settings, Projects: cfgs})
 	if project == "" {
 		s.caps.mu.Lock()
@@ -90,6 +94,40 @@ func (s *Service) Capabilities(ctx context.Context, project string, refresh bool
 		s.caps.mu.Unlock()
 	}
 	return rep, nil
+}
+
+// accountLogins adds to what the probe saw the providers with an account in
+// the rotation that this machine runs and whose login folder is here: an
+// account kept outside Barnraise's own folder (--config-dir) is logged in too.
+func (s *Service) accountLogins(seen map[string]bool) map[string]bool {
+	out := maps.Clone(seen)
+	if out == nil {
+		out = map[string]bool{}
+	}
+	home, _ := os.UserHomeDir()
+	own := map[string]string{"claude": ".claude", "codex": ".codex", "gemini": ".gemini"}
+	for _, name := range s.Projects() {
+		p, err := s.Project(name)
+		if err != nil {
+			continue
+		}
+		for _, a := range p.Snapshot().AccountList() {
+			if out[a.Provider] || !a.UsableOn(s.d.Machine) || a.Status == domain.AccountExpired || a.Status == domain.AccountOff {
+				continue
+			}
+			dir := a.DirOn(s.d.Machine, s.d.DataDir)
+			if dir == "" && own[a.Provider] != "" && home != "" {
+				dir = filepath.Join(home, own[a.Provider])
+			}
+			if dir == "" {
+				continue
+			}
+			if ents, err := os.ReadDir(dir); err == nil && len(ents) > 0 {
+				out[a.Provider] = true
+			}
+		}
+	}
+	return out
 }
 
 // InstallTools installs (or, with remove, removes) tools on this machine.

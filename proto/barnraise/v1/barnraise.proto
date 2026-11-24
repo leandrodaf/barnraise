@@ -1477,6 +1477,7 @@ message CapabilityItem {
   string tool = 9;      // installable tool id when `barnraise tools install <tool>` fixes it, else ""
   string version = 10;  // detected version of the tool/feature, if any
   bool needs_root = 11; // the fix needs root (shown, never automated)
+  bool on = 12;         // a project or the machine switched it on (or it is always on)
 }
 
 message CapabilityTool {

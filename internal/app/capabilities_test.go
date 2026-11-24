@@ -3,6 +3,8 @@ package app
 import (
 	"context"
 	"errors"
+	"os"
+	"path/filepath"
 	"strings"
 	"sync"
 	"testing"
@@ -167,5 +169,31 @@ func TestSessionTokensCannotReachCapabilities(t *testing.T) {
 		if err := AuthorizeCall(Actor{Kind: ActorOwner}, proc, CallRefs{}); err != nil {
 			t.Fatalf("owner %s: %v", proc, err)
 		}
+	}
+}
+
+// An account kept outside Barnraise's own folder counts as logged in on the
+// machines that run it; an expired one, or one for another machine, does not.
+func TestAccountLoginsCountInTheReport(t *testing.T) {
+	e := newEnv(t)
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, ".credentials.json"), []byte("{}"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	for _, a := range []domain.Account{
+		{ID: "claude-2", Provider: "claude", ConfigDir: dir, Machine: "m1", CeilingPct: 100},
+		{ID: "codex-1", Provider: "codex", ConfigDir: dir, Machine: "m9", CeilingPct: 100},
+		{ID: "gemini-1", Provider: "gemini", ConfigDir: dir, Status: domain.AccountExpired, CeilingPct: 100},
+	} {
+		e.p.mu.Lock()
+		e.p.state.Accounts[a.ID] = &a
+		e.p.mu.Unlock()
+	}
+	got := e.svc.accountLogins(nil)
+	if !got["claude"] || got["codex"] || got["gemini"] {
+		t.Fatalf("logins %v", got)
+	}
+	if got := e.svc.accountLogins(map[string]bool{"codex": true}); !got["codex"] || !got["claude"] {
+		t.Fatalf("what the probe saw is kept: %v", got)
 	}
 }

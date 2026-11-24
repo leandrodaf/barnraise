@@ -2,7 +2,10 @@ package app
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/leandrodaf/barnraise/internal/domain"
@@ -172,5 +175,68 @@ func TestTriageProposals(t *testing.T) {
 	}
 	if e.p.Snapshot().Proposals[pr.ID].Status != domain.ProposalOpen {
 		t.Fatal("triage applied a decision")
+	}
+}
+
+// scriptedAdvisor answers each call with the next reply, and records the calls.
+type scriptedAdvisor struct {
+	mu      sync.Mutex
+	got     []AdviceRequest
+	replies func(r AdviceRequest) string
+}
+
+func (f *scriptedAdvisor) Advise(_ context.Context, r AdviceRequest) (AdviceAnswer, error) {
+	f.mu.Lock()
+	f.got = append(f.got, r)
+	f.mu.Unlock()
+	return AdviceAnswer{Text: f.replies(r), Model: "fable"}, nil
+}
+
+// A long list is weighed a few proposals at a time; an answer in prose is
+// put in the shape once more; an advisor that never gives verdicts says why.
+func TestTriageProposalsInBatches(t *testing.T) {
+	e := newEnv(t)
+	adv := &scriptedAdvisor{}
+	pp := *e.p.Ports()
+	pp.Advisor = adv
+	e.p.portsV.Store(&pp)
+	var ids []string
+	for i := range triageBatch + 3 {
+		res, err := e.svc.Propose(e.ctx, "demo", owner(), prop(fmt.Sprintf("Idea number %d about lists", i), fmt.Sprintf("area%d", i)))
+		if err != nil {
+			t.Fatal(err)
+		}
+		ids = append(ids, res.Proposal.ID)
+	}
+	verdictsOf := func(prompt string) string {
+		var vs []string
+		for _, id := range ids {
+			if strings.Contains(prompt, `"`+id+`"`) || strings.Contains(prompt, id+",") || strings.HasSuffix(strings.SplitN(prompt, "\n", 2)[0], id+".") {
+				vs = append(vs, `{"id":"`+id+`","decision":"later","reason":"not now"}`)
+			}
+		}
+		return `{"verdicts":[` + strings.Join(vs, ",") + `]}`
+	}
+	// The first answer of each batch is prose; the rewrite is the JSON.
+	adv.replies = func(r AdviceRequest) string {
+		if strings.HasPrefix(r.System, "You turn a text into JSON") {
+			return verdictsOf(r.Prompt)
+		}
+		return "You have many good ideas here; I would wait on most of them."
+	}
+	v, err := e.svc.TriageProposals(e.ctx, "demo", owner())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(v) != len(ids) {
+		t.Fatalf("%d verdicts for %d proposals: %+v", len(v), len(ids), v)
+	}
+	if n := len(adv.got); n != 4 {
+		t.Errorf("%d calls: two batches, each asked twice", n)
+	}
+	adv.got = nil
+	adv.replies = func(AdviceRequest) string { return "You've hit your limit · resets 7pm" }
+	if _, err := e.svc.TriageProposals(e.ctx, "demo", owner()); !errors.Is(err, ErrConflict) || !strings.Contains(err.Error(), "hit your limit") {
+		t.Fatalf("no verdicts: %v", err)
 	}
 }
