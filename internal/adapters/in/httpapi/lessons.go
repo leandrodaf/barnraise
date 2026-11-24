@@ -17,8 +17,10 @@ import (
 //
 // Without a project, the daemon's only project is meant.
 func (s *Server) routeLessons() {
-	s.mux.Handle("GET /v1/lessons", s.auth(http.HandlerFunc(s.handleListLessons)))
-	s.mux.Handle("DELETE /v1/lessons/{id}", s.auth(http.HandlerFunc(s.handleDeleteLesson)))
+	// Neither is on the session allow-list (ADR-0029): agents get their
+	// lessons in the prompt, and only the owner deletes one.
+	s.mux.Handle("GET /v1/lessons", s.auth(s.guardHTTP("ListLessons", http.HandlerFunc(s.handleListLessons))))
+	s.mux.Handle("DELETE /v1/lessons/{id}", s.auth(s.guardHTTP("DeleteLesson", http.HandlerFunc(s.handleDeleteLesson))))
 }
 
 // LessonsResponse is the body of the lesson list.
