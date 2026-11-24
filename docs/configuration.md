@@ -659,8 +659,33 @@ Send a share of the items to a change before the whole fleet gets it.
 | `safety_commit` | `15m` | Pending changes are committed and pushed at least this often |
 | `setup` | none | Command run once in each new worktree, before any work or check there: install dependencies, generate code (`make install`, `pnpm install --frozen-lockfile`). Also run in the scratch checkouts of checks moved to another machine |
 | `setup_timeout` | `30m` | How long `setup` may take |
+| `seed` | none | Directories copied from the project root into a worktree before `setup` runs (`web/node_modules`), so the setup only checks what is already there |
+| `stores` | none | Directories shared by every worktree of the project: store name to the environment variable that receives its path (`pnpm: npm_config_store_dir`) |
+| `strip` | none | Rebuildable directories removed from the worktree of an item that waits for the owner or is blocked (`web/node_modules`, `mobile/android/app/build`) |
+| `strip_after` | `1h` | How long an item waits before `strip` empties its worktree |
 
 `include` copies files that are not in git into every worktree. It is empty by default, because such files (`.env`) usually hold what an agent must not have: secrets, or the address of a real database. List a file only when it is safe in an agent's hands.
+
+### Many worktrees, one set of dependencies
+
+Every item has its own worktree, and a fresh checkout has no dependencies: without help each one installs its own copy, and ten items are ten `node_modules`. Three keys keep that small. They are independent; use the ones that fit the machine.
+
+```yaml
+worktree:
+  setup: pnpm install --frozen-lockfile
+  seed: [node_modules]
+  stores: { pnpm: npm_config_store_dir }
+  strip: [node_modules, android/app/build]
+  strip_after: 2h
+```
+
+**`seed`** copies directories from the project root (the repository `barnraise up` ran in) into a new worktree, before `setup`. The copy keeps file times, so build tools do not see everything as changed. On a filesystem that shares blocks between copies (btrfs, XFS with reflink, APFS) it takes almost no time and no space until a file changes. On ext4 it is a plain copy: it saves the download and the install time, not the disk. A directory that is missing in the root, or already in the worktree, is skipped; a copy that fails is undone and `setup` installs from scratch. A plain copy also turns files a package manager had linked to its store into files of their own: on ext4 choose `stores` for the disk, and add `seed` only if the install time matters more.
+
+**`stores`** is for the disk on any filesystem. Each store is one directory for the whole project, in the data directory (`stores/<project>/<name>/`), on the same filesystem as the worktrees. Its path reaches `setup`, the checks and the agent in the environment variable you name, and the directory is mounted in the agent's container at the same path. Point the package manager's store or cache at it and every worktree links to the same files instead of holding its own: `pnpm: npm_config_store_dir` (pnpm hard-links from its store), `gradle: GRADLE_USER_HOME`, `go: GOMODCACHE`. Several worktrees use a store at the same time, so name only tools made for that (pnpm's store and Go's module cache are; a plain `node_modules` is not). A store is a cache: deleting it only costs the next install. Names of variables that start with `BARNRAISE_` are refused.
+
+**`strip`** empties the worktrees that only wait. When an item has been `waiting_owner` or `blocked` for `strip_after`, the listed directories leave its worktree; the branch, the commits and every other file stay. When the item moves again, the worktree is seeded and set up again before anything runs there. An item with a session running is never touched. List only what `setup` (or a build) puts back.
+
+Paths in `seed` and `strip` are relative to the repository root and stay inside it; `.git` and Barnraise's own folders are refused.
 
 ## Machine configuration (`daemon.yaml`)
 

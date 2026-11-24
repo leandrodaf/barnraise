@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"maps"
 	"net"
 	"os"
 	"os/exec"
@@ -19,6 +20,7 @@ import (
 
 	"github.com/nats-io/nats.go"
 
+	pb "github.com/leandrodaf/barnraise/gen/barnraise/v1"
 	"github.com/leandrodaf/barnraise/gen/openapi"
 	"github.com/leandrodaf/barnraise/internal/adapters/in/cli"
 	"github.com/leandrodaf/barnraise/internal/adapters/in/httpapi"
@@ -94,9 +96,14 @@ type daemon struct {
 	pidFile string
 	binary  string
 	fake    *fakeAgent
+	// stopSelf ends the daemon as a signal would; a paired machine can ask for it.
+	stopSelf context.CancelFunc
 }
 
 func runDaemon(ctx context.Context, opts cli.DaemonOptions) error {
+	// A peer can ask this daemon to stop (barnraise down, answered "yes" there).
+	ctx, stopSelf := context.WithCancel(ctx)
+	defer stopSelf()
 	log := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelInfo}))
 	df, err := daemoncfg.Load()
 	if err != nil {
@@ -114,6 +121,9 @@ func runDaemon(ctx context.Context, opts cli.DaemonOptions) error {
 	d := &daemon{log: log, df: df, dfMod: df.ModTime(), roots: map[string]string{}, runners: map[string]*checks.Runner{}, plugins: map[string]*plugin.Host{}, dataDir: paths.DataDir(), opts: opts}
 	if err := os.MkdirAll(d.dataDir, 0o700); err != nil {
 		return err
+	}
+	if err := paths.MarkNotIndexed(d.dataDir); err != nil {
+		log.Warn("the data directory is not marked for file indexers to skip", "dir", d.dataDir, "err", err)
 	}
 	pidFile := filepath.Join(d.dataDir, "daemon.pid")
 	d.pidFile = pidFile
@@ -218,6 +228,8 @@ func runDaemon(ctx context.Context, opts cli.DaemonOptions) error {
 	go d.reindexOnIntegration(ctx)
 	go d.watchDaemonFile(ctx)
 	go d.serveRemoteChecks(ctx)
+	d.stopSelf = stopSelf
+	go d.serveRemoteStop(ctx)
 
 	srv := httpapi.New(svc, httpapi.Options{
 		Version: version, OwnerToken: owner, Store: d.store, Probe: d.probe, Panel: panel.FS(), OpenAPI: openapi.Document(),
@@ -241,6 +253,7 @@ func runDaemon(ctx context.Context, opts cli.DaemonOptions) error {
 			return nil
 		},
 		Reload: d.reloadProject,
+		Peers:  d.peers, StopPeers: d.stopPeers,
 		WebhookSecret: func(project, source string) string {
 			v, _ := d.secrets.Get("webhook/" + project + "/" + source)
 			return v
@@ -512,6 +525,9 @@ func (d *daemon) watchDaemonFile(ctx context.Context) {
 			}
 			if err := d.startNATS(ctx); err != nil {
 				d.log.Warn("NATS restart", "err", err)
+			} else {
+				// The subscription went with the old connection.
+				go d.serveRemoteStop(ctx)
 			}
 		}
 		if d.repl != nil {
@@ -981,6 +997,13 @@ func (d *daemon) serveRemoteChecks(ctx context.Context) {
 			return nil, err // the asking machine runs the check itself
 		}
 		rc.Spec.Dir = dir
+		// The shared stores are this machine's: the paths that came are the sender's.
+		if stores := d.svc.StoreEnv(p); len(stores) > 0 {
+			if rc.Spec.Env == nil {
+				rc.Spec.Env = map[string]string{}
+			}
+			maps.Copy(rc.Spec.Env, stores)
+		}
 		rc.Spec.Def.RunsOn = "local"
 		rc.Spec.Def.NoOffload = true // asked to run it here: never passed on again
 		res, _, err := (&checkRouter{d: d}).Run(ctx, rc.Spec)
@@ -989,6 +1012,67 @@ func (d *daemon) serveRemoteChecks(ctx context.Context) {
 		}
 		return json.Marshal(res)
 	})
+}
+
+// serveRemoteStop stops this daemon when a paired machine asks. Only paired
+// machines reach the subject: the NATS server admits their keys and no other.
+func (d *daemon) serveRemoteStop(ctx context.Context) {
+	b := d.bus.v.Load()
+	if b == nil {
+		return
+	}
+	_ = natsx.Serve(ctx, b.Conn(), natsx.RPCSubject(d.df.Machine, "down"), func(_ context.Context, data []byte) ([]byte, error) {
+		d.log.Info("a paired machine asked this daemon to stop", "from", string(data))
+		// Answer first: the reply leaves before the connection closes.
+		time.AfterFunc(500*time.Millisecond, d.stopSelf)
+		return []byte("ok"), nil
+	})
+}
+
+// peers lists the machines this daemon is paired with.
+func (d *daemon) peers() []*pb.Peer {
+	if d.repl == nil {
+		return nil
+	}
+	var out []*pb.Peer
+	for _, st := range d.repl.Peers() {
+		out = append(out, &pb.Peer{Name: st.Name, Connected: st.Connected})
+	}
+	return out
+}
+
+// stopPeers asks the named machines (empty: every connected one) to stop.
+func (d *daemon) stopPeers(ctx context.Context, names []string) []*pb.PeerStop {
+	if len(names) == 0 {
+		for _, p := range d.peers() {
+			if p.Connected {
+				names = append(names, p.Name)
+			}
+		}
+	}
+	out := make([]*pb.PeerStop, len(names))
+	var wg sync.WaitGroup
+	for i, name := range names {
+		wg.Go(func() {
+			res := &pb.PeerStop{Name: name}
+			out[i] = res
+			if d.repl == nil {
+				res.Error = "this daemon has no connection to other machines"
+				return
+			}
+			_, err := d.repl.Request(ctx, name, natsx.RPCSubject(name, "down"), []byte(d.df.Machine), 10*time.Second, 0)
+			switch {
+			case err == nil:
+				res.Stopped = true
+			case errors.Is(err, nats.ErrNoResponders):
+				res.Error = "it runs an older Barnraise that cannot be stopped from here; run `barnraise down` there"
+			default:
+				res.Error = err.Error()
+			}
+		})
+	}
+	wg.Wait()
+	return out
 }
 
 // probe returns this machine's capabilities, cached for 30 seconds.

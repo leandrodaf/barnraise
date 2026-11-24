@@ -453,6 +453,8 @@ func (s *Service) CloseItem(ctx context.Context, project string, a Actor, id, re
 	}
 	s.releaseLease(ctx, p, id)
 	s.stopItemSessions(id)
+	// Nothing uses a closed item's worktrees again; the branch keeps what was committed.
+	s.dropItemWorkspaces(ctx, p, id)
 	if p.Ports().CodeHost != nil && it.PR != "" {
 		go func() {
 			msg := "Closed by Barnraise: " + reason

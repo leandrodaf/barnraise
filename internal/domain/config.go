@@ -419,11 +419,24 @@ type ProjectConfig struct {
 	EnvFiles        []string                `json:"env_files,omitempty"` // copied into worktrees (.worktreeinclude)
 	// WorktreeSetup is a command run once in each new worktree before any
 	// work or check happens there (install dependencies, generate code).
-	WorktreeSetup        string            `json:"worktree_setup,omitempty"`
-	WorktreeSetupTimeout time.Duration     `json:"worktree_setup_timeout,omitempty"`
-	PortBase             int               `json:"port_base"`
-	Standards            map[string]string `json:"standards,omitempty"`
-	Extra                map[string]any    `json:"extra,omitempty"`
+	WorktreeSetup        string        `json:"worktree_setup,omitempty"`
+	WorktreeSetupTimeout time.Duration `json:"worktree_setup_timeout,omitempty"`
+	// WorktreeSeed are directories copied from the project root into a
+	// worktree before its setup (dependencies, caches): copy-on-write where
+	// the filesystem has it, so the setup finds most of its work done.
+	WorktreeSeed []string `json:"worktree_seed,omitempty"`
+	// WorktreeStrip are rebuildable directories removed from the worktree of
+	// an item that waits (waiting_owner, blocked) longer than
+	// WorktreeStripAfter; the setup runs again when the item moves.
+	WorktreeStrip      []string      `json:"worktree_strip,omitempty"`
+	WorktreeStripAfter time.Duration `json:"worktree_strip_after,omitempty"`
+	// WorktreeStores are directories shared by every worktree of the project
+	// (a package manager's store, a build cache): store name -> the
+	// environment variable that receives its path.
+	WorktreeStores map[string]string `json:"worktree_stores,omitempty"`
+	PortBase       int               `json:"port_base"`
+	Standards      map[string]string `json:"standards,omitempty"`
+	Extra          map[string]any    `json:"extra,omitempty"`
 	// APIProviders are the providers reached with an API key (OpenRouter
 	// and other endpoints), by provider name.
 	APIProviders map[string]APIProviderDef `json:"api_providers,omitempty"`

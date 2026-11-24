@@ -29,6 +29,7 @@ import (
 	"github.com/leandrodaf/barnraise/internal/adapters/out/pairing"
 	"github.com/leandrodaf/barnraise/internal/adapters/out/tailnet"
 	"github.com/leandrodaf/barnraise/internal/app"
+	"github.com/leandrodaf/barnraise/internal/client"
 	"github.com/leandrodaf/barnraise/internal/config"
 	"github.com/leandrodaf/barnraise/internal/daemoncfg"
 	"github.com/leandrodaf/barnraise/internal/domain"
@@ -517,8 +518,16 @@ func installService(out io.Writer) error {
 }
 
 func (e *env) downCmd() *cobra.Command {
-	return &cobra.Command{Use: "down", Short: "Stop the daemon of this machine", Args: cobra.NoArgs,
+	var all, here bool
+	c := &cobra.Command{Use: "down", Short: "Stop the daemon of this machine, and of the connected ones if you say so", Args: cobra.NoArgs,
+		Long: "Stops the daemon of this machine. Running steps are saved; items continue from their last step.\n\n" +
+			"When other machines of the cluster are connected, it asks whether to stop Barnraise on them too.\n" +
+			"--all stops them without asking; --here stops only this machine without asking.\n" +
+			"Without a terminal to answer, only this machine stops.",
 		RunE: func(cmd *cobra.Command, _ []string) error {
+			if all && here {
+				return errors.New("--all and --here contradict each other: choose one")
+			}
 			pidf := filepath.Join(paths.DataDir(), "daemon.pid")
 			b, err := os.ReadFile(pidf)
 			if err != nil {
@@ -529,12 +538,63 @@ func (e *env) downCmd() *cobra.Command {
 			if pid <= 0 {
 				return errors.New("bad pid file")
 			}
+			if !here {
+				// Before this daemon stops: it is the one that reaches the others.
+				e.stopPeers(all)
+			}
 			if err := syscall.Kill(pid, syscall.SIGTERM); err != nil {
 				return err
 			}
 			fmt.Fprintln(e.out, "Stopping the daemon: running steps are saved; items continue from their last step.")
 			return nil
 		}}
+	c.Flags().BoolVar(&all, "all", false, "also stop Barnraise on every connected machine, without asking")
+	c.Flags().BoolVar(&here, "here", false, "stop only this machine, without asking")
+	return c
+}
+
+// stopPeers offers to stop Barnraise on the connected machines too (yes: no
+// question). A failure here never keeps this machine from stopping.
+func (e *env) stopPeers(yes bool) {
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	res, err := e.client().ListPeers(ctx, req(&pb.Empty{}))
+	if err != nil {
+		return // the daemon does not answer, or is older: only this machine stops
+	}
+	var names []string
+	for _, p := range res.Msg.Peers {
+		if p.Connected {
+			names = append(names, p.Name)
+		}
+	}
+	if len(names) == 0 {
+		return
+	}
+	if !yes {
+		fmt.Fprintf(e.out, "Barnraise is also connected to: %s.\nStop it there too? (y/n) [n]: ", strings.Join(names, ", "))
+		sc := bufio.NewScanner(e.in)
+		if !sc.Scan() {
+			fmt.Fprintln(e.out)
+			return
+		}
+		v := strings.ToLower(strings.TrimSpace(sc.Text()))
+		if !strings.HasPrefix(v, "y") && !strings.HasPrefix(v, "s") {
+			return
+		}
+	}
+	out, err := e.client().StopPeers(ctx, req(&pb.StopPeersRequest{Names: names}))
+	if err != nil {
+		fmt.Fprintf(e.out, "✘ The other machines were not stopped: %s\n", client.Friendly(err))
+		return
+	}
+	for _, r := range out.Msg.Results {
+		if r.Stopped {
+			fmt.Fprintf(e.out, "✔ %s is stopping.\n", r.Name)
+		} else {
+			fmt.Fprintf(e.out, "✘ %s was not stopped: %s\n", r.Name, r.Error)
+		}
+	}
 }
 
 func (e *env) daemonCmd() *cobra.Command {

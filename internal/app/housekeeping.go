@@ -37,6 +37,24 @@ func (r *Runtime) housekeeping(ctx context.Context, p *Project, m domain.Machine
 		}
 	}
 	s.emitEphemeral(p, domain.EvMachineUpdated, m.Name, "barnraise", domain.Payload{MachineI: &m, Note: "heartbeat"})
+	// Worktrees are local: every machine trims its own, lease or not.
+	if now.Sub(r.lastTrim[p.Name]) > time.Hour {
+		r.lastTrim[p.Name] = now
+		busy := map[string]bool{}
+		r.mu.Lock()
+		for _, ls := range r.running {
+			if ls.project == p.Name {
+				busy[ls.itemID] = true
+			}
+		}
+		r.mu.Unlock()
+		go func() {
+			if t := s.trimWorkspaces(context.Background(), p, busy); t.total() > 0 {
+				s.d.Log.Info("worktrees trimmed", "project", p.Name, "finished", t.Finished, "unknown", t.Unknown, "refine", t.Refine,
+					"scratch", t.Scratch, "trash", t.Trash, "stripped", t.Stripped)
+			}
+		}()
+	}
 	if !s.holdHousekeeping(ctx, p) {
 		return
 	}

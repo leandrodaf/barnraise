@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"maps"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -94,18 +95,40 @@ const setupMarker = ".barnraise-session/setup-done"
 func (s *Service) SetupWorktree(ctx context.Context, p *Project, dir string) error {
 	cmd := p.Cfg().WorktreeSetup
 	if cmd == "" || s.d.Exec == nil {
-		return nil
+		cmd = ""
+		if len(p.Cfg().WorktreeSeed) == 0 {
+			return nil
+		}
 	}
+	lock := s.worktreeLock(dir)
+	lock.Lock()
+	defer lock.Unlock()
 	marker := filepath.Join(dir, filepath.FromSlash(setupMarker))
 	if _, err := os.Stat(marker); err == nil {
 		return nil
+	}
+	s.seedWorktree(ctx, p, dir)
+	if cmd == "" {
+		s.excludeFromGit(dir, "/.barnraise-session/")
+		if err := os.MkdirAll(filepath.Dir(marker), 0o700); err != nil {
+			return err
+		}
+		return os.WriteFile(marker, []byte("seed\n"), 0o600)
 	}
 	timeout := p.Cfg().WorktreeSetupTimeout
 	if timeout <= 0 {
 		timeout = 30 * time.Minute
 	}
 	started := s.d.Clock.Now()
-	res, err := s.d.Exec.Run(ctx, ports.Cmd{Name: "sh", Args: []string{"-c", "exec 2>&1\n" + cmd}, Dir: dir, Timeout: timeout})
+	run := ports.Cmd{Name: "sh", Args: []string{"-c", "exec 2>&1\n" + cmd}, Dir: dir, Timeout: timeout}
+	if stores := s.StoreEnv(p); len(stores) > 0 {
+		// A non-empty Env replaces the process environment: keep it and add the stores.
+		run.Env = os.Environ()
+		for k, v := range stores {
+			run.Env = append(run.Env, k+"="+v)
+		}
+	}
+	res, err := s.d.Exec.Run(ctx, run)
 	if err == nil && res.ExitCode != 0 {
 		err = fmt.Errorf("exit code %d", res.ExitCode)
 	}
@@ -481,6 +504,7 @@ func (s *Service) runCheckStep(ctx context.Context, p *Project, it *domain.Item,
 		_, _ = s.emit(ctx, p, domain.EvCheckRequested, it.ID, "barnraise", domain.Payload{Note: n, Extra: map[string]any{"check": n, "runs_on": def.RunsOn, "commit": head, "why": dec.Why}})
 		spec := ports.CheckSpec{Def: def, ItemID: it.ID, Branch: it.Branch, Commit: head, Dir: dir, Touched: touched, Areas: areaList,
 			Env: map[string]string{"PORT": strconv.Itoa(ItemPort(p.Cfg().PortBase, it.ID))}}
+		maps.Copy(spec.Env, s.StoreEnv(p))
 		res, pending, err := s.d.Checks.Run(ctx, spec)
 		if err != nil {
 			res = domain.CheckResult{Check: n, Passed: false, Summary: "check could not run: " + err.Error()}

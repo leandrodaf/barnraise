@@ -193,6 +193,12 @@ const (
 	// BarnraiseServiceLeaveMachineProcedure is the fully-qualified name of the BarnraiseService's
 	// LeaveMachine RPC.
 	BarnraiseServiceLeaveMachineProcedure = "/barnraise.v1.BarnraiseService/LeaveMachine"
+	// BarnraiseServiceListPeersProcedure is the fully-qualified name of the BarnraiseService's
+	// ListPeers RPC.
+	BarnraiseServiceListPeersProcedure = "/barnraise.v1.BarnraiseService/ListPeers"
+	// BarnraiseServiceStopPeersProcedure is the fully-qualified name of the BarnraiseService's
+	// StopPeers RPC.
+	BarnraiseServiceStopPeersProcedure = "/barnraise.v1.BarnraiseService/StopPeers"
 	// BarnraiseServiceCreateTokenProcedure is the fully-qualified name of the BarnraiseService's
 	// CreateToken RPC.
 	BarnraiseServiceCreateTokenProcedure = "/barnraise.v1.BarnraiseService/CreateToken"
@@ -274,6 +280,10 @@ type BarnraiseServiceClient interface {
 	// memory by each daemon for charts. Never stored.
 	MachineHistory(context.Context, *connect.Request[v1.MachineHistoryRequest]) (*connect.Response[v1.MachineHistoryResponse], error)
 	LeaveMachine(context.Context, *connect.Request[v1.ProjectRef]) (*connect.Response[v1.LeaveResponse], error)
+	// The other machines of the cluster, as this daemon sees them.
+	ListPeers(context.Context, *connect.Request[v1.Empty]) (*connect.Response[v1.PeersResponse], error)
+	// Asks other machines to stop their daemon, as `barnraise down` does there.
+	StopPeers(context.Context, *connect.Request[v1.StopPeersRequest]) (*connect.Response[v1.StopPeersResponse], error)
 	// Tokens and audit
 	CreateToken(context.Context, *connect.Request[v1.CreateTokenRequest]) (*connect.Response[v1.CreateTokenResponse], error)
 	ListTokens(context.Context, *connect.Request[v1.Empty]) (*connect.Response[v1.TokensResponse], error)
@@ -622,6 +632,18 @@ func NewBarnraiseServiceClient(httpClient connect.HTTPClient, baseURL string, op
 			connect.WithSchema(barnraiseServiceMethods.ByName("LeaveMachine")),
 			connect.WithClientOptions(opts...),
 		),
+		listPeers: connect.NewClient[v1.Empty, v1.PeersResponse](
+			httpClient,
+			baseURL+BarnraiseServiceListPeersProcedure,
+			connect.WithSchema(barnraiseServiceMethods.ByName("ListPeers")),
+			connect.WithClientOptions(opts...),
+		),
+		stopPeers: connect.NewClient[v1.StopPeersRequest, v1.StopPeersResponse](
+			httpClient,
+			baseURL+BarnraiseServiceStopPeersProcedure,
+			connect.WithSchema(barnraiseServiceMethods.ByName("StopPeers")),
+			connect.WithClientOptions(opts...),
+		),
 		createToken: connect.NewClient[v1.CreateTokenRequest, v1.CreateTokenResponse](
 			httpClient,
 			baseURL+BarnraiseServiceCreateTokenProcedure,
@@ -706,6 +728,8 @@ type barnraiseServiceClient struct {
 	listMachines    *connect.Client[v1.ProjectRef, v1.MachinesResponse]
 	machineHistory  *connect.Client[v1.MachineHistoryRequest, v1.MachineHistoryResponse]
 	leaveMachine    *connect.Client[v1.ProjectRef, v1.LeaveResponse]
+	listPeers       *connect.Client[v1.Empty, v1.PeersResponse]
+	stopPeers       *connect.Client[v1.StopPeersRequest, v1.StopPeersResponse]
 	createToken     *connect.Client[v1.CreateTokenRequest, v1.CreateTokenResponse]
 	listTokens      *connect.Client[v1.Empty, v1.TokensResponse]
 	revokeToken     *connect.Client[v1.RevokeTokenRequest, v1.Empty]
@@ -987,6 +1011,16 @@ func (c *barnraiseServiceClient) LeaveMachine(ctx context.Context, req *connect.
 	return c.leaveMachine.CallUnary(ctx, req)
 }
 
+// ListPeers calls barnraise.v1.BarnraiseService.ListPeers.
+func (c *barnraiseServiceClient) ListPeers(ctx context.Context, req *connect.Request[v1.Empty]) (*connect.Response[v1.PeersResponse], error) {
+	return c.listPeers.CallUnary(ctx, req)
+}
+
+// StopPeers calls barnraise.v1.BarnraiseService.StopPeers.
+func (c *barnraiseServiceClient) StopPeers(ctx context.Context, req *connect.Request[v1.StopPeersRequest]) (*connect.Response[v1.StopPeersResponse], error) {
+	return c.stopPeers.CallUnary(ctx, req)
+}
+
 // CreateToken calls barnraise.v1.BarnraiseService.CreateToken.
 func (c *barnraiseServiceClient) CreateToken(ctx context.Context, req *connect.Request[v1.CreateTokenRequest]) (*connect.Response[v1.CreateTokenResponse], error) {
 	return c.createToken.CallUnary(ctx, req)
@@ -1074,6 +1108,10 @@ type BarnraiseServiceHandler interface {
 	// memory by each daemon for charts. Never stored.
 	MachineHistory(context.Context, *connect.Request[v1.MachineHistoryRequest]) (*connect.Response[v1.MachineHistoryResponse], error)
 	LeaveMachine(context.Context, *connect.Request[v1.ProjectRef]) (*connect.Response[v1.LeaveResponse], error)
+	// The other machines of the cluster, as this daemon sees them.
+	ListPeers(context.Context, *connect.Request[v1.Empty]) (*connect.Response[v1.PeersResponse], error)
+	// Asks other machines to stop their daemon, as `barnraise down` does there.
+	StopPeers(context.Context, *connect.Request[v1.StopPeersRequest]) (*connect.Response[v1.StopPeersResponse], error)
 	// Tokens and audit
 	CreateToken(context.Context, *connect.Request[v1.CreateTokenRequest]) (*connect.Response[v1.CreateTokenResponse], error)
 	ListTokens(context.Context, *connect.Request[v1.Empty]) (*connect.Response[v1.TokensResponse], error)
@@ -1418,6 +1456,18 @@ func NewBarnraiseServiceHandler(svc BarnraiseServiceHandler, opts ...connect.Han
 		connect.WithSchema(barnraiseServiceMethods.ByName("LeaveMachine")),
 		connect.WithHandlerOptions(opts...),
 	)
+	barnraiseServiceListPeersHandler := connect.NewUnaryHandler(
+		BarnraiseServiceListPeersProcedure,
+		svc.ListPeers,
+		connect.WithSchema(barnraiseServiceMethods.ByName("ListPeers")),
+		connect.WithHandlerOptions(opts...),
+	)
+	barnraiseServiceStopPeersHandler := connect.NewUnaryHandler(
+		BarnraiseServiceStopPeersProcedure,
+		svc.StopPeers,
+		connect.WithSchema(barnraiseServiceMethods.ByName("StopPeers")),
+		connect.WithHandlerOptions(opts...),
+	)
 	barnraiseServiceCreateTokenHandler := connect.NewUnaryHandler(
 		BarnraiseServiceCreateTokenProcedure,
 		svc.CreateToken,
@@ -1554,6 +1604,10 @@ func NewBarnraiseServiceHandler(svc BarnraiseServiceHandler, opts ...connect.Han
 			barnraiseServiceMachineHistoryHandler.ServeHTTP(w, r)
 		case BarnraiseServiceLeaveMachineProcedure:
 			barnraiseServiceLeaveMachineHandler.ServeHTTP(w, r)
+		case BarnraiseServiceListPeersProcedure:
+			barnraiseServiceListPeersHandler.ServeHTTP(w, r)
+		case BarnraiseServiceStopPeersProcedure:
+			barnraiseServiceStopPeersHandler.ServeHTTP(w, r)
 		case BarnraiseServiceCreateTokenProcedure:
 			barnraiseServiceCreateTokenHandler.ServeHTTP(w, r)
 		case BarnraiseServiceListTokensProcedure:
@@ -1789,6 +1843,14 @@ func (UnimplementedBarnraiseServiceHandler) MachineHistory(context.Context, *con
 
 func (UnimplementedBarnraiseServiceHandler) LeaveMachine(context.Context, *connect.Request[v1.ProjectRef]) (*connect.Response[v1.LeaveResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("barnraise.v1.BarnraiseService.LeaveMachine is not implemented"))
+}
+
+func (UnimplementedBarnraiseServiceHandler) ListPeers(context.Context, *connect.Request[v1.Empty]) (*connect.Response[v1.PeersResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("barnraise.v1.BarnraiseService.ListPeers is not implemented"))
+}
+
+func (UnimplementedBarnraiseServiceHandler) StopPeers(context.Context, *connect.Request[v1.StopPeersRequest]) (*connect.Response[v1.StopPeersResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("barnraise.v1.BarnraiseService.StopPeers is not implemented"))
 }
 
 func (UnimplementedBarnraiseServiceHandler) CreateToken(context.Context, *connect.Request[v1.CreateTokenRequest]) (*connect.Response[v1.CreateTokenResponse], error) {

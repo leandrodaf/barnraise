@@ -999,6 +999,45 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/barnraise.v1.MachinesResponse'
+  /barnraise.v1.BarnraiseService/ListPeers:
+    post:
+      tags:
+        - barnraise.v1.BarnraiseService
+      summary: ListPeers
+      description: The other machines of the cluster, as this daemon sees them.
+      operationId: barnraise.v1.BarnraiseService.ListPeers
+      parameters:
+        - name: Connect-Protocol-Version
+          in: header
+          description: Define the version of the Connect protocol
+          schema:
+            $ref: '#/components/schemas/connect-protocol-version'
+          example: 1
+        - name: Connect-Timeout-Ms
+          in: header
+          description: Define the timeout, in ms
+          schema:
+            $ref: '#/components/schemas/connect-timeout-header'
+          example: 1000
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/barnraise.v1.Empty'
+        required: true
+      responses:
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.error'
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/barnraise.v1.PeersResponse'
   /barnraise.v1.BarnraiseService/ListProjects:
     post:
       tags:
@@ -1994,6 +2033,45 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/barnraise.v1.StatusResponse'
+  /barnraise.v1.BarnraiseService/StopPeers:
+    post:
+      tags:
+        - barnraise.v1.BarnraiseService
+      summary: StopPeers
+      description: Asks other machines to stop their daemon, as `barnraise down` does there.
+      operationId: barnraise.v1.BarnraiseService.StopPeers
+      parameters:
+        - name: Connect-Protocol-Version
+          in: header
+          description: Define the version of the Connect protocol
+          schema:
+            $ref: '#/components/schemas/connect-protocol-version'
+          example: 1
+        - name: Connect-Timeout-Ms
+          in: header
+          description: Define the timeout, in ms
+          schema:
+            $ref: '#/components/schemas/connect-timeout-header'
+          example: 1000
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/barnraise.v1.StopPeersRequest'
+        required: true
+      responses:
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.error'
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/barnraise.v1.StopPeersResponse'
   /barnraise.v1.BarnraiseService/SubmitReview:
     post:
       tags:
@@ -4114,6 +4192,44 @@ components:
           title: why
       title: PauseRequest
       additionalProperties: false
+    barnraise.v1.Peer:
+      type: object
+      properties:
+        name:
+          type: string
+          title: name
+        connected:
+          type: boolean
+          title: connected
+          description: True while this daemon holds a live connection to it.
+      title: Peer
+      additionalProperties: false
+      description: A machine this daemon is paired with.
+    barnraise.v1.PeerStop:
+      type: object
+      properties:
+        name:
+          type: string
+          title: name
+        stopped:
+          type: boolean
+          title: stopped
+        error:
+          type: string
+          title: error
+          description: Why it was not stopped, in a plain sentence.
+      title: PeerStop
+      additionalProperties: false
+    barnraise.v1.PeersResponse:
+      type: object
+      properties:
+        peers:
+          type: array
+          items:
+            $ref: '#/components/schemas/barnraise.v1.Peer'
+          title: peers
+      title: PeersResponse
+      additionalProperties: false
     barnraise.v1.PolicyViolationRequest:
       type: object
       properties:
@@ -4734,6 +4850,27 @@ components:
           type: string
           title: family
       title: StepRun
+      additionalProperties: false
+    barnraise.v1.StopPeersRequest:
+      type: object
+      properties:
+        names:
+          type: array
+          items:
+            type: string
+          title: names
+          description: Machines to stop; empty means every connected one.
+      title: StopPeersRequest
+      additionalProperties: false
+    barnraise.v1.StopPeersResponse:
+      type: object
+      properties:
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/barnraise.v1.PeerStop'
+          title: results
+      title: StopPeersResponse
       additionalProperties: false
     barnraise.v1.TakeoverResponse:
       type: object

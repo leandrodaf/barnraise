@@ -844,6 +844,33 @@ message LeaveResponse {
   repeated string returned = 1;
 }
 
+// A machine this daemon is paired with.
+message Peer {
+  string name = 1;
+  // True while this daemon holds a live connection to it.
+  bool connected = 2;
+}
+
+message PeersResponse {
+  repeated Peer peers = 1;
+}
+
+message StopPeersRequest {
+  // Machines to stop; empty means every connected one.
+  repeated string names = 1;
+}
+
+message PeerStop {
+  string name = 1;
+  bool stopped = 2;
+  // Why it was not stopped, in a plain sentence.
+  string error = 3;
+}
+
+message StopPeersResponse {
+  repeated PeerStop results = 1;
+}
+
 message CreateTokenRequest {
   string name = 1;
   string project = 2;
@@ -1007,6 +1034,10 @@ service BarnraiseService {
   // memory by each daemon for charts. Never stored.
   rpc MachineHistory(MachineHistoryRequest) returns (MachineHistoryResponse);
   rpc LeaveMachine(ProjectRef) returns (LeaveResponse);
+  // The other machines of the cluster, as this daemon sees them.
+  rpc ListPeers(Empty) returns (PeersResponse);
+  // Asks other machines to stop their daemon, as `barnraise down` does there.
+  rpc StopPeers(StopPeersRequest) returns (StopPeersResponse);
 
   // Tokens and audit
   rpc CreateToken(CreateTokenRequest) returns (CreateTokenResponse);

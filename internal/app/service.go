@@ -34,11 +34,14 @@ var (
 
 // Deps are the ports shared by all projects of a daemon.
 type Deps struct {
-	Clock    ports.Clock
-	IDs      ports.IDGen
-	Store    ports.EventStore
-	Bus      ports.EventBus // optional
-	Checks   ports.CheckRunner
+	Clock  ports.Clock
+	IDs    ports.IDGen
+	Store  ports.EventStore
+	Bus    ports.EventBus // optional
+	Checks ports.CheckRunner
+	// CopyTree copies a directory to a path that does not exist, sharing
+	// blocks where the filesystem can; optional (cp is the default).
+	CopyTree func(ctx context.Context, src, dst string) error
 	Notifier ports.Notifier // optional
 	// ResolveSecret turns a secret reference (keychain:…, env:…) into its
 	// value; optional. Used for the environment of the owner's MCP servers.
@@ -94,12 +97,17 @@ type Service struct {
 	telemetry telemetry
 	// trackerMu serializes the tracker updates of each item (project/item -> *sync.Mutex).
 	trackerMu sync.Map
+	// wtLocks serializes setup and stripping of each worktree (dir -> *sync.Mutex).
+	wtLocks sync.Map
 }
 
 // New creates the service.
 func New(d Deps) *Service {
 	if d.Clock == nil {
 		d.Clock = SystemClock{}
+	}
+	if d.CopyTree == nil {
+		d.CopyTree = copyTree
 	}
 	if d.IDs == nil {
 		d.IDs = RandomIDs{}

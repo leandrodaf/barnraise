@@ -273,3 +273,65 @@ func TestParseTrailersFallback(t *testing.T) {
 		t.Fatal("prose taken as trailers")
 	}
 }
+
+// Removing a worktree is immediate whatever its size: the directory leaves
+// its place, git forgets it, the branch is free, and the files go in the
+// background.
+func TestRemoveWorktreeFreesThePlaceAtOnce(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+	f := newFixture(t)
+	r := New(f.c1, "origin", "main")
+	if err := r.Fetch(ctx); err != nil {
+		t.Fatal(err)
+	}
+	main0, err := r.MainHead(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	const branch = "barnraise/I-9"
+	if err := r.EnsureBranch(ctx, branch, main0); err != nil {
+		t.Fatal(err)
+	}
+	parent := filepath.Join(t.TempDir(), "wt")
+	wt := filepath.Join(parent, "I-9")
+	if err := r.AddWorktree(ctx, wt, branch); err != nil {
+		t.Fatal(err)
+	}
+	write(t, wt, "node_modules/a/index.js", "a\n")
+	write(t, wt, "uncommitted.txt", "work\n")
+	if err := r.RemoveWorktree(ctx, wt); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Lstat(wt); !os.IsNotExist(err) {
+		t.Fatal("the worktree is still in its place")
+	}
+	if out := g(t, f.c1, "worktree", "list"); strings.Contains(out, wt) {
+		t.Fatalf("git still lists it:\n%s", out)
+	}
+	// The same branch in the same place, right away.
+	if err := r.AddWorktree(ctx, wt, branch); err != nil {
+		t.Fatalf("add again after the removal: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(wt, "uncommitted.txt")); !os.IsNotExist(err) {
+		t.Fatal("the new worktree has the old one's files")
+	}
+	r.WaitRemovals()
+	ents, err := os.ReadDir(parent)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, e := range ents {
+		if ports.IsTrash(e.Name()) {
+			t.Fatalf("trash left after the background removal: %s", e.Name())
+		}
+	}
+	// Removing what is not there only prunes.
+	if err := r.RemoveWorktree(ctx, filepath.Join(parent, "never")); err != nil {
+		t.Fatal(err)
+	}
+	if err := r.RemoveWorktree(ctx, wt); err != nil {
+		t.Fatal(err)
+	}
+	r.WaitRemovals()
+}

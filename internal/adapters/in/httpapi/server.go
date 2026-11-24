@@ -22,6 +22,7 @@ import (
 	"connectrpc.com/connect"
 	"golang.org/x/time/rate"
 
+	pb "github.com/leandrodaf/barnraise/gen/barnraise/v1"
 	"github.com/leandrodaf/barnraise/gen/barnraise/v1/barnraisev1connect"
 	"github.com/leandrodaf/barnraise/internal/adapters/out/github"
 	"github.com/leandrodaf/barnraise/internal/adapters/out/sqlite"
@@ -39,8 +40,12 @@ type Options struct {
 	Probe      func() domain.Machine
 	Register   func(ctx context.Context, root string, paused bool) error
 	Reload     func(ctx context.Context, project string) error
-	Panel      fs.FS  // static panel files
-	OpenAPI    []byte // generated document
+	// Peers lists the machines this daemon is paired with; StopPeers asks
+	// them to stop their daemon (empty names: every connected one).
+	Peers     func() []*pb.Peer
+	StopPeers func(ctx context.Context, names []string) []*pb.PeerStop
+	Panel     fs.FS  // static panel files
+	OpenAPI   []byte // generated document
 	// WebhookSecret returns the secret for inbound webhooks of a project and source (github, gitlab, inbound).
 	WebhookSecret func(project, source string) string
 	RatePerSec    float64

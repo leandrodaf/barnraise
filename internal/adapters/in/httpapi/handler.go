@@ -665,6 +665,35 @@ func (h *Handler) LeaveMachine(ctx context.Context, r *connect.Request[pb.Projec
 	return connect.NewResponse(&pb.LeaveResponse{Returned: all}), nil
 }
 
+func (h *Handler) ListPeers(ctx context.Context, _ *connect.Request[pb.Empty]) (*connect.Response[pb.PeersResponse], error) {
+	if err := actorFrom(ctx).Require(app.ScopeAdmin, ""); err != nil {
+		return nil, connectErr(err)
+	}
+	out := &pb.PeersResponse{}
+	if h.srv.opts.Peers != nil {
+		out.Peers = h.srv.opts.Peers()
+	}
+	return connect.NewResponse(out), nil
+}
+
+func (h *Handler) StopPeers(ctx context.Context, r *connect.Request[pb.StopPeersRequest]) (*connect.Response[pb.StopPeersResponse], error) {
+	if err := actorFrom(ctx).Require(app.ScopeAdmin, ""); err != nil {
+		return nil, connectErr(err)
+	}
+	if h.srv.opts.StopPeers == nil {
+		return nil, connect.NewError(connect.CodeUnimplemented, errors.New("this daemon cannot stop other machines"))
+	}
+	out := &pb.StopPeersResponse{Results: h.srv.opts.StopPeers(ctx, r.Msg.Names)}
+	var stopped []string
+	for _, res := range out.Results {
+		if res.Stopped {
+			stopped = append(stopped, res.Name)
+		}
+	}
+	h.audit(ctx, "machine.stop", strings.Join(stopped, ","), "", "")
+	return connect.NewResponse(out), nil
+}
+
 // ---------- tokens and audit ----------
 
 func (h *Handler) CreateToken(ctx context.Context, r *connect.Request[pb.CreateTokenRequest]) (*connect.Response[pb.CreateTokenResponse], error) {

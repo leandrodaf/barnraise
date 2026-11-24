@@ -34,7 +34,7 @@ Or build from source: `make build` (Go 1.27), or `make build-tsnet` for the rele
 | Background process | `barnraise up` (starts `barnraise daemon` in the background if it is not running; log in `~/.local/share/barnraise/daemon.log`) |
 | systemd user service | `barnraise up --service` |
 | Foreground | `barnraise daemon` |
-| Stop | `barnraise down` (running steps are saved; items continue from their last step) |
+| Stop | `barnraise down` (running steps are saved; items continue from their last step). With other machines connected it asks whether to stop Barnraise on them too; `--all` stops them without asking, `--here` stops only this machine. Without a terminal to answer, only this machine stops |
 | Start paused | `barnraise up --paused`: register the project with every agent paused, adopt the work that already exists (accounts, `barnraise item edit I-7 --branch old/issue-7`), then `barnraise resume` |
 
 `barnraise daemon` flags:
@@ -212,6 +212,7 @@ Inside the data dir:
 | `cursors.json` | How far this machine has read each peer's stream |
 | `tsnet/` (0700) | The embedded Tailscale's state: the device's private keys (`tailscaled.state`), `self.json` (its tailnet name and addresses, for the commands while the daemon holds the device) and a lock file. Treat it like `daemon.yaml`: whoever copies it can be this machine on the tailnet. `tsnet-pairing/` is a short-lived ephemeral device, removed after `machine join` |
 | `worktrees/<project>/<item>/` | Item worktrees (with `.barnraise-session/` for the agent's settings) |
+| `stores/<project>/<name>/` | Stores shared by the project's worktrees (`worktree.stores`) |
 | `logs/<project>/` | Full logs of checks and filtered commands |
 | `accounts/<id>/` | Provider config dirs of each account |
 | `daemon.log`, `daemon.pid` | Log and pid of a background daemon |
@@ -225,7 +226,25 @@ What matters most is already off the machine: every step ends with a commit push
 - **State**: `barnraise.db`. It runs in WAL mode; take a consistent copy with `sqlite3 ~/.local/share/barnraise/barnraise.db ".backup /backup/barnraise.db"`, or stop the daemon (`barnraise down`) and copy the file together with `-wal` and `-shm`.
 - **Identity and secrets**: `~/.config/barnraise/` (owner token, `daemon.yaml` with the NATS key and peers, the `secrets/` store). The file store's key and sealed data are both in `secrets/`; a backup that holds both can open it, so keep it encrypted.
 - **Optional**: `blobs/` (logs and screenshots) and `accounts/` (provider logins; you can also log in again).
-- **Not needed**: `worktrees/` (recreated from the item branches), `nats/` (rebuilt from peers), logs.
+- **Not needed**: `worktrees/` (recreated from the item branches), `stores/` (caches), `nats/` (rebuilt from peers), logs.
+
+**Desktop file indexers stay out.** Worktrees hold hundreds of thousands of files (dependencies, build output). At every start the daemon writes two empty marker files, `.trackerignore` and `.nomedia`, in the data directory: Tracker and LocalSearch (GNOME) skip a directory that holds one of them, with everything below it. This matters when the data directory sits in a place the indexer walks (`BARNRAISE_DATA_DIR` or `XDG_DATA_HOME` under Documents, or an indexer set to walk the whole home). `locate`'s nightly `updatedb` has no per-directory marker; add the data directory to `PRUNEPATHS` in `/etc/updatedb.conf` if it bothers.
+
+**What nothing uses again is removed.** An item's worktree goes when the item is integrated or closed. Once an hour each machine also compares its own directories with what the items say and removes what was left behind:
+
+| Directory | Removed when |
+| --- | --- |
+| `worktrees/<project>/<item>/` of an integrated or closed item | An hour after the item finished |
+| `worktrees/<project>/<item>/` of an item this machine does not know | A day after it was last changed (the item may only be late in the event log) |
+| `worktrees/<project>/_refine-<item>/` (the analyst's checkout of main) | The item left draft, or no longer exists |
+| `worktrees/<project>/_remote-*`, `_main-*`, `repro/<project>/*` (scratch checkouts) | A day old: their owner removes them when it finishes, so these are leftovers of a crash |
+| `.trash-*` | Always (see below) |
+
+A directory with a session running in it is never touched, and neither is a directory whose name is not an item's. With `worktree.strip` (see [configuration.md](configuration.md#many-worktrees-one-set-of-dependencies)), the same pass empties the heavy directories of the items that wait.
+
+**Removing is immediate, deleting is not.** A worktree with its dependencies holds hundreds of thousands of files. To remove one, Barnraise renames it to `.trash-<name>-<id>` beside it, tells git to forget it (the branch is free at once) and deletes the files in the background, so the merge queue never waits for a deletion. If the daemon stops in the middle, the hourly pass deletes what is left.
+
+**Shared stores** (`worktree.stores`) live in `stores/<project>/<name>/`. They are caches: stop the daemon and delete one to start it over.
 
 Restore: stop the daemon, put the files back with the same owner and modes (0700 directories, 0600 files), start it again.
 

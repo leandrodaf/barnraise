@@ -46,6 +46,7 @@ type Runtime struct {
 	// one lists what changed since then. A failed import leaves it in place.
 	importedTo map[string]time.Time
 	lastSweep  map[string]time.Time
+	lastTrim   map[string]time.Time
 	lastDigest map[string]time.Time
 	lastWeekly map[string]time.Time
 	// startErrs remembers the last start failure of each agent, so a
@@ -126,7 +127,7 @@ func newRuntime(s *Service) *Runtime {
 		bwrapErr = errors.New("sandbox unavailable")
 	}
 	r := &Runtime{s: s, poke: make(chan struct{}, 1), running: map[string]*liveSession{}, SessionTimeout: 3 * time.Hour,
-		lastHK: map[string]time.Time{}, lastRenew: map[string]time.Time{}, lastImport: map[string]time.Time{}, importedTo: map[string]time.Time{}, lastSweep: map[string]time.Time{},
+		lastHK: map[string]time.Time{}, lastRenew: map[string]time.Time{}, lastImport: map[string]time.Time{}, importedTo: map[string]time.Time{}, lastSweep: map[string]time.Time{}, lastTrim: map[string]time.Time{},
 		lastDigest: map[string]time.Time{}, lastWeekly: map[string]time.Time{}, Sandbox: bwrapErr == nil, NoSandboxProviders: map[string]string{}}
 	if bwrapErr != nil && goruntime.GOOS == "linux" {
 		r.NoSandboxProviders["codex"] = codexNeedsBwrap
@@ -506,6 +507,7 @@ func (r *Runtime) start(ctx context.Context, p *Project, slot Slot, a *Assignmen
 		"BARNRAISE_POLICY": filepath.Join(sessDir, "policy.json"), "BARNRAISE_WORKTREE": dir,
 		"PORT": strconv.Itoa(ItemPort(p.Cfg().PortBase, it.ID)), "DISABLE_AUTOUPDATER": "1",
 	}
+	maps.Copy(env, s.StoreEnv(p))
 	if r.EgressProxy != "" {
 		proxy := "http://" + r.EgressProxy
 		env["HTTPS_PROXY"], env["HTTP_PROXY"], env["https_proxy"], env["http_proxy"] = proxy, proxy, proxy, proxy
@@ -606,6 +608,11 @@ func (r *Runtime) containerSpec(p *Project, ct domain.ContainerDef, worktree, se
 	add(filepath.Join(p.Cfg().Root, ".git"), false)
 	add(r.s.d.SocketPath, false)
 	add(r.s.d.BinaryPath, true)
+	// The project's shared stores, at the same path as outside: what the
+	// setup put there is what the agent's tools find.
+	for _, dir := range r.s.storeDirs(p) {
+		add(dir, false)
+	}
 	cfgDir := acc.ConfigDir
 	if cfgDir == "" {
 		// The CLI's own login: its folder under the owner's home, and only that.

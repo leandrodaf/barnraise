@@ -32,6 +32,8 @@ type Repo struct {
 
 	idOnce sync.Once
 	idArgs []string
+
+	removing sync.WaitGroup // background deletions of removed worktrees
 }
 
 // New returns a Repo rooted at root. remote is a remote name (for example
@@ -300,18 +302,37 @@ func samePath(a, b string) bool {
 }
 
 // RemoveWorktree removes the worktree in dir, discarding local changes, and
-// prunes stale worktree entries.
+// prunes stale worktree entries. The directory leaves its place at once (a
+// rename) and its files are deleted in the background: a worktree with its
+// dependencies holds hundreds of thousands of files, and the caller (the
+// merge queue, for one) does not wait for that.
 func (r *Repo) RemoveWorktree(ctx context.Context, dir string) error {
-	_, err := r.git(ctx, "", "worktree", "remove", "--force", "--force", dir)
-	_, perr := r.git(ctx, "", "worktree", "prune")
-	if err != nil {
-		if _, statErr := os.Stat(dir); os.IsNotExist(statErr) {
-			return perr
-		}
-		return err
+	if _, statErr := os.Lstat(dir); os.IsNotExist(statErr) {
+		_, perr := r.git(ctx, "", "worktree", "prune")
+		return perr
 	}
+	trash, err := ports.MoveToTrash(dir)
+	if err != nil {
+		// The rename was refused (another filesystem, permissions): the slow way.
+		_, err = r.git(ctx, "", "worktree", "remove", "--force", "--force", dir)
+		_, perr := r.git(ctx, "", "worktree", "prune")
+		if err != nil {
+			if _, statErr := os.Stat(dir); os.IsNotExist(statErr) {
+				return perr
+			}
+			return err
+		}
+		return perr
+	}
+	// The entry now points at a directory that is gone: prune forgets it and
+	// frees the branch.
+	_, perr := r.git(ctx, "", "worktree", "prune")
+	r.removing.Go(func() { _ = ports.RemoveTree(trash) })
 	return perr
 }
+
+// WaitRemovals waits for the background deletions started by RemoveWorktree.
+func (r *Repo) WaitRemovals() { r.removing.Wait() }
 
 // worktreesOn lists worktree paths that have branch checked out.
 func (r *Repo) worktreesOn(ctx context.Context, branch string) ([]string, error) {

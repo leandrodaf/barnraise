@@ -64,3 +64,25 @@ func home() string {
 	}
 	return h
 }
+
+// noIndexMarkers are the files desktop indexers look for before walking a
+// directory: Tracker and LocalSearch (GNOME) skip a directory that holds
+// .trackerignore or .nomedia, with everything below it.
+var noIndexMarkers = []string{".trackerignore", ".nomedia"}
+
+// MarkNotIndexed tells desktop file indexers to stay out of dir. Worktrees
+// hold hundreds of thousands of files (dependencies, build output): an indexer
+// that walks them keeps a core busy and fills its database with nothing a
+// person searches for. The markers are empty files; existing ones are kept.
+func MarkNotIndexed(dir string) error {
+	for _, name := range noIndexMarkers {
+		f, err := os.OpenFile(filepath.Join(dir, name), os.O_CREATE|os.O_WRONLY, 0o600)
+		if err != nil {
+			return err
+		}
+		if err := f.Close(); err != nil {
+			return err
+		}
+	}
+	return nil
+}

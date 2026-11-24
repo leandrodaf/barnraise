@@ -13,6 +13,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"slices"
 	"sort"
 	"strconv"
@@ -353,11 +354,15 @@ type rawConfig struct {
 		Env    map[string]string `yaml:"env"`
 	} `yaml:"experiments"`
 	Worktree struct {
-		Include      []string `yaml:"include"`
-		PortBase     int      `yaml:"port_base"`
-		SafetyCommit string   `yaml:"safety_commit"`
-		Setup        string   `yaml:"setup"`
-		SetupTimeout string   `yaml:"setup_timeout"`
+		Include      []string          `yaml:"include"`
+		PortBase     int               `yaml:"port_base"`
+		SafetyCommit string            `yaml:"safety_commit"`
+		Setup        string            `yaml:"setup"`
+		SetupTimeout string            `yaml:"setup_timeout"`
+		Seed         []string          `yaml:"seed"`
+		Strip        []string          `yaml:"strip"`
+		StripAfter   string            `yaml:"strip_after"`
+		Stores       map[string]string `yaml:"stores"`
 	} `yaml:"worktree"`
 
 	flowsNode *yaml.Node
@@ -677,6 +682,33 @@ func (r *rawConfig) compile(root, tmpl string) (*domain.ProjectConfig, error) {
 		}
 		c.WorktreeSetupTimeout = d
 	}
+	for key, list := range map[string][]string{"seed": r.Worktree.Seed, "strip": r.Worktree.Strip} {
+		for i, d := range list {
+			clean, err := worktreePath(d)
+			if err != nil {
+				return nil, fmt.Errorf("worktree.%s: %w", key, err)
+			}
+			list[i] = clean
+		}
+	}
+	c.WorktreeSeed, c.WorktreeStrip = r.Worktree.Seed, r.Worktree.Strip
+	c.WorktreeStripAfter = time.Hour
+	if r.Worktree.StripAfter != "" {
+		d, err := domain.ParseDuration(r.Worktree.StripAfter)
+		if err != nil {
+			return nil, fmt.Errorf("worktree.strip_after: %w", err)
+		}
+		c.WorktreeStripAfter = d
+	}
+	for name, env := range r.Worktree.Stores {
+		if !storeNameRe.MatchString(name) {
+			return nil, fmt.Errorf("worktree.stores: %q is not a store name (lower case letters, digits and -)", name)
+		}
+		if !envNameRe.MatchString(env) || strings.HasPrefix(env, "BARNRAISE_") {
+			return nil, fmt.Errorf("worktree.stores.%s: %q is not an environment variable a store can use", name, env)
+		}
+	}
+	c.WorktreeStores = r.Worktree.Stores
 	c.PortBase = r.Worktree.PortBase
 	if c.PortBase == 0 {
 		c.PortBase = 4100
@@ -1008,7 +1040,8 @@ func Explain(cfg *domain.ProjectConfig) (string, error) {
 		"budget": cfg.Budget, "revalidation": map[string]string{"stale_after": cfg.StaleAfter.String()},
 		"notifications": cfg.Notifications, "webhooks": cfg.Webhooks, "mcp": cfg.MCP, "plugins": cfg.Plugins, "experiments": cfg.Experiments,
 		"providers": cfg.APIProviders,
-		"worktree":  map[string]any{"include": cfg.EnvFiles, "port_base": cfg.PortBase, "safety_commit": cfg.SafetyCommit.String(), "setup": cfg.WorktreeSetup},
+		"worktree": map[string]any{"include": cfg.EnvFiles, "port_base": cfg.PortBase, "safety_commit": cfg.SafetyCommit.String(), "setup": cfg.WorktreeSetup,
+			"seed": cfg.WorktreeSeed, "strip": cfg.WorktreeStrip, "strip_after": cfg.WorktreeStripAfter.String(), "stores": cfg.WorktreeStores},
 	}
 	var buf bytes.Buffer
 	enc := yaml.NewEncoder(&buf)
@@ -1035,4 +1068,25 @@ func RolePrompt(cfg *domain.ProjectConfig, role string) (string, error) {
 		return string(data), nil
 	}
 	return "", fmt.Errorf("role %s: prompt %s not found in the project or template %s", role, r.Prompt, cfg.Template)
+}
+
+var (
+	storeNameRe = regexp.MustCompile(`^[a-z0-9][a-z0-9-]*$`)
+	envNameRe   = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_]*$`)
+)
+
+// worktreePath accepts a directory inside the worktree, relative to its
+// root, and refuses what Barnraise or git own there.
+func worktreePath(d string) (string, error) {
+	clean := filepath.ToSlash(filepath.Clean(strings.TrimSpace(d)))
+	switch {
+	case strings.TrimSpace(d) == "" || clean == ".":
+		return "", errors.New("an empty path is the whole worktree; name a directory inside it")
+	case filepath.IsAbs(clean) || clean == ".." || strings.HasPrefix(clean, "../"):
+		return "", fmt.Errorf("%q must be a path inside the repository", d)
+	}
+	if first, _, _ := strings.Cut(clean, "/"); first == ".git" || first == ".barnraise-session" || first == ".barnraise" {
+		return "", fmt.Errorf("%q belongs to git or to Barnraise", d)
+	}
+	return clean, nil
 }
