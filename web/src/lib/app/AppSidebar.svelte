@@ -9,7 +9,10 @@
 	import { session } from '$lib/session.svelte';
 	import { cluster } from '$lib/cluster.svelte';
 	import { toneOfItem, type Tone } from '$lib/status';
-	import { NAV } from './nav';
+	import { NAV_GROUPS } from './nav';
+	import { store } from '$lib/api';
+	import ChevronRightIcon from '@lucide/svelte/icons/chevron-right';
+	import * as Collapsible from '$lib/components/ui/collapsible';
 	import { keys } from './keys.svelte';
 	import { clusterItems, groups, type Row } from './items';
 	import { openItem } from './open';
@@ -24,6 +27,33 @@
 		{ key: 'sbBlocked', rows: g.blocked, tone: 'fail' as Tone, age: (r: Row) => since(r.updatedAt) },
 		{ key: 'sbRecent', rows: g.recent.slice(0, 5), tone: 'done' as Tone, age: (r: Row) => since(r.integratedAt) }
 	].filter((s) => s.rows.length));
+	// Live counts next to the screens, all from the daemon's answers.
+	const openProposals = $derived((cluster.data?.projects || []).reduce((n, p) => n + p.openProposals, 0));
+	const openItems = $derived(clusterItems(cluster.data).filter((r) => r.column !== 'done').length);
+	const standbyMachines = $derived((cluster.all?.machines || []).filter((m) => m.machine?.standby).length);
+	const limitedAccounts = $derived.by(() => {
+		const ids = new Set<string>();
+		for (const p of cluster.data?.projects || []) for (const a of p.accounts) if (a.outlook?.limited) ids.add(a.id);
+		return ids.size;
+	});
+	type Badge = { n: number | string; cls: string; title?: string };
+	const badge = (name: RouteName): Badge | null => {
+		switch (name) {
+			case 'home': return g.needs.length ? { n: g.needs.length, cls: 'bg-st-needs/15 text-st-needs' } : null;
+			case 'queue': return openItems ? { n: openItems, cls: 'bg-muted text-muted-foreground' } : null;
+			case 'proposals': return openProposals ? { n: openProposals, cls: 'bg-st-review/15 text-st-review' } : null;
+			case 'agents': return g.working.length ? { n: g.working.length, cls: 'bg-st-work/15 text-st-work' } : null;
+			case 'machines': return standbyMachines ? { n: standbyMachines, cls: 'bg-st-needs/15 text-st-needs', title: t('standbyN', standbyMachines) } : null;
+			case 'accounts': return limitedAccounts ? { n: limitedAccounts, cls: 'bg-st-fail/15 text-st-fail', title: t('limitedN', limitedAccounts) } : null;
+		}
+		return null;
+	};
+	// The live lists fold; the menu keeps how the owner left them.
+	let folded = $state<Record<string, boolean>>(JSON.parse(store.get('sidebarFolded') || '{}'));
+	const fold = (key: string, open: boolean) => {
+		folded = { ...folded, [key]: !open };
+		store.set('sidebarFolded', JSON.stringify(folded));
+	};
 	const active = (n: RouteName) => router.current.name === n || (n === 'queue' && router.current.name === 'item');
 	const machines = $derived(cluster.all?.machines.map((m) => m.machine!).filter(Boolean) || []);
 	const cpuPct = (m: { load1: number; cpus: number }) => (m.cpus ? Math.min(100, (m.load1 / m.cpus) * 100) : 0);
@@ -48,36 +78,50 @@
 			<SearchIcon class="size-4 shrink-0" /><span class="flex-1 text-left group-data-[collapsible=icon]:hidden">{t('search')}</span><Kbd class="group-data-[collapsible=icon]:hidden">Ctrl K</Kbd>
 		</button>
 	</Sidebar.Header>
-	<Sidebar.Content>
-		<Sidebar.Group>
-			<Sidebar.Menu>
-				{#each NAV as n (n.name)}
-					<Sidebar.MenuItem>
-						<Sidebar.MenuButton isActive={active(n.name)} tooltipContent={t(n.label)}>
-							{#snippet child({ props })}<a href={href(n.name)} {...props} aria-current={active(n.name) ? 'page' : undefined}><n.icon /><span>{t(n.label)}</span></a>{/snippet}
-						</Sidebar.MenuButton>
-						{#if n.name === 'home' && g.needs.length}<Sidebar.MenuBadge class="num bg-st-needs/15 text-st-needs">{g.needs.length}</Sidebar.MenuBadge>{/if}
-						{#if n.name === 'agents' && g.working.length}<Sidebar.MenuBadge class="num bg-st-work/15 text-st-work">{g.working.length}</Sidebar.MenuBadge>{/if}
-					</Sidebar.MenuItem>
-				{/each}
-			</Sidebar.Menu>
-		</Sidebar.Group>
-		{#each sections as s (s.key)}
-			<Sidebar.Group class="group-data-[collapsible=icon]:hidden">
-				<Sidebar.GroupLabel class="eyebrow">{t(s.key)}<span class="num ml-auto">{s.rows.length}</span></Sidebar.GroupLabel>
+	<Sidebar.Content class="overflow-x-hidden">
+		{#each NAV_GROUPS as grp (grp.label)}
+			<Sidebar.Group class="py-1">
+				<Sidebar.GroupLabel class="eyebrow h-6">{t(grp.label)}</Sidebar.GroupLabel>
 				<Sidebar.Menu>
-					{#each s.rows.slice(0, 6) as r (r.project + r.id)}
+					{#each grp.items as n (n.name)}
+						{@const b = badge(n.name)}
 						<Sidebar.MenuItem>
-							<Sidebar.MenuButton size="sm" class="h-7" onclick={() => openItem(r.project, r.id)} title={r.id + ' · ' + r.title + ' · ' + r.project}>
-								<Dot tone={toneOfItem(r)} pulse={s.tone === 'work'} />
-								<span class="truncate">{r.title}</span>
-								<span class="num ml-auto shrink-0 text-[11px] text-muted-foreground">{s.age(r)}</span>
+							<Sidebar.MenuButton isActive={active(n.name)} tooltipContent={t(n.label)}>
+								{#snippet child({ props })}<a href={href(n.name)} {...props} aria-current={active(n.name) ? 'page' : undefined}><n.icon /><span>{t(n.label)}</span></a>{/snippet}
 							</Sidebar.MenuButton>
+							{#if b}<Sidebar.MenuBadge class="num {b.cls}" title={b.title}>{b.n}</Sidebar.MenuBadge>{/if}
 						</Sidebar.MenuItem>
 					{/each}
-					{#if s.rows.length > 6}<Sidebar.MenuItem><a class="px-2 text-xs text-muted-foreground hover:text-foreground" href={href('overview')}>{t('more', s.rows.length - 6)}</a></Sidebar.MenuItem>{/if}
 				</Sidebar.Menu>
 			</Sidebar.Group>
+		{/each}
+		{#if sections.length}<Sidebar.Separator class="my-1 group-data-[collapsible=icon]:hidden" />{/if}
+		{#each sections as s (s.key)}
+			<Collapsible.Root open={!folded[s.key]} onOpenChange={(o) => fold(s.key, o)} class="group/fold">
+				<Sidebar.Group class="py-1 group-data-[collapsible=icon]:hidden">
+					<Sidebar.GroupLabel class="eyebrow h-6">
+						{#snippet child({ props })}
+							<Collapsible.Trigger {...props} class="{props.class} w-full hover:text-foreground">
+								<ChevronRightIcon class="mr-1 size-3 transition-transform group-data-[state=open]/fold:rotate-90" />{t(s.key)}<span class="num ml-auto">{s.rows.length}</span>
+							</Collapsible.Trigger>
+						{/snippet}
+					</Sidebar.GroupLabel>
+					<Collapsible.Content>
+						<Sidebar.Menu>
+							{#each s.rows.slice(0, 6) as r (r.project + r.id)}
+								<Sidebar.MenuItem>
+									<Sidebar.MenuButton size="sm" class="h-7" onclick={() => openItem(r.project, r.id)} title={r.id + ' · ' + r.title + ' · ' + r.project}>
+										<Dot tone={toneOfItem(r)} pulse={s.tone === 'work'} />
+										<span class="truncate">{r.title}</span>
+										<span class="num ml-auto shrink-0 text-[11px] text-muted-foreground">{s.age(r)}</span>
+									</Sidebar.MenuButton>
+								</Sidebar.MenuItem>
+							{/each}
+							{#if s.rows.length > 6}<Sidebar.MenuItem><a class="px-2 text-xs text-muted-foreground hover:text-foreground" href={href(s.key === 'sbRecent' ? 'overview' : 'queue')}>{t('more', s.rows.length - 6)}</a></Sidebar.MenuItem>{/if}
+						</Sidebar.Menu>
+					</Collapsible.Content>
+				</Sidebar.Group>
+			</Collapsible.Root>
 		{/each}
 	</Sidebar.Content>
 	<Sidebar.Footer class="gap-2">

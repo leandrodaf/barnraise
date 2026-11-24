@@ -494,7 +494,7 @@ const pt: Dict = {
 
 // Keys added with the Svelte panel.
 Object.assign(en, {
-  navOverview: 'Cluster', overviewFrom: 'Seen from {0} · {1}',
+  navOverview: 'Overview', overviewFrom: 'Seen from {0} · {1}',
   ovMachines: 'Machines', ovSessions: 'Sessions', ovItems: 'Items', ovWorktrees: 'Worktrees', ovCost: 'Cost',
   ovDisk: 'Disk', ovDiskLine: 'worktrees {0} · free {1} of {2}', ovSpentHere: 'Spent here: {0}', ovActivity: 'Doing',
   usageLine: '{0} tokens in {1} sessions, {2} of agents, {3}',
@@ -518,7 +518,7 @@ Object.assign(en, {
 });
 
 Object.assign(pt, {
-  navOverview: 'Cluster', overviewFrom: 'Visto de {0} · {1}',
+  navOverview: 'Visão geral', overviewFrom: 'Visto de {0} · {1}',
   ovMachines: 'Máquinas', ovSessions: 'Sessões', ovItems: 'Itens', ovWorktrees: 'Worktrees', ovCost: 'Custo',
   ovDisk: 'Disco', ovDiskLine: 'worktrees {0} · livre {1} de {2}', ovSpentHere: 'Gasto aqui: {0}', ovActivity: 'Fazendo',
   usageLine: '{0} tokens em {1} sessões, {2} de agentes, {3}',
@@ -703,7 +703,7 @@ Object.assign(pt, {
 
 
 Object.assign(en, {
-  navParts: 'Parts', parts: 'Parts', partsN: '{0} parts', noParts: 'This project has no parts: its areas and folders with their own barnraise.yaml show here.',
+  navParts: 'Parts', navGroupDaily: 'Day to day', navGroupProject: 'Project', navGroupCluster: 'Cluster', parts: 'Parts', partsN: '{0} parts', noParts: 'This project has no parts: its areas and folders with their own barnraise.yaml show here.',
   partsHelp: 'Each part of the repository (a backend, a web app, a mobile app…) with its own barnraise.yaml: what it is, how each kind of item goes through it, the checks that guard it and how its work goes.',
   partNeeds: '{0} need you', partWork: 'Work', partOpen: '{0} open', partLastIntegrated: 'last integration {0}', partNoItems: 'No items in this part yet.',
   partSpent: '{0} spent · {1} tokens in {2} sessions', partFlows: 'Flow of each kind', partChecks: 'Checks', partPaths: 'Folders', partStandard: 'Standard',
@@ -711,7 +711,7 @@ Object.assign(en, {
 });
 
 Object.assign(pt, {
-  navParts: 'Partes', parts: 'Partes', partsN: '{0} partes', noParts: 'Este projeto não tem partes: as áreas e pastas com o próprio barnraise.yaml aparecem aqui.',
+  navParts: 'Partes', navGroupDaily: 'Dia a dia', navGroupProject: 'Projeto', navGroupCluster: 'Cluster', parts: 'Partes', partsN: '{0} partes', noParts: 'Este projeto não tem partes: as áreas e pastas com o próprio barnraise.yaml aparecem aqui.',
   partsHelp: 'Cada parte do repositório (um backend, um app web, um app mobile…) com o próprio barnraise.yaml: o que é, por onde cada tipo de item passa, as verificações que a protegem e como anda o trabalho.',
   partNeeds: '{0} esperam você', partWork: 'Trabalho', partOpen: '{0} abertos', partLastIntegrated: 'última integração {0}', partNoItems: 'Nenhum item nesta parte ainda.',
   partSpent: '{0} gastos · {1} tokens em {2} sessões', partFlows: 'Fluxo de cada tipo', partChecks: 'Verificações', partPaths: 'Pastas', partStandard: 'Padrão',

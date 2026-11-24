@@ -10,15 +10,38 @@ import BoxesIcon from '@lucide/svelte/icons/boxes';
 import ChartIcon from '@lucide/svelte/icons/chart-no-axes-column';
 import type { RouteName } from '$lib/router.svelte';
 
-export const NAV: { name: RouteName; label: string; icon: typeof HouseIcon }[] = [
-	{ name: 'home', label: 'navHome', icon: HouseIcon },
-	{ name: 'overview', label: 'navOverview', icon: NetworkIcon },
-	{ name: 'queue', label: 'navQueue', icon: KanbanIcon },
-	{ name: 'parts', label: 'navParts', icon: BoxesIcon },
-	{ name: 'agents', label: 'navAgents', icon: BotIcon },
-	{ name: 'proposals', label: 'navProposals', icon: LightbulbIcon },
-	{ name: 'machines', label: 'navMachines', icon: ServerIcon },
-	{ name: 'capabilities', label: 'navCapabilities', icon: BlocksIcon },
-	{ name: 'accounts', label: 'navAccounts', icon: KeyRoundIcon },
-	{ name: 'metrics', label: 'navMetrics', icon: ChartIcon }
+export type NavEntry = { name: RouteName; label: string; icon: typeof HouseIcon };
+
+// The screens in groups, the daily ones first: what needs the owner and the
+// work in flight; then the project's shape; then the cluster's machinery,
+// visited when something is off.
+export const NAV_GROUPS: { label: string; items: NavEntry[] }[] = [
+	{
+		label: 'navGroupDaily',
+		items: [
+			{ name: 'home', label: 'navHome', icon: HouseIcon },
+			{ name: 'queue', label: 'navQueue', icon: KanbanIcon },
+			{ name: 'proposals', label: 'navProposals', icon: LightbulbIcon },
+			{ name: 'agents', label: 'navAgents', icon: BotIcon }
+		]
+	},
+	{
+		label: 'navGroupProject',
+		items: [
+			{ name: 'parts', label: 'navParts', icon: BoxesIcon },
+			{ name: 'metrics', label: 'navMetrics', icon: ChartIcon }
+		]
+	},
+	{
+		label: 'navGroupCluster',
+		items: [
+			{ name: 'overview', label: 'navOverview', icon: NetworkIcon },
+			{ name: 'machines', label: 'navMachines', icon: ServerIcon },
+			{ name: 'accounts', label: 'navAccounts', icon: KeyRoundIcon },
+			{ name: 'capabilities', label: 'navCapabilities', icon: BlocksIcon }
+		]
+	}
 ];
+
+// NAV is every screen in the same order, for the palette and the shortcuts.
+export const NAV: NavEntry[] = NAV_GROUPS.flatMap((g) => g.items);
