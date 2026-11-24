@@ -248,6 +248,8 @@ const en = {
     'agent.usage': 'Tokens', 'tweak.attached': 'Tweak attached', 'message.sent': 'Message',
     'policy.violation.blocked': 'Violation blocked', 'secret.blocked': 'Secret blocked', 'journal.entry': 'Journal',
     'merge.conflicts.reapplied': 'Conflict resolved again from a recorded resolution',
+    'item.stale_read': 'Main changed what it read', 'lesson.learned': 'Lesson learned', 'lesson.merged': 'Lesson seen again',
+    'lesson.deleted': 'Lesson deleted',
   },
 };
 
@@ -488,6 +490,8 @@ const pt = {
     'agent.usage': 'Tokens', 'tweak.attached': 'Ajuste rápido anexado', 'message.sent': 'Mensagem',
     'policy.violation.blocked': 'Violação bloqueada', 'secret.blocked': 'Segredo bloqueado', 'journal.entry': 'Diário',
     'merge.conflicts.reapplied': 'Conflito resolvido de novo por uma resolução gravada',
+    'item.stale_read': 'A main mudou o que ele leu', 'lesson.learned': 'Lição aprendida', 'lesson.merged': 'Lição vista de novo',
+    'lesson.deleted': 'Lição apagada',
   },
 };
 

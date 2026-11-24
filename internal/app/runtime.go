@@ -90,6 +90,7 @@ type liveSession struct {
 	project string
 	itemID  string
 	step    string
+	dir     string // the worktree the session works in
 	sess    ports.Session
 	cancel  context.CancelFunc
 	started time.Time
@@ -607,7 +608,7 @@ func (r *Runtime) start(ctx context.Context, p *Project, slot Slot, a *Assignmen
 		s.tokens.Revoke(token)
 		return err
 	}
-	ls := &liveSession{agent: slot.Agent, project: p.Name, itemID: it.ID, step: a.Step.Name, sess: sess, cancel: cancel, started: s.d.Clock.Now(),
+	ls := &liveSession{agent: slot.Agent, project: p.Name, itemID: it.ID, step: a.Step.Name, dir: dir, sess: sess, cancel: cancel, started: s.d.Clock.Now(),
 		run: run, outputs: filepath.Join(sessDir, domain.OutputsDir)}
 	r.mu.Lock()
 	r.running[slot.Agent] = ls
@@ -926,6 +927,7 @@ loop:
 				limited = true
 				resets = ev.ResetsAt
 			case ports.PEToolUse:
+				s.noteToolFiles(ctx, p, a.Item.ID, ls.dir, ev.Tool, ev.Input)
 				if ev.Tool == "Read" || ev.Tool == "Grep" || ev.Tool == "Glob" {
 					usage.ExploreReads++
 				}
@@ -1106,7 +1108,7 @@ func (r *Runtime) StopAll() {
 		time.Sleep(20 * time.Millisecond)
 	}
 	queues := make(chan struct{})
-	go func() { r.queues.Wait(); close(queues) }()
+	go func() { r.queues.Wait(); r.s.stale.passes.Wait(); close(queues) }()
 	select {
 	case <-queues:
 	case <-time.After(time.Until(deadline)):

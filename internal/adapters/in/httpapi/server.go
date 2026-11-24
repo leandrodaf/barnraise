@@ -79,6 +79,7 @@ func New(svc *app.Service, opts Options) *Server {
 	path, handler := barnraisev1connect.NewBarnraiseServiceHandler(&Handler{srv: s}, connect.WithReadMaxBytes(8<<20), connect.WithCodec(snakeJSON{}))
 	s.mux.Handle(path, s.auth(handler))
 	s.mux.Handle("GET /v1/events", s.auth(http.HandlerFunc(s.handleSSE)))
+	s.routeLessons()
 	s.mux.HandleFunc("POST /v1/webhooks/github", s.handleGitHub)
 	s.mux.HandleFunc("POST /v1/webhooks/gitlab", s.handleGitLab)
 	s.mux.HandleFunc("POST /v1/webhooks/inbound/{project}", s.handleInbound)

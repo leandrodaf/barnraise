@@ -51,6 +51,8 @@ Formats used below:
 | `webhooks` | list | none | See [webhooks](#webhooks) |
 | `experiments` | list | none | See [experiments](#experiments) |
 | `worktree` | mapping | `{include: [.env, .env.local], port_base: 4100, safety_commit: 15m}` | See [worktree](#worktree) |
+| `stale_reads` | mapping | `{enabled: true, rebase: false, max_files: 10}` | See [stale_reads](#stale_reads) |
+| `lessons` | mapping | `{enabled: true, max: 5}` | See [lessons](#lessons) |
 
 A minimal file, as `barnraise init` writes it:
 
@@ -753,6 +755,29 @@ worktree:
 **`strip`** empties the worktrees that only wait. When an item has been `waiting_owner` or `blocked` for `strip_after`, the listed directories leave its worktree; the branch, the commits and every other file stay. When the item moves again, the worktree is seeded and set up again before anything runs there. An item with a session running is never touched. List only what `setup` (or a build) puts back.
 
 Paths in `seed` and `strip` are relative to the repository root and stay inside it; `.git` and Barnraise's own folders are refused.
+
+## stale_reads
+
+When main moves (an item of this machine or of another one lands), Barnraise compares what main changed with what each item in progress on this machine has seen: the files its agent sessions read or changed (taken from the session's tool calls, kept in the local store) and the files its branch changes. When they overlap, the agent gets a message with the files and a short summary of each change (`+12 -3 (func Load)`), between two tool calls or at the start of its next step, and the event `item.stale_read` is written. Searches (`Grep`, `Glob`) do not count as reads, and `plan.md`, `criteria.json` and the changelog are never reported.
+
+| Key | Default | Meaning |
+| --- | --- | --- |
+| `enabled` | `true` | Track the files sessions read and warn when main changes them |
+| `rebase` | `false` | Also rebase the item's branch on the new main at once, when that applies without a conflict (pending changes are committed first). A conflict leaves the branch as it was, and the message says so; the merge queue rebases at integration anyway |
+| `max_files` | `10` | Most files listed in one warning; the rest are counted |
+
+```yaml
+stale_reads: { rebase: true }
+```
+
+## lessons
+
+When an item's work is sent back (a failed check, a review asking for rework, the merge queue, or the owner's `barnraise item redo … --why`), Barnraise remembers the reason and the item's commit at that moment. When the step that sent it back passes again (or the item lands), it writes a lesson without any model: the reason, the files the fix changed, the areas and the checks it concerns (event `lesson.learned`). A lesson that says the same as one already known (same step and checks, close wording, same places) is merged into it and counted (`lesson.merged`). Implementer steps of later items get the lessons about the files they are anchored to, touch or read, and their areas, the most relevant first. `barnraise lesson list` shows them and `barnraise lesson delete <id>` removes one (owner only).
+
+| Key | Default | Meaning |
+| --- | --- | --- |
+| `enabled` | `true` | Learn lessons from resolved rework and give them to later items |
+| `max` | `5` | Most lessons in one prompt (0 to 20; 0 keeps learning without giving them) |
 
 ## Machine configuration (`daemon.yaml`)
 

@@ -274,6 +274,7 @@ func (s *Service) BuildStepPrompt(ctx context.Context, p *Project, it *domain.It
 		if j := s.lastJournal(p, it.ID); j != "" {
 			b.WriteString("\n## Last journal entry\n" + j + "\n")
 		}
+		b.WriteString(s.lessonsPrompt(ctx, p, it))
 	}
 	if d := ownerDecisions(p, it.ID); d != "" {
 		b.WriteString(d)

@@ -25,6 +25,11 @@ type stepOutcome struct {
 // finishStep applies the flow engine's decision. The flow is code: Barnraise
 // decides the next step, the rework and the integration.
 func (s *Service) finishStep(ctx context.Context, p *Project, o stepOutcome) (*domain.Item, domain.Transition, error) {
+	reworkHead := ""
+	if sendsBack(o.Outcome) && p.Cfg().Lessons.Enabled {
+		reworkHead = s.itemHead(ctx, p, o.Item) // where the fix of a rework starts
+	}
+	var resolved []domain.ReworkRecord
 	p.mu.Lock()
 	cur, ok := p.state.Items[o.Item]
 	if !ok {
@@ -75,6 +80,9 @@ func (s *Service) finishStep(ctx context.Context, p *Project, o stepOutcome) (*d
 		}
 		it.Attempts = 0
 		it.WaitingQuestion = ""
+		if tr.Kind == domain.TransAdvance || tr.Kind == domain.TransComplete {
+			resolved = resolveRounds(it, o.Step, tr.Kind == domain.TransComplete)
+		}
 		switch tr.Kind {
 		case domain.TransAdvance:
 			it.Step = tr.NextStep
@@ -91,7 +99,7 @@ func (s *Service) finishStep(ctx context.Context, p *Project, o stepOutcome) (*d
 				park = true
 			}
 		case domain.TransRework:
-			it.Rework = append(it.Rework, domain.ReworkRecord{From: o.Step, To: tr.NextStep, By: o.Actor, Reason: o.Reason, Outcome: string(o.Outcome), Tier: tr.Tier, At: now})
+			it.Rework = append(it.Rework, domain.ReworkRecord{From: o.Step, To: tr.NextStep, By: o.Actor, Reason: o.Reason, Outcome: string(o.Outcome), Tier: tr.Tier, At: now, Commit: reworkHead})
 			it.Tier = tr.Tier
 			it.Step = tr.NextStep
 			it.StepStartedAt = now
@@ -149,6 +157,7 @@ func (s *Service) finishStep(ctx context.Context, p *Project, o stepOutcome) (*d
 			s.analyzeExhaustedRework(ctx, p, it)
 		}
 	}
+	s.learnAsync(ctx, p, it, resolved)
 	s.syncTracker(p, it.ID, false)
 	s.runtime.Poke()
 	return it, tr, nil

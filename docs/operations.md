@@ -208,7 +208,7 @@ Inside the data dir:
 
 | Entry | Holds |
 | --- | --- |
-| `barnraise.db` (+ `-wal`, `-shm`) | SQLite: the event log, the derived state, tokens, audit, the knowledge index |
+| `barnraise.db` (+ `-wal`, `-shm`) | SQLite: the event log, the derived state, tokens, audit, the knowledge index, and the files each item's agent sessions read or changed on this machine (`file_reads`, for the stale-read warning; dropped when the item ends) |
 | `nats/` | JetStream storage: the event stream mirrored with other machines |
 | `blobs/` | Object store: logs, screenshots, diffs and binaries by content hash |
 | `cursors.json` | How far this machine has read each peer's stream |
@@ -301,6 +301,23 @@ Barnraise asks for the model of the session when the agent lists it and ignores 
 A machine runs as many sessions as its CPUs and total memory allow (`barnraise cluster status` shows `busy n/slots`). On top of that, **no new session starts while the machine has less than 3 GB of memory available, or no idle CPU**: the builds, tests and emulators of the items in progress keep the memory instead of being killed by the kernel. Sessions already running are never stopped for it, and work resumes by itself when the pressure passes. The daemon logs the reason once.
 
 Each account's usage of its 5-hour and weekly windows comes from the sessions themselves (Claude Code reports it after every request) and from the status line of interactive sessions. `barnraise account list` shows the numbers and the reset times; an account at its ceiling is skipped until its window resets.
+
+## Main moving under an item
+
+When main moves, every item in progress on a machine is compared with it: the files its sessions read or changed there and the files its branch changes, against what main changed since the item last looked. The agent of an item that overlaps gets a message listing those files with a short summary of each change (`api/wallet.go: +12 -3 (func Load)`), delivered between two tool calls by the hooks or at the start of its next step, and `item.stale_read` goes to the event log (and the webhooks). Nothing is sent when the overlap is empty, and each move of main is reported once per item. With `stale_reads.rebase: true` the branch is also rebased on the new main right away when that applies cleanly; otherwise the merge queue rebases it when it lands, as before. Integrations made by another machine count too: the machine running the item fetches and compares when the `item.integrated` event arrives. See [stale_reads](configuration.md#stale_reads).
+
+## Lessons from rework
+
+Every resolved rework round (a failed check, a review asking for rework, a merge-queue failure, an owner's `barnraise item redo <id> <step> --why "…"`) leaves a short lesson: why the work came back and which files the fix changed, tagged by area and check. Similar lessons are merged and counted instead of piling up. Implementer prompts of later items that touch the same files, folders or areas get the most relevant ones (at most `lessons.max`). Lessons are events, so every machine of the cluster has them.
+
+```sh
+barnraise lesson list                       # the most taught first
+barnraise lesson list --file api/wallet.go   # about a file or its folder
+barnraise lesson list --area wallet --json
+barnraise lesson delete L-3fa9c1d2          # owner only; audited
+```
+
+The same is reachable over HTTP with a token: `GET /v1/lessons?project=…&file=…&area=…` and `DELETE /v1/lessons/{id}?project=…`. See [lessons](configuration.md#lessons).
 
 ## Tokens of prints
 

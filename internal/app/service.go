@@ -106,6 +106,8 @@ type Service struct {
 	wtLocks sync.Map
 	// local is what only this machine sees: its worktrees and their processes.
 	local localView
+	// stale is the stale-read warning's memory (staleread.go).
+	stale staleState
 }
 
 // New creates the service.
@@ -289,6 +291,10 @@ func cloneState(s *domain.State) *domain.State {
 		c.Messages[i] = &mm
 	}
 	c.Journal = append([]*domain.JournalEntry(nil), s.Journal...)
+	c.Lessons = make(map[string]*domain.Lesson, len(s.Lessons))
+	for k, v := range s.Lessons {
+		c.Lessons[k] = v.Clone()
+	}
 	if s.Focus != nil {
 		f := *s.Focus
 		c.Focus = &f
@@ -400,6 +406,9 @@ func (s *Service) Ingest(ctx context.Context, e domain.Event) error {
 		s.hub.Publish(stored[0])
 		s.runtime.Poke()
 		s.dropFinishedWorkspace(ctx, p, stored[0])
+		if stored[0].Type == domain.EvItemIntegrated {
+			s.mainMovedAsync(p, "", []string{stored[0].Subject}, stored[0].Subject+" integrated on "+stored[0].Machine)
+		}
 	}
 	return err
 }

@@ -247,7 +247,16 @@ func (s *Service) tryIntegrate(ctx context.Context, p *Project, items []*domain.
 		s.markIntegrated(ctx, p, b.it, b.sha)
 	}
 	s.revalidateAsync(p, domain.Change{Kind: "integration", Cause: "main " + short(head), Commit: head, Files: changed, Summary: integrationSummary(items)})
+	s.mainMovedAsync(p, head, itemIDs(items), strings.Join(itemIDs(items), ", ")+" integrated")
 	return true, nil, "", nil
+}
+
+func itemIDs(items []*domain.Item) []string {
+	out := make([]string, len(items))
+	for i, it := range items {
+		out[i] = it.ID
+	}
+	return out
 }
 
 func integrationSummary(items []*domain.Item) string {

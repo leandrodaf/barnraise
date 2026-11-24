@@ -62,6 +62,18 @@ CREATE TABLE audit (
 CREATE INDEX audit_project_time ON audit(project, time);
 CREATE INDEX audit_time ON audit(time);
 `},
+	// 3: the files each item's agent sessions read or changed on this
+	// machine (the stale-read warning). Local, never replicated.
+	{3, `
+CREATE TABLE file_reads (
+	project TEXT NOT NULL,
+	item    TEXT NOT NULL,
+	path    TEXT NOT NULL,
+	write   INTEGER NOT NULL DEFAULT 0,
+	time    INTEGER NOT NULL,
+	PRIMARY KEY (project, item, path)
+);
+`},
 }
 
 // migrate applies the pending migrations of a component inside one

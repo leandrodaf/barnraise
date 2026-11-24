@@ -24,6 +24,7 @@ type Store struct {
 	ids    map[string]bool
 	seq    int64
 	closed bool
+	reads  map[string]map[string]ports.FileTouch // project\x00item -> path
 
 	// FailAppend, when set, makes Append return it (and store nothing).
 	FailAppend error

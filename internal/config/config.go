@@ -380,6 +380,8 @@ type rawConfig struct {
 		StripAfter   string            `yaml:"strip_after"`
 		Stores       map[string]string `yaml:"stores"`
 	} `yaml:"worktree"`
+	StaleReads staleReadsRaw `yaml:"stale_reads"`
+	Lessons    lessonsRaw    `yaml:"lessons"`
 
 	flowsNode *yaml.Node
 }
@@ -611,6 +613,9 @@ func (r *rawConfig) compile(root, tmpl string) (*domain.ProjectConfig, error) {
 	c.Merge.Structural = def(strings.TrimSpace(r.Merge.Structural), "auto")
 	if c.Merge.Structural != "auto" && c.Merge.Structural != "off" {
 		return nil, fmt.Errorf("merge.structural must be auto or off")
+	}
+	if err := compileOrchestration(r, c); err != nil {
+		return nil, err
 	}
 
 	c.Lease = domain.LeaseDef{Renew: 30 * time.Second, TTL: 2 * time.Minute}
@@ -1080,6 +1085,7 @@ func Explain(cfg *domain.ProjectConfig) (string, error) {
 	if v := acpView(cfg); len(v) > 0 {
 		view["acp_providers"] = v
 	}
+	view["stale_reads"], view["lessons"] = cfg.StaleReads, cfg.Lessons
 	var buf bytes.Buffer
 	enc := yaml.NewEncoder(&buf)
 	enc.SetIndent(2)

@@ -453,6 +453,10 @@ type ProjectConfig struct {
 	Outfilter OutfilterDef `json:"outfilter,omitzero"`
 	// Terse decides which steps ask the agent for short answers.
 	Terse TerseDef `json:"terse,omitzero"`
+	// StaleReads warns an agent when main changes files it read or changed.
+	StaleReads StaleReadsDef `json:"stale_reads"`
+	// Lessons are distilled from resolved rework and given to later items.
+	Lessons LessonsDef `json:"lessons"`
 }
 
 // FlowFor returns the flow of an item kind.

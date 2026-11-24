@@ -777,6 +777,7 @@ const EVENT_TYPES = [
   'goal.set', 'goal.finished', 'focus.changed', 'system.paused', 'system.resumed', 'account.updated',
   'account.limit.reached', 'machine.updated', 'machine.left', 'agent.session', 'agent.usage', 'message.sent',
   'message.delivered', 'journal.entry', 'policy.violation.blocked', 'secret.blocked', 'merge.conflicts.reapplied',
+  'item.stale_read', 'lesson.learned', 'lesson.merged', 'lesson.deleted',
 ];
 
 const live = { es: null, lastSeq: 0, backoff: 1000, timer: 0, countdown: 0 };

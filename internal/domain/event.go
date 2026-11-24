@@ -59,6 +59,10 @@ const (
 	// EvConflictsReapplied: a rebase conflict was resolved again from a
 	// resolution git recorded earlier (rerere); the checks still run.
 	EvConflictsReapplied = "merge.conflicts.reapplied"
+	EvItemStaleRead      = "item.stale_read"
+	EvLessonLearned      = "lesson.learned"
+	EvLessonMerged       = "lesson.merged"
+	EvLessonDeleted      = "lesson.deleted"
 )
 
 // Event is one entry of the append-only log. The current state is derived
@@ -94,6 +98,7 @@ type Payload struct {
 	Session  *SessionInfo  `json:"session,omitempty"`
 	Usage    *TokenUsage   `json:"usage,omitempty"`
 	Journal  *JournalEntry `json:"journal,omitempty"`
+	Lesson   *Lesson       `json:"lesson,omitempty"`
 	// Worktrees is a machine's inventory of what it keeps for the project.
 	Worktrees *WorktreeReport `json:"worktrees,omitempty"`
 	Cause     string          `json:"cause,omitempty"` // link to the change that caused it
@@ -283,13 +288,14 @@ type State struct {
 	// Worktrees is what each machine last said it keeps, by machine.
 	Worktrees map[string]*WorktreeReport `json:"worktrees,omitempty"`
 	// Ledger adds up usage, checks, reviews and deliveries as events are applied.
-	Ledger    *Ledger         `json:"-"`
-	Journal   []*JournalEntry `json:"journal"`
-	Paused    bool            `json:"paused"`
-	PausedWhy string          `json:"paused_why,omitempty"`
-	Seen      map[string]bool `json:"-"` // applied event ids
-	LastSeq   int64           `json:"last_seq"`
-	Counters  map[IDKind]int  `json:"counters"`
+	Ledger    *Ledger            `json:"-"`
+	Journal   []*JournalEntry    `json:"journal"`
+	Lessons   map[string]*Lesson `json:"lessons,omitempty"`
+	Paused    bool               `json:"paused"`
+	PausedWhy string             `json:"paused_why,omitempty"`
+	Seen      map[string]bool    `json:"-"` // applied event ids
+	LastSeq   int64              `json:"last_seq"`
+	Counters  map[IDKind]int     `json:"counters"`
 }
 
 // NewState creates an empty projection.
@@ -299,6 +305,7 @@ func NewState(project string) *State {
 		Tweaks: map[string]*Tweak{}, Questions: map[string]*Question{}, Accounts: map[string]*Account{},
 		Machines: map[string]*Machine{}, Sessions: map[string]*SessionInfo{}, Seen: map[string]bool{}, Counters: map[IDKind]int{},
 		Worktrees: map[string]*WorktreeReport{}, Ledger: NewLedger(),
+		Lessons: map[string]*Lesson{},
 	}
 }
 
@@ -418,6 +425,9 @@ func (s *State) Apply(e Event) error {
 		if len(s.Journal) > journalWindow {
 			s.Journal = s.Journal[len(s.Journal)-journalWindow:]
 		}
+	}
+	if p.Lesson != nil {
+		s.applyLesson(e.Type, p.Lesson)
 	}
 	switch e.Type {
 	case EvSystemPaused:

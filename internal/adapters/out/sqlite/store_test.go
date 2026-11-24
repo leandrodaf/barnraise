@@ -163,7 +163,7 @@ func TestReopenKeepsDataAndMigrations(t *testing.T) {
 	s.Append(ctx, ev("e1", "p", domain.EvJournal, "", t0))
 	s.Close()
 	s = open(t, path)
-	if v, _ := s.SchemaVersion(ctx, "store"); v != len(storeMigrations) {
+	if v, _ := s.SchemaVersion(ctx, "store"); v != storeMigrations[len(storeMigrations)-1].Version {
 		t.Fatalf("version %d", v)
 	}
 	got, _ := s.Load(ctx, "p", 0)

@@ -180,6 +180,8 @@ func (s *Service) applyAnswer(ctx context.Context, p *Project, a Actor, it *doma
 			x.StepStartedAt = s.d.Clock.Now().UTC()
 			if strings.Contains(lc, "stronger") {
 				x.Tier++
+				// The rounds of the old budget keep their lessons to learn.
+				pastRework(x)
 				x.Rework = nil // a fresh budget of rounds on the stronger model
 			}
 			if x.Claim == nil {
@@ -533,6 +535,7 @@ func (s *Service) Redo(ctx context.Context, project string, a Actor, id, step, w
 		return nil, fmt.Errorf("%w: %v", ErrInvalid, err)
 	}
 	s.stopItemSessions(id)
+	head := s.itemHead(ctx, p, id)
 	it, err := s.mutateItem(ctx, p, id, domain.EvItemRedo, actorName(a), func(x *domain.Item) error {
 		f, err := p.Cfg().FlowOf(x.Kind, x.Area)
 		if err != nil {
@@ -543,6 +546,11 @@ func (s *Service) Redo(ctx context.Context, project string, a Actor, id, step, w
 		}
 		if x.Status == domain.StatusIntegrated {
 			return fmt.Errorf("%w: %s is integrated; create a new item", ErrConflict, x.ID)
+		}
+		if strings.TrimSpace(why) != "" {
+			// The owner's correction: its lesson is learned once the item gets past it.
+			x.PastRework = append(x.PastRework, domain.ReworkRecord{From: x.Step, To: step, By: actorName(a), Reason: why,
+				Outcome: "redo", At: s.d.Clock.Now().UTC(), Commit: head})
 		}
 		x.Step = step
 		x.StepStartedAt = s.d.Clock.Now().UTC()

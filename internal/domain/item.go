@@ -100,6 +100,11 @@ type ReworkRecord struct {
 	Outcome string    `json:"outcome"` // fail, reject, rework
 	Tier    int       `json:"tier"`    // model escalation tier used for the next attempt
 	At      time.Time `json:"at,omitzero"`
+	// Commit is the item's head when the work was sent back: the fix is
+	// what changed from there.
+	Commit string `json:"commit,omitempty"`
+	// Resolved is set when the step that sent the work back passed again.
+	Resolved bool `json:"resolved,omitempty"`
 }
 
 // Claim records who holds the item.
@@ -131,6 +136,7 @@ type Item struct {
 	Deps           []string       `json:"deps,omitempty"`
 	Tweaks         []string       `json:"tweaks,omitempty"`
 	Checklist      []string       `json:"checklist,omitempty"`
+	PastRework     []ReworkRecord `json:"past_rework,omitempty"` // out of the rework budget (owner corrections, reset rounds); lessons still to learn
 	Rework         []ReworkRecord `json:"rework,omitempty"`
 	Tier           int            `json:"tier"` // 0 = class default; +1 per escalation
 	Claim          *Claim         `json:"claim,omitempty"`
@@ -287,6 +293,7 @@ func (it *Item) Clone() *Item {
 	c.Tweaks = append([]string(nil), it.Tweaks...)
 	c.Checklist = append([]string(nil), it.Checklist...)
 	c.Rework = append([]ReworkRecord(nil), it.Rework...)
+	c.PastRework = append([]ReworkRecord(nil), it.PastRework...)
 	c.FilesTouched = append([]string(nil), it.FilesTouched...)
 	c.Anchors.Files = append([]string(nil), it.Anchors.Files...)
 	c.Anchors.Symbols = append([]string(nil), it.Anchors.Symbols...)
