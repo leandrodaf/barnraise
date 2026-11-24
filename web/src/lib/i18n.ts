@@ -780,6 +780,26 @@ Object.assign(pt, {
   partHow: 'Como esta parte está configurada', partContracts: 'Contratos',
 });
 
+Object.assign(en, {
+  mMachinesN: '{0} machines', mAgentsAll: '{0} of {1} agents', mAgentsHelp: 'Agents working now, of all the machines can run at once (machines in standby run none).',
+  mAgentsShort: '{0} of {1}', mStandbyShort: 'standby', mMore: '+{0} machines', mCores: '{0} cores', mMem: '{0} of {1} GB in use', mStandby: 'In standby: runs no agent',
+  mAgents: '{0} of {1} agents working', mAgentsLabel: 'agents', mUpTo: 'Runs up to {0} agents at once',
+  mLimit_cpu: 'Measured from its {0} cores: 2 per agent.', mLimit_memory: 'Measured from its {1} GB of memory: 4 GB per agent, 2 GB kept for the system.',
+  mLimit_owner: 'The limit you set.', mLimitOwner: 'The limit you set (measured, it would be {0}).',
+  mSetLimit: 'Agents at once', mFewer: 'One agent fewer', mMoreAgents: 'One agent more', mAuto: 'Measure again',
+  mLimitSet: '{0} runs up to {1} agents at once.', mLimitAuto: '{0} measures its limit again.',
+});
+
+Object.assign(pt, {
+  mMachinesN: '{0} máquinas', mAgentsAll: '{0} de {1} agentes', mAgentsHelp: 'Agentes trabalhando agora, do total que as máquinas rodam ao mesmo tempo (as em standby não rodam nenhum).',
+  mAgentsShort: '{0} de {1}', mStandbyShort: 'standby', mMore: '+{0} máquinas', mCores: '{0} núcleos', mMem: '{0} de {1} GB em uso', mStandby: 'Em standby: não roda agente',
+  mAgents: '{0} de {1} agentes trabalhando', mAgentsLabel: 'agentes', mUpTo: 'Roda até {0} agentes ao mesmo tempo',
+  mLimit_cpu: 'Medido pelos {0} núcleos: 2 por agente.', mLimit_memory: 'Medido pelos {1} GB de memória: 4 GB por agente, 2 GB ficam para o sistema.',
+  mLimit_owner: 'O limite que você definiu.', mLimitOwner: 'O limite que você definiu (medido, seria {0}).',
+  mSetLimit: 'Agentes ao mesmo tempo', mFewer: 'Um agente a menos', mMoreAgents: 'Um agente a mais', mAuto: 'Medir de novo',
+  mLimitSet: '{0} roda até {1} agentes ao mesmo tempo.', mLimitAuto: '{0} volta a medir o próprio limite.',
+});
+
 import { locale } from './locale.svelte';
 
 // The current language; t() and tm() read it, so the screen follows a switch.

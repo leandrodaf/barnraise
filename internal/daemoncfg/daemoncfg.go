@@ -94,8 +94,11 @@ type File struct {
 	// (`barnraise standby on`); StandbyWhy is the owner's note.
 	Standby    bool   `yaml:"standby,omitempty"`
 	StandbyWhy string `yaml:"standby_why,omitempty"`
-	Network    string `yaml:"network,omitempty"` // empty (auto), tailscale, tsnet, plugin, lan
-	TSNet      TSNet  `yaml:"tsnet,omitempty"`
+	// MaxAgents caps the agents this machine runs at once; 0 measures it
+	// from the CPUs and the memory.
+	MaxAgents int    `yaml:"max_agents,omitempty"`
+	Network   string `yaml:"network,omitempty"` // empty (auto), tailscale, tsnet, plugin, lan
+	TSNet     TSNet  `yaml:"tsnet,omitempty"`
 	// NetworkPlugin is used with `network: plugin`.
 	NetworkPlugin *NetworkPlugin `yaml:"network_plugin,omitempty"`
 	Notify        []struct {

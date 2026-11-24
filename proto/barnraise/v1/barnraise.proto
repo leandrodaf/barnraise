@@ -370,6 +370,10 @@ message Machine {
   string build_time = 24;
   // What runs on the machine: capability status -> count (see Capabilities).
   map<string, int32> capability_counts = 25;
+  // What sets slots: cpu or memory (measured: auto_slots) or owner (the
+  // limit the owner set for this machine).
+  string slots_by = 26;
+  int32 auto_slots = 27;
 }
 
 // GpuStat is the live state of one GPU of a machine.
@@ -1053,6 +1057,17 @@ message PeerResult {
   string error = 3;
 }
 
+message MaxAgentsRequest {
+  // Agents at once on each machine named; 0 measures it from the machine.
+  int32 max_agents = 1;
+  // The machines; empty: this one.
+  repeated string machines = 2;
+}
+
+message MaxAgentsResponse {
+  repeated PeerResult machines = 1;
+}
+
 message StandbyResponse {
   bool on = 1;
   // Sessions of this machine stopped by the switch.
@@ -1631,6 +1646,8 @@ service BarnraiseService {
   // check or merge. It is kept in the machine's configuration, so the daemon
   // starts the way it stopped.
   rpc SetStandby(StandbyRequest) returns (StandbyResponse);
+  // SetMaxAgents sets how many agents each machine named runs at once.
+  rpc SetMaxAgents(MaxAgentsRequest) returns (MaxAgentsResponse);
   // What is active on each machine, what falls back and why, and how to fix
   // it (ADR-0046). Owner and admin tokens only.
   rpc Capabilities(CapabilitiesRequest) returns (CapabilitiesResponse);

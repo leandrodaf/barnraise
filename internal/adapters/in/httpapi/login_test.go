@@ -146,3 +146,23 @@ func TestAccountLoginFanOutOption(t *testing.T) {
 		t.Fatalf("%+v", p)
 	}
 }
+
+func TestSetMaxAgents(t *testing.T) {
+	var got int
+	f, _ := loginServer(t, Options{SetMaxAgents: func(_ context.Context, n int, machines []string) (*pb.MaxAgentsResponse, error) {
+		got = n
+		return &pb.MaxAgentsResponse{Machines: []*pb.PeerResult{{Name: "m1", Ok: true}}}, nil
+	}})
+	ctx := context.Background()
+	owner := f.client("owner-secret")
+	if _, err := owner.SetMaxAgents(ctx, connect.NewRequest(&pb.MaxAgentsRequest{MaxAgents: 65})); code(err) != connect.CodeInvalidArgument {
+		t.Fatalf("65: %v", err)
+	}
+	if res, err := owner.SetMaxAgents(ctx, connect.NewRequest(&pb.MaxAgentsRequest{MaxAgents: 5})); err != nil || got != 5 || !res.Msg.Machines[0].Ok {
+		t.Fatalf("%v %d", err, got)
+	}
+	bare, _ := loginServer(t, Options{})
+	if _, err := bare.client("owner-secret").SetMaxAgents(ctx, connect.NewRequest(&pb.MaxAgentsRequest{MaxAgents: 2})); code(err) != connect.CodeUnimplemented {
+		t.Fatalf("no option: %v", err)
+	}
+}

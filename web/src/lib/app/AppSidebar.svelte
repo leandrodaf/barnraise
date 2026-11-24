@@ -57,6 +57,16 @@
 	};
 	const active = (n: RouteName) => router.current.name === n || (n === 'queue' && router.current.name === 'item');
 	const machines = $derived(cluster.all?.machines.map((m) => m.machine!).filter(Boolean) || []);
+	// With many machines the footer stays small: the busiest first, the rest
+	// behind a link; the totals say the cluster at a glance.
+	const SHOWN = 4;
+	const ordered = $derived([...machines].sort((a, b) => b.busy - a.busy || Number(a.standby) - Number(b.standby) || a.name.localeCompare(b.name)));
+	const busyAll = $derived(machines.reduce((n, m) => n + m.busy, 0));
+	const slotsAll = $derived(machines.reduce((n, m) => n + (m.standby ? 0 : m.slots), 0));
+	const memUsed = (m: { memGb: number; freeMemGb: number }) => (m.memGb && m.freeMemGb > 0 ? m.memGb - m.freeMemGb : 0);
+	const machineTitle = (m: { name: string; cpus: number; memGb: number; freeMemGb: number; slots: number; busy: number; slotsBy: string; standby: boolean }) =>
+		[m.name, t('mCores', m.cpus) + ' · ' + t('mMem', fmt1(memUsed(m)), fmt1(m.memGb)), m.standby ? t('mStandby') : t('mAgents', m.busy, m.slots) + ' · ' + t('mLimit_' + (m.slotsBy || 'cpu'))].join('\n');
+	const fmt1 = (n: number) => (Math.round(n * 10) / 10).toLocaleString(undefined, { maximumFractionDigits: 1 });
 	const cpuPct = (m: { load1: number; cpus: number }) => (m.cpus ? Math.min(100, (m.load1 / m.cpus) * 100) : 0);
 	const memPct = (m: { memGb: number; freeMemGb: number }) => (m.memGb && m.freeMemGb > 0 ? ((m.memGb - m.freeMemGb) / m.memGb) * 100 : 0);
 </script>
@@ -126,17 +136,25 @@
 		{/each}
 	</Sidebar.Content>
 	<Sidebar.Footer class="gap-2">
-		<div class="space-y-1.5 rounded-lg border bg-background/40 p-2 group-data-[collapsible=icon]:hidden">
-			{#each machines as m (m.name)}
-				<a href={href('machines')} class="grid grid-cols-[1fr_auto] items-center gap-x-2 text-[11px]" title={m.name}>
-					<span class="flex min-w-0 items-center gap-1.5"><Dot tone={m.standby ? 'needs' : m.health === 'green' ? 'done' : m.health === 'red' ? 'fail' : 'idle'} /><span class="truncate font-medium">{m.name}</span></span>
-					<span class="num text-muted-foreground">{m.busy}/{m.slots}</span>
-					<span class="col-span-2 grid grid-cols-2 gap-1.5">
-						<span class="flex items-center gap-1"><span class="eyebrow w-7 text-[9px] text-muted-foreground">cpu</span><span class="h-1 flex-1 rounded-full bg-muted"><span class="block h-1 rounded-full bg-st-work" style="width:{cpuPct(m)}%"></span></span></span>
-						<span class="flex items-center gap-1"><span class="eyebrow w-7 text-[9px] text-muted-foreground">ram</span><span class="h-1 flex-1 rounded-full bg-muted"><span class="block h-1 rounded-full bg-st-review" style="width:{memPct(m)}%"></span></span></span>
+		<div class="space-y-2 rounded-lg border bg-background/40 p-2 group-data-[collapsible=icon]:hidden">
+			<a href={href('machines')} class="flex items-baseline justify-between gap-2 text-[11px]">
+				<span class="font-medium">{t('mMachinesN', machines.length)}</span>
+				<span class="num text-muted-foreground" title={t('mAgentsHelp')}>{t('mAgentsAll', busyAll, slotsAll)}</span>
+			</a>
+			{#each ordered.slice(0, SHOWN) as m (m.name)}
+				<a href={href('machines')} class="block space-y-1 rounded-md px-1 py-0.5 text-[11px] hover:bg-muted/60" title={machineTitle(m)}>
+					<span class="flex items-center gap-1.5">
+						<Dot tone={m.standby ? 'needs' : m.health === 'green' ? 'done' : m.health === 'red' ? 'fail' : 'idle'} />
+						<span class="min-w-0 flex-1 truncate font-medium">{m.name}</span>
+						<span class="num shrink-0 text-muted-foreground">{m.standby ? t('mStandbyShort') : t('mAgentsShort', m.busy, m.slots)}</span>
+					</span>
+					<span class="grid grid-cols-2 gap-1.5 pl-3">
+						<span class="flex items-center gap-1"><span class="w-7 text-[9px] text-muted-foreground">CPU</span><span class="h-1 flex-1 rounded-full bg-muted"><span class="block h-1 rounded-full bg-st-work" style="width:{cpuPct(m)}%"></span></span></span>
+						<span class="flex items-center gap-1"><span class="w-7 text-[9px] text-muted-foreground">RAM</span><span class="h-1 flex-1 rounded-full bg-muted"><span class="block h-1 rounded-full bg-st-review" style="width:{memPct(m)}%"></span></span></span>
 					</span>
 				</a>
 			{/each}
+			{#if machines.length > SHOWN}<a href={href('machines')} class="block px-1 text-[11px] text-muted-foreground hover:text-foreground">{t('mMore', machines.length - SHOWN)}</a>{/if}
 		</div>
 		<UserMenu />
 	</Sidebar.Footer>

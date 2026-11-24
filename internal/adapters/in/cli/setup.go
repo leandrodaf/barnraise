@@ -1684,6 +1684,7 @@ func (e *env) machineCmd() *cobra.Command {
 		}}
 	history.Flags().StringVar(&window, "window", "", "how far back: 15m, 2h (default: everything kept)")
 	c.AddCommand(invite, join, leave, list, history)
+	c.AddCommand(e.machineAgentsCmd())
 	c.AddCommand(e.networkCmds()...)
 	return c
 }

@@ -185,6 +185,10 @@ type Machine struct {
 	GPU       bool      `json:"gpu"`
 	Labels    []string  `json:"labels,omitempty"`
 	Slots     int       `json:"slots"`
+	// SlotsBy says what sets Slots: cpu or memory (the machine's own
+	// measure, AutoSlots) or owner (max_agents in daemon.yaml).
+	SlotsBy   string    `json:"slots_by,omitempty"`
+	AutoSlots int       `json:"auto_slots,omitempty"`
 	Busy      int       `json:"busy"`
 	Accounts  []string  `json:"accounts,omitempty"`
 	LastSeen  time.Time `json:"last_seen,omitzero"`

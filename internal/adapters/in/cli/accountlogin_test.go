@@ -105,3 +105,42 @@ func TestAccountLoginFollowsEveryMachine(t *testing.T) {
 		t.Errorf("by id: %v %+v", err, d.started)
 	}
 }
+
+type agentsDaemon struct {
+	barnraisev1connect.UnimplementedBarnraiseServiceHandler
+	got *pb.MaxAgentsRequest
+}
+
+func (d *agentsDaemon) SetMaxAgents(_ context.Context, r *connect.Request[pb.MaxAgentsRequest]) (*connect.Response[pb.MaxAgentsResponse], error) {
+	d.got = r.Msg
+	return connect.NewResponse(&pb.MaxAgentsResponse{Machines: []*pb.PeerResult{{Name: "m1", Ok: true}, {Name: "m2", Error: "unreachable"}}}), nil
+}
+
+func TestMachineAgents(t *testing.T) {
+	d := &agentsDaemon{}
+	mux := http.NewServeMux()
+	mux.Handle(barnraisev1connect.NewBarnraiseServiceHandler(d))
+	srv := httptest.NewServer(mux)
+	t.Cleanup(srv.Close)
+	t.Setenv("BARNRAISE_TOKEN", "test")
+	run := func(args ...string) (string, error) {
+		var out bytes.Buffer
+		e := &env{out: &out, errOut: &out, in: strings.NewReader("")}
+		root := e.rootCmd()
+		root.SetArgs(append(args, "--url", srv.URL))
+		root.SetOut(&out)
+		root.SetErr(&out)
+		err := root.Execute()
+		return out.String(), err
+	}
+	out, err := run("machine", "agents", "5", "--machine", "m1,m2")
+	if err == nil || d.got.MaxAgents != 5 || len(d.got.Machines) != 2 || !strings.Contains(out, "✔ m1 runs up to 5 agents") || !strings.Contains(out, "✘ m2: unreachable") {
+		t.Fatalf("%v %+v\n%s", err, d.got, out)
+	}
+	if _, err := run("machine", "agents", "auto"); d.got.MaxAgents != 0 || err == nil {
+		t.Fatalf("auto: %v %+v", err, d.got)
+	}
+	if _, err := run("machine", "agents", "0"); err == nil {
+		t.Fatal("0 was taken")
+	}
+}

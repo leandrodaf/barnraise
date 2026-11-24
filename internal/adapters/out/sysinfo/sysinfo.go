@@ -293,17 +293,31 @@ const (
 // rounded down and at least 1. perAgentMemGB <= 0 uses DefaultAgentMemGB.
 // Unknown memory (0) leaves the CPU bound alone.
 func Slots(m domain.Machine, perAgentMemGB float64, emulatorSlots int) int {
+	n, _ := SlotsWhy(m, perAgentMemGB, emulatorSlots)
+	return n
+}
+
+// What bounds the slots.
+const (
+	ByCPU    = "cpu"
+	ByMemory = "memory"
+)
+
+// SlotsWhy is Slots and what bounds it: cpu or memory.
+func SlotsWhy(m domain.Machine, perAgentMemGB float64, emulatorSlots int) (int, string) {
 	if perAgentMemGB <= 0 {
 		perAgentMemGB = DefaultAgentMemGB
 	}
 	cpu := math.Floor(float64(m.CPUs) / CPUsPerAgent)
-	slots := cpu
+	slots, by := cpu, ByCPU
 	if m.MemGB > 0 {
 		mem := math.Floor((m.MemGB - ReservedMemGB - float64(max(emulatorSlots, 0))*MemPerEmulatorGB) / perAgentMemGB)
-		slots = math.Min(cpu, mem)
+		if mem < cpu {
+			slots, by = mem, ByMemory
+		}
 	}
 	if slots < 1 || math.IsNaN(slots) {
-		return 1
+		return 1, by
 	}
-	return int(slots)
+	return int(slots), by
 }

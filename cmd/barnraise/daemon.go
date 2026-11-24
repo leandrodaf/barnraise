@@ -114,6 +114,7 @@ func runDaemon(ctx context.Context, opts cli.DaemonOptions) error {
 	if err != nil {
 		return err
 	}
+	maxAgentsV.Store(int64(df.MaxAgents))
 	if opts.Machine != "" {
 		df.Machine = opts.Machine
 	}
@@ -229,6 +230,7 @@ func runDaemon(ctx context.Context, opts cli.DaemonOptions) error {
 	go d.serveRemoteStandby(ctx)
 	go d.serveRemoteCapabilities(ctx)
 	go d.serveRemoteLogin(ctx)
+	go d.serveRemoteAgents(ctx)
 	go d.watchCapabilities(ctx)
 	go newChainWatch(d).run(ctx)
 
@@ -255,7 +257,7 @@ func runDaemon(ctx context.Context, opts cli.DaemonOptions) error {
 		},
 		Reload: d.reloadProject,
 		Peers:  d.peers, StopPeers: d.stopPeers, SetStandby: d.setStandby,
-		Capabilities: d.capabilities, InstallTools: d.installTools, AccountLogin: d.accountLogin,
+		Capabilities: d.capabilities, InstallTools: d.installTools, AccountLogin: d.accountLogin, SetMaxAgents: d.setMachineAgents,
 		VerifyAnchor: natsx.AnchorVerifier(df.NKeyPublic),
 		WebhookSecret: func(project, source string) string {
 			v, _ := d.secrets.Get("webhook/" + project + "/" + source)
@@ -512,6 +514,9 @@ func (d *daemon) watchDaemonFile(ctx context.Context) {
 		oldPeers := len(d.df.Peers)
 		d.df.Peers = df.Peers
 		d.df.Notify = df.Notify
+		if d.setMaxAgents(df.MaxAgents) {
+			d.machine.Store(nil) // the next heartbeat carries the new limit
+		}
 		// `barnraise standby` may have written the file itself.
 		if on, why := d.svc.Runtime().Standby(); on != df.Standby || (on && why != df.StandbyWhy) {
 			d.svc.Runtime().SetStandby(df.Standby, df.StandbyWhy)
@@ -544,6 +549,7 @@ func (d *daemon) watchDaemonFile(ctx context.Context) {
 				go d.serveRemoteStandby(ctx)
 				go d.serveRemoteCapabilities(ctx)
 				go d.serveRemoteLogin(ctx)
+				go d.serveRemoteAgents(ctx)
 			}
 		}
 		if d.repl != nil {
@@ -1210,7 +1216,11 @@ func (d *daemon) probe() domain.Machine {
 		m.Load1 = float64(m.CPUs) * v / 100
 	}
 	m.Name = d.df.Machine
-	m.Slots = sysinfo.Slots(m, 4, m.Emulators)
+	m.AutoSlots, m.SlotsBy = sysinfo.SlotsWhy(m, 4, m.Emulators)
+	m.Slots = m.AutoSlots
+	if n := d.maxAgents(); n > 0 {
+		m.Slots, m.SlotsBy = n, "owner"
+	}
 	m.Version = version
 	m.Platform = platform()
 	m.Labels = append(m.Labels, d.sandboxLabels()...)

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -714,6 +715,25 @@ func (h *Handler) SetStandby(ctx context.Context, r *connect.Request[pb.StandbyR
 		action = "machine.standby.on"
 	}
 	h.audit(ctx, action, h.svc().Machine(), "", r.Msg.Why)
+	return connect.NewResponse(out), nil
+}
+
+// SetMaxAgents sets how many agents the named machines run at once.
+func (h *Handler) SetMaxAgents(ctx context.Context, r *connect.Request[pb.MaxAgentsRequest]) (*connect.Response[pb.MaxAgentsResponse], error) {
+	if err := actorFrom(ctx).Require(app.ScopeAdmin, ""); err != nil {
+		return nil, connectErr(err)
+	}
+	if r.Msg.MaxAgents < 0 || r.Msg.MaxAgents > 64 {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("from 1 to 64 agents, or 0 to measure it from the machine"))
+	}
+	if h.srv.opts.SetMaxAgents == nil {
+		return nil, connect.NewError(connect.CodeUnimplemented, errors.New("this daemon cannot change its limit of agents"))
+	}
+	out, err := h.srv.opts.SetMaxAgents(ctx, int(r.Msg.MaxAgents), r.Msg.Machines)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	h.audit(ctx, "machine.max_agents", strings.Join(r.Msg.Machines, ","), "", strconv.Itoa(int(r.Msg.MaxAgents)))
 	return connect.NewResponse(out), nil
 }
 

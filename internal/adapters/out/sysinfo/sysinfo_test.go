@@ -103,3 +103,22 @@ func TestSlots(t *testing.T) {
 		}
 	}
 }
+
+// SlotsWhy names the resource that sets the number of agents.
+func TestSlotsWhy(t *testing.T) {
+	for _, c := range []struct {
+		cpus  int
+		mem   float64
+		slots int
+		by    string
+	}{
+		{8, 15.5, 3, ByMemory}, // (15.5-2)/4 = 3 < 8/2
+		{12, 31.3, 6, ByCPU},   // 12/2 = 6 < (31.3-2)/4
+		{8, 0, 4, ByCPU},       // unknown memory
+	} {
+		n, by := SlotsWhy(domain.Machine{CPUs: c.cpus, MemGB: c.mem}, 4, 0)
+		if n != c.slots || by != c.by {
+			t.Errorf("SlotsWhy(%d cpus, %v GB) = %d %s, want %d %s", c.cpus, c.mem, n, by, c.slots, c.by)
+		}
+	}
+}

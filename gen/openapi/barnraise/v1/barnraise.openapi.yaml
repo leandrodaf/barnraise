@@ -2398,6 +2398,45 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/barnraise.v1.SetGoalResponse'
+  /barnraise.v1.BarnraiseService/SetMaxAgents:
+    post:
+      tags:
+        - barnraise.v1.BarnraiseService
+      summary: SetMaxAgents
+      description: SetMaxAgents sets how many agents each machine named runs at once.
+      operationId: barnraise.v1.BarnraiseService.SetMaxAgents
+      parameters:
+        - name: Connect-Protocol-Version
+          in: header
+          description: Define the version of the Connect protocol
+          schema:
+            $ref: '#/components/schemas/connect-protocol-version'
+          example: 1
+        - name: Connect-Timeout-Ms
+          in: header
+          description: Define the timeout, in ms
+          schema:
+            $ref: '#/components/schemas/connect-timeout-header'
+          example: 1000
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/barnraise.v1.MaxAgentsRequest'
+        required: true
+      responses:
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.error'
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/barnraise.v1.MaxAgentsResponse'
   /barnraise.v1.BarnraiseService/SetStandby:
     post:
       tags:
@@ -5113,6 +5152,16 @@ components:
             title: value
             format: int32
           description: 'What runs on the machine: capability status -> count (see Capabilities).'
+        slotsBy:
+          type: string
+          title: slots_by
+          description: |-
+            What sets slots: cpu or memory (measured: auto_slots) or owner (the
+             limit the owner set for this machine).
+        autoSlots:
+          type: integer
+          title: auto_slots
+          format: int32
       title: Machine
       additionalProperties: false
     barnraise.v1.MachineCapabilities:
@@ -5329,6 +5378,32 @@ components:
             $ref: '#/components/schemas/google.protobuf.Struct'
           title: sessions
       title: MachinesResponse
+      additionalProperties: false
+    barnraise.v1.MaxAgentsRequest:
+      type: object
+      properties:
+        maxAgents:
+          type: integer
+          title: max_agents
+          format: int32
+          description: Agents at once on each machine named; 0 measures it from the machine.
+        machines:
+          type: array
+          items:
+            type: string
+          title: machines
+          description: 'The machines; empty: this one.'
+      title: MaxAgentsRequest
+      additionalProperties: false
+    barnraise.v1.MaxAgentsResponse:
+      type: object
+      properties:
+        machines:
+          type: array
+          items:
+            $ref: '#/components/schemas/barnraise.v1.PeerResult'
+          title: machines
+      title: MaxAgentsResponse
       additionalProperties: false
     barnraise.v1.Message:
       type: object

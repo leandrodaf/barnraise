@@ -232,6 +232,9 @@ const (
 	// BarnraiseServiceSetStandbyProcedure is the fully-qualified name of the BarnraiseService's
 	// SetStandby RPC.
 	BarnraiseServiceSetStandbyProcedure = "/barnraise.v1.BarnraiseService/SetStandby"
+	// BarnraiseServiceSetMaxAgentsProcedure is the fully-qualified name of the BarnraiseService's
+	// SetMaxAgents RPC.
+	BarnraiseServiceSetMaxAgentsProcedure = "/barnraise.v1.BarnraiseService/SetMaxAgents"
 	// BarnraiseServiceCapabilitiesProcedure is the fully-qualified name of the BarnraiseService's
 	// Capabilities RPC.
 	BarnraiseServiceCapabilitiesProcedure = "/barnraise.v1.BarnraiseService/Capabilities"
@@ -357,6 +360,8 @@ type BarnraiseServiceClient interface {
 	// check or merge. It is kept in the machine's configuration, so the daemon
 	// starts the way it stopped.
 	SetStandby(context.Context, *connect.Request[v1.StandbyRequest]) (*connect.Response[v1.StandbyResponse], error)
+	// SetMaxAgents sets how many agents each machine named runs at once.
+	SetMaxAgents(context.Context, *connect.Request[v1.MaxAgentsRequest]) (*connect.Response[v1.MaxAgentsResponse], error)
 	// What is active on each machine, what falls back and why, and how to fix
 	// it (ADR-0046). Owner and admin tokens only.
 	Capabilities(context.Context, *connect.Request[v1.CapabilitiesRequest]) (*connect.Response[v1.CapabilitiesResponse], error)
@@ -789,6 +794,12 @@ func NewBarnraiseServiceClient(httpClient connect.HTTPClient, baseURL string, op
 			connect.WithSchema(barnraiseServiceMethods.ByName("SetStandby")),
 			connect.WithClientOptions(opts...),
 		),
+		setMaxAgents: connect.NewClient[v1.MaxAgentsRequest, v1.MaxAgentsResponse](
+			httpClient,
+			baseURL+BarnraiseServiceSetMaxAgentsProcedure,
+			connect.WithSchema(barnraiseServiceMethods.ByName("SetMaxAgents")),
+			connect.WithClientOptions(opts...),
+		),
 		capabilities: connect.NewClient[v1.CapabilitiesRequest, v1.CapabilitiesResponse](
 			httpClient,
 			baseURL+BarnraiseServiceCapabilitiesProcedure,
@@ -898,6 +909,7 @@ type barnraiseServiceClient struct {
 	listPeers          *connect.Client[v1.Empty, v1.PeersResponse]
 	stopPeers          *connect.Client[v1.StopPeersRequest, v1.StopPeersResponse]
 	setStandby         *connect.Client[v1.StandbyRequest, v1.StandbyResponse]
+	setMaxAgents       *connect.Client[v1.MaxAgentsRequest, v1.MaxAgentsResponse]
 	capabilities       *connect.Client[v1.CapabilitiesRequest, v1.CapabilitiesResponse]
 	installTools       *connect.Client[v1.InstallToolsRequest, v1.InstallToolsResponse]
 	createToken        *connect.Client[v1.CreateTokenRequest, v1.CreateTokenResponse]
@@ -1246,6 +1258,11 @@ func (c *barnraiseServiceClient) SetStandby(ctx context.Context, req *connect.Re
 	return c.setStandby.CallUnary(ctx, req)
 }
 
+// SetMaxAgents calls barnraise.v1.BarnraiseService.SetMaxAgents.
+func (c *barnraiseServiceClient) SetMaxAgents(ctx context.Context, req *connect.Request[v1.MaxAgentsRequest]) (*connect.Response[v1.MaxAgentsResponse], error) {
+	return c.setMaxAgents.CallUnary(ctx, req)
+}
+
 // Capabilities calls barnraise.v1.BarnraiseService.Capabilities.
 func (c *barnraiseServiceClient) Capabilities(ctx context.Context, req *connect.Request[v1.CapabilitiesRequest]) (*connect.Response[v1.CapabilitiesResponse], error) {
 	return c.capabilities.CallUnary(ctx, req)
@@ -1381,6 +1398,8 @@ type BarnraiseServiceHandler interface {
 	// check or merge. It is kept in the machine's configuration, so the daemon
 	// starts the way it stopped.
 	SetStandby(context.Context, *connect.Request[v1.StandbyRequest]) (*connect.Response[v1.StandbyResponse], error)
+	// SetMaxAgents sets how many agents each machine named runs at once.
+	SetMaxAgents(context.Context, *connect.Request[v1.MaxAgentsRequest]) (*connect.Response[v1.MaxAgentsResponse], error)
 	// What is active on each machine, what falls back and why, and how to fix
 	// it (ADR-0046). Owner and admin tokens only.
 	Capabilities(context.Context, *connect.Request[v1.CapabilitiesRequest]) (*connect.Response[v1.CapabilitiesResponse], error)
@@ -1809,6 +1828,12 @@ func NewBarnraiseServiceHandler(svc BarnraiseServiceHandler, opts ...connect.Han
 		connect.WithSchema(barnraiseServiceMethods.ByName("SetStandby")),
 		connect.WithHandlerOptions(opts...),
 	)
+	barnraiseServiceSetMaxAgentsHandler := connect.NewUnaryHandler(
+		BarnraiseServiceSetMaxAgentsProcedure,
+		svc.SetMaxAgents,
+		connect.WithSchema(barnraiseServiceMethods.ByName("SetMaxAgents")),
+		connect.WithHandlerOptions(opts...),
+	)
 	barnraiseServiceCapabilitiesHandler := connect.NewUnaryHandler(
 		BarnraiseServiceCapabilitiesProcedure,
 		svc.Capabilities,
@@ -1983,6 +2008,8 @@ func NewBarnraiseServiceHandler(svc BarnraiseServiceHandler, opts ...connect.Han
 			barnraiseServiceStopPeersHandler.ServeHTTP(w, r)
 		case BarnraiseServiceSetStandbyProcedure:
 			barnraiseServiceSetStandbyHandler.ServeHTTP(w, r)
+		case BarnraiseServiceSetMaxAgentsProcedure:
+			barnraiseServiceSetMaxAgentsHandler.ServeHTTP(w, r)
 		case BarnraiseServiceCapabilitiesProcedure:
 			barnraiseServiceCapabilitiesHandler.ServeHTTP(w, r)
 		case BarnraiseServiceInstallToolsProcedure:
@@ -2274,6 +2301,10 @@ func (UnimplementedBarnraiseServiceHandler) StopPeers(context.Context, *connect.
 
 func (UnimplementedBarnraiseServiceHandler) SetStandby(context.Context, *connect.Request[v1.StandbyRequest]) (*connect.Response[v1.StandbyResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("barnraise.v1.BarnraiseService.SetStandby is not implemented"))
+}
+
+func (UnimplementedBarnraiseServiceHandler) SetMaxAgents(context.Context, *connect.Request[v1.MaxAgentsRequest]) (*connect.Response[v1.MaxAgentsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("barnraise.v1.BarnraiseService.SetMaxAgents is not implemented"))
 }
 
 func (UnimplementedBarnraiseServiceHandler) Capabilities(context.Context, *connect.Request[v1.CapabilitiesRequest]) (*connect.Response[v1.CapabilitiesResponse], error) {

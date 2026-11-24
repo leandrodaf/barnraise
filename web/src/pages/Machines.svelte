@@ -13,12 +13,28 @@
 	import Sparkline from '$lib/app/Sparkline.svelte';
 	import Dot from '$lib/app/Dot.svelte';
 	import Empty from '$lib/app/Empty.svelte';
+	import { Button } from '$lib/components/ui/button';
+	import MinusIcon from '@lucide/svelte/icons/minus';
+	import PlusIcon from '@lucide/svelte/icons/plus';
+	import { toast } from 'svelte-sonner';
+	import { api } from '$lib/api';
+	import { act } from '$lib/app/act';
 
 	// Every machine of the cluster, from the overview: the header's project
 	// does not narrow this screen.
 	const list = $derived(cluster.data?.machines || []);
 	const cpuPct = (m: { load1: number; cpus: number }) => (m.cpus ? Math.min(100, (m.load1 / m.cpus) * 100) : 0);
 	const memPct = (m: { memGb: number; freeMemGb: number }) => (m.memGb && m.freeMemGb > 0 ? ((m.memGb - m.freeMemGb) / m.memGb) * 100 : 0);
+	let busyLimit = $state(false);
+	async function setLimit(machine: string, n: number) {
+		busyLimit = true;
+		const r = await act(() => api.setMaxAgents({ maxAgents: n, machines: [machine] }));
+		const res = r?.machines.find((x) => x.name === machine);
+		if (res && !res.ok) toast.error(t('error', res.error));
+		else if (res) toast.success(n ? t('mLimitSet', machine, n) : t('mLimitAuto', machine));
+		busyLimit = false;
+		setTimeout(() => cluster.read(), 1500);
+	}
 	const health = (m: { health: string; standby: boolean; left: boolean }) => (m.left ? 'idle' : m.standby ? 'needs' : m.health === 'green' ? 'done' : m.health === 'red' ? 'fail' : 'needs');
 </script>
 
@@ -49,9 +65,9 @@
 			{#if m.standby}<p class="border-b bg-st-needs/5 px-4 py-2 text-xs text-muted-foreground">{t('standbyCard')}{#if self && session.standbyWhy} · {session.standbyWhy}{/if}</p>{/if}
 			<div class="grid grid-cols-2 gap-px bg-border sm:grid-cols-4">
 				{#each [
-					{ k: 'cpu', v: cpuPct(m), sub: t('cpuSub', num(m.load1), m.cpus), series: h.map((x) => x.cpuPct), tone: 'work' },
+					{ k: 'cpu', v: cpuPct(m), sub: t('mCores', m.cpus) + ' · ' + t('cpuSub', num(m.load1), m.cpus), series: h.map((x) => x.cpuPct), tone: 'work' },
 					{ k: 'ram', v: memPct(m), sub: t('memoryUsed', num(Math.max(0, m.memGb - m.freeMemGb)), num(m.memGb)), series: h.map((x) => x.memPct), tone: 'review' },
-					{ k: 'slots', v: m.slots ? (m.busy * 100) / m.slots : 0, sub: t('slots', m.busy, m.slots), series: h.map((x) => (x.slots ? (x.busy * 100) / x.slots : 0)), tone: 'done' },
+					{ k: t('mAgentsLabel'), v: m.slots ? (m.busy * 100) / m.slots : 0, sub: t('mAgents', m.busy, m.slots), series: h.map((x) => (x.slots ? (x.busy * 100) / x.slots : 0)), tone: 'done' },
 					{ k: 'disk', v: Number(mo.diskTotalBytes) ? (1 - Number(mo.diskFreeBytes) / Number(mo.diskTotalBytes)) * 100 : 0, sub: t('diskSub', bytes(mo.diskFreeBytes)), series: [], tone: 'queue' }
 				] as g (g.k)}
 					<div class="space-y-1 bg-card p-3">
@@ -61,7 +77,20 @@
 					</div>
 				{/each}
 			</div>
-			<div class="num grid gap-x-6 gap-y-1 px-4 py-3 text-xs sm:grid-cols-2">
+			<!-- How many agents at once, and why that number. -->
+			<div class="flex flex-wrap items-center gap-x-4 gap-y-2 border-t px-4 py-3 text-sm">
+				<div class="min-w-0 flex-1">
+					<p>{t('mUpTo', m.slots)}</p>
+					<p class="text-xs text-muted-foreground">{m.slotsBy === 'owner' ? t('mLimitOwner', m.autoSlots) : t('mLimit_' + (m.slotsBy || 'cpu'), m.cpus, num(m.memGb))}</p>
+				</div>
+				<div class="flex items-center gap-1" role="group" aria-label={t('mSetLimit')}>
+					<Button size="icon" variant="outline" class="size-8" disabled={busyLimit || m.slots <= 1} onclick={() => setLimit(m.name, m.slots - 1)} aria-label={t('mFewer')}><MinusIcon class="size-3.5" /></Button>
+					<span class="num w-8 text-center font-semibold">{m.slots}</span>
+					<Button size="icon" variant="outline" class="size-8" disabled={busyLimit || m.slots >= 64} onclick={() => setLimit(m.name, m.slots + 1)} aria-label={t('mMoreAgents')}><PlusIcon class="size-3.5" /></Button>
+					{#if m.slotsBy === 'owner'}<Button size="sm" variant="ghost" disabled={busyLimit} onclick={() => setLimit(m.name, 0)}>{t('mAuto')}</Button>{/if}
+				</div>
+			</div>
+			<div class="num grid gap-x-6 gap-y-1 border-t px-4 py-3 text-xs sm:grid-cols-2">
 				<p class="flex justify-between"><span class="text-muted-foreground">{t('ovSessions')}</span><span>{mo.sessions.length}</span></p>
 				<p class="flex justify-between"><span class="text-muted-foreground">{t('ovItems')}</span><span>{mo.items.length}</span></p>
 				<p class="flex justify-between"><span class="text-muted-foreground">{t('ovWorktrees')}</span><span>{mo.worktrees.length} · {bytes(mo.worktreeBytes)}</span></p>

@@ -47,6 +47,8 @@ type Options struct {
 	// SetStandby switches this machine's standby, keeps it in the machine's
 	// configuration and passes it on to the named peers.
 	SetStandby func(ctx context.Context, on bool, why string, peers []string) (*pb.StandbyResponse, error)
+	// SetMaxAgents keeps the limit of agents in the named machines' configuration.
+	SetMaxAgents func(ctx context.Context, n int, machines []string) (*pb.MaxAgentsResponse, error)
 	// Capabilities and InstallTools answer for this machine and fan out to
 	// the requested peers (ADR-0046); nil answers for this machine only.
 	Capabilities func(ctx context.Context, r *pb.CapabilitiesRequest) (*pb.CapabilitiesResponse, error)
