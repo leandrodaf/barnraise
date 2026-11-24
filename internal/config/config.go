@@ -399,6 +399,7 @@ type rawConfig struct {
 		Ports        []int    `yaml:"ports"`
 		DenyCommands []string `yaml:"deny_commands"`
 	} `yaml:"sandbox"`
+	Knowledge rawKnowledge `yaml:"knowledge"`
 
 	flowsNode *yaml.Node
 }
@@ -683,6 +684,11 @@ func (r *rawConfig) compile(root, tmpl string) (*domain.ProjectConfig, error) {
 	if err := r.compileTokens(c); err != nil {
 		return nil, err
 	}
+	knowledge, err := compileKnowledge(r.Knowledge)
+	if err != nil {
+		return nil, err
+	}
+	c.Knowledge = knowledge
 	c.StaleAfter = 14 * 24 * time.Hour
 	if v := r.Revalidation.StaleAfter; v != "" {
 		d, err := domain.ParseDuration(v)
@@ -1106,7 +1112,7 @@ func Explain(cfg *domain.ProjectConfig) (string, error) {
 		"items":     map[string]any{"target_size": cfg.TargetSize, "smaller": cfg.SmallerBecomes, "tweaks": cfg.Tweaks, "same_area_findings": cfg.SameAreaFinding},
 		"models":    cfg.Models, "policy": cfg.Policy, "areas": cfg.Areas, "merge": cfg.Merge,
 		"lease":  map[string]string{"renew": cfg.Lease.Renew.String(), "ttl": cfg.Lease.TTL.String()},
-		"budget": cfg.Budget, "revalidation": map[string]string{"stale_after": cfg.StaleAfter.String()},
+		"budget": cfg.Budget, "knowledge": cfg.Knowledge, "revalidation": map[string]string{"stale_after": cfg.StaleAfter.String()},
 		"notifications": cfg.Notifications, "webhooks": cfg.Webhooks, "mcp": cfg.MCP, "plugins": cfg.Plugins, "experiments": cfg.Experiments,
 		"providers": cfg.APIProviders,
 		"worktree": map[string]any{"include": cfg.EnvFiles, "port_base": cfg.PortBase, "safety_commit": cfg.SafetyCommit.String(), "setup": cfg.WorktreeSetup,

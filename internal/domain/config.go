@@ -420,6 +420,7 @@ type ProjectConfig struct {
 	Container       ContainerDef            `json:"container,omitzero"`
 	Lease           LeaseDef                `json:"lease"`
 	Budget          BudgetDef               `json:"budget"`
+	Knowledge       KnowledgeDef            `json:"knowledge"`
 	StaleAfter      time.Duration           `json:"stale_after"`
 	Notifications   []NotifierDef           `json:"notifications,omitempty"`
 	Webhooks        []WebhookDef            `json:"webhooks,omitempty"`

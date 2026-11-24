@@ -442,13 +442,24 @@ func (e *env) contextCmd() *cobra.Command {
 }
 
 func (e *env) findCmd() *cobra.Command {
-	var kind, area, status string
+	var kind, area, status, under string
 	var limit int32
+	var grep, regex bool
 	c := &cobra.Command{Use: "find <text>", Short: "Layered search: ids, paths and symbols, filters, full text", Args: cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx, cancel := e.ctx()
 			defer cancel()
-			res, err := e.client().Find(ctx, req(&pb.FindRequest{Project: e.proj(ctx), Query: strings.Join(args, " "), Kind: kind, Area: area, Status: status, Limit: limit}))
+			query := strings.Join(args, " ")
+			switch {
+			case regex:
+				kind = "regex"
+			case grep:
+				kind = "grep"
+			}
+			if under != "" && (grep || regex) {
+				query = "file:" + under + " " + query
+			}
+			res, err := e.client().Find(ctx, req(&pb.FindRequest{Project: e.proj(ctx), Query: query, Kind: kind, Area: area, Status: status, Limit: limit}))
 			if err != nil {
 				return err
 			}
@@ -466,6 +477,9 @@ func (e *env) findCmd() *cobra.Command {
 	c.Flags().StringVar(&area, "area", "", "area")
 	c.Flags().StringVar(&status, "status", "", "status; all includes superseded and expired")
 	c.Flags().Int32Var(&limit, "limit", 20, "results")
+	c.Flags().BoolVar(&grep, "grep", false, "exact substring in the files' text (trigram index): path:line hits")
+	c.Flags().BoolVar(&regex, "regex", false, "regular expression (RE2) in the files' text (trigram index)")
+	c.Flags().StringVar(&under, "path", "", "with --grep or --regex: only files under this path")
 	return c
 }
 

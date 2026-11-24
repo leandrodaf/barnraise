@@ -634,6 +634,28 @@ Mechanical steps get a short "Answer style" section in their prompt: no preamble
 | `mode` | `auto` | `auto`: only mechanical steps, those whose model class is `cheap` or `simple`, or that are pinned to the first (cheapest) model of a provider's ladder, like the critic's `model: haiku`; `all`: every agent step; `off`: never |
 | `steps` | none | Step names that always get it (unless `mode: off`), e.g. `[quick-look, lint-fix]` |
 
+## knowledge
+
+How the knowledge index reads the code, and the repository map.
+
+```yaml
+knowledge:
+  symbols: auto        # auto | native
+  map:
+    enabled: true
+    max_files: 5000
+    prompt_tokens: 1200
+```
+
+| Key | Default | Meaning |
+| --- | --- | --- |
+| `symbols` | `auto` | How symbols outside Go are found (Go always uses `go/ast`). `auto`: with a syntax tree through [ast-grep](https://ast-grep.github.io) when it is installed (`ast-grep`, or `sg` when `sg --version` says ast-grep), for TypeScript, JavaScript, Python, Rust, Java, Kotlin and Swift; with the native extractor otherwise, and for a language or a file ast-grep could not handle. `native`: never run ast-grep. The native extractor knows comments, strings and template literals, follows bodies by braces (indentation in Python), qualifies methods by their class and leaves locals out (ADR-0037) |
+| `map.enabled` | `true` | Keep the repository map `.barnraise/map.md`: one line per file (path, what it is for, its main symbols), written by Barnraise when an item is integrated, inside the item's own commit (ADR-0039) |
+| `map.max_files` | `5000` | Lines of the map; past it the least described files are counted per folder |
+| `map.prompt_tokens` | `1200` | Tokens of the map in each session's context pack: the whole map when it fits, otherwise the lines of the item's files, their folders, its area and the words of its title. `0` leaves it out of the prompt (the file stays) |
+
+Searching the files' text needs no key: the index keeps a trigram index of every text file it reads (ADR-0038), used by `barnraise find --grep` / `--regex` and by the `find` tool with `mode: substring` or `mode: regex`.
+
 ## revalidation
 
 | Key | Default | Meaning |

@@ -81,6 +81,7 @@ type envOpts struct {
 	tracker    bool
 	triage     bool
 	knowledge  bool
+	knowImpl   ports.Knowledge
 	exec       bool
 	clock      *testkit.Clock
 	repo       *testkit.Repo
@@ -209,6 +210,9 @@ func newEnv(t *testing.T, opts ...opt) *env {
 	if o.knowledge {
 		e.know = &testkit.Knowledge{}
 		deps.Knowledge = e.know
+	}
+	if o.knowImpl != nil {
+		deps.Knowledge = o.knowImpl
 	}
 	if o.exec {
 		e.exec = &testkit.Exec{}

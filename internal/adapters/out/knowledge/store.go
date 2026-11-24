@@ -165,7 +165,7 @@ func dropOrigin(ctx context.Context, tx *txw, project, origin string) error {
 			return err
 		}
 	}
-	return nil
+	return dropGrep(ctx, tx, project, origin)
 }
 
 // dropFTS deletes FTS rows one rowid at a time: a "rowid IN (subquery)"

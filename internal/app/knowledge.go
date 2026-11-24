@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"regexp"
 	"strconv"
 	"strings"
 
@@ -22,6 +23,17 @@ func (s *Service) Find(ctx context.Context, project string, a Actor, q string, f
 	}
 	if limit <= 0 {
 		limit = 20
+	}
+	if strings.EqualFold(strings.TrimSpace(f.Kind), "regex") {
+		// Search the files' text by a regular expression: a bad one is the
+		// caller's mistake, said before the index is asked.
+		pat := strings.TrimSpace(q)
+		if rest, ok := strings.CutPrefix(pat, "file:"); ok {
+			_, pat, _ = strings.Cut(rest, " ")
+		}
+		if _, err := regexp.Compile(strings.TrimSpace(pat)); err != nil {
+			return nil, fmt.Errorf("%w: %v", ErrInvalid, err)
+		}
 	}
 	if s.d.Knowledge == nil {
 		return s.findInState(p, q, limit), nil
@@ -253,11 +265,20 @@ func (s *Service) Reindex(ctx context.Context, project string, changed []string)
 	if p.Ports().Git != nil {
 		commit, _ = p.Ports().Git.MainHead(ctx)
 	}
+	if sc, ok := s.d.Knowledge.(symbolsConfigurer); ok {
+		sc.SetSymbols(p.Name, p.Cfg().Knowledge.Symbols)
+	}
 	if err := s.d.Knowledge.Reindex(ctx, p.Name, p.Cfg().Root, commit, changed); err != nil {
 		return err
 	}
 	snap := p.Snapshot()
 	return s.d.Knowledge.IndexItems(ctx, p.Name, snap.ItemList(), snap.ProposalList())
+}
+
+// symbolsConfigurer is the optional knowledge extension that takes the
+// project's knowledge.symbols mode.
+type symbolsConfigurer interface {
+	SetSymbols(project, mode string)
 }
 
 func fileExists(root, rel string) bool {

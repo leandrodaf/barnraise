@@ -174,6 +174,7 @@ func runDaemon(ctx context.Context, opts cli.DaemonOptions) error {
 		providers["fake"] = d.fake.provider
 	}
 	ex := execx.New()
+	kn.UseAstGrep(ex) // symbols by syntax tree when ast-grep is installed
 	d.sender = webhook.NewSender(webhook.Options{})
 	defer d.sender.Close()
 

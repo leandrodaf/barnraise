@@ -15,6 +15,8 @@ import (
 	"sort"
 	"strings"
 	"time"
+
+	"github.com/leandrodaf/barnraise/internal/domain"
 )
 
 const (
@@ -39,14 +41,16 @@ func tracked(rel string) bool {
 		}
 	}
 	if parts[0] == docsDir {
-		return rel == areasFile || strings.EqualFold(path.Ext(rel), ".md")
+		// The repository map is written from the index; indexing it back
+		// would only echo the index.
+		return rel != domain.RepoMapFile && (rel == areasFile || strings.EqualFold(path.Ext(rel), ".md"))
 	}
 	for _, p := range parts[:len(parts)-1] {
 		if strings.HasPrefix(p, ".") {
 			return false
 		}
 	}
-	return langOf(rel) != ""
+	return langOf(rel) != "" || textFile(rel)
 }
 
 type fileWork struct {
@@ -156,6 +160,9 @@ func (ix *Index) Reindex(ctx context.Context, project, root, commit string, chan
 		}
 	}
 	now := ix.now().UTC()
+	// ast-grep (when installed) runs before any transaction: other writers
+	// never wait for it.
+	pre := ix.astSymbols(ctx, project, root, work)
 	// The files go in batches, each in its own short transaction, so other
 	// writers of the database wait milliseconds, not the whole reindex.
 	// Each file is dropped, indexed and hashed in one batch: an interrupted
@@ -171,7 +178,7 @@ func (ix *Index) Reindex(ctx context.Context, project, root, commit string, chan
 					return err
 				}
 			}
-			return ix.reindexFiles(ctx, tx, project, commit, batch, areas, now)
+			return ix.reindexFiles(ctx, tx, project, commit, batch, areas, pre, now)
 		}); err != nil {
 			return err
 		}
@@ -182,7 +189,7 @@ func (ix *Index) Reindex(ctx context.Context, project, root, commit string, chan
 				return err
 			}
 		}
-		if err := ix.reindexFiles(ctx, tx, project, commit, work, areas, now); err != nil {
+		if err := ix.reindexFiles(ctx, tx, project, commit, work, areas, pre, now); err != nil {
 			return err
 		}
 		if areasChanged {
@@ -219,7 +226,7 @@ func (ix *Index) reindexStart(ctx context.Context, tx *txw, project, commit stri
 }
 
 // reindexFiles indexes one batch of changed files.
-func (ix *Index) reindexFiles(ctx context.Context, tx *txw, project, commit string, work []fileWork, areas map[string]areaSpec, now time.Time) error {
+func (ix *Index) reindexFiles(ctx context.Context, tx *txw, project, commit string, work []fileWork, areas map[string]areaSpec, pre map[string][]codeSymbol, now time.Time) error {
 	for _, w := range work {
 		if w.known && w.rel != areasFile { // areas.yaml was rewritten above
 			if err := dropOrigin(ctx, tx, project, w.rel); err != nil {
@@ -232,10 +239,13 @@ func (ix *Index) reindexFiles(ctx context.Context, tx *txw, project, commit stri
 			if err := indexDoc(ctx, tx, project, commit, w, now); err != nil {
 				return err
 			}
-		default:
-			if err := indexCode(ctx, tx, project, commit, w, areas, now); err != nil {
+		case langOf(w.rel) != "":
+			if err := indexCode(ctx, tx, project, commit, w, areas, pre, now); err != nil {
 				return err
 			}
+		}
+		if err := indexGrep(ctx, tx, project, w.rel, w.src); err != nil {
+			return err
 		}
 		if _, err := tx.exec(ctx, `INSERT INTO file_hashes(project, path, sha, commit_sha, indexed) VALUES(?, ?, ?, ?, ?)
 				ON CONFLICT(project, path) DO UPDATE SET sha = excluded.sha, commit_sha = excluded.commit_sha, indexed = excluded.indexed`,
@@ -428,8 +438,8 @@ func stripHeader(src string) string {
 
 func symbolID(file, name string) string { return "sym:" + file + "#" + name }
 
-func indexCode(ctx context.Context, tx *txw, project, commit string, w fileWork, areas map[string]areaSpec, now time.Time) error {
-	syms := extractSymbols(w.rel, w.src)
+func indexCode(ctx context.Context, tx *txw, project, commit string, w fileWork, areas map[string]areaSpec, pre map[string][]codeSymbol, now time.Time) error {
+	syms, extractor := symbolsOf(w, pre)
 	fileAreas := areasFor(areas, w.rel)
 	lang := langOf(w.rel)
 	used := map[string]bool{}
@@ -470,7 +480,7 @@ func indexCode(ctx context.Context, tx *txw, project, commit string, w fileWork,
 	body := strings.Join(sigs, "\n")
 	fd := &docRow{
 		ID: "file:" + w.rel, Kind: "file", Title: w.rel, Summary: oneLine(summary, 300), Body: body, Path: w.rel, Areas: fileAreas,
-		Meta: map[string]string{"lang": lang}, Updated: now, SourceSHA: w.sha, Commit: commit, Origin: w.rel,
+		Meta: map[string]string{"lang": lang, "extractor": extractor}, Updated: now, SourceSHA: w.sha, Commit: commit, Origin: w.rel,
 		Chunks: []chunk{{Text: splitIdent(w.rel) + "\n" + strings.Join(plain, "\n")}},
 	}
 	for _, a := range fileAreas {

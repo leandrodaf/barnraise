@@ -34,6 +34,10 @@ type Index struct {
 	// timeout and event writes failed with SQLITE_BUSY.
 	wmu sync.Locker
 	now func() time.Time
+
+	ag    *astGrep          // nil: ast-grep is never used
+	modes map[string]string // project -> knowledge.symbols
+	mmu   sync.Mutex
 }
 
 var _ ports.Knowledge = (*Index)(nil)
@@ -47,7 +51,7 @@ func WithWriteLock(l sync.Locker) Option { return func(ix *Index) { ix.wmu = l }
 
 // New creates the knowledge tables (if needed) and returns the index.
 func New(db *sql.DB, opts ...Option) (*Index, error) {
-	ix := &Index{db: db, wmu: &sync.Mutex{}, now: time.Now}
+	ix := &Index{db: db, wmu: &sync.Mutex{}, now: time.Now, modes: map[string]string{}}
 	for _, o := range opts {
 		o(ix)
 	}
@@ -55,6 +59,33 @@ func New(db *sql.DB, opts ...Option) (*Index, error) {
 		return nil, err
 	}
 	return ix, nil
+}
+
+// UseAstGrep lets the index run the ast-grep CLI, through ex, for the
+// symbols of the languages it knows, whenever it is installed (as
+// "ast-grep", or as "sg" when that one says it is ast-grep).
+func (ix *Index) UseAstGrep(ex ports.Exec, candidates ...string) {
+	if ex != nil {
+		ix.ag = newAstGrep(ex, candidates...)
+	}
+}
+
+// SetSymbols sets how a project's symbols are extracted: SymbolsAuto
+// (ast-grep when installed; the default) or SymbolsNative.
+func (ix *Index) SetSymbols(project, mode string) {
+	ix.mmu.Lock()
+	defer ix.mmu.Unlock()
+	ix.modes[project] = mode
+}
+
+func (ix *Index) astSymbols(ctx context.Context, project, root string, work []fileWork) map[string][]codeSymbol {
+	ix.mmu.Lock()
+	mode := ix.modes[project]
+	ix.mmu.Unlock()
+	if ix.ag == nil || mode == SymbolsNative || len(work) == 0 {
+		return nil
+	}
+	return ix.ag.symbols(ctx, root, work)
 }
 
 // SetClock replaces the time source used to expire memories (tests).
@@ -169,6 +200,28 @@ CREATE TABLE index_state (
 	commit_sha TEXT NOT NULL DEFAULT '',
 	indexed    INTEGER NOT NULL
 );
+`,
+	// 2: the trigram index (ADR-0038). Every file is indexed again once
+	// (an empty sha never matches), so existing projects get their
+	// trigrams and the symbols of the new extractors.
+	`
+CREATE TABLE grep_files (
+	id       INTEGER PRIMARY KEY,
+	project  TEXT NOT NULL,
+	path     TEXT NOT NULL,
+	content  BLOB NOT NULL,
+	trigrams BLOB NOT NULL,
+	purpose  TEXT NOT NULL DEFAULT '',
+	UNIQUE (project, path)
+);
+
+CREATE TABLE grep_postings (
+	tri     INTEGER NOT NULL,
+	file_id INTEGER NOT NULL,
+	PRIMARY KEY (tri, file_id)
+) WITHOUT ROWID;
+
+UPDATE file_hashes SET sha = '';
 `,
 }
 

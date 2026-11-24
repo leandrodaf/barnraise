@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"regexp"
 	"sort"
 	"strings"
 
@@ -807,21 +808,29 @@ func contextTool() *tool {
 
 func findTool() *tool {
 	t := &tool{
-		Name:        "find",
-		Description: "Search the project's knowledge: items, decisions, standards, specs, learnings and code anchors. Returns short hits; open what you need with context.",
+		Name: "find",
+		Description: "Search the project's knowledge: items, decisions, standards, specs, learnings and code anchors. Returns short hits; open what you need with context. " +
+			"With mode substring or regex it searches the text of the files on main instead (trigram index, faster than walking the tree) and returns path:line hits.",
 		Schema: object(map[string]any{
-			"query": str("Words to search for."),
-			"kind":  str("Only hits of this kind, e.g. item, decision, standard, spec, learning."),
-			"area":  str("Only hits of this area."),
-			"limit": integer("Maximum hits, 1 to 50. Defaults to 10.", 0, 50),
+			"query": str("Words to search for; with mode substring the exact text, with mode regex a regular expression (RE2)."),
+			"mode": enum("knowledge (the default): the layered search of ids, symbols and text. substring: an exact text in the files. regex: a regular expression in the files.",
+				"knowledge", "substring", "regex"),
+			"ignore_case": boolean("substring and regex: match letters in any case."),
+			"path":        str("substring and regex: only files under this path, e.g. internal/app/."),
+			"kind":        str("Only hits of this kind, e.g. item, decision, standard, spec, learning."),
+			"area":        str("Only hits of this area."),
+			"limit":       integer("Maximum hits, 1 to 50. Defaults to 10.", 0, 50),
 		}, "query"),
 	}
 	t.run = func(ctx context.Context, s *server, args json.RawMessage) *toolResult {
 		var a struct {
-			Query string `json:"query"`
-			Kind  string `json:"kind"`
-			Area  string `json:"area"`
-			Limit int32  `json:"limit"`
+			Query      string `json:"query"`
+			Mode       string `json:"mode"`
+			IgnoreCase bool   `json:"ignore_case"`
+			Path       string `json:"path"`
+			Kind       string `json:"kind"`
+			Area       string `json:"area"`
+			Limit      int32  `json:"limit"`
 		}
 		if err := decodeArgs(t, args, &a); err != nil {
 			return errorResult(err.Error())
@@ -835,8 +844,22 @@ func findTool() *tool {
 		if a.Limit == 0 {
 			a.Limit = 10
 		}
-		resp, err := s.api.Find(ctx, connect.NewRequest(&pb.FindRequest{Project: s.opts.Project, Query: strings.TrimSpace(a.Query),
-			Kind: strings.TrimSpace(a.Kind), Area: strings.TrimSpace(a.Area), Limit: a.Limit}))
+		if a.Mode != "" && !oneOf(a.Mode, "knowledge", "substring", "regex") {
+			return errorResult(fmt.Sprintf("mode %q: use knowledge, substring or regex", a.Mode))
+		}
+		query, kind := strings.TrimSpace(a.Query), strings.TrimSpace(a.Kind)
+		text := a.Mode == "substring" || a.Mode == "regex"
+		if text {
+			if strings.ContainsAny(a.Path, " \t\n") {
+				return errorResult("path cannot contain spaces")
+			}
+			query, kind = grepQuery(a.Query, a.Mode == "regex", a.IgnoreCase)
+			if p := strings.TrimSpace(a.Path); p != "" {
+				query = "file:" + p + " " + query
+			}
+		}
+		resp, err := s.api.Find(ctx, connect.NewRequest(&pb.FindRequest{Project: s.opts.Project, Query: query,
+			Kind: kind, Area: strings.TrimSpace(a.Area), Limit: a.Limit}))
 		if err != nil {
 			return daemonError(err)
 		}
@@ -847,6 +870,10 @@ func findTool() *tool {
 		var b strings.Builder
 		fmt.Fprintf(&b, "%d hits for %q:\n", len(hits), a.Query)
 		for _, h := range hits {
+			if text {
+				fmt.Fprintf(&b, "- %s: %s\n", h.GetId(), h.GetSummary())
+				continue
+			}
 			fmt.Fprintf(&b, "- %s [%s] %s", h.GetId(), h.GetKind(), h.GetTitle())
 			if h.GetSummary() != "" {
 				b.WriteString(": " + h.GetSummary())
@@ -856,9 +883,27 @@ func findTool() *tool {
 			}
 			b.WriteString("\n")
 		}
+		if text && int32(len(hits)) == a.Limit {
+			b.WriteString("(limit reached: narrow with path, or raise limit)\n")
+		}
 		return textResult(b.String(), pbJSON(resp.Msg))
 	}
 	return t
+}
+
+// grepQuery turns the grep arguments into the query and kind of a find:
+// "grep" for an exact substring, "regex" for a regular expression (an
+// exact substring in any case becomes a quoted regular expression).
+func grepQuery(pattern string, regex, ignoreCase bool) (string, string) {
+	switch {
+	case regex && ignoreCase:
+		return "(?i)" + pattern, "regex"
+	case regex:
+		return pattern, "regex"
+	case ignoreCase:
+		return "(?i)" + regexp.QuoteMeta(pattern), "regex"
+	}
+	return pattern, "grep"
 }
 
 // ---------- approve ----------

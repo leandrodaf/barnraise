@@ -57,19 +57,25 @@ func langOf(p string) string {
 
 const maxChunkBytes = 16 << 10
 
-// extractSymbols returns the symbols of a source file.
-func extractSymbols(file string, src []byte) []codeSymbol {
-	lang := langOf(file)
-	if lang == "go" {
-		if syms, ok := extractGo(src); ok {
-			return syms
+// symbolsOf returns the symbols of a file to index and which extractor
+// found them: ast-grep's when it handled the file, go/ast for Go, the
+// native extractor otherwise.
+func symbolsOf(w fileWork, pre map[string][]codeSymbol) ([]codeSymbol, string) {
+	if syms, ok := pre[w.rel]; ok {
+		return syms, extractorAstGrep
+	}
+	if langOf(w.rel) == "go" {
+		if syms, ok := extractGo(w.src); ok {
+			return syms, extractorGo
 		}
 	}
-	spec := langSpecs[lang]
-	if spec == nil {
-		return nil
-	}
-	return extractRegex(spec, src)
+	return extractNative(langOf(w.rel), w.src), extractorNative
+}
+
+// extractSymbols returns the symbols of a source file without ast-grep.
+func extractSymbols(file string, src []byte) []codeSymbol {
+	syms, _ := symbolsOf(fileWork{rel: file, src: src}, nil)
+	return syms
 }
 
 // extractGo uses go/parser: funcs, methods as Recv.Name, and types.
@@ -249,6 +255,7 @@ var langSpecs = map[string]*langSpec{
 		decls: []declPattern{
 			{re: regexp.MustCompile(`^\s*(?:(?:public|private|internal|protected|abstract|open|final|sealed|data|enum|annotation|inner|value|inline|expect|actual|external|fun)\s+)*(?P<kind>class|interface|object)\s+(?P<name>[A-Za-z_]\w*)`), container: true, symbol: true},
 			{re: regexp.MustCompile(`^\s*(?:(?:public|private|internal|protected|abstract|open|final|override|suspend|inline|infix|operator|tailrec|external|expect|actual)\s+)*fun\s+(?:<[^>]+>\s*)?(?:[\w.<>?, ]+\.)?(?P<name>[A-Za-z_]\w*)\s*\(`), kind: "func", symbol: true},
+			{re: regexp.MustCompile(`^\s*(?:(?:public|private|internal)\s+)?const\s+val\s+(?P<name>[A-Za-z_]\w*)`), kind: "const", symbol: true},
 		},
 		comment: []string{"//", "*", "/*"},
 	},
@@ -257,6 +264,7 @@ var langSpecs = map[string]*langSpec{
 			{re: regexp.MustCompile(`^\s*(?:@\w+\s+)*(?:(?:public|private|protected|static|final|abstract|sealed|non-sealed|strictfp)\s+)*(?P<kind>class|interface|enum|record)\s+(?P<name>[A-Za-z_]\w*)`), container: true, symbol: true},
 			{re: regexp.MustCompile(`^\s*(?:(?:public|private|protected|static|final|abstract|synchronized|native|default|strictfp)\s+)*(?:<[^>]+>\s+)?(?P<type>[\w.<>\[\]?,]+(?:\s*<[^>]*>)?)\s+(?P<name>[A-Za-z_]\w*)\s*\([^=]*$`), kind: "func", symbol: true},
 			{re: regexp.MustCompile(`^\s*(?:public|private|protected)\s+(?P<name>[A-Z]\w*)\s*\([^=;]*$`), kind: "func", symbol: true, inside: true}, // constructors
+			{re: regexp.MustCompile(`^\s*(?:(?:public|private|protected)\s+)?static\s+final\s+[\w.<>\[\], ]+\s+(?P<name>[A-Z][A-Z0-9_]*)\s*=`), kind: "const", symbol: true, inside: true},
 		},
 		comment: []string{"//", "*", "/*"},
 	},
@@ -266,6 +274,7 @@ var langSpecs = map[string]*langSpec{
 		decls: []declPattern{
 			{re: regexp.MustCompile(`^\s*class\s+(?P<name>[A-Za-z_]\w*)`), kind: "class", container: true, symbol: true},
 			{re: regexp.MustCompile(`^\s*(?:async\s+)?def\s+(?P<name>[A-Za-z_]\w*)\s*\(`), kind: "func", symbol: true},
+			{re: regexp.MustCompile(`^(?P<name>[A-Z][A-Z0-9_]*)\s*(?::[^=]+)?=[^=]`), kind: "const", symbol: true},
 		},
 		comment: []string{"#"},
 	},
@@ -275,6 +284,7 @@ var langSpecs = map[string]*langSpec{
 			{re: regexp.MustCompile(`^\s*(?:pub(?:\([^)]*\))?\s+)?type\s+(?P<name>[A-Za-z_]\w*)`), kind: "type", symbol: true},
 			{re: regexp.MustCompile(`^\s*impl(?:\s*<[^>]*>)?\s+(?:[\w:<>, ]+\s+for\s+)?(?:\w+::)*(?P<name>[A-Za-z_]\w*)`), kind: "impl", container: true},
 			{re: regexp.MustCompile(`^\s*(?:pub(?:\([^)]*\))?\s+)?(?:(?:const|async|unsafe|extern(?:\s+"[^"]*")?)\s+)*fn\s+(?P<name>[A-Za-z_]\w*)`), kind: "func", symbol: true},
+			{re: regexp.MustCompile(`^\s*(?:pub(?:\([^)]*\))?\s+)?(?:const|static)\s+(?:mut\s+)?(?P<name>[A-Z_][A-Z0-9_]*)\s*:`), kind: "const", symbol: true},
 		},
 		comment: []string{"//", "*", "/*"},
 	},
@@ -292,6 +302,7 @@ var langSpecs = map[string]*langSpec{
 			{re: regexp.MustCompile(`^\s*extension\s+(?P<name>[A-Za-z_]\w*)`), kind: "extension", container: true},
 			{re: regexp.MustCompile(`^\s*(?:(?:static|external|abstract|factory|@override)\s+)*(?P<type>[\w<>?,\[\]]+(?:<[^>]*>)?\??)\s+(?P<name>[A-Za-z_]\w*)\s*(?:<[^>]*>)?\s*\([^;]*\)\s*(?:async\*?|sync\*)?\s*(?:\{|=>)`), kind: "func", symbol: true},
 			{re: regexp.MustCompile(`^(?P<name>[A-Za-z_]\w*)\s*\([^;]*\)\s*(?:async\*?)?\s*\{`), kind: "func", symbol: true}, // top-level main() {
+			{re: regexp.MustCompile(`^const\s+(?:[\w<>?]+\s+)?(?P<name>[A-Za-z_]\w*)\s*=`), kind: "const", symbol: true},
 		},
 		comment: []string{"//", "*", "/*"},
 	},
@@ -312,6 +323,7 @@ func tsSpec() *langSpec {
 			{re: regexp.MustCompile(`^\s*(?:export\s+)?(?:default\s+)?(?:declare\s+)?(?:async\s+)?function\s*\*?\s*(?P<name>[A-Za-z_$][\w$]*)`), kind: "func", symbol: true},
 			{re: regexp.MustCompile(`^\s*(?:export\s+)?(?:const|let|var)\s+(?P<name>[A-Za-z_$][\w$]*)\s*(?::[^=]+)?=\s*(?:async\s+)?(?:function\b|\([^)]*\)\s*(?::[^=]+)?=>|[A-Za-z_$][\w$]*\s*=>)`), kind: "func", symbol: true},
 			{re: regexp.MustCompile(`^\s+(?:(?:public|private|protected|static|readonly|abstract|override|async|get|set)\s+)*\*?(?P<name>[A-Za-z_$][\w$]*)\s*(?:<[^>]*>)?\s*\([^)]*\)\s*(?::\s*[^{;=]+)?\{\s*$`), kind: "func", symbol: true, inside: true},
+			{re: regexp.MustCompile(`^\s*export\s+(?:declare\s+)?(?:const|let|var)\s+(?P<name>[A-Za-z_$][\w$]*)`), kind: "const", symbol: true},
 		},
 		comment: []string{"//", "*", "/*"},
 	}
@@ -328,11 +340,6 @@ var (
 	typeKeyword = kw("return new throw else case yield await print echo goto")
 )
 
-type container struct {
-	name   string
-	indent int
-}
-
 func indentOf(s string) int {
 	n := 0
 	for _, r := range s {
@@ -348,98 +355,6 @@ func indentOf(s string) int {
 	return n
 }
 
-// extractRegex is a line-based best-effort extractor: one declaration per
-// line, the body region runs until the next declaration; methods are
-// qualified by the enclosing container found by indentation.
-func extractRegex(spec *langSpec, src []byte) []codeSymbol {
-	lines := strings.Split(strings.ReplaceAll(string(src), "\r\n", "\n"), "\n")
-	type hit struct {
-		line   int
-		name   string
-		kind   string
-		symbol bool
-		sig    string
-	}
-	var hits []hit
-	var stack []container
-	for i, ln := range lines {
-		t := strings.TrimSpace(ln)
-		if t == "" || hasAnyPrefix(t, spec.comment) {
-			continue
-		}
-		ind := indentOf(ln)
-		for _, p := range spec.decls {
-			m := p.re.FindStringSubmatch(ln)
-			if m == nil {
-				continue
-			}
-			name, kind, recv := "", p.kind, ""
-			for gi, g := range p.re.SubexpNames() {
-				switch g {
-				case "name":
-					name = m[gi]
-				case "kind":
-					kind = m[gi]
-				case "recv":
-					recv = m[gi]
-				}
-			}
-			if g := p.re.SubexpIndex("type"); g >= 0 && (typeKeyword[m[g]] || spec.keywords[m[g]]) {
-				continue
-			}
-			if name == "" || spec.keywords[name] {
-				continue
-			}
-			for len(stack) > 0 && stack[len(stack)-1].indent >= ind {
-				stack = stack[:len(stack)-1]
-			}
-			if p.inside && len(stack) == 0 {
-				continue
-			}
-			full := name
-			if recv != "" {
-				full, kind = recv+"."+name, "method"
-			} else if !p.container && len(stack) > 0 {
-				full, kind = stack[len(stack)-1].name+"."+name, "method"
-			}
-			if p.container {
-				stack = append(stack, container{name: name, indent: ind})
-			}
-			sig := t
-			if j := strings.LastIndex(sig, "{"); j > 0 && strings.TrimSpace(sig[j+1:]) == "" {
-				sig = strings.TrimSpace(sig[:j])
-			}
-			hits = append(hits, hit{line: i, name: full, kind: kind, symbol: p.symbol, sig: oneLine(sig, 300)})
-			break
-		}
-	}
-	var out []codeSymbol
-	for hi, h := range hits {
-		if !h.symbol {
-			continue
-		}
-		end := len(lines)
-		if hi+1 < len(hits) {
-			end = hits[hi+1].line
-		}
-		if end-h.line > 400 {
-			end = h.line + 400
-		}
-		// trim trailing blank lines from the region
-		for end > h.line+1 && strings.TrimSpace(lines[end-1]) == "" {
-			end--
-		}
-		region := strings.Join(lines[h.line:end], "\n")
-		s := codeSymbol{Name: h.name, Kind: h.kind, Line: h.line + 1, EndLine: end, Signature: h.sig, Text: clip(region)}
-		if h.kind == "func" || h.kind == "method" {
-			body := strings.Join(lines[min(h.line+1, end):end], "\n")
-			s.Calls = regexCalls(spec, body, shortName(h.name))
-		}
-		out = append(out, s)
-	}
-	return out
-}
-
 func regexCalls(spec *langSpec, body, self string) []string {
 	seen := map[string]bool{}
 	for _, m := range reCall.FindAllStringSubmatch(body, -1) {
@@ -450,13 +365,4 @@ func regexCalls(spec *langSpec, body, self string) []string {
 		seen[n] = true
 	}
 	return sortedKeys(seen)
-}
-
-func hasAnyPrefix(s string, ps []string) bool {
-	for _, p := range ps {
-		if strings.HasPrefix(s, p) {
-			return true
-		}
-	}
-	return false
 }

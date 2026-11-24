@@ -41,6 +41,10 @@ func (ix *Index) Search(ctx context.Context, project, query string, f ports.Sear
 		limit = 20
 	}
 	query = strings.TrimSpace(query)
+	switch k := strings.ToLower(strings.TrimSpace(f.Kind)); k {
+	case KindGrep, KindRegex:
+		return ix.grepHits(ctx, project, query, f, limit, k == KindRegex)
+	}
 	fsql, fargs := ix.filterSQL(f)
 	exact, err := ix.exactLayer(ctx, project, query, fsql, fargs, limit*2)
 	if err != nil {
@@ -54,11 +58,17 @@ func (ix *Index) Search(ctx context.Context, project, query string, f ports.Sear
 	} else if text, err = ix.textLayer(ctx, project, query, fsql, fargs, limit*3); err != nil {
 		return nil, err
 	}
-	lists := make([][]string, 0, exactWeight+2)
+	var sub []string
+	if k := strings.ToLower(f.Kind); query != "" && (k == "" || k == "file") {
+		if sub, err = ix.substringLayer(ctx, project, query, fsql, fargs, limit); err != nil {
+			return nil, err
+		}
+	}
+	lists := make([][]string, 0, exactWeight+3)
 	for range exactWeight {
 		lists = append(lists, exact)
 	}
-	lists = append(lists, filt, text)
+	lists = append(lists, filt, text, sub)
 	fused := domain.RRF(lists...)
 	if len(fused) > limit {
 		fused = fused[:limit]
@@ -73,7 +83,7 @@ func (ix *Index) Search(ctx context.Context, project, query string, f ports.Sear
 		name string
 		ids  []string
 		w    float64
-	}{{LayerExact, exact, exactWeight}, {LayerFilter, filt, 1}, {LayerText, text, 1}} {
+	}{{LayerExact, exact, exactWeight}, {LayerFilter, filt, 1}, {LayerText, text, 1}, {LayerSubstring, sub, 1}} {
 		for r, id := range l.ids {
 			score[id] += l.w / (60 + float64(r+1))
 			if b, ok := best[id]; !ok || r < b {

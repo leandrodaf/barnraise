@@ -202,6 +202,7 @@ func (s *Service) tryIntegrate(ctx context.Context, p *Project, items []*domain.
 		if err := s.writeChangelog(ctx, p, dir, it); err != nil {
 			return false, it, "changelog: " + err.Error(), nil
 		}
+		s.writeRepoMap(ctx, p, dir, it)
 		var sha string
 		if p.Cfg().Merge.Mode == "steps" {
 			sha, err = g.Head(ctx, dir)
@@ -348,7 +349,7 @@ func (s *Service) sameTreeAsChecked(ctx context.Context, p *Project, head string
 		return false
 	}
 	for _, f := range files {
-		if !domain.Contains(ItemFiles, f) && f != p.Cfg().Merge.Changelog {
+		if !domain.Contains(ItemFiles, f) && f != p.Cfg().Merge.Changelog && f != domain.RepoMapFile {
 			return false
 		}
 	}
@@ -383,16 +384,15 @@ func (s *Service) runQueueChecksWith(ctx context.Context, p *Project, dir, head 
 			if files, err := s.itemFiles(ctx, p, main, head); err == nil && len(files) > 0 {
 				touched, fromGit = domain.Dedupe(append(touched, files...)), true
 			}
-			// The changelog line Barnraise wrote is not a change of the product.
-			if cl := p.Cfg().Merge.Changelog; cl != "" {
-				kept := touched[:0:0]
-				for _, f := range touched {
-					if f != cl {
-						kept = append(kept, f)
-					}
+			// The changelog line and the map Barnraise wrote are not a change of the product.
+			cl := p.Cfg().Merge.Changelog
+			kept := touched[:0:0]
+			for _, f := range touched {
+				if (cl == "" || f != cl) && f != domain.RepoMapFile {
+					kept = append(kept, f)
 				}
-				touched = kept
 			}
+			touched = kept
 		}
 	}
 	if !fromGit || full {
