@@ -81,3 +81,24 @@ func TestOverviewFitsTheProto(t *testing.T) {
 		}
 	}
 }
+
+// The parts view travels through JSON into the proto too: every field must fit.
+func TestPartsFitTheProto(t *testing.T) {
+	at := time.Date(2026, 3, 1, 10, 0, 0, 0, time.UTC)
+	v := &app.PartsView{Project: "demo", ConfigFile: "barnraise.yaml", Config: "project: demo\n", Parts: []*app.PartView{{
+		Name: "mobile", Dir: "mobile", About: "a", Stack: "react-native", Standard: "s.md", Paths: []string{"mobile/**"}, Screens: []string{"x"}, Contracts: []string{"y"},
+		Flows: map[string]string{"feature": "mobile"}, FlowSteps: map[string]app.StepNames{"mobile": {Steps: []string{"implement", "review"}}},
+		Checks: []string{"e2e"}, ConfigFile: "mobile/barnraise.yaml", Config: "about: a\n", Columns: map[string]int{"working": 2}, Open: 2, NeedsOwner: 1,
+		Usage: domain.UsageTotals{Tokens: 10, CostUSD: 1}, LastIntegratedAt: at}}}
+	data, err := json.Marshal(v)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var strict pb.PartsResponse
+	if err := (protojson.UnmarshalOptions{}).Unmarshal(data, &strict); err != nil {
+		t.Fatalf("a field of the parts view is missing in the proto: %v", err)
+	}
+	if got := strict.Parts[0].FlowSteps["mobile"].Steps; len(got) != 2 || strict.Parts[0].Columns["working"] != 2 {
+		t.Fatalf("parts %+v", strict.Parts[0])
+	}
+}

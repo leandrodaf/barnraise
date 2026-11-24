@@ -34,6 +34,7 @@
 	import Machines from './pages/Machines.svelte';
 	import Metrics from './pages/Metrics.svelte';
 	import Capabilities from './pages/Capabilities.svelte';
+	import Parts from './pages/Parts.svelte';
 
 	session.start().catch(() => (session.booting = false));
 
@@ -101,6 +102,7 @@
 								{:else if router.current.name === 'proposals'}<Proposals />
 								{:else if router.current.name === 'machines'}<Machines />
 								{:else if router.current.name === 'capabilities'}<Capabilities />
+								{:else if router.current.name === 'parts'}<Parts />
 								{:else if router.current.name === 'metrics'}<Metrics />
 								{/if}
 							</div>

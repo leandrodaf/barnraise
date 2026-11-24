@@ -701,6 +701,23 @@ Object.assign(pt, {
   discussFooter: 'Só leitura · modelo mais forte · fica no log do projeto',
 });
 
+
+Object.assign(en, {
+  navParts: 'Parts', parts: 'Parts', partsN: '{0} parts', noParts: 'This project has no parts: its areas and folders with their own barnraise.yaml show here.',
+  partsHelp: 'Each part of the repository (a backend, a web app, a mobile app…) with its own barnraise.yaml: what it is, how each kind of item goes through it, the checks that guard it and how its work goes.',
+  partNeeds: '{0} need you', partWork: 'Work', partOpen: '{0} open', partLastIntegrated: 'last integration {0}', partNoItems: 'No items in this part yet.',
+  partSpent: '{0} spent · {1} tokens in {2} sessions', partFlows: 'Flow of each kind', partChecks: 'Checks', partPaths: 'Folders', partStandard: 'Standard',
+  partProjectConfig: 'Project configuration',
+});
+
+Object.assign(pt, {
+  navParts: 'Partes', parts: 'Partes', partsN: '{0} partes', noParts: 'Este projeto não tem partes: as áreas e pastas com o próprio barnraise.yaml aparecem aqui.',
+  partsHelp: 'Cada parte do repositório (um backend, um app web, um app mobile…) com o próprio barnraise.yaml: o que é, por onde cada tipo de item passa, as verificações que a protegem e como anda o trabalho.',
+  partNeeds: '{0} esperam você', partWork: 'Trabalho', partOpen: '{0} abertos', partLastIntegrated: 'última integração {0}', partNoItems: 'Nenhum item nesta parte ainda.',
+  partSpent: '{0} gastos · {1} tokens em {2} sessões', partFlows: 'Fluxo de cada tipo', partChecks: 'Verificações', partPaths: 'Pastas', partStandard: 'Padrão',
+  partProjectConfig: 'Configuração do projeto',
+});
+
 import { locale } from './locale.svelte';
 
 // The current language; t() and tm() read it, so the screen follows a switch.

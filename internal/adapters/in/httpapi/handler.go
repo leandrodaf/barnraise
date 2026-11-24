@@ -795,3 +795,9 @@ func (h *Handler) GetDiscussion(ctx context.Context, r *connect.Request[pb.Discu
 	conv, err := h.svc().Discussion(r.Msg.Project, actorFrom(ctx), r.Msg.Thread)
 	return respond[pb.DiscussionResponse](map[string]any{"messages": conv}, err)
 }
+
+// ListParts: the parts of a project and how their work goes.
+func (h *Handler) ListParts(ctx context.Context, r *connect.Request[pb.ProjectRef]) (*connect.Response[pb.PartsResponse], error) {
+	v, err := h.svc().Parts(ctx, r.Msg.Project, actorFrom(ctx))
+	return respond[pb.PartsResponse](v, err)
+}

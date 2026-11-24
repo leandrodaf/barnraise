@@ -1162,6 +1162,47 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/barnraise.v1.MachinesResponse'
+  /barnraise.v1.BarnraiseService/ListParts:
+    post:
+      tags:
+        - barnraise.v1.BarnraiseService
+      summary: ListParts
+      description: |-
+        ListParts describes the parts of a project (its areas with their own
+         barnraise.yaml) and how their work goes.
+      operationId: barnraise.v1.BarnraiseService.ListParts
+      parameters:
+        - name: Connect-Protocol-Version
+          in: header
+          description: Define the version of the Connect protocol
+          schema:
+            $ref: '#/components/schemas/connect-protocol-version'
+          example: 1
+        - name: Connect-Timeout-Ms
+          in: header
+          description: Define the timeout, in ms
+          schema:
+            $ref: '#/components/schemas/connect-timeout-header'
+          example: 1000
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/barnraise.v1.ProjectRef'
+        required: true
+      responses:
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.error'
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/barnraise.v1.PartsResponse'
   /barnraise.v1.BarnraiseService/ListPeers:
     post:
       tags:
@@ -3573,9 +3614,6 @@ components:
           title: at
       title: DiscussionMessage
       additionalProperties: false
-      description: |-
-        DiscussionMessage is one turn of the owner's conversation with the advisor
-         about a decision (a question or an item).
     barnraise.v1.DiscussionRef:
       type: object
       properties:
@@ -3785,6 +3823,16 @@ components:
       description: |-
         ItemOverview is everything known about one item, on every machine.
          FlowStep is one step of an item's flow and where the item is on it.
+    barnraise.v1.FlowSteps:
+      type: object
+      properties:
+        steps:
+          type: array
+          items:
+            type: string
+          title: steps
+      title: FlowSteps
+      additionalProperties: false
     barnraise.v1.Focus:
       type: object
       properties:
@@ -5237,6 +5285,115 @@ components:
             title: value
             $ref: '#/components/schemas/barnraise.v1.UsageTotals'
       title: OverviewResponse
+      additionalProperties: false
+    barnraise.v1.Part:
+      type: object
+      properties:
+        name:
+          type: string
+          title: name
+        dir:
+          type: string
+          title: dir
+        about:
+          type: string
+          title: about
+        stack:
+          type: string
+          title: stack
+        standard:
+          type: string
+          title: standard
+        paths:
+          type: array
+          items:
+            type: string
+          title: paths
+        screens:
+          type: array
+          items:
+            type: string
+          title: screens
+        contracts:
+          type: array
+          items:
+            type: string
+          title: contracts
+        flows:
+          type: object
+          title: flows
+          additionalProperties:
+            type: string
+            title: value
+          description: The flow each item kind goes through, and the steps of each flow.
+        flowSteps:
+          type: object
+          title: flow_steps
+          additionalProperties:
+            title: value
+            $ref: '#/components/schemas/barnraise.v1.FlowSteps'
+        checks:
+          type: array
+          items:
+            type: string
+          title: checks
+          description: Checks that run when this part is touched.
+        configFile:
+          type: string
+          title: config_file
+          description: Its own barnraise.yaml; the text only for who may administer the project.
+        config:
+          type: string
+          title: config
+        columns:
+          type: object
+          title: columns
+          additionalProperties:
+            type: integer
+            title: value
+            format: int32
+          description: |-
+            Items by board column, the open ones, the ones waiting for the owner,
+             what they cost and the last integration.
+        open:
+          type: integer
+          title: open
+          format: int32
+        needsOwner:
+          type: integer
+          title: needs_owner
+          format: int32
+        usage:
+          title: usage
+          $ref: '#/components/schemas/barnraise.v1.UsageTotals'
+        lastIntegratedAt:
+          type: string
+          title: last_integrated_at
+      title: Part
+      additionalProperties: false
+      description: |-
+        DiscussionMessage is one turn of the owner's conversation with the advisor
+         about a decision (a question or an item).
+         Part is one part of a repository (a backend, a web app, a mobile app,
+         each with its own barnraise.yaml) and how its work goes.
+    barnraise.v1.PartsResponse:
+      type: object
+      properties:
+        project:
+          type: string
+          title: project
+        configFile:
+          type: string
+          title: config_file
+        config:
+          type: string
+          title: config
+        parts:
+          type: array
+          items:
+            $ref: '#/components/schemas/barnraise.v1.Part'
+          title: parts
+      title: PartsResponse
       additionalProperties: false
     barnraise.v1.PauseRequest:
       type: object

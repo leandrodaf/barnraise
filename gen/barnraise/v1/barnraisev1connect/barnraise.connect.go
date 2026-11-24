@@ -117,6 +117,9 @@ const (
 	// BarnraiseServiceDiscussProcedure is the fully-qualified name of the BarnraiseService's Discuss
 	// RPC.
 	BarnraiseServiceDiscussProcedure = "/barnraise.v1.BarnraiseService/Discuss"
+	// BarnraiseServiceListPartsProcedure is the fully-qualified name of the BarnraiseService's
+	// ListParts RPC.
+	BarnraiseServiceListPartsProcedure = "/barnraise.v1.BarnraiseService/ListParts"
 	// BarnraiseServiceGetDiscussionProcedure is the fully-qualified name of the BarnraiseService's
 	// GetDiscussion RPC.
 	BarnraiseServiceGetDiscussionProcedure = "/barnraise.v1.BarnraiseService/GetDiscussion"
@@ -267,6 +270,9 @@ type BarnraiseServiceClient interface {
 	// conversation with its answer. It runs only when the owner writes, in
 	// standby too.
 	Discuss(context.Context, *connect.Request[v1.DiscussRequest]) (*connect.Response[v1.DiscussionResponse], error)
+	// ListParts describes the parts of a project (its areas with their own
+	// barnraise.yaml) and how their work goes.
+	ListParts(context.Context, *connect.Request[v1.ProjectRef]) (*connect.Response[v1.PartsResponse], error)
 	GetDiscussion(context.Context, *connect.Request[v1.DiscussionRef]) (*connect.Response[v1.DiscussionResponse], error)
 	SetGoal(context.Context, *connect.Request[v1.SetGoalRequest]) (*connect.Response[v1.SetGoalResponse], error)
 	SetFocus(context.Context, *connect.Request[v1.FocusRequest]) (*connect.Response[v1.FocusResponse], error)
@@ -495,6 +501,12 @@ func NewBarnraiseServiceClient(httpClient connect.HTTPClient, baseURL string, op
 			httpClient,
 			baseURL+BarnraiseServiceDiscussProcedure,
 			connect.WithSchema(barnraiseServiceMethods.ByName("Discuss")),
+			connect.WithClientOptions(opts...),
+		),
+		listParts: connect.NewClient[v1.ProjectRef, v1.PartsResponse](
+			httpClient,
+			baseURL+BarnraiseServiceListPartsProcedure,
+			connect.WithSchema(barnraiseServiceMethods.ByName("ListParts")),
 			connect.WithClientOptions(opts...),
 		),
 		getDiscussion: connect.NewClient[v1.DiscussionRef, v1.DiscussionResponse](
@@ -774,6 +786,7 @@ type barnraiseServiceClient struct {
 	answer          *connect.Client[v1.AnswerRequest, v1.QuestionResponse]
 	approve         *connect.Client[v1.ApproveRequest, v1.Empty]
 	discuss         *connect.Client[v1.DiscussRequest, v1.DiscussionResponse]
+	listParts       *connect.Client[v1.ProjectRef, v1.PartsResponse]
 	getDiscussion   *connect.Client[v1.DiscussionRef, v1.DiscussionResponse]
 	setGoal         *connect.Client[v1.SetGoalRequest, v1.SetGoalResponse]
 	setFocus        *connect.Client[v1.FocusRequest, v1.FocusResponse]
@@ -945,6 +958,11 @@ func (c *barnraiseServiceClient) Approve(ctx context.Context, req *connect.Reque
 // Discuss calls barnraise.v1.BarnraiseService.Discuss.
 func (c *barnraiseServiceClient) Discuss(ctx context.Context, req *connect.Request[v1.DiscussRequest]) (*connect.Response[v1.DiscussionResponse], error) {
 	return c.discuss.CallUnary(ctx, req)
+}
+
+// ListParts calls barnraise.v1.BarnraiseService.ListParts.
+func (c *barnraiseServiceClient) ListParts(ctx context.Context, req *connect.Request[v1.ProjectRef]) (*connect.Response[v1.PartsResponse], error) {
+	return c.listParts.CallUnary(ctx, req)
 }
 
 // GetDiscussion calls barnraise.v1.BarnraiseService.GetDiscussion.
@@ -1188,6 +1206,9 @@ type BarnraiseServiceHandler interface {
 	// conversation with its answer. It runs only when the owner writes, in
 	// standby too.
 	Discuss(context.Context, *connect.Request[v1.DiscussRequest]) (*connect.Response[v1.DiscussionResponse], error)
+	// ListParts describes the parts of a project (its areas with their own
+	// barnraise.yaml) and how their work goes.
+	ListParts(context.Context, *connect.Request[v1.ProjectRef]) (*connect.Response[v1.PartsResponse], error)
 	GetDiscussion(context.Context, *connect.Request[v1.DiscussionRef]) (*connect.Response[v1.DiscussionResponse], error)
 	SetGoal(context.Context, *connect.Request[v1.SetGoalRequest]) (*connect.Response[v1.SetGoalResponse], error)
 	SetFocus(context.Context, *connect.Request[v1.FocusRequest]) (*connect.Response[v1.FocusResponse], error)
@@ -1412,6 +1433,12 @@ func NewBarnraiseServiceHandler(svc BarnraiseServiceHandler, opts ...connect.Han
 		BarnraiseServiceDiscussProcedure,
 		svc.Discuss,
 		connect.WithSchema(barnraiseServiceMethods.ByName("Discuss")),
+		connect.WithHandlerOptions(opts...),
+	)
+	barnraiseServiceListPartsHandler := connect.NewUnaryHandler(
+		BarnraiseServiceListPartsProcedure,
+		svc.ListParts,
+		connect.WithSchema(barnraiseServiceMethods.ByName("ListParts")),
 		connect.WithHandlerOptions(opts...),
 	)
 	barnraiseServiceGetDiscussionHandler := connect.NewUnaryHandler(
@@ -1714,6 +1741,8 @@ func NewBarnraiseServiceHandler(svc BarnraiseServiceHandler, opts ...connect.Han
 			barnraiseServiceApproveHandler.ServeHTTP(w, r)
 		case BarnraiseServiceDiscussProcedure:
 			barnraiseServiceDiscussHandler.ServeHTTP(w, r)
+		case BarnraiseServiceListPartsProcedure:
+			barnraiseServiceListPartsHandler.ServeHTTP(w, r)
 		case BarnraiseServiceGetDiscussionProcedure:
 			barnraiseServiceGetDiscussionHandler.ServeHTTP(w, r)
 		case BarnraiseServiceSetGoalProcedure:
@@ -1907,6 +1936,10 @@ func (UnimplementedBarnraiseServiceHandler) Approve(context.Context, *connect.Re
 
 func (UnimplementedBarnraiseServiceHandler) Discuss(context.Context, *connect.Request[v1.DiscussRequest]) (*connect.Response[v1.DiscussionResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("barnraise.v1.BarnraiseService.Discuss is not implemented"))
+}
+
+func (UnimplementedBarnraiseServiceHandler) ListParts(context.Context, *connect.Request[v1.ProjectRef]) (*connect.Response[v1.PartsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("barnraise.v1.BarnraiseService.ListParts is not implemented"))
 }
 
 func (UnimplementedBarnraiseServiceHandler) GetDiscussion(context.Context, *connect.Request[v1.DiscussionRef]) (*connect.Response[v1.DiscussionResponse], error) {

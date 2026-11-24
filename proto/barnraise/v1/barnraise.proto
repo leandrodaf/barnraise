@@ -910,6 +910,45 @@ message StopPeersResponse {
 
 // DiscussionMessage is one turn of the owner's conversation with the advisor
 // about a decision (a question or an item).
+// Part is one part of a repository (a backend, a web app, a mobile app,
+// each with its own barnraise.yaml) and how its work goes.
+message Part {
+  string name = 1;
+  string dir = 2;
+  string about = 3;
+  string stack = 4;
+  string standard = 5;
+  repeated string paths = 6;
+  repeated string screens = 7;
+  repeated string contracts = 8;
+  // The flow each item kind goes through, and the steps of each flow.
+  map<string, string> flows = 9;
+  map<string, FlowSteps> flow_steps = 10;
+  // Checks that run when this part is touched.
+  repeated string checks = 11;
+  // Its own barnraise.yaml; the text only for who may administer the project.
+  string config_file = 12;
+  string config = 13;
+  // Items by board column, the open ones, the ones waiting for the owner,
+  // what they cost and the last integration.
+  map<string, int32> columns = 14;
+  int32 open = 15;
+  int32 needs_owner = 16;
+  UsageTotals usage = 17;
+  string last_integrated_at = 18;
+}
+
+message FlowSteps {
+  repeated string steps = 1;
+}
+
+message PartsResponse {
+  string project = 1;
+  string config_file = 2;
+  string config = 3;
+  repeated Part parts = 4;
+}
+
 message DiscussionMessage {
   string thread = 1;
   string item_id = 2;
@@ -1458,6 +1497,9 @@ service BarnraiseService {
   // conversation with its answer. It runs only when the owner writes, in
   // standby too.
   rpc Discuss(DiscussRequest) returns (DiscussionResponse);
+  // ListParts describes the parts of a project (its areas with their own
+  // barnraise.yaml) and how their work goes.
+  rpc ListParts(ProjectRef) returns (PartsResponse);
   rpc GetDiscussion(DiscussionRef) returns (DiscussionResponse);
   rpc SetGoal(SetGoalRequest) returns (SetGoalResponse);
   rpc SetFocus(FocusRequest) returns (FocusResponse);
