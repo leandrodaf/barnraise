@@ -114,6 +114,12 @@ const (
 	// BarnraiseServiceApproveProcedure is the fully-qualified name of the BarnraiseService's Approve
 	// RPC.
 	BarnraiseServiceApproveProcedure = "/barnraise.v1.BarnraiseService/Approve"
+	// BarnraiseServiceDiscussProcedure is the fully-qualified name of the BarnraiseService's Discuss
+	// RPC.
+	BarnraiseServiceDiscussProcedure = "/barnraise.v1.BarnraiseService/Discuss"
+	// BarnraiseServiceGetDiscussionProcedure is the fully-qualified name of the BarnraiseService's
+	// GetDiscussion RPC.
+	BarnraiseServiceGetDiscussionProcedure = "/barnraise.v1.BarnraiseService/GetDiscussion"
 	// BarnraiseServiceSetGoalProcedure is the fully-qualified name of the BarnraiseService's SetGoal
 	// RPC.
 	BarnraiseServiceSetGoalProcedure = "/barnraise.v1.BarnraiseService/SetGoal"
@@ -256,6 +262,12 @@ type BarnraiseServiceClient interface {
 	ListQuestions(context.Context, *connect.Request[v1.ProjectRef]) (*connect.Response[v1.QuestionsResponse], error)
 	Answer(context.Context, *connect.Request[v1.AnswerRequest]) (*connect.Response[v1.QuestionResponse], error)
 	Approve(context.Context, *connect.Request[v1.ApproveRequest]) (*connect.Response[v1.Empty], error)
+	// Discuss sends the owner's message about a question or an item to the
+	// advisor, a read-only agent with the strongest model, and returns the
+	// conversation with its answer. It runs only when the owner writes, in
+	// standby too.
+	Discuss(context.Context, *connect.Request[v1.DiscussRequest]) (*connect.Response[v1.DiscussionResponse], error)
+	GetDiscussion(context.Context, *connect.Request[v1.DiscussionRef]) (*connect.Response[v1.DiscussionResponse], error)
 	SetGoal(context.Context, *connect.Request[v1.SetGoalRequest]) (*connect.Response[v1.SetGoalResponse], error)
 	SetFocus(context.Context, *connect.Request[v1.FocusRequest]) (*connect.Response[v1.FocusResponse], error)
 	ClearFocus(context.Context, *connect.Request[v1.ProjectRef]) (*connect.Response[v1.Empty], error)
@@ -477,6 +489,18 @@ func NewBarnraiseServiceClient(httpClient connect.HTTPClient, baseURL string, op
 			httpClient,
 			baseURL+BarnraiseServiceApproveProcedure,
 			connect.WithSchema(barnraiseServiceMethods.ByName("Approve")),
+			connect.WithClientOptions(opts...),
+		),
+		discuss: connect.NewClient[v1.DiscussRequest, v1.DiscussionResponse](
+			httpClient,
+			baseURL+BarnraiseServiceDiscussProcedure,
+			connect.WithSchema(barnraiseServiceMethods.ByName("Discuss")),
+			connect.WithClientOptions(opts...),
+		),
+		getDiscussion: connect.NewClient[v1.DiscussionRef, v1.DiscussionResponse](
+			httpClient,
+			baseURL+BarnraiseServiceGetDiscussionProcedure,
+			connect.WithSchema(barnraiseServiceMethods.ByName("GetDiscussion")),
 			connect.WithClientOptions(opts...),
 		),
 		setGoal: connect.NewClient[v1.SetGoalRequest, v1.SetGoalResponse](
@@ -749,6 +773,8 @@ type barnraiseServiceClient struct {
 	listQuestions   *connect.Client[v1.ProjectRef, v1.QuestionsResponse]
 	answer          *connect.Client[v1.AnswerRequest, v1.QuestionResponse]
 	approve         *connect.Client[v1.ApproveRequest, v1.Empty]
+	discuss         *connect.Client[v1.DiscussRequest, v1.DiscussionResponse]
+	getDiscussion   *connect.Client[v1.DiscussionRef, v1.DiscussionResponse]
 	setGoal         *connect.Client[v1.SetGoalRequest, v1.SetGoalResponse]
 	setFocus        *connect.Client[v1.FocusRequest, v1.FocusResponse]
 	clearFocus      *connect.Client[v1.ProjectRef, v1.Empty]
@@ -914,6 +940,16 @@ func (c *barnraiseServiceClient) Answer(ctx context.Context, req *connect.Reques
 // Approve calls barnraise.v1.BarnraiseService.Approve.
 func (c *barnraiseServiceClient) Approve(ctx context.Context, req *connect.Request[v1.ApproveRequest]) (*connect.Response[v1.Empty], error) {
 	return c.approve.CallUnary(ctx, req)
+}
+
+// Discuss calls barnraise.v1.BarnraiseService.Discuss.
+func (c *barnraiseServiceClient) Discuss(ctx context.Context, req *connect.Request[v1.DiscussRequest]) (*connect.Response[v1.DiscussionResponse], error) {
+	return c.discuss.CallUnary(ctx, req)
+}
+
+// GetDiscussion calls barnraise.v1.BarnraiseService.GetDiscussion.
+func (c *barnraiseServiceClient) GetDiscussion(ctx context.Context, req *connect.Request[v1.DiscussionRef]) (*connect.Response[v1.DiscussionResponse], error) {
+	return c.getDiscussion.CallUnary(ctx, req)
 }
 
 // SetGoal calls barnraise.v1.BarnraiseService.SetGoal.
@@ -1147,6 +1183,12 @@ type BarnraiseServiceHandler interface {
 	ListQuestions(context.Context, *connect.Request[v1.ProjectRef]) (*connect.Response[v1.QuestionsResponse], error)
 	Answer(context.Context, *connect.Request[v1.AnswerRequest]) (*connect.Response[v1.QuestionResponse], error)
 	Approve(context.Context, *connect.Request[v1.ApproveRequest]) (*connect.Response[v1.Empty], error)
+	// Discuss sends the owner's message about a question or an item to the
+	// advisor, a read-only agent with the strongest model, and returns the
+	// conversation with its answer. It runs only when the owner writes, in
+	// standby too.
+	Discuss(context.Context, *connect.Request[v1.DiscussRequest]) (*connect.Response[v1.DiscussionResponse], error)
+	GetDiscussion(context.Context, *connect.Request[v1.DiscussionRef]) (*connect.Response[v1.DiscussionResponse], error)
 	SetGoal(context.Context, *connect.Request[v1.SetGoalRequest]) (*connect.Response[v1.SetGoalResponse], error)
 	SetFocus(context.Context, *connect.Request[v1.FocusRequest]) (*connect.Response[v1.FocusResponse], error)
 	ClearFocus(context.Context, *connect.Request[v1.ProjectRef]) (*connect.Response[v1.Empty], error)
@@ -1364,6 +1406,18 @@ func NewBarnraiseServiceHandler(svc BarnraiseServiceHandler, opts ...connect.Han
 		BarnraiseServiceApproveProcedure,
 		svc.Approve,
 		connect.WithSchema(barnraiseServiceMethods.ByName("Approve")),
+		connect.WithHandlerOptions(opts...),
+	)
+	barnraiseServiceDiscussHandler := connect.NewUnaryHandler(
+		BarnraiseServiceDiscussProcedure,
+		svc.Discuss,
+		connect.WithSchema(barnraiseServiceMethods.ByName("Discuss")),
+		connect.WithHandlerOptions(opts...),
+	)
+	barnraiseServiceGetDiscussionHandler := connect.NewUnaryHandler(
+		BarnraiseServiceGetDiscussionProcedure,
+		svc.GetDiscussion,
+		connect.WithSchema(barnraiseServiceMethods.ByName("GetDiscussion")),
 		connect.WithHandlerOptions(opts...),
 	)
 	barnraiseServiceSetGoalHandler := connect.NewUnaryHandler(
@@ -1658,6 +1712,10 @@ func NewBarnraiseServiceHandler(svc BarnraiseServiceHandler, opts ...connect.Han
 			barnraiseServiceAnswerHandler.ServeHTTP(w, r)
 		case BarnraiseServiceApproveProcedure:
 			barnraiseServiceApproveHandler.ServeHTTP(w, r)
+		case BarnraiseServiceDiscussProcedure:
+			barnraiseServiceDiscussHandler.ServeHTTP(w, r)
+		case BarnraiseServiceGetDiscussionProcedure:
+			barnraiseServiceGetDiscussionHandler.ServeHTTP(w, r)
 		case BarnraiseServiceSetGoalProcedure:
 			barnraiseServiceSetGoalHandler.ServeHTTP(w, r)
 		case BarnraiseServiceSetFocusProcedure:
@@ -1845,6 +1903,14 @@ func (UnimplementedBarnraiseServiceHandler) Answer(context.Context, *connect.Req
 
 func (UnimplementedBarnraiseServiceHandler) Approve(context.Context, *connect.Request[v1.ApproveRequest]) (*connect.Response[v1.Empty], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("barnraise.v1.BarnraiseService.Approve is not implemented"))
+}
+
+func (UnimplementedBarnraiseServiceHandler) Discuss(context.Context, *connect.Request[v1.DiscussRequest]) (*connect.Response[v1.DiscussionResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("barnraise.v1.BarnraiseService.Discuss is not implemented"))
+}
+
+func (UnimplementedBarnraiseServiceHandler) GetDiscussion(context.Context, *connect.Request[v1.DiscussionRef]) (*connect.Response[v1.DiscussionResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("barnraise.v1.BarnraiseService.GetDiscussion is not implemented"))
 }
 
 func (UnimplementedBarnraiseServiceHandler) SetGoal(context.Context, *connect.Request[v1.SetGoalRequest]) (*connect.Response[v1.SetGoalResponse], error) {

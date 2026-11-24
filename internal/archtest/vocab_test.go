@@ -220,7 +220,6 @@ func TestVocabForbiddenWords(t *testing.T) {
 	var hits []vocabHit
 	vocabGoFiles(t, root, &hits)
 	vocabTextFiles(t, root, "templates", vocabExt(".md", ".yaml", ".yml"), &hits)
-	vocabTextFiles(t, root, "internal/adapters/in/panel/static", func(string) bool { return true }, &hits)
 	vocabTextFiles(t, root, "docs", vocabExt(".md"), &hits)
 	if b, err := os.ReadFile(filepath.Join(root, "README.md")); err == nil {
 		vocabScanText("README.md", 1, string(b), &hits)

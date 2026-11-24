@@ -781,3 +781,17 @@ func rfc3339(t time.Time) string {
 	}
 	return t.UTC().Format(time.RFC3339)
 }
+
+// Discuss: the owner's conversation with the advisor about a decision.
+func (h *Handler) Discuss(ctx context.Context, r *connect.Request[pb.DiscussRequest]) (*connect.Response[pb.DiscussionResponse], error) {
+	conv, err := h.svc().Discuss(ctx, r.Msg.Project, actorFrom(ctx), r.Msg.Thread, r.Msg.Text)
+	if errors.Is(err, app.ErrNoAdvisor) {
+		return nil, connect.NewError(connect.CodeUnavailable, err)
+	}
+	return respond[pb.DiscussionResponse](map[string]any{"messages": conv}, err)
+}
+
+func (h *Handler) GetDiscussion(ctx context.Context, r *connect.Request[pb.DiscussionRef]) (*connect.Response[pb.DiscussionResponse], error) {
+	conv, err := h.svc().Discussion(r.Msg.Project, actorFrom(ctx), r.Msg.Thread)
+	return respond[pb.DiscussionResponse](map[string]any{"messages": conv}, err)
+}

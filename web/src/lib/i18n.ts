@@ -684,6 +684,23 @@ Object.assign(pt, {
   reloadHelp: 'O daemon agora roda {0}: recarregue a página para usá-la.', builtAt: 'compilada do commit de {0}', builtUnknown: 'data do build desconhecida',
 });
 
+
+Object.assign(en, {
+  discuss: 'Talk it over', discussTitle: 'Talk it over with the advisor',
+  discussIntro: 'Ask anything about this decision. The advisor reads the item, the question, what the agents did and the code, and helps you decide; it never changes anything. Each answer uses the strongest model.',
+  discussWhat: 'What does each option change for the user?', discussRisk: 'What can go wrong with each option?', discussRecommend: 'What do you recommend, and why?',
+  discussThinking: 'The advisor is reading the item and the code…', discussPlaceholder: 'Ask about this decision… (Ctrl+Enter sends)',
+  discussFooter: 'Read-only · strongest model · kept in the project log',
+});
+
+Object.assign(pt, {
+  discuss: 'Conversar', discussTitle: 'Conversar com o conselheiro',
+  discussIntro: 'Pergunte qualquer coisa sobre esta decisão. O conselheiro lê o item, a pergunta, o que os agentes fizeram e o código, e ajuda você a decidir; ele nunca altera nada. Cada resposta usa o modelo mais forte.',
+  discussWhat: 'O que cada opção muda para o usuário?', discussRisk: 'O que pode dar errado em cada opção?', discussRecommend: 'O que você recomenda, e por quê?',
+  discussThinking: 'O conselheiro está lendo o item e o código…', discussPlaceholder: 'Pergunte sobre esta decisão… (Ctrl+Enter envia)',
+  discussFooter: 'Só leitura · modelo mais forte · fica no log do projeto',
+});
+
 import { locale } from './locale.svelte';
 
 // The current language; t() and tm() read it, so the screen follows a switch.

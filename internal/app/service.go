@@ -11,6 +11,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"slices"
 	"sort"
 	"sync"
 	"sync/atomic"
@@ -81,6 +82,7 @@ type ProjectPorts struct {
 	Tracker  ports.Tracker  // optional (local tracker when nil)
 	CodeHost ports.CodeHost // optional
 	Triage   ports.Triage   // optional
+	Advisor  Advisor        // optional: answers the owner about a decision
 }
 
 // Project is a repository the daemon drives.
@@ -260,6 +262,10 @@ func (p *Project) Snapshot() *domain.State {
 
 func cloneState(s *domain.State) *domain.State {
 	c := *s
+	c.Discussions = make(map[string][]*domain.DiscussionMessage, len(s.Discussions))
+	for k, v := range s.Discussions {
+		c.Discussions[k] = slices.Clone(v)
+	}
 	c.Items = make(map[string]*domain.Item, len(s.Items))
 	for k, v := range s.Items {
 		c.Items[k] = v.Clone()

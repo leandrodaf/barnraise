@@ -508,6 +508,49 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/barnraise.v1.DigestResponse'
+  /barnraise.v1.BarnraiseService/Discuss:
+    post:
+      tags:
+        - barnraise.v1.BarnraiseService
+      summary: Discuss
+      description: |-
+        Discuss sends the owner's message about a question or an item to the
+         advisor, a read-only agent with the strongest model, and returns the
+         conversation with its answer. It runs only when the owner writes, in
+         standby too.
+      operationId: barnraise.v1.BarnraiseService.Discuss
+      parameters:
+        - name: Connect-Protocol-Version
+          in: header
+          description: Define the version of the Connect protocol
+          schema:
+            $ref: '#/components/schemas/connect-protocol-version'
+          example: 1
+        - name: Connect-Timeout-Ms
+          in: header
+          description: Define the timeout, in ms
+          schema:
+            $ref: '#/components/schemas/connect-timeout-header'
+          example: 1000
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/barnraise.v1.DiscussRequest'
+        required: true
+      responses:
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.error'
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/barnraise.v1.DiscussionResponse'
   /barnraise.v1.BarnraiseService/Estimate:
     post:
       tags:
@@ -622,6 +665,44 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/barnraise.v1.KnowledgeResponse'
+  /barnraise.v1.BarnraiseService/GetDiscussion:
+    post:
+      tags:
+        - barnraise.v1.BarnraiseService
+      summary: GetDiscussion
+      operationId: barnraise.v1.BarnraiseService.GetDiscussion
+      parameters:
+        - name: Connect-Protocol-Version
+          in: header
+          description: Define the version of the Connect protocol
+          schema:
+            $ref: '#/components/schemas/connect-protocol-version'
+          example: 1
+        - name: Connect-Timeout-Ms
+          in: header
+          description: Define the timeout, in ms
+          schema:
+            $ref: '#/components/schemas/connect-timeout-header'
+          example: 1000
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/barnraise.v1.DiscussionRef'
+        required: true
+      responses:
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.error'
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/barnraise.v1.DiscussionResponse'
   /barnraise.v1.BarnraiseService/GetItem:
     post:
       tags:
@@ -3445,6 +3526,76 @@ components:
           type: string
           title: text
       title: DigestResponse
+      additionalProperties: false
+    barnraise.v1.DiscussRequest:
+      type: object
+      properties:
+        project:
+          type: string
+          title: project
+        thread:
+          type: string
+          title: thread
+          description: The question (Q-7) or the item (I-43) the conversation is about.
+        text:
+          type: string
+          title: text
+      title: DiscussRequest
+      additionalProperties: false
+    barnraise.v1.DiscussionMessage:
+      type: object
+      properties:
+        thread:
+          type: string
+          title: thread
+        itemId:
+          type: string
+          title: item_id
+        role:
+          type: string
+          title: role
+          description: owner or advisor.
+        text:
+          type: string
+          title: text
+        by:
+          type: string
+          title: by
+        model:
+          type: string
+          title: model
+        tokens:
+          type: string
+          title: tokens
+          format: int64
+        at:
+          type: string
+          title: at
+      title: DiscussionMessage
+      additionalProperties: false
+      description: |-
+        DiscussionMessage is one turn of the owner's conversation with the advisor
+         about a decision (a question or an item).
+    barnraise.v1.DiscussionRef:
+      type: object
+      properties:
+        project:
+          type: string
+          title: project
+        thread:
+          type: string
+          title: thread
+      title: DiscussionRef
+      additionalProperties: false
+    barnraise.v1.DiscussionResponse:
+      type: object
+      properties:
+        messages:
+          type: array
+          items:
+            $ref: '#/components/schemas/barnraise.v1.DiscussionMessage'
+          title: messages
+      title: DiscussionResponse
       additionalProperties: false
     barnraise.v1.Empty:
       type: object

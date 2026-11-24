@@ -20,6 +20,7 @@
 	import StatusBar from '$lib/app/StatusBar.svelte';
 	import CommandPalette from '$lib/app/CommandPalette.svelte';
 	import ShortcutsDialog from '$lib/app/ShortcutsDialog.svelte';
+	import DiscussionSheet from '$lib/app/DiscussionSheet.svelte';
 	import ScopeSelect from '$lib/app/ScopeSelect.svelte';
 	import VersionNotice from '$lib/app/VersionNotice.svelte';
 	import SignIn from './pages/SignIn.svelte';
@@ -112,6 +113,7 @@
 	</Sidebar.Provider>
 	<CommandPalette />
 	<ShortcutsDialog />
+	<DiscussionSheet />
 {/if}
 
 <FormDialog />

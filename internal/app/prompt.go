@@ -281,6 +281,9 @@ func (s *Service) BuildStepPrompt(ctx context.Context, p *Project, it *domain.It
 		}
 		b.WriteString(s.lessonsPrompt(ctx, p, it))
 	}
+	if d := discussionNotes(p, it.ID); d != "" {
+		b.WriteString(d)
+	}
 	if d := ownerDecisions(p, it.ID); d != "" {
 		b.WriteString(d)
 	}

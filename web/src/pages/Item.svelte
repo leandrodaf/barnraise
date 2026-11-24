@@ -9,6 +9,8 @@
 	import ExternalLinkIcon from '@lucide/svelte/icons/external-link';
 	import HandIcon from '@lucide/svelte/icons/hand';
 	import UndoIcon from '@lucide/svelte/icons/undo-2';
+	import MessagesIcon from '@lucide/svelte/icons/messages-square';
+	import { discussion } from '$lib/app/discussion.svelte';
 	import { api } from '$lib/api';
 	import { t } from '$lib/i18n';
 	import { compact, dur, money, num, since, when, bytes } from '$lib/format';
@@ -88,6 +90,7 @@
 			</div>
 			<div class="flex flex-wrap gap-2">
 				{#if row?.awaits}<ApprovalButtons id={it.id} awaits={row.awaits} {project} />{/if}
+				<Button size="sm" variant="secondary" onclick={() => discussion.show(project, it.id, it.title)}><MessagesIcon />{t('discuss')}</Button>
 				{#if it.status === 'paused'}<Button size="sm" variant="outline" onclick={handback}><UndoIcon />{t('handback')}</Button>
 				{:else if it.status !== 'integrated' && it.status !== 'closed'}<Button size="sm" variant="outline" onclick={takeover}><HandIcon />{t('takeover')}</Button>{/if}
 			</div>

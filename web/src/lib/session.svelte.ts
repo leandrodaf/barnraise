@@ -15,7 +15,7 @@ const EVENT_TYPES = [
 	'proposal.created', 'proposal.updated', 'tweak.added', 'tweak.attached', 'owner.question.asked', 'owner.question.answered',
 	'goal.set', 'goal.finished', 'focus.changed', 'system.paused', 'system.resumed', 'account.updated',
 	'account.limit.reached', 'machine.updated', 'machine.left', 'machine.worktrees', 'agent.session', 'agent.usage',
-	'message.sent', 'message.delivered', 'journal.entry', 'policy.violation.blocked', 'secret.blocked'
+	'message.sent', 'message.delivered', 'journal.entry', 'policy.violation.blocked', 'secret.blocked', 'owner.discussion'
 ];
 
 class Session {

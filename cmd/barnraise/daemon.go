@@ -783,8 +783,16 @@ func (d *daemon) projectPorts(cfg *domain.ProjectConfig) (app.ProjectPorts, erro
 		}
 		return *acc, true
 	}}
+	// The advisor talks a decision over with the owner, with the strongest
+	// model of the project's Claude ladder, reading only.
+	ladder := cfg.Models.Ladders["claude"]
+	strongest := "opus"
+	if len(ladder) > 0 {
+		strongest = ladder[len(ladder)-1]
+	}
+	pp.Advisor = &app.ProviderAdvisor{Provider: claude.New(claude.Options{}), Model: strongest, TempDir: os.TempDir(), Account: pp.Triage.(*app.ProviderTriage).Account}
 	if d.opts.Fake {
-		pp.Triage = nil
+		pp.Triage, pp.Advisor = nil, nil
 	}
 	d.mu.Lock()
 	d.runners[cfg.Name] = d.newRunner(cfg, pp.CodeHost)

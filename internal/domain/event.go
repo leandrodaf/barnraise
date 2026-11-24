@@ -87,23 +87,24 @@ type Event struct {
 // Payload is the data of an event. Entity snapshots let any machine rebuild
 // the same state; the specific fields explain what happened.
 type Payload struct {
-	Item     *Item         `json:"item,omitempty"`
-	Proposal *Proposal     `json:"proposal,omitempty"`
-	Goal     *Goal         `json:"goal,omitempty"`
-	Focus    *Focus        `json:"focus,omitempty"`
-	Tweak    *Tweak        `json:"tweak,omitempty"`
-	Question *Question     `json:"question,omitempty"`
-	Message  *Message      `json:"message,omitempty"`
-	Account  *Account      `json:"account,omitempty"`
-	MachineI *Machine      `json:"machine,omitempty"`
-	Delivery *Delivery     `json:"delivery,omitempty"`
-	Review   *Review       `json:"review,omitempty"`
-	Check    *CheckResult  `json:"check,omitempty"`
-	Rework   *ReworkRecord `json:"rework,omitempty"`
-	Session  *SessionInfo  `json:"session,omitempty"`
-	Usage    *TokenUsage   `json:"usage,omitempty"`
-	Journal  *JournalEntry `json:"journal,omitempty"`
-	Lesson   *Lesson       `json:"lesson,omitempty"`
+	Item       *Item              `json:"item,omitempty"`
+	Proposal   *Proposal          `json:"proposal,omitempty"`
+	Goal       *Goal              `json:"goal,omitempty"`
+	Focus      *Focus             `json:"focus,omitempty"`
+	Tweak      *Tweak             `json:"tweak,omitempty"`
+	Question   *Question          `json:"question,omitempty"`
+	Message    *Message           `json:"message,omitempty"`
+	Account    *Account           `json:"account,omitempty"`
+	MachineI   *Machine           `json:"machine,omitempty"`
+	Delivery   *Delivery          `json:"delivery,omitempty"`
+	Review     *Review            `json:"review,omitempty"`
+	Check      *CheckResult       `json:"check,omitempty"`
+	Rework     *ReworkRecord      `json:"rework,omitempty"`
+	Session    *SessionInfo       `json:"session,omitempty"`
+	Usage      *TokenUsage        `json:"usage,omitempty"`
+	Journal    *JournalEntry      `json:"journal,omitempty"`
+	Lesson     *Lesson            `json:"lesson,omitempty"`
+	Discussion *DiscussionMessage `json:"discussion,omitempty"`
 	// Worktrees is a machine's inventory of what it keeps for the project.
 	Worktrees *WorktreeReport `json:"worktrees,omitempty"`
 	Cause     string          `json:"cause,omitempty"` // link to the change that caused it
@@ -297,14 +298,16 @@ type State struct {
 	// Worktrees is what each machine last said it keeps, by machine.
 	Worktrees map[string]*WorktreeReport `json:"worktrees,omitempty"`
 	// Ledger adds up usage, checks, reviews and deliveries as events are applied.
-	Ledger    *Ledger            `json:"-"`
-	Journal   []*JournalEntry    `json:"journal"`
-	Lessons   map[string]*Lesson `json:"lessons,omitempty"`
-	Paused    bool               `json:"paused"`
-	PausedWhy string             `json:"paused_why,omitempty"`
-	Seen      map[string]bool    `json:"-"` // applied event ids
-	LastSeq   int64              `json:"last_seq"`
-	Counters  map[IDKind]int     `json:"counters"`
+	Ledger  *Ledger            `json:"-"`
+	Journal []*JournalEntry    `json:"journal"`
+	Lessons map[string]*Lesson `json:"lessons,omitempty"`
+	// Discussions are the owner's conversations with the advisor, by thread.
+	Discussions map[string][]*DiscussionMessage `json:"discussions,omitempty"`
+	Paused      bool                            `json:"paused"`
+	PausedWhy   string                          `json:"paused_why,omitempty"`
+	Seen        map[string]bool                 `json:"-"` // applied event ids
+	LastSeq     int64                           `json:"last_seq"`
+	Counters    map[IDKind]int                  `json:"counters"`
 }
 
 // NewState creates an empty projection.
@@ -314,7 +317,7 @@ func NewState(project string) *State {
 		Tweaks: map[string]*Tweak{}, Questions: map[string]*Question{}, Accounts: map[string]*Account{},
 		Machines: map[string]*Machine{}, Sessions: map[string]*SessionInfo{}, Seen: map[string]bool{}, Counters: map[IDKind]int{},
 		Worktrees: map[string]*WorktreeReport{}, Ledger: NewLedger(),
-		Lessons: map[string]*Lesson{},
+		Lessons: map[string]*Lesson{}, Discussions: map[string][]*DiscussionMessage{},
 	}
 }
 
@@ -428,6 +431,16 @@ func (s *State) Apply(e Event) error {
 			s.Ledger = NewLedger()
 		}
 		s.Ledger.apply(e, p)
+	}
+	if d := p.Discussion; d != nil && e.Type == EvDiscussion && d.Thread != "" {
+		if s.Discussions == nil {
+			s.Discussions = map[string][]*DiscussionMessage{}
+		}
+		list := append(s.Discussions[d.Thread], d)
+		if len(list) > discussionWindow {
+			list = list[len(list)-discussionWindow:]
+		}
+		s.Discussions[d.Thread] = list
 	}
 	if p.Journal != nil {
 		s.Journal = append(s.Journal, p.Journal)

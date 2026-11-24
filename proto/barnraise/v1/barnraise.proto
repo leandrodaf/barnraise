@@ -908,6 +908,36 @@ message StopPeersResponse {
   repeated PeerStop results = 1;
 }
 
+// DiscussionMessage is one turn of the owner's conversation with the advisor
+// about a decision (a question or an item).
+message DiscussionMessage {
+  string thread = 1;
+  string item_id = 2;
+  // owner or advisor.
+  string role = 3;
+  string text = 4;
+  string by = 5;
+  string model = 6;
+  int64 tokens = 7;
+  string at = 8;
+}
+
+message DiscussRequest {
+  string project = 1;
+  // The question (Q-7) or the item (I-43) the conversation is about.
+  string thread = 2;
+  string text = 3;
+}
+
+message DiscussionRef {
+  string project = 1;
+  string thread = 2;
+}
+
+message DiscussionResponse {
+  repeated DiscussionMessage messages = 1;
+}
+
 message StandbyRequest {
   // True puts the machine in standby, false takes it out.
   bool on = 1;
@@ -1423,6 +1453,12 @@ service BarnraiseService {
   rpc ListQuestions(ProjectRef) returns (QuestionsResponse);
   rpc Answer(AnswerRequest) returns (QuestionResponse);
   rpc Approve(ApproveRequest) returns (Empty);
+  // Discuss sends the owner's message about a question or an item to the
+  // advisor, a read-only agent with the strongest model, and returns the
+  // conversation with its answer. It runs only when the owner writes, in
+  // standby too.
+  rpc Discuss(DiscussRequest) returns (DiscussionResponse);
+  rpc GetDiscussion(DiscussionRef) returns (DiscussionResponse);
   rpc SetGoal(SetGoalRequest) returns (SetGoalResponse);
   rpc SetFocus(FocusRequest) returns (FocusResponse);
   rpc ClearFocus(ProjectRef) returns (Empty);

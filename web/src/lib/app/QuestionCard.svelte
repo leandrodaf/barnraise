@@ -9,6 +9,8 @@
 	import { act } from './act';
 	import { openItem } from './open';
 	import StatusIcon from './StatusIcon.svelte';
+	import MessagesIcon from '@lucide/svelte/icons/messages-square';
+	import { discussion } from './discussion.svelte';
 
 	let { q, project = '' }: { q: Question; project?: string } = $props();
 	const proj = $derived(project || session.project);
@@ -37,6 +39,7 @@
 				{#if q.deadline}<span>{t('deadline', when(q.deadline))}</span>{/if}
 			</p>
 			<div class="flex flex-wrap gap-2 pt-1">
+				<Button size="sm" variant="secondary" class="h-auto min-h-8 py-1.5" onclick={() => discussion.show(proj, q.id, q.decision)}><MessagesIcon />{t('discuss')}</Button>
 				{#each q.options as o (o.label)}
 					<Button size="sm" class="h-auto min-h-8 max-w-full py-1.5" variant={o.recommended ? 'default' : 'outline'} disabled={busy} onclick={() => answer(o.label)}>
 						<span class="whitespace-normal text-left">{o.label}</span>{#if o.recommended}<StarIcon class="size-3" aria-hidden="true" /><span class="sr-only">({t('recommended')})</span>{/if}
