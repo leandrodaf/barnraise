@@ -363,7 +363,7 @@ Providers reached with an **API key** instead of a subscription login: OpenRoute
 | --- | --- | --- |
 | `<name>.base_url` | none | The endpoint, e.g. `https://openrouter.ai/api/v1`. `https` is required, except for `localhost` and loopback addresses (a local vLLM or Ollama) |
 
-`openrouter` is built in. A provider's name is lower-case letters and digits, and cannot be `claude`, `codex`, `gemini` or `fake`. Its hosts join the egress proxy's allow list.
+`openrouter` is built in. A provider's name is lower-case letters and digits, and cannot be `claude`, `codex`, `gemini` or `fake`. Its hosts join the egress proxy's allow list, and with the proxy on its sessions get a sealed placeholder instead of the key ([key broker](security.md#5-network-restricted-per-agent-user)).
 
 ```yaml
 providers:
@@ -422,12 +422,29 @@ Extra rules appended to the built-in policy that the PreToolUse hook and the dae
 | `lock_existing` | Globs whose existing files cannot change (tests, reference images, check scripts); new files can be added |
 | `deny_read` | Absolute or `~` globs agents may never read |
 | `deny_commands` | Regular expressions of shell commands to block |
-| `allow_hosts` | Extra hosts for the sandbox's network allow list |
+| `allow_hosts` | Extra hosts for the sandbox's and the egress proxy's network allow list; also method/host/path rules (below) |
+| `egress.inspect` | Extra hosts (and their subdomains) whose HTTPS traffic the egress proxy terminates and scans for secrets. Default: none |
+| `egress.repo_scope` | `true` (default): with the egress proxy, writes to the project's GitHub/GitLab host and API only toward the project's own repository. `false` turns that off |
 
 ```yaml
 policy:
   deny_write: ["**/release.keystore", "**/google-services.json", "fastlane/**"]
 ```
+
+An `allow_hosts` entry is either a plain host (`example.com`, which also covers its subdomains, as before) or a rule `METHODS host/path`: `METHODS` is one method or a comma list of `GET`, `HEAD`, `POST`, `PUT`, `PATCH`, `DELETE`, `OPTIONS`, or `*` for any (a rule with no method, `host/path`, also means any); in the path `*` matches one segment and `**` any number of them; `*.host` matches the host and its subdomains; `{project-repo}` becomes the project's `owner/repo` (from `code_host.repo` or the git remote; an entry that needs it in a project without one is left out). For a request the egress proxy sees, the rules naming its host and method decide; a method that no rule of that host names falls back to the plain hosts. A host named only by rules allows only what the rules say. The Claude Code sandbox receives only the host of each entry.
+
+```yaml
+policy:
+  allow_hosts:
+    - docs.internal.example                          # whole host
+    - "GET artifacts.example/releases/**"            # only reads under /releases
+    - "POST,PUT uploads.example/{project-repo}/**"   # writes only to this project's folder
+  egress:
+    inspect: [hooks.example]                         # terminate and scan this host too
+    repo_scope: true
+```
+
+With `repo_scope` on and the project on GitHub, the proxy adds `POST,PUT,PATCH,DELETE github.com/<repo>/**`, `… github.com/<repo>.git/**`, `POST github.com/**/git-upload-pack`, `POST,PUT,PATCH,DELETE api.github.com/repos/<repo>/**` and `POST api.github.com/graphql` (GitHub Enterprise: `<host>/api/v3/repos/…`); on GitLab the same shapes with `/api/v4/projects/<group/repo>/**` and `/api/graphql`. These rules are only added for a code host that is allowed anyway. Method and path rules need the egress proxy to see the request: see [security.md](security.md#5-network-restricted-per-agent-user) for which hosts it terminates and what happens without the proxy.
 
 The trust checks before each session ([security.md](security.md#16-provenance-of-what-steers-an-agent)) and the hash chain of the event log have no keys: they are always on. `policy:` itself is part of `barnraise.yaml`, so a change to it outside `barnraise reload` / `barnraise trust` refuses sessions until the owner re-trusts it.
 

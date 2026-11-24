@@ -36,3 +36,6 @@ One short record per decision: context, decision, consequences. A decision that 
 | [ADR-0043](0043-lessons-from-rework.md) | Lessons from rework |
 | [ADR-0029](0029-bound-session-tokens-and-chained-event-log.md) | Session tokens bound to their session, and a hash-chained event log |
 | [ADR-0030](0030-provenance-of-hooks-and-instruction-files.md) | Provenance of hooks and instruction files |
+| [ADR-0026](0026-egress-key-broker-and-local-ca.md) | Egress key broker and a local CA |
+| [ADR-0027](0027-egress-inspection-and-signed-receipts.md) | Outbound inspection and signed receipts |
+| [ADR-0028](0028-egress-rules-by-method-host-path.md) | Egress rules by method, host and path |

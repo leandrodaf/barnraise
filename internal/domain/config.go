@@ -409,6 +409,7 @@ type ProjectConfig struct {
 	SelfApproves    string                  `json:"self_approves"`
 	Models          ModelRouter             `json:"models"`
 	Policy          Policy                  `json:"policy"`
+	Egress          EgressDef               `json:"egress"`
 	Merge           MergeDef                `json:"merge"`
 	Selection       SelectionDef            `json:"selection,omitzero"`
 	Container       ContainerDef            `json:"container,omitzero"`

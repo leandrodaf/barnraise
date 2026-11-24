@@ -288,6 +288,10 @@ type rawConfig struct {
 		DenyRead     []string `yaml:"deny_read"`
 		DenyCommands []string `yaml:"deny_commands"`
 		AllowHosts   []string `yaml:"allow_hosts"`
+		Egress       struct {
+			Inspect   []string `yaml:"inspect"`
+			RepoScope *bool    `yaml:"repo_scope"`
+		} `yaml:"egress"`
 	} `yaml:"policy"`
 	Areas map[string]struct {
 		Kinds     map[string]string `yaml:"kinds"`
@@ -594,6 +598,9 @@ func (r *rawConfig) compile(root, tmpl string) (*domain.ProjectConfig, error) {
 		DenyWrite: r.Policy.DenyWrite, LockExisting: r.Policy.LockExisting, DenyRead: r.Policy.DenyRead,
 		DenyCommands: r.Policy.DenyCommands, AllowHosts: r.Policy.AllowHosts, MainBranch: c.MainBranch,
 	})
+	if c.Egress, err = egressDef(r.Policy.AllowHosts, r.Policy.Egress.Inspect, r.Policy.Egress.RepoScope); err != nil {
+		return nil, err
+	}
 
 	c.Areas = map[string]domain.AreaDef{}
 	for name, a := range r.Areas {

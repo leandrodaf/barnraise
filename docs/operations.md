@@ -127,6 +127,16 @@ barnraise egress rules --user barnraise-claude-1                       # print t
 barnraise egress rules --user barnraise-claude-1 --allow-local-port 5554,5555 --apply   # with the emulator ports
 ```
 
+With the proxy on, the daemon keeps its files in `<data dir>/egress/`: the local CA that terminates TLS for the key-based providers, the hosts with path rules and `policy.egress.inspect` (`ca.pem`, `ca-key.pem`), the receipts' signing key (`receipts-key.pem`, `receipts.pub`) and the receipt log (`receipts.jsonl`, one line per decision, append-only; archive or remove it while the daemon is stopped, a new log starts at receipt 1). At start the daemon logs whether it terminates TLS (`terminates_tls`): when it does not (no system CA bundle found, or the CA could not be created) provider keys reach the sessions as without the proxy. Deleting `ca.pem` and `ca-key.pem` makes a new CA at the next start; sessions started after it get the new bundle.
+
+```sh
+barnraise egress receipts verify                  # every signature and the chain; exits non-zero on the first bad line
+barnraise egress receipts list --blocked --last 50
+barnraise egress receipts verify --file archive/receipts.jsonl --pub archive/receipts.pub
+```
+
+A refused request shows in the panel and in `barnraise events` as a `policy.violation` event of the `network` tool, with the rule (`egress` for a host off the list, `egress-path-rule`, `egress-secret`, `egress-sealed-key-foreign-host`). `barnraise egress proxy --allow` also takes method/path rules; the standalone proxy only tunnels and checks hosts and plain HTTP (no CA, no broker, no receipts).
+
 ## Servers without a browser
 
 Subscriptions are logged in with the flow each provider offers for headless machines:

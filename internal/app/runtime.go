@@ -63,6 +63,8 @@ type Runtime struct {
 	Sandbox bool
 	// EgressProxy routes agent traffic through the allow-list proxy (host:port).
 	EgressProxy string
+	// KeyBroker, with the egress proxy, seals provider keys (see ports.KeyBroker).
+	KeyBroker ports.KeyBroker
 	// MinFreeMemGB holds new sessions while the machine has less memory
 	// available than this (default 3 GB). Sessions already running are never
 	// stopped for it: builds, tests and emulators of the items in progress
@@ -567,6 +569,10 @@ func (r *Runtime) start(ctx context.Context, p *Project, slot Slot, a *Assignmen
 		env["HTTPS_PROXY"], env["HTTP_PROXY"], env["https_proxy"], env["http_proxy"] = proxy, proxy, proxy, proxy
 		env["NO_PROXY"], env["no_proxy"] = "localhost,127.0.0.1", "localhost,127.0.0.1"
 	}
+	if err := r.egressTrust(env, sessDir); err != nil {
+		s.tokens.Revoke(token)
+		return err
+	}
 	if attempt != "" {
 		env["BARNRAISE_ATTEMPT"] = attempt
 	}
@@ -610,8 +616,12 @@ func (r *Runtime) start(ctx context.Context, p *Project, slot Slot, a *Assignmen
 	}
 	if endpoint != nil {
 		// Last, after every file of the session is written: the key lives
-		// only in the CLI's environment.
-		env[ports.EndpointKeyEnv] = apiKey
+		// only in the CLI's environment. With the egress proxy, not even
+		// there: a placeholder the proxy swaps on the provider's host.
+		sealed, release := r.sealKey(endpoint, apiKey)
+		env[ports.EndpointKeyEnv] = sealed
+		cancelCtx := cancel
+		cancel = func() { cancelCtx(); release() }
 	}
 	if err := verifySeal(seal); err != nil {
 		cancel()
@@ -877,7 +887,7 @@ func (r *Runtime) writeSessionFiles(p *Project, sessDir, worktree string, env ma
 	// Inside a container the container is the sandbox (bubblewrap cannot nest there).
 	if r.Sandbox && p.Cfg().Container.Image == "" {
 		settings["sandbox"] = map[string]any{"enabled": true, "failIfUnavailable": true, "allowUnsandboxedCommands": false,
-			"network": map[string]any{"allowedDomains": pol.AllowHosts}}
+			"network": map[string]any{"allowedDomains": domain.AllowHostNames(pol.AllowHosts)}}
 	}
 	setData, _ := json.MarshalIndent(settings, "", "  ")
 	setPath := filepath.Join(sessDir, "settings.json")

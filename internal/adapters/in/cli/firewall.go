@@ -64,6 +64,6 @@ func (e *env) firewallCmd() *cobra.Command {
 	rules.Flags().IntVar(&port, "proxy-port", 7421, "proxy port")
 	rules.Flags().IntSliceVar(&extra, "allow-local-port", nil, "loopback ports to allow (emulator: 5554,5555)")
 	rules.Flags().BoolVar(&apply, "apply", false, "apply with sudo nft")
-	c.AddCommand(proxy, rules)
+	c.AddCommand(proxy, rules, e.egressReceiptsCmd())
 	return c
 }

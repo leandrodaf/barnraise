@@ -69,6 +69,11 @@ lease: { renew: 1s, ttl: 3s }
 
 func startHarness(t *testing.T, yml string) *harness {
 	t.Helper()
+	return startHarnessWith(t, yml, cli.DaemonOptions{Fake: true})
+}
+
+func startHarnessWith(t *testing.T, yml string, opts cli.DaemonOptions) *harness {
+	t.Helper()
 	if _, err := exec.LookPath("git"); err != nil {
 		t.Skip("git not installed")
 	}
@@ -96,7 +101,7 @@ func startHarness(t *testing.T, yml string) *harness {
 	os.WriteFile(filepath.Join(base, "cfg", "daemon.yaml"), []byte(fmt.Sprintf("machine: e2e\nlisten: off\nnats_port: -1\nprojects: [%s]\n", root)), 0o600)
 	ctx, cancel := context.WithCancel(context.Background())
 	h := &harness{t: t, root: root, remote: remote, cancel: cancel, done: make(chan error, 1)}
-	go func() { h.done <- runDaemon(ctx, cli.DaemonOptions{Fake: true}) }()
+	go func() { h.done <- runDaemon(ctx, opts) }()
 	deadline := time.Now().Add(20 * time.Second)
 	for {
 		tok, err := os.ReadFile(paths.OwnerTokenFile())

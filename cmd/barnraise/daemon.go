@@ -29,7 +29,6 @@ import (
 	"github.com/leandrodaf/barnraise/internal/adapters/out/checks"
 	"github.com/leandrodaf/barnraise/internal/adapters/out/claude"
 	"github.com/leandrodaf/barnraise/internal/adapters/out/codex"
-	"github.com/leandrodaf/barnraise/internal/adapters/out/egress"
 	"github.com/leandrodaf/barnraise/internal/adapters/out/execx"
 	"github.com/leandrodaf/barnraise/internal/adapters/out/gemini"
 	gitx "github.com/leandrodaf/barnraise/internal/adapters/out/git"
@@ -192,26 +191,9 @@ func runDaemon(ctx context.Context, opts cli.DaemonOptions) error {
 		svc.Runtime().MaxSessions = -1
 	}
 	if opts.Egress != "" {
-		allow := append([]string(nil), egress.DefaultAllow...)
-		for _, root := range df.Projects {
-			if cfg, err := config.Load(root); err == nil {
-				allow = append(allow, cfg.Policy.AllowHosts...)
-				allow = append(allow, config.APIHosts(cfg)...)
-			}
+		if err := d.startEgress(ctx, svc, df.Projects, opts.Egress); err != nil {
+			return err
 		}
-		l, err := net.Listen("tcp", opts.Egress)
-		if err != nil {
-			return fmt.Errorf("egress proxy: %w", err)
-		}
-		px := egress.New(allow, log)
-		px.OnBlock = func(host string) {
-			for _, name := range svc.Projects() {
-				_ = svc.RecordViolation(context.Background(), name, "agent", "", "network", "egress", "outbound connection to "+host+" blocked", host)
-			}
-		}
-		go func() { _ = px.Serve(ctx, l) }()
-		svc.Runtime().EgressProxy = l.Addr().String()
-		log.Info("egress allow-list proxy", "listen", l.Addr().String(), "hosts", len(allow))
 	}
 	for _, root := range df.Projects {
 		if err := d.addProject(ctx, root, false); err != nil {
