@@ -80,7 +80,9 @@ func (s *Service) GetStatus(ctx context.Context, project string, a Actor) (Statu
 		}
 	}
 	sort.Slice(st.Agents, func(i, j int) bool { return st.Agents[i].Agent < st.Agents[j].Agent })
-	st.Accounts = snap.AccountList()
+	for _, acc := range snap.AccountList() {
+		st.Accounts = append(st.Accounts, acc.WithOutlook(now))
+	}
 	ttl := p.Cfg().Lease.TTL
 	for _, name := range sortedKeys(snap.Machines) {
 		m := snap.Machines[name]
@@ -123,6 +125,9 @@ type Metrics struct {
 	ExploreReads     map[string]int     `json:"explore_reads_by_area"`
 	FixedCostRatio   map[string]float64 `json:"fixed_cost_ratio_by_area"`
 	Alerts           []string           `json:"alerts,omitempty"`
+	// Flags names the numbers past their limit (rework_avg, proposals,
+	// waiting_owner, flaky, violations), for a reader to mark them.
+	Flags []string `json:"flags,omitempty"`
 
 	// FilteredRuns and FilterSaved: outputs the output filter shortened and
 	// the tokens it kept out of the agents' context (FilterSavedByRole per role).
@@ -248,6 +253,7 @@ func (s *Service) Metrics(ctx context.Context, project string, a Actor, window t
 	}
 	// Alerts from the design table.
 	if m.ReworkAvg > 2 {
+		m.Flags = append(m.Flags, "rework_avg")
 		m.Alerts = append(m.Alerts, fmt.Sprintf("rework average is %.1f rounds per item (above 2)", m.ReworkAvg))
 	}
 	totalRework := 0
@@ -260,15 +266,19 @@ func (s *Service) Metrics(ctx context.Context, project string, a Actor, window t
 		}
 	}
 	if m.ProposalsMade >= 5 && float64(m.ProposalsOK)/float64(m.ProposalsMade) < 0.2 {
+		m.Flags = append(m.Flags, "proposals")
 		m.Alerts = append(m.Alerts, fmt.Sprintf("only %d of %d proposals approved: agents may be inventing work", m.ProposalsOK, m.ProposalsMade))
 	}
 	if maxWait > 24*time.Hour {
+		m.Flags = append(m.Flags, "waiting_owner")
 		m.Alerts = append(m.Alerts, "an item waits for the owner for more than 24 hours")
 	}
 	if m.FlakyQuarantined > 5 {
+		m.Flags = append(m.Flags, "flaky")
 		m.Alerts = append(m.Alerts, fmt.Sprintf("%d flaky checks in quarantine", m.FlakyQuarantined))
 	}
 	if m.Violations > 0 {
+		m.Flags = append(m.Flags, "violations")
 		m.Alerts = append(m.Alerts, fmt.Sprintf("%d policy violations blocked by hooks", m.Violations))
 	}
 	for area, r := range m.FixedCostRatio {

@@ -8,8 +8,6 @@ import (
 	"io"
 	"os"
 	"runtime"
-	"strconv"
-	"strings"
 	"syscall"
 	"time"
 
@@ -42,33 +40,6 @@ func (d *daemon) publishBinary(ctx context.Context) string {
 	return h
 }
 
-// newerVersion compares dotted versions ("0.2.0" > "0.1.10"); pre-release
-// suffixes ("-dev") sort before the release.
-func newerVersion(a, b string) bool {
-	pa, sa := splitVersion(a)
-	pb, sb := splitVersion(b)
-	for i := range 3 {
-		if pa[i] != pb[i] {
-			return pa[i] > pb[i]
-		}
-	}
-	if sa == "" && sb != "" {
-		return true
-	}
-	return false
-}
-
-func splitVersion(v string) ([3]int, string) {
-	v = strings.TrimPrefix(strings.TrimSpace(v), "v")
-	core, suffix, _ := strings.Cut(v, "-")
-	var out [3]int
-	for i, p := range strings.SplitN(core, ".", 3) {
-		n, _ := strconv.Atoi(p)
-		out[i] = n
-	}
-	return out, suffix
-}
-
 // watchVersions updates this machine when a peer runs a newer version.
 func (d *daemon) watchVersions(ctx context.Context, self string) {
 	t := time.NewTicker(10 * time.Second)
@@ -92,7 +63,7 @@ func (d *daemon) watchVersions(ctx context.Context, self string) {
 				if m.Name == d.df.Machine || m.Binary == "" || m.Binary == self || m.Platform != platform() || m.Left {
 					continue
 				}
-				if newerVersion(m.Version, version) && (target == nil || newerVersion(m.Version, target.Version)) {
+				if b := (domain.Build{Version: m.Version, Time: m.BuildTime}); b.Newer(selfBuild()) && (target == nil || b.Newer(domain.Build{Version: target.Version, Time: target.BuildTime})) {
 					mm := *m
 					target = &mm
 				}

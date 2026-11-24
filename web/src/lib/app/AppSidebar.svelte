@@ -1,0 +1,99 @@
+<script lang="ts">
+	import * as Sidebar from '$lib/components/ui/sidebar';
+	import { Kbd } from '$lib/components/ui/kbd';
+	import PlusIcon from '@lucide/svelte/icons/plus';
+	import SearchIcon from '@lucide/svelte/icons/search';
+	import { t } from '$lib/i18n';
+	import { since } from '$lib/format';
+	import { router, href, type RouteName } from '$lib/router.svelte';
+	import { session } from '$lib/session.svelte';
+	import { cluster } from '$lib/cluster.svelte';
+	import { toneOfItem, type Tone } from '$lib/status';
+	import { NAV } from './nav';
+	import { keys } from './keys.svelte';
+	import { clusterItems, groups, type Row } from './items';
+	import { openItem } from './open';
+	import { newItem } from './actions';
+	import Dot from './Dot.svelte';
+	import UserMenu from './UserMenu.svelte';
+
+	const g = $derived(groups(clusterItems(cluster.data)));
+	const sections = $derived([
+		{ key: 'sbNeeds', rows: g.needs, tone: 'needs' as Tone, age: (r: Row) => since(r.updatedAt) },
+		{ key: 'sbWorking', rows: g.working, tone: 'work' as Tone, age: (r: Row) => since(r.stepStartedAt) },
+		{ key: 'sbBlocked', rows: g.blocked, tone: 'fail' as Tone, age: (r: Row) => since(r.updatedAt) },
+		{ key: 'sbRecent', rows: g.recent.slice(0, 5), tone: 'done' as Tone, age: (r: Row) => since(r.integratedAt) }
+	].filter((s) => s.rows.length));
+	const active = (n: RouteName) => router.current.name === n || (n === 'queue' && router.current.name === 'item');
+	const machines = $derived(cluster.all?.machines.map((m) => m.machine!).filter(Boolean) || []);
+	const cpuPct = (m: { load1: number; cpus: number }) => (m.cpus ? Math.min(100, (m.load1 / m.cpus) * 100) : 0);
+	const memPct = (m: { memGb: number; freeMemGb: number }) => (m.memGb && m.freeMemGb > 0 ? ((m.memGb - m.freeMemGb) / m.memGb) * 100 : 0);
+</script>
+
+<Sidebar.Root collapsible="icon" class="h-svh">
+	<Sidebar.Header class="gap-2">
+		<a href={href('home')} class="flex items-center gap-2.5 rounded-md px-1.5 py-1">
+			<span class="grid size-7 shrink-0 place-items-center rounded-md bg-foreground text-sm font-bold text-background">B</span>
+			<span class="grid leading-tight group-data-[collapsible=icon]:hidden">
+				<span class="text-sm font-semibold">Barnraise</span>
+				<span class="flex items-center gap-1.5 text-[11px] text-muted-foreground"><span class="num rounded border px-1 py-px {session.outdated ? 'border-st-needs/50 text-st-needs' : ''}" title={t('versionLabel')}>v{session.version}</span><span class="truncate">{session.machine}</span></span>
+			</span>
+		</a>
+		<div class="flex gap-1.5 group-data-[collapsible=icon]:flex-col">
+			<button class="flex h-8 flex-1 items-center justify-center gap-1.5 rounded-md bg-foreground px-2 text-sm font-medium text-background transition-opacity hover:opacity-90 group-data-[collapsible=icon]:size-8 group-data-[collapsible=icon]:flex-none" onclick={newItem} title={t('newItem')}>
+				<PlusIcon class="size-4" /><span class="group-data-[collapsible=icon]:hidden">{t('newItem')}</span>
+			</button>
+		</div>
+		<button class="flex h-8 items-center gap-2 rounded-md border bg-background/40 px-2 text-sm text-muted-foreground transition-colors hover:bg-sidebar-accent group-data-[collapsible=icon]:size-8 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0" onclick={() => (keys.palette = true)} title={t('paletteSearch')}>
+			<SearchIcon class="size-4 shrink-0" /><span class="flex-1 text-left group-data-[collapsible=icon]:hidden">{t('search')}</span><Kbd class="group-data-[collapsible=icon]:hidden">Ctrl K</Kbd>
+		</button>
+	</Sidebar.Header>
+	<Sidebar.Content>
+		<Sidebar.Group>
+			<Sidebar.Menu>
+				{#each NAV as n (n.name)}
+					<Sidebar.MenuItem>
+						<Sidebar.MenuButton isActive={active(n.name)} tooltipContent={t(n.label)}>
+							{#snippet child({ props })}<a href={href(n.name)} {...props} aria-current={active(n.name) ? 'page' : undefined}><n.icon /><span>{t(n.label)}</span></a>{/snippet}
+						</Sidebar.MenuButton>
+						{#if n.name === 'home' && g.needs.length}<Sidebar.MenuBadge class="num bg-st-needs/15 text-st-needs">{g.needs.length}</Sidebar.MenuBadge>{/if}
+						{#if n.name === 'agents' && g.working.length}<Sidebar.MenuBadge class="num bg-st-work/15 text-st-work">{g.working.length}</Sidebar.MenuBadge>{/if}
+					</Sidebar.MenuItem>
+				{/each}
+			</Sidebar.Menu>
+		</Sidebar.Group>
+		{#each sections as s (s.key)}
+			<Sidebar.Group class="group-data-[collapsible=icon]:hidden">
+				<Sidebar.GroupLabel class="eyebrow">{t(s.key)}<span class="num ml-auto">{s.rows.length}</span></Sidebar.GroupLabel>
+				<Sidebar.Menu>
+					{#each s.rows.slice(0, 6) as r (r.project + r.id)}
+						<Sidebar.MenuItem>
+							<Sidebar.MenuButton size="sm" class="h-7" onclick={() => openItem(r.project, r.id)} title={r.id + ' · ' + r.title + ' · ' + r.project}>
+								<Dot tone={toneOfItem(r)} pulse={s.tone === 'work'} />
+								<span class="truncate">{r.title}</span>
+								<span class="num ml-auto shrink-0 text-[11px] text-muted-foreground">{s.age(r)}</span>
+							</Sidebar.MenuButton>
+						</Sidebar.MenuItem>
+					{/each}
+					{#if s.rows.length > 6}<Sidebar.MenuItem><a class="px-2 text-xs text-muted-foreground hover:text-foreground" href={href('overview')}>{t('more', s.rows.length - 6)}</a></Sidebar.MenuItem>{/if}
+				</Sidebar.Menu>
+			</Sidebar.Group>
+		{/each}
+	</Sidebar.Content>
+	<Sidebar.Footer class="gap-2">
+		<div class="space-y-1.5 rounded-lg border bg-background/40 p-2 group-data-[collapsible=icon]:hidden">
+			{#each machines as m (m.name)}
+				<a href={href('machines')} class="grid grid-cols-[1fr_auto] items-center gap-x-2 text-[11px]" title={m.name}>
+					<span class="flex min-w-0 items-center gap-1.5"><Dot tone={m.standby ? 'needs' : m.health === 'green' ? 'done' : m.health === 'red' ? 'fail' : 'idle'} /><span class="truncate font-medium">{m.name}</span></span>
+					<span class="num text-muted-foreground">{m.busy}/{m.slots}</span>
+					<span class="col-span-2 grid grid-cols-2 gap-1.5">
+						<span class="flex items-center gap-1"><span class="eyebrow w-7 text-[9px] text-muted-foreground">cpu</span><span class="h-1 flex-1 rounded-full bg-muted"><span class="block h-1 rounded-full bg-st-work" style="width:{cpuPct(m)}%"></span></span></span>
+						<span class="flex items-center gap-1"><span class="eyebrow w-7 text-[9px] text-muted-foreground">ram</span><span class="h-1 flex-1 rounded-full bg-muted"><span class="block h-1 rounded-full bg-st-review" style="width:{memPct(m)}%"></span></span></span>
+					</span>
+				</a>
+			{/each}
+		</div>
+		<UserMenu />
+	</Sidebar.Footer>
+	<Sidebar.Rail />
+</Sidebar.Root>

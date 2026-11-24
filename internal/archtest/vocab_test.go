@@ -262,20 +262,33 @@ var vocabGlossary = []struct{ en, pt, enPlural, ptPlural string }{
 
 var vocabEntryRe = regexp.MustCompile(`(?m)([A-Za-z_][A-Za-z0-9_]*)\s*:\s*'((?:[^'\\]|\\.)*)'`)
 
-// vocabDict reads the key: 'value' pairs of one object literal of i18n.js.
+// vocabDict reads the key: 'value' pairs of one dictionary of the panel
+// (web/src/lib/i18n.ts): its object literal and every Object.assign(name, {…}).
 func vocabDict(t *testing.T, src []byte, name string) map[string]string {
 	t.Helper()
-	start := bytes.Index(src, []byte("const "+name+" = {"))
-	if start < 0 {
-		t.Fatalf("i18n.js: object %s not found", name)
+	var blocks [][]byte
+	for _, open := range []string{"const " + name + ": Dict = {", "Object.assign(" + name + ", {"} {
+		for rest := src; ; {
+			start := bytes.Index(rest, []byte(open))
+			if start < 0 {
+				break
+			}
+			end := bytes.Index(rest[start:], []byte("\n}"))
+			if end < 0 {
+				t.Fatalf("i18n.ts: %s is not closed", open)
+			}
+			blocks = append(blocks, rest[start:start+end])
+			rest = rest[start+end:]
+		}
 	}
-	end := bytes.Index(src[start:], []byte("\n};"))
-	if end < 0 {
-		t.Fatalf("i18n.js: object %s is not closed", name)
+	if len(blocks) == 0 {
+		t.Fatalf("i18n.ts: dictionary %s not found", name)
 	}
 	out := map[string]string{}
-	for _, m := range vocabEntryRe.FindAllSubmatch(src[start:start+end], -1) {
-		out[string(m[1])] = string(m[2])
+	for _, b := range blocks {
+		for _, m := range vocabEntryRe.FindAllSubmatch(b, -1) {
+			out[string(m[1])] = string(m[2])
+		}
 	}
 	return out
 }
@@ -284,19 +297,19 @@ func vocabDict(t *testing.T, src []byte, name string) map[string]string {
 // exactly a glossary term translate exactly as the glossary says.
 func TestVocabPanelTranslations(t *testing.T) {
 	root := vocabRoot(t)
-	src, err := os.ReadFile(filepath.Join(root, "internal/adapters/in/panel/static/i18n.js"))
+	src, err := os.ReadFile(filepath.Join(root, "web/src/lib/i18n.ts"))
 	if err != nil {
 		t.Fatal(err)
 	}
 	en, pt := vocabDict(t, src, "en"), vocabDict(t, src, "pt")
 	if len(en) < 50 || len(pt) < 50 {
-		t.Fatalf("i18n.js parsed too few entries (en %d, pt %d)", len(en), len(pt))
+		t.Fatalf("i18n.ts parsed too few entries (en %d, pt %d)", len(en), len(pt))
 	}
 	checked := 0
 	for key, ev := range en {
 		pv, ok := pt[key]
 		if !ok {
-			t.Errorf("i18n.js: key %s has no pt-BR translation", key)
+			t.Errorf("i18n.ts: key %s has no pt-BR translation", key)
 			continue
 		}
 		for _, g := range vocabGlossary {
@@ -311,13 +324,13 @@ func TestVocabPanelTranslations(t *testing.T) {
 			}
 			checked++
 			if !strings.EqualFold(pv, want) {
-				t.Errorf("i18n.js: %s is %q in English and must be %q in pt-BR, not %q", key, ev, want, pv)
+				t.Errorf("i18n.ts: %s is %q in English and must be %q in pt-BR, not %q", key, ev, want, pv)
 			}
 		}
 	}
 	for key := range pt {
 		if _, ok := en[key]; !ok {
-			t.Errorf("i18n.js: pt-BR key %s has no English entry", key)
+			t.Errorf("i18n.ts: pt-BR key %s has no English entry", key)
 		}
 	}
 	if checked < 5 {

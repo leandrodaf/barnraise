@@ -127,6 +127,15 @@ type ItemOverview struct {
 	Deliveries     int                       `json:"deliveries,omitempty"`
 	LastDelivery   *domain.DeliveryMark      `json:"last_delivery,omitempty"`
 	LastActivity   *domain.Activity          `json:"last_activity,omitempty"`
+
+	// What the owner's board shows, decided here and not by the panel:
+	// the flow's steps, what the owner approves now, the column and the
+	// one fact to read first.
+	Flow       []FlowStep `json:"flow,omitempty"`
+	Awaits     string     `json:"awaits,omitempty"` // plan or delivery
+	NeedsOwner bool       `json:"needs_owner,omitempty"`
+	Column     string     `json:"column"`
+	Signal     Signal     `json:"signal"`
 }
 
 // ProjectOverview is one project across the cluster.
@@ -188,6 +197,12 @@ type Overview struct {
 	Machines    []*MachineOverview `json:"machines"`
 	Activity    map[string]int     `json:"activity"`
 	Usage       domain.UsageTotals `json:"usage"`
+	// The projects' usage added up, so a reader never sums it.
+	UsageByModel   domain.UsageBy `json:"usage_by_model,omitempty"`
+	UsageByRole    domain.UsageBy `json:"usage_by_role,omitempty"`
+	UsageByAccount domain.UsageBy `json:"usage_by_account,omitempty"`
+	UsageByMachine domain.UsageBy `json:"usage_by_machine,omitempty"`
+	UsageByDay     domain.UsageBy `json:"usage_by_day,omitempty"`
 }
 
 // Overview answers what is being done, where and at what cost, on every
@@ -235,12 +250,18 @@ func (s *Service) Overview(ctx context.Context, a Actor, q OverviewQuery) (*Over
 		q.Finished = overviewFinished
 	}
 	now := s.d.Clock.Now()
-	out := &Overview{GeneratedAt: now.UTC(), Machine: s.d.Machine, Activity: map[string]int{}}
+	out := &Overview{GeneratedAt: now.UTC(), Machine: s.d.Machine, Activity: map[string]int{},
+		UsageByModel: domain.UsageBy{}, UsageByRole: domain.UsageBy{}, UsageByAccount: domain.UsageBy{}, UsageByMachine: domain.UsageBy{}, UsageByDay: domain.UsageBy{}}
 	machines := map[string]*MachineOverview{}
 	for _, p := range projects {
 		po := s.projectOverview(p, q, now, machines)
 		out.Projects = append(out.Projects, po)
 		out.Usage.Merge(po.Usage)
+		out.UsageByModel.Add(po.UsageByModel)
+		out.UsageByRole.Add(po.UsageByRole)
+		out.UsageByAccount.Add(po.UsageByAccount)
+		out.UsageByMachine.Add(po.UsageByMachine)
+		out.UsageByDay.Add(po.UsageByDay)
 		for k, n := range po.Activity {
 			out.Activity[k] += n
 		}
@@ -289,8 +310,7 @@ func (s *Service) projectOverview(p *Project, q OverviewQuery, now time.Time, ma
 		}
 	}
 	for _, acc := range snap.AccountList() {
-		c := *acc
-		po.Accounts = append(po.Accounts, &c)
+		po.Accounts = append(po.Accounts, acc.WithOutlook(now))
 	}
 
 	// Machines: health as this project sees it; the freshest word wins.
@@ -400,6 +420,7 @@ func (s *Service) projectOverview(p *Project, q OverviewQuery, now time.Time, ma
 		}
 		for _, io := range po.Items {
 			il := led.ByItem[io.ID]
+			io.Signal = itemSignal(snap.Items[io.ID], io, il)
 			if il == nil {
 				continue
 			}
@@ -413,6 +434,11 @@ func (s *Service) projectOverview(p *Project, q OverviewQuery, now time.Time, ma
 			for _, name := range sortedKeys(c.Checks) {
 				io.Checks = append(io.Checks, c.Checks[name])
 			}
+		}
+	}
+	if led == nil {
+		for _, io := range po.Items {
+			io.Signal = itemSignal(snap.Items[io.ID], io, nil)
 		}
 	}
 	for name, t := range po.UsageByMachine {
@@ -541,6 +567,7 @@ func itemOverview(p *Project, snap *domain.State, it *domain.Item, now time.Time
 		io.PR = &PRView{Number: pr.Number, URL: pr.URL, State: prState(p, it)}
 	}
 	io.Activity, io.Detail = itemActivity(snap, it, io, up)
+	boardFacts(p, it, io)
 	return io
 }
 

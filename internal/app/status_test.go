@@ -81,6 +81,10 @@ func TestMetricsAndAlerts(t *testing.T) {
 			t.Errorf("alert %q missing in\n%s", w, all)
 		}
 	}
+	// Each number past its limit is named, for the panel to mark it.
+	if got := strings.Join(m.Flags, ","); got != "rework_avg,proposals,waiting_owner,flaky,violations" {
+		t.Errorf("flags %q", got)
+	}
 	if _, err := e.svc.Metrics(e.ctx, "demo", Actor{}, time.Hour); err == nil {
 		t.Fatal("no scope")
 	}

@@ -36,13 +36,16 @@ func TestOverviewFitsTheProto(t *testing.T) {
 		Checks: []*domain.CheckMark{{Check: "unit", Passed: true, Flaky: true, MainRed: true, Commit: "c", RunsOn: "m2", Seconds: 2, Runs: 3, At: at}}, Reviews: 1,
 		LastReview: &domain.ReviewMark{Step: "review", Reviewer: "r", Decision: "APPROVE", Criteria: "pass", Code: "pass", Findings: 1, At: at}, Deliveries: 1,
 		LastDelivery: &domain.DeliveryMark{Step: "implement", Agent: "a", Status: "DONE", Commit: "c", At: at},
-		LastActivity: &domain.Activity{Type: "item.updated", Machine: "m2", Actor: "a", At: at}}
+		LastActivity: &domain.Activity{Type: "item.updated", Machine: "m2", Actor: "a", At: at},
+		Flow:         []app.FlowStep{{Name: "plan", Kind: "plan", State: "done"}}, Awaits: "plan", NeedsOwner: true, Column: app.ColNeeds,
+		Signal: app.Signal{Kind: "approve", Arg: "plan"}}
 	o := &app.Overview{GeneratedAt: at, Machine: "m1", Activity: map[string]int{"working": 1}, Usage: usage,
+		UsageByModel: by, UsageByRole: by, UsageByAccount: by, UsageByMachine: by, UsageByDay: by,
 		Projects: []*app.ProjectOverview{{Project: "demo", Paused: true, PausedWhy: "w", Goal: &domain.Goal{ID: "G-1", Name: "g", Active: true, CreatedAt: at},
 			Progress: &domain.GoalProgress{Total: 2, Done: 1}, Focus: &domain.Focus{Name: "f", Share: 50, SetAt: at}, Status: map[string]int{"in_progress": 1},
 			Activity: map[string]int{"working": 1}, OpenQuestions: 1, OpenProposals: 2, Items: []*app.ItemOverview{item}, ItemsMatched: 1, ItemsTotal: 9, Truncated: true,
 			Usage: usage, UsageByModel: by, UsageByRole: by, UsageByAccount: by, UsageByMachine: by, UsageByAgent: by, UsageByDay: by,
-			Accounts: []*domain.Account{{ID: "acc", Provider: "fake", Machine: "m2"}}}},
+			Accounts: []*domain.Account{(&domain.Account{ID: "acc", Provider: "fake", Machine: "m2", Usage: domain.Usage{WeeklyTopPct: 5}}).WithOutlook(at)}}},
 		Machines: []*app.MachineOverview{{Machine: app.MachineView{Machine: domain.Machine{Name: "m2", CPUs: 8, LastSeen: at}, Health: "green"}, Projects: []string{"demo"},
 			Sessions: []*domain.SessionInfo{sess}, Items: []string{"demo/I-1"}, Worktrees: []domain.WorktreeInfo{wt}, WorktreeBytes: 5, DiskFreeBytes: 6, DiskTotalBytes: 7,
 			Procs: procs, ProcsSupported: true, ReportedAt: at, Usage: usage}}}

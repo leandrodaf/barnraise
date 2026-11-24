@@ -1,0 +1,12 @@
+{
+  "$schema": "https://wails.io/schemas/config.v2.json",
+  "name": "barnraise-desktop",
+  "outputfilename": "barnraise-desktop",
+  "frontend:dir": "../web",
+  "frontend:install": "pnpm install",
+  "frontend:build": "pnpm build:desktop",
+  "frontend:dev:watcher": "pnpm dev:desktop",
+  "frontend:dev:serverUrl": "http://localhost:5174",
+  "wailsjsdir": "../web/desktop/wailsjs",
+  "author": { "name": "Barnraise" }
+}

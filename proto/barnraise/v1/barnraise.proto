@@ -297,6 +297,25 @@ message Usage {
   string source = 8;
 }
 
+// UsageWindow is one usage window seen from now.
+message UsageWindow {
+  double used_pct = 1;
+  // Where even use over the window would be now.
+  double pace_pct = 2;
+  // Seconds to the reset, and to 100% at the current rate when that comes first.
+  double resets_in = 3;
+  double runs_out_in = 4;
+}
+
+// AccountOutlook is what the owner needs to know about an account now.
+message AccountOutlook {
+  // The account cannot take a step now.
+  bool limited = 1;
+  UsageWindow five_hour = 2;
+  UsageWindow weekly = 3;
+  UsageWindow weekly_top = 4;
+}
+
 message Account {
   string id = 1;
   string provider = 2;
@@ -309,6 +328,8 @@ message Account {
   Usage usage = 9;
   repeated string projects = 10;
   string added_at = 11;
+  // The account seen from now; only in answers, never stored.
+  AccountOutlook outlook = 12;
 }
 
 message Machine {
@@ -341,6 +362,8 @@ message Machine {
   repeated GpuStat gpus = 22;
   // The machine is in standby: its daemon runs, but it starts no work.
   bool standby = 23;
+  // The time of the commit its binary was built from.
+  string build_time = 24;
 }
 
 // GpuStat is the live state of one GPU of a machine.
@@ -636,6 +659,9 @@ message MetricsResponse {
   map<string, int32> explore_reads_by_area = 16;
   map<string, double> fixed_cost_ratio_by_area = 17;
   repeated string alerts = 18;
+  // The numbers past their limit: rework_avg, proposals, waiting_owner,
+  // flaky, violations.
+  repeated string flags = 19;
 }
 
 message TimelineEntry {
@@ -961,6 +987,15 @@ message ProjectsResponse {
   // This machine is in standby (see SetStandby), and why.
   bool standby = 4;
   string standby_why = 5;
+  // The time of the commit this machine's binary was built from (RFC 3339).
+  string build_time = 6;
+  // A machine of the cluster runs a newer build: which, and what it runs.
+  bool outdated = 7;
+  string newest_machine = 8;
+  string newest_version = 9;
+  string newest_build_time = 10;
+  // The daemon takes a newer peer's binary by itself, between sessions.
+  bool self_update = 11;
 }
 
 message PolicyViolationRequest {
@@ -1116,6 +1151,25 @@ message PullRequestView {
 }
 
 // ItemOverview is everything known about one item, on every machine.
+// FlowStep is one step of an item's flow and where the item is on it.
+message FlowStep {
+  string name = 1;
+  // plan, work, approval, review, check or merge.
+  string kind = 2;
+  // done, current or next.
+  string state = 3;
+}
+
+// Signal is the one fact to read about an item now, as a code and its
+// argument, for a reader to word in its language.
+message Signal {
+  // approve, question, check_failed, changes_requested, waits_for, stalled,
+  // working, running, queued, paused, parked, draft, ready, idle,
+  // integrated, closed.
+  string kind = 1;
+  string arg = 2;
+}
+
 message ItemOverview {
   string id = 1;
   string title = 2;
@@ -1178,6 +1232,15 @@ message ItemOverview {
   int32 deliveries = 53;
   DeliveryMark last_delivery = 54;
   Activity last_activity = 55;
+  // What the owner's board shows, decided by the daemon: the flow's steps
+  // with where the item is, what the owner approves now (plan or delivery),
+  // the board column and the one fact to read first.
+  repeated FlowStep flow = 56;
+  string awaits = 57;
+  bool needs_owner = 58;
+  // backlog, working, needs, review, queue, blocked or done.
+  string column = 59;
+  Signal signal = 60;
 }
 
 // ProjectOverview is one project across the cluster.
@@ -1256,6 +1319,12 @@ message OverviewResponse {
   repeated MachineOverview machines = 4;
   map<string, int32> activity = 5;
   UsageTotals usage = 6;
+  // The projects' usage added up.
+  map<string, UsageTotals> usage_by_model = 7;
+  map<string, UsageTotals> usage_by_role = 8;
+  map<string, UsageTotals> usage_by_account = 9;
+  map<string, UsageTotals> usage_by_machine = 10;
+  map<string, UsageTotals> usage_by_day = 11;
 }
 
 service BarnraiseService {

@@ -400,3 +400,18 @@ type ProcSummary struct {
 	CPUSeconds   float64 `json:"cpu_seconds,omitempty"`
 	PeakRSSBytes int64   `json:"peak_rss_bytes,omitempty"`
 }
+
+// Add adds every total of o into u.
+func (u UsageBy) Add(o UsageBy) {
+	for k, t := range o {
+		if t == nil {
+			continue
+		}
+		if c := u[k]; c != nil {
+			c.Merge(*t)
+		} else {
+			cp := *t
+			u[k] = &cp
+		}
+	}
+}

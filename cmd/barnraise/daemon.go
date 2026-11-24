@@ -182,7 +182,7 @@ func runDaemon(ctx context.Context, opts cli.DaemonOptions) error {
 	svc := app.New(app.Deps{
 		Store: d.store, Bus: &d.bus, Checks: &checkRouter{d: d}, Providers: providers, Knowledge: kn, Exec: ex, Log: log,
 		ACP:     acp.New(acp.Options{Version: version}),
-		Machine: df.Machine, Version: version, DataDir: d.dataDir, SocketPath: paths.Socket(), BinaryPath: exe,
+		Machine: df.Machine, Version: version, BuildTime: selfBuild().Time, SelfUpdate: os.Getenv("BARNRAISE_NO_SELF_UPDATE") == "", DataDir: d.dataDir, SocketPath: paths.Socket(), BinaryPath: exe,
 		Notifier: d.notifier(), Blobs: blobsOrNil(d.blobs), Host: sysinfo.NewHost(),
 		ResolveSecret: func(ref string) (string, error) { return notify.SecretRef(d.secrets, ref) },
 		Isolation:     d.isolation(exe),

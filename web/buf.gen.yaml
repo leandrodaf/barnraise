@@ -1,0 +1,9 @@
+# The panel's client, generated from the same proto as the Go code.
+# Run from web/: pnpm gen
+version: v2
+inputs:
+  - directory: ../proto
+plugins:
+  - local: node_modules/.bin/protoc-gen-es
+    out: src/lib/gen
+    opt: target=ts

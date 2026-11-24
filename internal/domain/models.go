@@ -199,6 +199,17 @@ type Account struct {
 	Usage      Usage         `json:"usage"`
 	Projects   []string      `json:"projects,omitempty"` // empty: all
 	AddedAt    time.Time     `json:"added_at,omitzero"`
+	// Outlook is filled on the copies an answer serves (WithOutlook), never
+	// on the account kept in the log.
+	Outlook *AccountOutlook `json:"outlook,omitempty"`
+}
+
+// WithOutlook returns a copy of the account with its outlook at now.
+func (a *Account) WithOutlook(now time.Time) *Account {
+	c := *a
+	o := a.OutlookAt(now)
+	c.Outlook = &o
+	return &c
 }
 
 // Available reports whether the account can take a step now.

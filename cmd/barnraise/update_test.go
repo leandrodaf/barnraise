@@ -10,19 +10,6 @@ import (
 	"time"
 )
 
-func TestNewerVersion(t *testing.T) {
-	cases := []struct {
-		a, b string
-		want bool
-	}{{"0.2.0", "0.1.9", true}, {"0.1.10", "0.1.9", true}, {"0.1.0", "0.1.0-dev", true}, {"0.1.0-dev", "0.1.0", false},
-		{"v1.0.0", "0.9.9", true}, {"0.1.0", "0.1.0", false}, {"0.1.0", "0.2.0", false}}
-	for _, c := range cases {
-		if got := newerVersion(c.a, c.b); got != c.want {
-			t.Errorf("newerVersion(%s, %s) = %v", c.a, c.b, got)
-		}
-	}
-}
-
 // TestClusterSingleVersion: a machine on an older version fetches the newer
 // binary from its peer, verifies it and restarts on the new version.
 func TestClusterSingleVersion(t *testing.T) {

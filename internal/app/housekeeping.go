@@ -29,6 +29,7 @@ func (r *Runtime) housekeeping(ctx context.Context, p *Project, m domain.Machine
 	r.lastHK[p.Name] = now
 	m.LastSeen = s.d.Clock.Now().UTC()
 	m.Version = s.d.Version
+	m.BuildTime = s.d.BuildTime
 	r.mu.Lock()
 	m.Busy = len(r.running)
 	m.Standby = r.standby

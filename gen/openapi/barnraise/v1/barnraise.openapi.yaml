@@ -2471,8 +2471,31 @@ components:
         addedAt:
           type: string
           title: added_at
+        outlook:
+          title: outlook
+          description: The account seen from now; only in answers, never stored.
+          $ref: '#/components/schemas/barnraise.v1.AccountOutlook'
       title: Account
       additionalProperties: false
+    barnraise.v1.AccountOutlook:
+      type: object
+      properties:
+        limited:
+          type: boolean
+          title: limited
+          description: The account cannot take a step now.
+        fiveHour:
+          title: five_hour
+          $ref: '#/components/schemas/barnraise.v1.UsageWindow'
+        weekly:
+          title: weekly
+          $ref: '#/components/schemas/barnraise.v1.UsageWindow'
+        weeklyTop:
+          title: weekly_top
+          $ref: '#/components/schemas/barnraise.v1.UsageWindow'
+      title: AccountOutlook
+      additionalProperties: false
+      description: AccountOutlook is what the owner needs to know about an account now.
     barnraise.v1.AccountRequest:
       type: object
       properties:
@@ -3398,6 +3421,25 @@ components:
           title: text
       title: Finding
       additionalProperties: false
+    barnraise.v1.FlowStep:
+      type: object
+      properties:
+        name:
+          type: string
+          title: name
+        kind:
+          type: string
+          title: kind
+          description: plan, work, approval, review, check or merge.
+        state:
+          type: string
+          title: state
+          description: done, current or next.
+      title: FlowStep
+      additionalProperties: false
+      description: |-
+        ItemOverview is everything known about one item, on every machine.
+         FlowStep is one step of an item's flow and where the item is on it.
     barnraise.v1.Focus:
       type: object
       properties:
@@ -4009,9 +4051,30 @@ components:
         lastActivity:
           title: last_activity
           $ref: '#/components/schemas/barnraise.v1.Activity'
+        flow:
+          type: array
+          items:
+            $ref: '#/components/schemas/barnraise.v1.FlowStep'
+          title: flow
+          description: |-
+            What the owner's board shows, decided by the daemon: the flow's steps
+             with where the item is, what the owner approves now (plan or delivery),
+             the board column and the one fact to read first.
+        awaits:
+          type: string
+          title: awaits
+        needsOwner:
+          type: boolean
+          title: needs_owner
+        column:
+          type: string
+          title: column
+          description: backlog, working, needs, review, queue, blocked or done.
+        signal:
+          title: signal
+          $ref: '#/components/schemas/barnraise.v1.Signal'
       title: ItemOverview
       additionalProperties: false
-      description: ItemOverview is everything known about one item, on every machine.
     barnraise.v1.ItemRef:
       type: object
       properties:
@@ -4260,6 +4323,10 @@ components:
           type: boolean
           title: standby
           description: 'The machine is in standby: its daemon runs, but it starts no work.'
+        buildTime:
+          type: string
+          title: build_time
+          description: The time of the commit its binary was built from.
       title: Machine
       additionalProperties: false
     barnraise.v1.MachineHistoryRequest:
@@ -4614,6 +4681,14 @@ components:
           items:
             type: string
           title: alerts
+        flags:
+          type: array
+          items:
+            type: string
+          title: flags
+          description: |-
+            The numbers past their limit: rework_avg, proposals, waiting_owner,
+             flaky, violations.
       title: MetricsResponse
       additionalProperties: false
     barnraise.v1.NextItemRequest:
@@ -4709,6 +4784,37 @@ components:
         usage:
           title: usage
           $ref: '#/components/schemas/barnraise.v1.UsageTotals'
+        usageByModel:
+          type: object
+          title: usage_by_model
+          additionalProperties:
+            title: value
+            $ref: '#/components/schemas/barnraise.v1.UsageTotals'
+          description: The projects' usage added up.
+        usageByRole:
+          type: object
+          title: usage_by_role
+          additionalProperties:
+            title: value
+            $ref: '#/components/schemas/barnraise.v1.UsageTotals'
+        usageByAccount:
+          type: object
+          title: usage_by_account
+          additionalProperties:
+            title: value
+            $ref: '#/components/schemas/barnraise.v1.UsageTotals'
+        usageByMachine:
+          type: object
+          title: usage_by_machine
+          additionalProperties:
+            title: value
+            $ref: '#/components/schemas/barnraise.v1.UsageTotals'
+        usageByDay:
+          type: object
+          title: usage_by_day
+          additionalProperties:
+            title: value
+            $ref: '#/components/schemas/barnraise.v1.UsageTotals'
       title: OverviewResponse
       additionalProperties: false
     barnraise.v1.PauseRequest:
@@ -5041,6 +5147,27 @@ components:
         standbyWhy:
           type: string
           title: standby_why
+        buildTime:
+          type: string
+          title: build_time
+          description: The time of the commit this machine's binary was built from (RFC 3339).
+        outdated:
+          type: boolean
+          title: outdated
+          description: 'A machine of the cluster runs a newer build: which, and what it runs.'
+        newestMachine:
+          type: string
+          title: newest_machine
+        newestVersion:
+          type: string
+          title: newest_version
+        newestBuildTime:
+          type: string
+          title: newest_build_time
+        selfUpdate:
+          type: boolean
+          title: self_update
+          description: The daemon takes a newer peer's binary by itself, between sessions.
       title: ProjectsResponse
       additionalProperties: false
     barnraise.v1.Proposal:
@@ -5588,6 +5715,24 @@ components:
           title: inventory
       title: SetGoalResponse
       additionalProperties: false
+    barnraise.v1.Signal:
+      type: object
+      properties:
+        kind:
+          type: string
+          title: kind
+          description: |-
+            approve, question, check_failed, changes_requested, waits_for, stalled,
+             working, running, queued, paused, parked, draft, ready, idle,
+             integrated, closed.
+        arg:
+          type: string
+          title: arg
+      title: Signal
+      additionalProperties: false
+      description: |-
+        Signal is the one fact to read about an item now, as a code and its
+         argument, for a reader to word in its language.
     barnraise.v1.StandbyRequest:
       type: object
       properties:
@@ -5999,6 +6144,54 @@ components:
       title: UsageTotals
       additionalProperties: false
       description: 'UsageTotals adds up agent sessions: tokens, cost and time.'
+    barnraise.v1.UsageWindow:
+      type: object
+      properties:
+        usedPct:
+          oneOf:
+            - type: number
+              format: double
+            - type: string
+              enum:
+                - NaN
+                - Infinity
+                - -Infinity
+          title: used_pct
+        pacePct:
+          oneOf:
+            - type: number
+              format: double
+            - type: string
+              enum:
+                - NaN
+                - Infinity
+                - -Infinity
+          title: pace_pct
+          description: Where even use over the window would be now.
+        resetsIn:
+          oneOf:
+            - type: number
+              format: double
+            - type: string
+              enum:
+                - NaN
+                - Infinity
+                - -Infinity
+          title: resets_in
+          description: Seconds to the reset, and to 100% at the current rate when that comes first.
+        runsOutIn:
+          oneOf:
+            - type: number
+              format: double
+            - type: string
+              enum:
+                - NaN
+                - Infinity
+                - -Infinity
+          title: runs_out_in
+      title: UsageWindow
+      additionalProperties: false
+      description: UsageWindow is one usage window seen from now.
     barnraise.v1.WorktreeInfo:
       type: object
       properties:

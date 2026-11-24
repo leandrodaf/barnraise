@@ -64,7 +64,10 @@ func (h *Handler) audit(ctx context.Context, action, target, project, detail str
 
 func (h *Handler) ListProjects(ctx context.Context, _ *connect.Request[pb.Empty]) (*connect.Response[pb.ProjectsResponse], error) {
 	on, why := h.svc().Runtime().Standby()
-	return connect.NewResponse(&pb.ProjectsResponse{Projects: h.svc().Projects(), Machine: h.svc().Machine(), Version: h.srv.opts.Version, Standby: on, StandbyWhy: why}), nil
+	v := h.svc().Versions()
+	return connect.NewResponse(&pb.ProjectsResponse{Projects: h.svc().Projects(), Machine: h.svc().Machine(), Version: h.srv.opts.Version, Standby: on, StandbyWhy: why,
+		BuildTime: rfc3339(v.Self.Time), Outdated: v.Outdated, NewestMachine: v.NewestMachine, NewestVersion: v.Newest.Version,
+		NewestBuildTime: rfc3339(v.Newest.Time), SelfUpdate: v.SelfUpdate}), nil
 }
 
 func (h *Handler) RegisterProject(ctx context.Context, r *connect.Request[pb.RegisterProjectRequest]) (*connect.Response[pb.ProjectsResponse], error) {
@@ -769,4 +772,12 @@ func (h *Handler) ListAudit(ctx context.Context, r *connect.Request[pb.AuditRequ
 	}
 	entries, err := h.srv.listAudit(ctx, r.Msg.Project, int(r.Msg.Limit))
 	return respond[pb.AuditResponse](map[string]any{"entries": entries}, err)
+}
+
+// rfc3339 writes a time for the API, empty when it is not known.
+func rfc3339(t time.Time) string {
+	if t.IsZero() {
+		return ""
+	}
+	return t.UTC().Format(time.RFC3339)
 }

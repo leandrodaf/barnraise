@@ -3,3 +3,6 @@
 *.test
 *.out
 coverage.*
+/desktop/build/bin/
+/desktop/frontend/dist/
+/web/node_modules/

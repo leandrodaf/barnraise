@@ -48,3 +48,4 @@ One short record per decision: context, decision, consequences. A decision that 
 | [ADR-0042](0042-stale-read-warning.md) | Warn an agent when main changes what it read |
 | [ADR-0043](0043-lessons-from-rework.md) | Lessons from rework |
 | [ADR-0044](0044-generic-acp-provider.md) | A generic provider for agents that speak the Agent Client Protocol |
+| [ADR-0045](0045-panel-and-desktop-app.md) | One panel for the browser and the desktop app, with no rules in it |

@@ -53,10 +53,14 @@ type Deps struct {
 	Knowledge     ports.Knowledge // optional
 	Exec          ports.Exec      // optional
 	// Host reads this machine's processes and disk for the inventory; optional.
-	Host       ports.Host
-	Log        *slog.Logger
-	Machine    string
-	Version    string
+	Host    ports.Host
+	Log     *slog.Logger
+	Machine string
+	Version string
+	// BuildTime is the time of the commit this binary was built from.
+	BuildTime time.Time
+	// SelfUpdate: the daemon takes a newer peer's binary by itself.
+	SelfUpdate bool
 	DataDir    string // worktrees, logs, policy files
 	SocketPath string
 	BinaryPath string // the barnraise binary, for hooks and MCP config

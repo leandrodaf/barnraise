@@ -160,13 +160,15 @@ func (m Machine) CPUUsedPct() float64 {
 
 // Machine is a computer of the cluster; all are equal, none is central.
 type Machine struct {
-	Name      string  `json:"name"`
-	Version   string  `json:"version"`
-	Address   string  `json:"address,omitempty"`
-	CPUs      int     `json:"cpus"`
-	MemGB     float64 `json:"mem_gb"`
-	FreeCPU   float64 `json:"free_cpu"`
-	FreeMemGB float64 `json:"free_mem_gb,omitempty"` // memory available right now; 0 = unknown
+	Name    string `json:"name"`
+	Version string `json:"version"`
+	// BuildTime is the time of the commit the machine's binary was built from.
+	BuildTime time.Time `json:"build_time,omitzero"`
+	Address   string    `json:"address,omitempty"`
+	CPUs      int       `json:"cpus"`
+	MemGB     float64   `json:"mem_gb"`
+	FreeCPU   float64   `json:"free_cpu"`
+	FreeMemGB float64   `json:"free_mem_gb,omitempty"` // memory available right now; 0 = unknown
 	// Live readings, refreshed with every heartbeat. Zero means the machine
 	// does not report that reading.
 	Load1     float64   `json:"load1,omitempty"`  // 1-minute load average

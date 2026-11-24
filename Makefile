@@ -4,7 +4,8 @@ GO        ?= go
 BIN       ?= barnraise
 PKG       := ./cmd/barnraise
 VERSION   ?= $(shell git describe --tags --always --dirty 2>/dev/null | sed 's/^v//' || echo dev)
-LDFLAGS   := -s -w -X main.version=$(VERSION)
+BUILD_TIME ?= $(shell git log -1 --format=%cI 2>/dev/null)
+LDFLAGS   := -s -w -X main.version=$(VERSION) -X main.buildTime=$(BUILD_TIME)
 COVER_MIN ?= 90
 COVER_PKGS := ./internal/domain ./internal/app
 FUZZTIME  ?= 10s
@@ -17,10 +18,24 @@ TAGS      ?=
 RELEASE_TAGS ?= tsnet
 
 .DEFAULT_GOAL := build
-.PHONY: help build build-tsnet tsnet-check cross release-cross test test-race cover lint vuln proto proto-breaking e2e smoke fuzz-smoke docker clean
+.PHONY: help web web-check desktop desktop-dev build build-tsnet tsnet-check cross release-cross test test-race cover lint vuln proto proto-breaking e2e smoke fuzz-smoke docker clean
 
 help: ## Show the targets
 	@awk 'BEGIN {FS = ":.*## "} /^[a-z0-9-]+:.*## / {printf "  %-15s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
+
+web: ## Build the panel (web/, Svelte) into the daemon's embedded files and the desktop launcher
+	cd web && pnpm install --frozen-lockfile && pnpm gen && pnpm check && pnpm build && pnpm build:desktop
+
+web-check: ## Fail when the committed panel build does not match web/
+	$(MAKE) web
+	git diff --exit-code -- internal/adapters/in/panel/dist web/src/lib/gen
+
+desktop: web ## Build the desktop app (desktop/, Wails: needs cgo and WebKitGTK 4.1) with barnraise next to it
+	$(MAKE) build BIN=desktop/build/bin/barnraise
+	cd desktop && wails build -tags webkit2_41 -skipbindings -s -ldflags "-X main.appVersion=$(VERSION)"
+
+desktop-dev: ## The desktop app with live reload, on the panel's dev server (pnpm dev --port 5180 in web/)
+	cd desktop && BARNRAISE_PANEL_DEV=http://localhost:5180 wails dev -tags webkit2_41 -skipbindings
 
 build: ## Build ./barnraise with the version from git describe
 	CGO_ENABLED=0 $(GO) build -trimpath -tags "$(TAGS)" -ldflags "$(LDFLAGS)" -o $(BIN) $(PKG)

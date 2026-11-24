@@ -20,7 +20,7 @@ builds:
     # `make build` leaves it out to stay light; `make build-tsnet` matches this.
     tags: [tsnet]
     ldflags:
-      - -s -w -X main.version={{.Version}}
+      - -s -w -X main.version={{.Version}} -X main.buildTime={{.CommitDate}}
     mod_timestamp: "{{ .CommitTimestamp }}"
 
 archives:
