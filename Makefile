@@ -18,10 +18,13 @@ TAGS      ?=
 RELEASE_TAGS ?= tsnet
 
 .DEFAULT_GOAL := build
-.PHONY: help web web-check desktop desktop-dev build build-tsnet tsnet-check cross release-cross test test-race cover lint vuln proto proto-breaking e2e smoke fuzz-smoke docker clean
+.PHONY: help brand web web-check desktop desktop-dev desktop-install desktop-uninstall build build-tsnet tsnet-check cross release-cross test test-race cover lint vuln proto proto-breaking e2e smoke fuzz-smoke docker clean
 
 help: ## Show the targets
 	@awk 'BEGIN {FS = ":.*## "} /^[a-z0-9-]+:.*## / {printf "  %-15s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
+
+brand: ## Rebuild the logo, the panel's icons and the desktop app's icons from scripts/brand/build.py (needs Inkscape, Inter, Pillow)
+	python3 scripts/brand/build.py
 
 web: ## Build the panel (web/, Svelte) into the daemon's embedded files and the desktop launcher
 	cd web && pnpm install --frozen-lockfile && pnpm gen && pnpm check && pnpm build && pnpm build:desktop
@@ -33,6 +36,36 @@ web-check: ## Fail when the committed panel build does not match web/
 desktop: web ## Build the desktop app (desktop/, Wails: needs cgo and WebKitGTK 4.1) with barnraise next to it
 	$(MAKE) build BIN=desktop/build/bin/barnraise
 	cd desktop && wails build -tags webkit2_41 -skipbindings -s -ldflags "-X main.appVersion=$(VERSION)"
+	@# Wails makes the macOS icon by downscaling appicon.png; put the one drawn
+	@# for each size in its place, and name the bundle as the app is named.
+	@if [ "$$(uname)" = Darwin ] && [ -d desktop/build/bin/barnraise-desktop.app ]; then \
+		cp desktop/build/darwin/iconfile.icns desktop/build/bin/barnraise-desktop.app/Contents/Resources/iconfile.icns; \
+		rm -rf desktop/build/bin/Barnraise.app; \
+		mv desktop/build/bin/barnraise-desktop.app desktop/build/bin/Barnraise.app; \
+		touch desktop/build/bin/Barnraise.app; \
+	fi
+
+DESKTOP_ID := io.github.leandrodaf.barnraise
+PREFIX     ?= $(HOME)/.local
+
+desktop-install: ## Linux: install the built desktop app for this user (PREFIX=~/.local) with its launcher entry and icons
+	@test "$$(uname)" = Linux || { echo "desktop-install is for Linux; on macOS drag Barnraise.app to Applications"; exit 1; }
+	@test -x desktop/build/bin/barnraise-desktop || { echo "run make desktop first"; exit 1; }
+	install -Dm755 desktop/build/bin/barnraise-desktop $(PREFIX)/bin/barnraise-desktop
+	sed 's|^Exec=.*|Exec=$(PREFIX)/bin/barnraise-desktop|; s|^TryExec=.*|TryExec=$(PREFIX)/bin/barnraise-desktop|' \
+		desktop/build/linux/$(DESKTOP_ID).desktop > desktop/build/bin/$(DESKTOP_ID).desktop
+	install -Dm644 desktop/build/bin/$(DESKTOP_ID).desktop $(PREFIX)/share/applications/$(DESKTOP_ID).desktop
+	install -Dm644 desktop/build/linux/$(DESKTOP_ID).metainfo.xml $(PREFIX)/share/metainfo/$(DESKTOP_ID).metainfo.xml
+	cd desktop/build/linux/icons && find hicolor -type f -exec install -Dm644 {} $(PREFIX)/share/icons/{} \;
+	-gtk-update-icon-cache -q -t -f $(PREFIX)/share/icons/hicolor 2>/dev/null
+	-update-desktop-database -q $(PREFIX)/share/applications 2>/dev/null
+	@echo "installed: $(PREFIX)/bin/barnraise-desktop (barnraise itself is found on PATH)"
+
+desktop-uninstall: ## Linux: remove what desktop-install put in PREFIX
+	rm -f $(PREFIX)/bin/barnraise-desktop $(PREFIX)/share/applications/$(DESKTOP_ID).desktop $(PREFIX)/share/metainfo/$(DESKTOP_ID).metainfo.xml
+	find $(PREFIX)/share/icons/hicolor -name '$(DESKTOP_ID).*' -delete 2>/dev/null || true
+	-gtk-update-icon-cache -q -t -f $(PREFIX)/share/icons/hicolor 2>/dev/null
+	-update-desktop-database -q $(PREFIX)/share/applications 2>/dev/null
 
 desktop-dev: ## The desktop app with live reload, on the panel's dev server (pnpm dev --port 5180 in web/)
 	cd desktop && BARNRAISE_PANEL_DEV=http://localhost:5180 WAILS_DEV_ALLOWED_HOSTS=wails.localhost wails dev -tags webkit2_41 -skipbindings

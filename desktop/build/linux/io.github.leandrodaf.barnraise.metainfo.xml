@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>io.github.leandrodaf.barnraise</id>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>Apache-2.0</project_license>
+  <name>Barnraise</name>
+  <summary>Drive a software project with AI coding agents</summary>
+  <description>
+    <p>
+      A window on the panel of a Barnraise daemon: the queue, the agents, the
+      accounts and the machines of a project. It finds the daemon of this
+      machine, starts it when you ask, or connects to another machine's.
+    </p>
+  </description>
+  <launchable type="desktop-id">io.github.leandrodaf.barnraise.desktop</launchable>
+  <icon type="stock">io.github.leandrodaf.barnraise</icon>
+  <url type="homepage">https://github.com/leandrodaf/barnraise</url>
+  <url type="bugtracker">https://github.com/leandrodaf/barnraise/issues</url>
+  <developer id="io.github.leandrodaf">
+    <name>Barnraise</name>
+  </developer>
+  <categories>
+    <category>Development</category>
+  </categories>
+  <content_rating type="oars-1.1"/>
+  <provides>
+    <binary>barnraise-desktop</binary>
+  </provides>
+</component>

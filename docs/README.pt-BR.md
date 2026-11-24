@@ -1,4 +1,9 @@
-# Barnraise
+<h1>
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="../assets/brand/svg/logo-on-dark.svg">
+    <img alt="Barnraise" src="../assets/brand/svg/logo-on-light.svg" height="72">
+  </picture>
+</h1>
 
 O Barnraise é um binário único em Go que toca um projeto de software com agentes de IA, da fila até o commit na main. Ele roda o Claude Code, o Codex e a Gemini CLI pelas CLIs e assinaturas deles e cuida de tudo em volta: qual item vem agora, as etapas de cada item, verificações, revisões, a fila de integração, contas e limites, várias máquinas e segurança.
 

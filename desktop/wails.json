@@ -8,5 +8,14 @@
   "frontend:dev:watcher": "pnpm dev:desktop",
   "frontend:dev:serverUrl": "http://localhost:5174",
   "wailsjsdir": "../web/desktop/wailsjs",
-  "author": { "name": "Barnraise" }
+  "author": {
+    "name": "Barnraise"
+  },
+  "info": {
+    "companyName": "Barnraise",
+    "productName": "Barnraise",
+    "productVersion": "0.1.0",
+    "copyright": "Copyright the Barnraise authors. Licensed under the Apache License 2.0.",
+    "comments": "A window on the panel of a Barnraise daemon."
+  }
 }

@@ -1,4 +1,5 @@
 <script lang="ts">
+	import BrandMark from '$lib/app/BrandMark.svelte';
 	import * as Sidebar from '$lib/components/ui/sidebar';
 	import { Kbd } from '$lib/components/ui/kbd';
 	import PlusIcon from '@lucide/svelte/icons/plus';
@@ -63,7 +64,7 @@
 <Sidebar.Root collapsible="icon" class="h-svh">
 	<Sidebar.Header class="gap-2">
 		<a href={href('home')} class="flex items-center gap-2.5 rounded-md px-1.5 py-1">
-			<span class="grid size-7 shrink-0 place-items-center rounded-md bg-foreground text-sm font-bold text-background">B</span>
+			<BrandMark class="size-7 shrink-0" />
 			<span class="grid leading-tight group-data-[collapsible=icon]:hidden">
 				<span class="text-sm font-semibold">Barnraise</span>
 				<span class="flex min-w-0 items-center gap-1.5 text-[11px] text-muted-foreground"><span class="num max-w-[7.5rem] shrink-0 truncate rounded border px-1 py-px whitespace-nowrap {session.outdated ? 'border-st-needs/50 text-st-needs' : ''}" title={t('versionLabel')}>v{session.version}</span><span class="truncate">{session.machine}</span></span>

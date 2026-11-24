@@ -22,6 +22,17 @@ var appVersion = "dev"
 //go:embed all:frontend/dist
 var assets embed.FS
 
+// appID names the app to the desktop: the window's class and Wayland app id
+// match build/linux/io.github.leandrodaf.barnraise.desktop, so the dock and
+// the task switcher show the app's own icon and name.
+const appID = "io.github.leandrodaf.barnraise"
+
+// icon is the window's icon on X11 (Wayland and the dock use the .desktop
+// entry's). macOS and Windows take theirs from the bundle and the .exe.
+//
+//go:embed build/linux/icons/hicolor/256x256/apps/io.github.leandrodaf.barnraise.png
+var icon []byte
+
 func main() {
 	app := NewApp()
 	err := wails.Run(&options.App{
@@ -34,7 +45,7 @@ func main() {
 		BackgroundColour: &options.RGBA{R: 9, G: 9, B: 11, A: 1},
 		OnStartup:        app.startup,
 		Bind:             []any{app},
-		Linux:            &linux.Options{ProgramName: "barnraise-desktop", WebviewGpuPolicy: linux.WebviewGpuPolicyOnDemand},
+		Linux:            &linux.Options{ProgramName: appID, Icon: icon, WebviewGpuPolicy: linux.WebviewGpuPolicyOnDemand},
 	})
 	if err != nil {
 		log.Fatal(err)

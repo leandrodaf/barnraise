@@ -1,0 +1,17 @@
+[Desktop Entry]
+Type=Application
+Version=1.5
+Name=Barnraise
+GenericName=AI coding agents
+GenericName[pt_BR]=Agentes de IA para código
+Comment=The panel of a Barnraise daemon: the queue, the agents and the machines of a project
+Comment[pt_BR]=O painel de um daemon do Barnraise: a fila, os agentes e as máquinas de um projeto
+Exec=barnraise-desktop
+TryExec=barnraise-desktop
+Icon=io.github.leandrodaf.barnraise
+Terminal=false
+Categories=Development;
+Keywords=AI;agents;git;queue;claude;codex;gemini;
+StartupNotify=true
+StartupWMClass=io.github.leandrodaf.barnraise
+SingleMainWindow=true

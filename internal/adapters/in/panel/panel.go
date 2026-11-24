@@ -8,7 +8,24 @@ package panel
 import (
 	"embed"
 	"io/fs"
+	"mime"
 )
+
+// The daemon serves these files with X-Content-Type-Options: nosniff, so
+// each one needs its type. Go knows .svg and .png on every system but .ico
+// and .webmanifest only where the system's MIME table has them.
+func init() {
+	for ext, typ := range map[string]string{
+		".ico":         "image/x-icon",
+		".webmanifest": "application/manifest+json",
+		".svg":         "image/svg+xml",
+		".png":         "image/png",
+	} {
+		if err := mime.AddExtensionType(ext, typ); err != nil {
+			panic(err)
+		}
+	}
+}
 
 //go:embed all:dist
 var files embed.FS

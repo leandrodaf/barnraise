@@ -1,0 +1,17 @@
+{
+	"name": "Barnraise",
+	"short_name": "Barnraise",
+	"description": "The owner's panel of a Barnraise daemon: the queue, the agents and the machines of a project.",
+	"id": "./",
+	"start_url": "./",
+	"scope": "./",
+	"display": "standalone",
+	"background_color": "#13141C",
+	"theme_color": "#13141C",
+	"icons": [
+		{ "src": "favicon.svg", "type": "image/svg+xml", "sizes": "any", "purpose": "any" },
+		{ "src": "icon-192.png", "type": "image/png", "sizes": "192x192", "purpose": "any" },
+		{ "src": "icon-512.png", "type": "image/png", "sizes": "512x512", "purpose": "any" },
+		{ "src": "icon-maskable-512.png", "type": "image/png", "sizes": "512x512", "purpose": "maskable" }
+	]
+}

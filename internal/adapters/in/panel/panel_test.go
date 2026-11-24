@@ -2,6 +2,7 @@ package panel
 
 import (
 	"io/fs"
+	"mime"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -140,6 +141,44 @@ func TestNoBusinessRulesInThePanel(t *testing.T) {
 			if m := rules.FindString(line); m != "" {
 				t.Errorf("%s:%d decides what the daemon should: %q", name, i+1, m)
 			}
+		}
+	}
+}
+
+// The browser tab, the home screen and the installed app all find their icon.
+func TestIconsAreLinkedAndServedWithTheirType(t *testing.T) {
+	html := read(t, "index.html")
+	for _, want := range []string{
+		`rel="icon" href="./favicon.ico"`,
+		`rel="icon" href="./favicon.svg" type="image/svg+xml"`,
+		`rel="apple-touch-icon" href="./apple-touch-icon.png"`,
+		`rel="manifest" href="./manifest.webmanifest"`,
+	} {
+		if !strings.Contains(html, want) {
+			t.Errorf("index.html misses %s", want)
+		}
+	}
+	types := map[string]string{
+		"favicon.ico":           "image/x-icon",
+		"favicon.svg":           "image/svg+xml",
+		"apple-touch-icon.png":  "image/png",
+		"icon-192.png":          "image/png",
+		"icon-512.png":          "image/png",
+		"icon-maskable-512.png": "image/png",
+		"manifest.webmanifest":  "application/manifest+json",
+	}
+	for name, typ := range types {
+		if _, err := fs.Stat(FS(), name); err != nil {
+			t.Errorf("%s is not in dist: run make web", name)
+		}
+		if got := mime.TypeByExtension(filepath.Ext(name)); got != typ {
+			t.Errorf("%s would be served as %q, want %q", name, got, typ)
+		}
+	}
+	manifest := read(t, "manifest.webmanifest")
+	for _, icon := range []string{"icon-192.png", "icon-512.png", "icon-maskable-512.png", `"purpose": "maskable"`} {
+		if !strings.Contains(manifest, icon) {
+			t.Errorf("manifest.webmanifest misses %s", icon)
 		}
 	}
 }

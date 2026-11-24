@@ -1,4 +1,9 @@
-# Barnraise
+<h1>
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="assets/brand/svg/logo-on-dark.svg">
+    <img alt="Barnraise" src="assets/brand/svg/logo-on-light.svg" height="72">
+  </picture>
+</h1>
 
 Barnraise is one Go binary that drives a software project with AI coding agents, from the queue to the commit on main. It runs Claude Code, Codex and the Gemini CLI through their own CLIs and subscriptions and takes care of everything around them: which item comes next, the steps each item goes through, checks, reviews, the merge queue, accounts and limits, several machines, and security.
 

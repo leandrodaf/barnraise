@@ -1,4 +1,5 @@
 <script lang="ts">
+	import BrandMark from '$lib/app/BrandMark.svelte';
 	import * as Card from '$lib/components/ui/card';
 	import { Button } from '$lib/components/ui/button';
 	import { Input } from '$lib/components/ui/input';
@@ -63,7 +64,7 @@
 	<div class="absolute top-4 right-4"><LangSwitch compact /></div>
 	<Card.Root class="w-full max-w-md">
 		<Card.Header>
-			<div class="mb-2 grid size-10 place-items-center rounded-lg bg-primary text-lg font-bold text-primary-foreground">B</div>
+			<BrandMark class="mb-2 size-10" />
 			<Card.Title class="text-xl">Barnraise</Card.Title>
 			<Card.Description>{t('dkIntro')}</Card.Description>
 			{#if local}<p class="num pt-1 text-[11px] text-muted-foreground">{t('dkVersions', local.app_version, local.version || '—')}</p>{/if}
