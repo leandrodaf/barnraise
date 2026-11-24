@@ -131,7 +131,7 @@ func loadAreaFiles(root string, c *domain.ProjectConfig, userChecks map[string]b
 			}
 			d := domain.CheckDef{Name: full, Covers: covers, Order: cf.Order, NoOffload: cf.Offload != nil && !*cf.Offload, Run: cf.Run, RunsOn: def(cf.RunsOn, "local"), Workflow: cf.Workflow, URL: cf.URL,
 				Scope: def(cf.Scope, "touched"), Areas: []string{name}, Paths: append(append([]string{}, af.AlsoWhen...), cf.Paths...),
-				Dir: dir, FlakyRetries: 3, Timeout: 30 * time.Minute}
+				Dir: dir, FlakyRetries: 3, Timeout: 30 * time.Minute, Sandbox: cf.Sandbox}
 			if cf.FlakyRetries != nil {
 				d.FlakyRetries = *cf.FlakyRetries
 			}

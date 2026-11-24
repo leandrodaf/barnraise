@@ -383,9 +383,16 @@ type rawConfig struct {
 		Strip        []string          `yaml:"strip"`
 		StripAfter   string            `yaml:"strip_after"`
 		Stores       map[string]string `yaml:"stores"`
+		Sandbox      string            `yaml:"sandbox"`
 	} `yaml:"worktree"`
 	StaleReads staleReadsRaw `yaml:"stale_reads"`
 	Lessons    lessonsRaw    `yaml:"lessons"`
+	Sandbox    struct {
+		Read         []string `yaml:"read"`
+		Write        []string `yaml:"write"`
+		Ports        []int    `yaml:"ports"`
+		DenyCommands []string `yaml:"deny_commands"`
+	} `yaml:"sandbox"`
 
 	flowsNode *yaml.Node
 }
@@ -421,6 +428,7 @@ type checkField struct {
 	Covers       []string `yaml:"covers"`
 	Order        int      `yaml:"order"`
 	Offload      *bool    `yaml:"offload"`
+	Sandbox      string   `yaml:"sandbox"`
 }
 
 func (c *checkField) UnmarshalYAML(n *yaml.Node) error {
@@ -471,7 +479,7 @@ func (r *rawConfig) compile(root, tmpl string) (*domain.ProjectConfig, error) {
 
 	c.Checks = map[string]domain.CheckDef{}
 	for name, cf := range r.Checks {
-		d := domain.CheckDef{Name: name, Run: cf.Run, RunsOn: def(cf.RunsOn, "local"), Workflow: cf.Workflow, URL: cf.URL, Scope: def(cf.Scope, "touched"), Areas: cf.Areas, Paths: cf.Paths, Covers: cf.Covers, Order: cf.Order, NoOffload: cf.Offload != nil && !*cf.Offload, FlakyRetries: 3}
+		d := domain.CheckDef{Name: name, Run: cf.Run, RunsOn: def(cf.RunsOn, "local"), Workflow: cf.Workflow, URL: cf.URL, Scope: def(cf.Scope, "touched"), Areas: cf.Areas, Paths: cf.Paths, Covers: cf.Covers, Order: cf.Order, NoOffload: cf.Offload != nil && !*cf.Offload, FlakyRetries: 3, Sandbox: cf.Sandbox}
 		if cf.FlakyRetries != nil {
 			d.FlakyRetries = *cf.FlakyRetries
 		}
@@ -720,6 +728,8 @@ func (r *rawConfig) compile(root, tmpl string) (*domain.ProjectConfig, error) {
 	}
 	c.EnvFiles = r.Worktree.Include
 	c.WorktreeSetup = strings.TrimSpace(r.Worktree.Setup)
+	c.Sandbox = domain.SandboxDef{Setup: strings.TrimSpace(r.Worktree.Sandbox), Read: r.Sandbox.Read, Write: r.Sandbox.Write, Ports: r.Sandbox.Ports,
+		DenyCommands: append(append([]string(nil), r.Policy.DenyCommands...), r.Sandbox.DenyCommands...)}
 	c.WorktreeSetupTimeout = 30 * time.Minute
 	if r.Worktree.SetupTimeout != "" {
 		d, err := domain.ParseDuration(r.Worktree.SetupTimeout)
@@ -1087,7 +1097,9 @@ func Explain(cfg *domain.ProjectConfig) (string, error) {
 		"notifications": cfg.Notifications, "webhooks": cfg.Webhooks, "mcp": cfg.MCP, "plugins": cfg.Plugins, "experiments": cfg.Experiments,
 		"providers": cfg.APIProviders,
 		"worktree": map[string]any{"include": cfg.EnvFiles, "port_base": cfg.PortBase, "safety_commit": cfg.SafetyCommit.String(), "setup": cfg.WorktreeSetup,
-			"seed": cfg.WorktreeSeed, "strip": cfg.WorktreeStrip, "strip_after": cfg.WorktreeStripAfter.String(), "stores": cfg.WorktreeStores},
+			"seed": cfg.WorktreeSeed, "strip": cfg.WorktreeStrip, "strip_after": cfg.WorktreeStripAfter.String(), "stores": cfg.WorktreeStores,
+			"sandbox": cfg.Sandbox.SetupSandbox()},
+		"sandbox": cfg.Sandbox,
 	}
 	if v := acpView(cfg); len(v) > 0 {
 		view["acp_providers"] = v

@@ -39,6 +39,7 @@ type CheckDef struct {
 	NoOffload    bool          `json:"no_offload,omitempty"` // never moved to an idle machine (it needs something only this machine has)
 	Covers       []string      `json:"covers,omitempty"`     // checks this one makes redundant when both apply
 	Order        int           `json:"order,omitempty"`      // lower runs first (cheap before expensive); ties by name
+	Sandbox      string        `json:"sandbox,omitempty"`    // sandbox profile of a local run (default check)
 }
 
 // ContainerDef makes every agent session of the project run inside a
@@ -458,6 +459,8 @@ type ProjectConfig struct {
 	StaleReads StaleReadsDef `json:"stale_reads"`
 	// Lessons are distilled from resolved rework and given to later items.
 	Lessons LessonsDef `json:"lessons"`
+	// Sandbox is how confined commands of the project are (profiles, extra paths and ports).
+	Sandbox SandboxDef `json:"sandbox,omitzero"`
 }
 
 // FlowFor returns the flow of an item kind.
@@ -527,6 +530,7 @@ func (c *ProjectConfig) Validate() []error {
 	errs = append(errs, c.validateAPIProviders()...)
 	errs = append(errs, c.validateACPProviders()...)
 	errs = append(errs, c.validatePlugins()...)
+	errs = append(errs, c.validateSandbox()...)
 	if ct := c.Container; ct.Image == "" && (ct.Engine != "" || ct.Network != "" || len(ct.Mounts) > 0) {
 		errs = append(errs, fmt.Errorf("container needs an image (one with the AI CLI and the project's tools)"))
 	} else if ct.Engine != "" && ct.Engine != "docker" && ct.Engine != "podman" {
