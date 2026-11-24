@@ -35,7 +35,7 @@ const en: Dict = {
 
   // nav
   navHome: 'Home', navQueue: 'Queue', navAgents: 'Agents', navAccounts: 'Accounts',
-  navProposals: 'Proposals', navMachines: 'Machines', navMetrics: 'Metrics',
+  navProposals: 'Proposals', navMachines: 'Machines', navCapabilities: 'Capabilities', navMetrics: 'Metrics',
 
   // home
   goal: 'Goal',
@@ -282,7 +282,7 @@ const pt: Dict = {
   tokenBad: 'Este token foi recusado.',
 
   navHome: 'Início', navQueue: 'Fila', navAgents: 'Agentes', navAccounts: 'Contas',
-  navProposals: 'Propostas', navMachines: 'Máquinas', navMetrics: 'Métricas',
+  navProposals: 'Propostas', navMachines: 'Máquinas', navCapabilities: 'Capacidades', navMetrics: 'Métricas',
 
   goal: 'Objetivo',
   noGoal: 'Nenhum objetivo definido. Defina com `barnraise goal`.',

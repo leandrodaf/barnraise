@@ -5,6 +5,7 @@ import BotIcon from '@lucide/svelte/icons/bot';
 import KeyRoundIcon from '@lucide/svelte/icons/key-round';
 import LightbulbIcon from '@lucide/svelte/icons/lightbulb';
 import ServerIcon from '@lucide/svelte/icons/server';
+import BlocksIcon from '@lucide/svelte/icons/blocks';
 import ChartIcon from '@lucide/svelte/icons/chart-no-axes-column';
 import type { RouteName } from '$lib/router.svelte';
 
@@ -15,6 +16,7 @@ export const NAV: { name: RouteName; label: string; icon: typeof HouseIcon }[] =
 	{ name: 'agents', label: 'navAgents', icon: BotIcon },
 	{ name: 'proposals', label: 'navProposals', icon: LightbulbIcon },
 	{ name: 'machines', label: 'navMachines', icon: ServerIcon },
+	{ name: 'capabilities', label: 'navCapabilities', icon: BlocksIcon },
 	{ name: 'accounts', label: 'navAccounts', icon: KeyRoundIcon },
 	{ name: 'metrics', label: 'navMetrics', icon: ChartIcon }
 ];
