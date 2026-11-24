@@ -151,3 +151,22 @@ func TestAutopilotSwitch(t *testing.T) {
 		t.Fatalf("off: %v", err)
 	}
 }
+
+// A new question or proposal wakes the autopilot before its interval.
+func TestAutopilotWakesOnNewWork(t *testing.T) {
+	e, _ := autopilotEnv(t, func(AdviceRequest) string { return "" })
+	now := time.Now()
+	if !e.svc.autopilotDue(e.p, now) {
+		t.Fatal("not due when switched on")
+	}
+	e.svc.autopilotState("demo").running.Store(false)
+	if e.svc.autopilotDue(e.p, now.Add(time.Second)) {
+		t.Fatal("due again before the interval")
+	}
+	if _, err := e.svc.Propose(e.ctx, "demo", owner(), prop("A faster list", "cards")); err != nil {
+		t.Fatal(err)
+	}
+	if !e.svc.autopilotDue(e.p, now.Add(2*time.Second)) {
+		t.Fatal("a new proposal did not wake the autopilot")
+	}
+}

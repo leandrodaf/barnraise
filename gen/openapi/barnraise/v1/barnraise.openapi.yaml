@@ -2521,6 +2521,47 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/barnraise.v1.StandbyResponse'
+  /barnraise.v1.BarnraiseService/ShareProject:
+    post:
+      tags:
+        - barnraise.v1.BarnraiseService
+      summary: ShareProject
+      description: |-
+        ShareProject has other machines clone a project's repository and
+         register it, so their agents work on it too.
+      operationId: barnraise.v1.BarnraiseService.ShareProject
+      parameters:
+        - name: Connect-Protocol-Version
+          in: header
+          description: Define the version of the Connect protocol
+          schema:
+            $ref: '#/components/schemas/connect-protocol-version'
+          example: 1
+        - name: Connect-Timeout-Ms
+          in: header
+          description: Define the timeout, in ms
+          schema:
+            $ref: '#/components/schemas/connect-timeout-header'
+          example: 1000
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/barnraise.v1.ShareProjectRequest'
+        required: true
+      responses:
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.error'
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/barnraise.v1.ShareProjectResponse'
   /barnraise.v1.BarnraiseService/StartAccountLogin:
     post:
       tags:
@@ -6840,6 +6881,40 @@ components:
             $ref: '#/components/schemas/barnraise.v1.Item'
           title: inventory
       title: SetGoalResponse
+      additionalProperties: false
+    barnraise.v1.ShareProjectRequest:
+      type: object
+      properties:
+        project:
+          type: string
+          title: project
+        machines:
+          type: array
+          items:
+            type: string
+          title: machines
+        all:
+          type: boolean
+          title: all
+          description: Every connected machine.
+        paused:
+          type: boolean
+          title: paused
+          description: Register it paused there.
+      title: ShareProjectRequest
+      additionalProperties: false
+      description: |-
+        ShareProjectRequest asks other machines to work on a project too: each
+         clones the project's repository and registers it.
+    barnraise.v1.ShareProjectResponse:
+      type: object
+      properties:
+        machines:
+          type: array
+          items:
+            $ref: '#/components/schemas/barnraise.v1.PeerResult'
+          title: machines
+      title: ShareProjectResponse
       additionalProperties: false
     barnraise.v1.Signal:
       type: object

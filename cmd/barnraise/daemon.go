@@ -231,33 +231,17 @@ func runDaemon(ctx context.Context, opts cli.DaemonOptions) error {
 	go d.serveRemoteCapabilities(ctx)
 	go d.serveRemoteLogin(ctx)
 	go d.serveRemoteAgents(ctx)
+	go d.serveRemoteProject(ctx)
 	go d.watchCapabilities(ctx)
 	go newChainWatch(d).run(ctx)
 
 	srv := httpapi.New(svc, httpapi.Options{
 		Version: version, OwnerToken: owner, Store: d.store, Probe: d.probe, Panel: panel.FS(), OpenAPI: openapi.Document(),
-		Register: func(ctx context.Context, root string, paused bool) error {
-			abs, _ := filepath.Abs(root)
-			if d.loaded(abs) {
-				if paused {
-					if err := d.pauseRoot(ctx, abs); err != nil {
-						return err
-					}
-				}
-				return d.reloadRoot(ctx, abs)
-			}
-			if err := d.addProject(ctx, abs, paused); err != nil {
-				return err
-			}
-			cur, err := daemoncfg.Load()
-			if err == nil && cur.AddProject(abs) {
-				_ = cur.Save()
-			}
-			return nil
-		},
-		Reload: d.reloadProject,
-		Peers:  d.peers, StopPeers: d.stopPeers, SetStandby: d.setStandby,
+		Register: d.register,
+		Reload:   d.reloadProject,
+		Peers:    d.peers, StopPeers: d.stopPeers, SetStandby: d.setStandby,
 		Capabilities: d.capabilities, InstallTools: d.installTools, AccountLogin: d.accountLogin, SetMaxAgents: d.setMachineAgents,
+		ShareProject: d.shareProject,
 		VerifyAnchor: natsx.AnchorVerifier(df.NKeyPublic),
 		WebhookSecret: func(project, source string) string {
 			v, _ := d.secrets.Get("webhook/" + project + "/" + source)
@@ -550,6 +534,7 @@ func (d *daemon) watchDaemonFile(ctx context.Context) {
 				go d.serveRemoteCapabilities(ctx)
 				go d.serveRemoteLogin(ctx)
 				go d.serveRemoteAgents(ctx)
+				go d.serveRemoteProject(ctx)
 			}
 		}
 		if d.repl != nil {
@@ -583,6 +568,28 @@ func (d *daemon) pauseRoot(ctx context.Context, root string) error {
 		return nil
 	}
 	return d.svc.Pause(ctx, cfg.Name, app.System(), pausedNote)
+}
+
+// register loads the project of root, or reloads it when it is loaded,
+// and keeps it in daemon.yaml.
+func (d *daemon) register(ctx context.Context, root string, paused bool) error {
+	abs, _ := filepath.Abs(root)
+	if d.loaded(abs) {
+		if paused {
+			if err := d.pauseRoot(ctx, abs); err != nil {
+				return err
+			}
+		}
+		return d.reloadRoot(ctx, abs)
+	}
+	if err := d.addProject(ctx, abs, paused); err != nil {
+		return err
+	}
+	cur, err := daemoncfg.Load()
+	if err == nil && cur.AddProject(abs) {
+		_ = cur.Save()
+	}
+	return nil
 }
 
 // addProject loads the project of root. With paused, the pause is recorded

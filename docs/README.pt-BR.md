@@ -72,6 +72,7 @@ barnraise panel                # o painel web no navegador, já com a sessão in
 | `barnraise autopilot on --all` | O conselheiro toma as suas decisões em todos os projetos (perguntas, aprovações, propostas) e deixa para você só o que não consegue resolver; o botão no topo do painel faz o mesmo |
 | `barnraise account add claude` | Põe outra conta de assinatura na rotação |
 | `barnraise account login claude --all` | Entra com uma conta em todas as máquinas conectadas ao mesmo tempo; o painel faz o mesmo em Contas |
+| `barnraise machine share --machine studio` | Outra máquina clona o repositório deste projeto e passa a trabalhar nele também (a tela de Máquinas do painel faz o mesmo) |
 | `barnraise machine agents 5 --machine studio` | Quantos agentes uma máquina roda ao mesmo tempo (`auto`: medido pelos núcleos e pela memória) |
 | `barnraise account add openrouter` | Põe uma conta por chave de API (OpenRouter, ou um provedor em `providers:`) para passos baratos e pesquisa; a chave vai para o chaveiro |
 | `barnraise account add <nome>` | Põe uma conta de qualquer agente que fale o Agent Client Protocol, declarado como `type: acp` em `providers:`; os pedidos de permissão, os arquivos e os terminais dele passam pela política do Barnraise |

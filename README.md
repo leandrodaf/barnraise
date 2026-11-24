@@ -70,6 +70,7 @@ barnraise panel                # the web panel in the browser, already signed in
 | `barnraise panel` | Open the web panel in the browser, already signed in (`--print` writes the address) |
 | `barnraise account add claude` | Add another subscription account to the rotation |
 | `barnraise account login claude --all` | Log one account in on every connected machine at the same time; the panel does the same under Accounts |
+| `barnraise machine share --machine studio` | Another machine clones this project's repository and works on it too (the panel's Machines screen does the same) |
 | `barnraise machine agents 5 --machine studio` | How many agents a machine runs at once (`auto`: measured from its cores and memory) |
 | `barnraise account add openrouter` | Add an API-key account (OpenRouter, or a provider under `providers:`) for cheap steps and research; the key goes to the keychain |
 | `barnraise account add <name>` | Add an account of any agent that speaks the Agent Client Protocol, declared as `type: acp` under `providers:`; its permission requests, files and terminals go through Barnraise's policy |

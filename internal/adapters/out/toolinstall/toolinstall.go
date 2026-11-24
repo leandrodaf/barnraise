@@ -167,7 +167,7 @@ func (in *Installer) Install(ctx context.Context, id string) domain.ToolResult {
 	prev := in.Installed(id)
 	dir := filepath.Join(in.o.Root, id, r.Version)
 	link := filepath.Join(in.BinDir(), r.Bin)
-	target := filepath.Join(dir, filepath.FromSlash(r.BinPath()))
+	target := filepath.Join(dir, filepath.FromSlash(r.BinPathIn(asset)))
 	if prev == r.Version {
 		if cur, err := os.Readlink(link); err == nil && cur == target {
 			res.OK, res.Path = true, link
@@ -251,17 +251,17 @@ func (in *Installer) install(ctx context.Context, r domain.ToolRecipe, a domain.
 	case domain.FormatZip:
 		err = x.zip(file)
 	case domain.FormatRaw:
-		err = x.raw(file, r.BinPath())
+		err = x.raw(file, r.BinPathIn(a))
 	default:
 		err = fmt.Errorf("unknown archive format %q", a.Format)
 	}
 	if err != nil {
 		return fmt.Errorf("unpack %s: %w", path.Base(a.URL), err)
 	}
-	bin := filepath.Join(staging, filepath.FromSlash(r.BinPath()))
+	bin := filepath.Join(staging, filepath.FromSlash(r.BinPathIn(a)))
 	st, err := os.Lstat(bin)
 	if err != nil || !st.Mode().IsRegular() || st.Mode().Perm()&0o100 == 0 {
-		return fmt.Errorf("the archive has no program %s", r.BinPath())
+		return fmt.Errorf("the archive has no program %s", r.BinPathIn(a))
 	}
 	if err := os.WriteFile(filepath.Join(staging, marker), []byte(a.SHA256+"\n"), 0o644); err != nil {
 		return err

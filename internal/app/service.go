@@ -355,6 +355,12 @@ func (s *Service) emitLocked(ctx context.Context, p *Project, typ, subject, acto
 
 func (s *Service) fanout(p *Project, e domain.Event) {
 	s.hub.Publish(e)
+	switch e.Type {
+	case domain.EvOwnerQuestionAsked, domain.EvProposalCreated, domain.EvItemWaitingOwner, domain.EvItemStepStarted:
+		// Something may wait for the owner: the autopilot looks at the next
+		// housekeeping instead of after its interval.
+		s.autopilotState(p.Name).last.Store(0)
+	}
 	if s.d.Bus != nil {
 		go func() {
 			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)

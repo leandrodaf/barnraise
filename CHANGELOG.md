@@ -4,6 +4,12 @@ All notable changes to Barnraise are recorded here. The format follows [Keep a C
 
 ## [Unreleased]
 
+### Added
+
+- **machines:** `barnraise machine share --machine <name>` (and **Work here on** in each machine of the panel) has another machine clone the project's repository and register it, so its agents work on it too.
+- **tools:** Godot 4.7.2 joins the tools Barnraise installs (`barnraise tools install godot --machine <name>`), at a pinned version checked against the official checksums.
+- **owner:** A new question, proposal or approval wakes the autopilot at the next housekeeping instead of after its interval.
+
 ## [0.1.1] - 2026-11-24
 
 ### Added

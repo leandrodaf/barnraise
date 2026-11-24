@@ -26,6 +26,17 @@
 	const cpuPct = (m: { load1: number; cpus: number }) => (m.cpus ? Math.min(100, (m.load1 / m.cpus) * 100) : 0);
 	const memPct = (m: { memGb: number; freeMemGb: number }) => (m.memGb && m.freeMemGb > 0 ? ((m.memGb - m.freeMemGb) / m.memGb) * 100 : 0);
 	let busyLimit = $state(false);
+	// Another machine takes a project of this one: it clones the repository and registers it.
+	let sharing = $state('');
+	async function share(project: string, machine: string) {
+		sharing = machine + project;
+		const r = await act(() => api.shareProject({ project, machines: [machine] }));
+		const res = r?.machines.find((x) => x.name === machine);
+		if (res && !res.ok) toast.error(t('error', res.error));
+		else if (res) toast.success(t('mShared', machine, project));
+		sharing = '';
+		setTimeout(() => cluster.read(), 2000);
+	}
 	async function setLimit(machine: string, n: number) {
 		busyLimit = true;
 		const r = await act(() => api.setMaxAgents({ maxAgents: n, machines: [machine] }));
@@ -99,6 +110,14 @@
 				{#if mo.usage}<p class="flex justify-between sm:col-span-2"><span class="text-muted-foreground">{t('ovSpentHereLabel')}</span><span>{compact(mo.usage.tokens)} · {dur(mo.usage.seconds)} · {money(mo.usage.costUsd)}</span></p>{/if}
 				{#if m.accounts.length}<p class="flex justify-between sm:col-span-2"><span class="text-muted-foreground">{t('accounts')}</span><span class="truncate">{m.accounts.join(', ')}</span></p>{/if}
 				{#if mo.projects.length}<p class="flex justify-between gap-2 sm:col-span-2"><span class="text-muted-foreground">{t('projects')}</span><span class="truncate">{mo.projects.join(', ')}</span></p>{/if}
+				{#if !self && session.projects.some((p) => !mo.projects.includes(p))}
+					<div class="flex flex-wrap items-center gap-2 pt-1 sm:col-span-2">
+						<span class="text-muted-foreground">{t('mShareHelp')}</span>
+						{#each session.projects.filter((p) => !mo.projects.includes(p)) as p (p)}
+							<Button size="sm" variant="outline" class="h-7" disabled={sharing === m.name + p} onclick={() => share(p, m.name)}>{sharing === m.name + p ? t('mSharing') : t('mShare', p)}</Button>
+						{/each}
+					</div>
+				{/if}
 			</div>
 		</article>
 	{/each}

@@ -1059,6 +1059,21 @@ message PeerResult {
   string error = 3;
 }
 
+// ShareProjectRequest asks other machines to work on a project too: each
+// clones the project's repository and registers it.
+message ShareProjectRequest {
+  string project = 1;
+  repeated string machines = 2;
+  // Every connected machine.
+  bool all = 3;
+  // Register it paused there.
+  bool paused = 4;
+}
+
+message ShareProjectResponse {
+  repeated PeerResult machines = 1;
+}
+
 message MaxAgentsRequest {
   // Agents at once on each machine named; 0 measures it from the machine.
   int32 max_agents = 1;
@@ -1674,6 +1689,9 @@ service BarnraiseService {
   rpc SetStandby(StandbyRequest) returns (StandbyResponse);
   // SetMaxAgents sets how many agents each machine named runs at once.
   rpc SetMaxAgents(MaxAgentsRequest) returns (MaxAgentsResponse);
+  // ShareProject has other machines clone a project's repository and
+  // register it, so their agents work on it too.
+  rpc ShareProject(ShareProjectRequest) returns (ShareProjectResponse);
   // What is active on each machine, what falls back and why, and how to fix
   // it (ADR-0046). Owner and admin tokens only.
   rpc Capabilities(CapabilitiesRequest) returns (CapabilitiesResponse);

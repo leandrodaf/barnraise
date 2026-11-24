@@ -567,7 +567,7 @@ var ProbedTools = []ProbedTool{
 	{"claude", []string{"--version"}}, {"codex", []string{"--version"}}, {"gemini", []string{"--version"}},
 	{"mergiraf", []string{"--version"}}, {"rtk", []string{"--version"}}, {"osv-scanner", []string{"--version"}},
 	{"ast-grep", []string{"--version"}}, {"smolvm", []string{"--version"}}, {"bwrap", []string{"--version"}},
-	{"tailscale", []string{"version"}}, {"gitleaks", []string{"version"}},
+	{"tailscale", []string{"version"}}, {"gitleaks", []string{"version"}}, {"godot", []string{"--version"}},
 }
 
 // ProbedToolArgs returns the version arguments of a program ("--version"

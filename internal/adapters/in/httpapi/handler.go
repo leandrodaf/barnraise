@@ -749,6 +749,34 @@ func (h *Handler) SetStandby(ctx context.Context, r *connect.Request[pb.StandbyR
 	return connect.NewResponse(out), nil
 }
 
+// ShareProject has other machines clone and register a project.
+func (h *Handler) ShareProject(ctx context.Context, r *connect.Request[pb.ShareProjectRequest]) (*connect.Response[pb.ShareProjectResponse], error) {
+	if err := actorFrom(ctx).Require(app.ScopeAdmin, ""); err != nil {
+		return nil, connectErr(err)
+	}
+	if _, err := h.svc().Project(r.Msg.Project); err != nil {
+		return nil, connectErr(err)
+	}
+	if len(r.Msg.Machines) == 0 && !r.Msg.All {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("name the machines, or all"))
+	}
+	if h.srv.opts.ShareProject == nil {
+		return nil, connect.NewError(connect.CodeUnimplemented, errors.New("this daemon cannot reach other machines"))
+	}
+	out, err := h.srv.opts.ShareProject(ctx, r.Msg)
+	if err != nil {
+		return nil, connectErr(err)
+	}
+	var ok []string
+	for _, m := range out.Machines {
+		if m.Ok {
+			ok = append(ok, m.Name)
+		}
+	}
+	h.audit(ctx, "project.share", strings.Join(ok, ","), r.Msg.Project, "")
+	return connect.NewResponse(out), nil
+}
+
 // SetMaxAgents sets how many agents the named machines run at once.
 func (h *Handler) SetMaxAgents(ctx context.Context, r *connect.Request[pb.MaxAgentsRequest]) (*connect.Response[pb.MaxAgentsResponse], error) {
 	if err := actorFrom(ctx).Require(app.ScopeAdmin, ""); err != nil {

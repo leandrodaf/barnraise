@@ -5,7 +5,7 @@ package domain
 // the sha256 of every asset written here. The installer refuses an archive
 // whose digest differs. The digests were computed from the downloaded
 // assets and compared with the upstream checksum file where the release
-// publishes one (rtk, osv-scanner, smolvm, gitleaks) or with the digest GitHub shows
+// publishes one (rtk, osv-scanner, smolvm, gitleaks, godot: its SHA512-SUMS.txt) or with the digest GitHub shows
 // for the asset (ast-grep); mergiraf's release (Codeberg) publishes none.
 // Raising a version means downloading the new assets and pinning their
 // digests again. ast-grep on Linux is the glibc build: its musl build
@@ -32,6 +32,9 @@ type ToolAsset struct {
 	Format string
 	// Strip is a leading folder of the archive's entries that is removed.
 	Strip string
+	// Path is where the program is in this asset, when it differs from the
+	// recipe's (its name carries the architecture).
+	Path string
 }
 
 // ToolRecipe is one installable tool.
@@ -64,6 +67,9 @@ func (r ToolRecipe) Asset(os, arch string) (ToolAsset, bool) {
 
 // BinPath is the program's path inside the installed folder.
 func (r ToolRecipe) BinPath() string { return def0(r.Path, r.Bin) }
+
+// BinPathIn is the program's path inside the installed folder of an asset.
+func (r ToolRecipe) BinPathIn(a ToolAsset) string { return def0(a.Path, r.BinPath()) }
 
 // ToolRecipes are the tools `barnraise tools install` knows.
 func ToolRecipes() []ToolRecipe {
@@ -136,6 +142,17 @@ func ToolRecipes() []ToolRecipe {
 					URL: "https://github.com/gitleaks/gitleaks/releases/download/v8.30.1/gitleaks_8.30.1_darwin_arm64.tar.gz"},
 				{OS: "darwin", Arch: "amd64", Format: FormatTarGz, SHA256: "dfe101a4db2255fc85120ac7f3d25e4342c3c20cf749f2c20a18081af1952709",
 					URL: "https://github.com/gitleaks/gitleaks/releases/download/v8.30.1/gitleaks_8.30.1_darwin_x64.tar.gz"},
+			},
+		},
+		{
+			// The game engine of Godot projects: their checks and agents run it headless.
+			ID: "godot", Title: "Godot game engine", Version: "4.7.2", Bin: "godot",
+			License: "MIT", Home: "https://godotengine.org",
+			Assets: []ToolAsset{
+				{OS: "linux", Arch: "amd64", Format: FormatZip, Path: "Godot_v4.7.2-stable_linux.x86_64", SHA256: "cadd3204e728a35d3f13adb7fd0d7902636b79f6b95c40c265eb73b6c35329e4",
+					URL: "https://github.com/godotengine/godot-builds/releases/download/4.7.2-stable/Godot_v4.7.2-stable_linux.x86_64.zip"},
+				{OS: "linux", Arch: "arm64", Format: FormatZip, Path: "Godot_v4.7.2-stable_linux.arm64", SHA256: "5dd0d86405cf7e8adf79fb6377b38ba682a2846cb378ffe5364f38c01ad29b9d",
+					URL: "https://github.com/godotengine/godot-builds/releases/download/4.7.2-stable/Godot_v4.7.2-stable_linux.arm64.zip"},
 			},
 		},
 		{

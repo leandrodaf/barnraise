@@ -787,7 +787,7 @@ Object.assign(en, {
   mLimit_cpu: 'Measured from its {0} cores: 2 per agent.', mLimit_memory: 'Measured from its {1} GB of memory: 4 GB per agent, 2 GB kept for the system.',
   mLimit_owner: 'The limit you set.', mLimitOwner: 'The limit you set (measured, it would be {0}).',
   mSetLimit: 'Agents at once', mFewer: 'One agent fewer', mMoreAgents: 'One agent more', mAuto: 'Measure again',
-  mLimitSet: '{0} runs up to {1} agents at once.', mLimitAuto: '{0} measures its limit again.',
+  mLimitSet: '{0} runs up to {1} agents at once.', mLimitAuto: '{0} measures its limit again.', mShareHelp: 'Work here on:', mShare: '+ {0}', mSharing: 'Cloning…', mShared: '{0} works on {1} now.',
 });
 
 Object.assign(pt, {
@@ -797,7 +797,7 @@ Object.assign(pt, {
   mLimit_cpu: 'Medido pelos {0} núcleos: 2 por agente.', mLimit_memory: 'Medido pelos {1} GB de memória: 4 GB por agente, 2 GB ficam para o sistema.',
   mLimit_owner: 'O limite que você definiu.', mLimitOwner: 'O limite que você definiu (medido, seria {0}).',
   mSetLimit: 'Agentes ao mesmo tempo', mFewer: 'Um agente a menos', mMoreAgents: 'Um agente a mais', mAuto: 'Medir de novo',
-  mLimitSet: '{0} roda até {1} agentes ao mesmo tempo.', mLimitAuto: '{0} volta a medir o próprio limite.',
+  mLimitSet: '{0} roda até {1} agentes ao mesmo tempo.', mLimitAuto: '{0} volta a medir o próprio limite.', mShareHelp: 'Trabalhar aqui também em:', mShare: '+ {0}', mSharing: 'Clonando…', mShared: '{0} agora trabalha em {1}.',
 });
 
 Object.assign(en, {

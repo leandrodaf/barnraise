@@ -238,6 +238,9 @@ const (
 	// BarnraiseServiceSetMaxAgentsProcedure is the fully-qualified name of the BarnraiseService's
 	// SetMaxAgents RPC.
 	BarnraiseServiceSetMaxAgentsProcedure = "/barnraise.v1.BarnraiseService/SetMaxAgents"
+	// BarnraiseServiceShareProjectProcedure is the fully-qualified name of the BarnraiseService's
+	// ShareProject RPC.
+	BarnraiseServiceShareProjectProcedure = "/barnraise.v1.BarnraiseService/ShareProject"
 	// BarnraiseServiceCapabilitiesProcedure is the fully-qualified name of the BarnraiseService's
 	// Capabilities RPC.
 	BarnraiseServiceCapabilitiesProcedure = "/barnraise.v1.BarnraiseService/Capabilities"
@@ -368,6 +371,9 @@ type BarnraiseServiceClient interface {
 	SetStandby(context.Context, *connect.Request[v1.StandbyRequest]) (*connect.Response[v1.StandbyResponse], error)
 	// SetMaxAgents sets how many agents each machine named runs at once.
 	SetMaxAgents(context.Context, *connect.Request[v1.MaxAgentsRequest]) (*connect.Response[v1.MaxAgentsResponse], error)
+	// ShareProject has other machines clone a project's repository and
+	// register it, so their agents work on it too.
+	ShareProject(context.Context, *connect.Request[v1.ShareProjectRequest]) (*connect.Response[v1.ShareProjectResponse], error)
 	// What is active on each machine, what falls back and why, and how to fix
 	// it (ADR-0046). Owner and admin tokens only.
 	Capabilities(context.Context, *connect.Request[v1.CapabilitiesRequest]) (*connect.Response[v1.CapabilitiesResponse], error)
@@ -812,6 +818,12 @@ func NewBarnraiseServiceClient(httpClient connect.HTTPClient, baseURL string, op
 			connect.WithSchema(barnraiseServiceMethods.ByName("SetMaxAgents")),
 			connect.WithClientOptions(opts...),
 		),
+		shareProject: connect.NewClient[v1.ShareProjectRequest, v1.ShareProjectResponse](
+			httpClient,
+			baseURL+BarnraiseServiceShareProjectProcedure,
+			connect.WithSchema(barnraiseServiceMethods.ByName("ShareProject")),
+			connect.WithClientOptions(opts...),
+		),
 		capabilities: connect.NewClient[v1.CapabilitiesRequest, v1.CapabilitiesResponse](
 			httpClient,
 			baseURL+BarnraiseServiceCapabilitiesProcedure,
@@ -923,6 +935,7 @@ type barnraiseServiceClient struct {
 	stopPeers          *connect.Client[v1.StopPeersRequest, v1.StopPeersResponse]
 	setStandby         *connect.Client[v1.StandbyRequest, v1.StandbyResponse]
 	setMaxAgents       *connect.Client[v1.MaxAgentsRequest, v1.MaxAgentsResponse]
+	shareProject       *connect.Client[v1.ShareProjectRequest, v1.ShareProjectResponse]
 	capabilities       *connect.Client[v1.CapabilitiesRequest, v1.CapabilitiesResponse]
 	installTools       *connect.Client[v1.InstallToolsRequest, v1.InstallToolsResponse]
 	createToken        *connect.Client[v1.CreateTokenRequest, v1.CreateTokenResponse]
@@ -1281,6 +1294,11 @@ func (c *barnraiseServiceClient) SetMaxAgents(ctx context.Context, req *connect.
 	return c.setMaxAgents.CallUnary(ctx, req)
 }
 
+// ShareProject calls barnraise.v1.BarnraiseService.ShareProject.
+func (c *barnraiseServiceClient) ShareProject(ctx context.Context, req *connect.Request[v1.ShareProjectRequest]) (*connect.Response[v1.ShareProjectResponse], error) {
+	return c.shareProject.CallUnary(ctx, req)
+}
+
 // Capabilities calls barnraise.v1.BarnraiseService.Capabilities.
 func (c *barnraiseServiceClient) Capabilities(ctx context.Context, req *connect.Request[v1.CapabilitiesRequest]) (*connect.Response[v1.CapabilitiesResponse], error) {
 	return c.capabilities.CallUnary(ctx, req)
@@ -1421,6 +1439,9 @@ type BarnraiseServiceHandler interface {
 	SetStandby(context.Context, *connect.Request[v1.StandbyRequest]) (*connect.Response[v1.StandbyResponse], error)
 	// SetMaxAgents sets how many agents each machine named runs at once.
 	SetMaxAgents(context.Context, *connect.Request[v1.MaxAgentsRequest]) (*connect.Response[v1.MaxAgentsResponse], error)
+	// ShareProject has other machines clone a project's repository and
+	// register it, so their agents work on it too.
+	ShareProject(context.Context, *connect.Request[v1.ShareProjectRequest]) (*connect.Response[v1.ShareProjectResponse], error)
 	// What is active on each machine, what falls back and why, and how to fix
 	// it (ADR-0046). Owner and admin tokens only.
 	Capabilities(context.Context, *connect.Request[v1.CapabilitiesRequest]) (*connect.Response[v1.CapabilitiesResponse], error)
@@ -1861,6 +1882,12 @@ func NewBarnraiseServiceHandler(svc BarnraiseServiceHandler, opts ...connect.Han
 		connect.WithSchema(barnraiseServiceMethods.ByName("SetMaxAgents")),
 		connect.WithHandlerOptions(opts...),
 	)
+	barnraiseServiceShareProjectHandler := connect.NewUnaryHandler(
+		BarnraiseServiceShareProjectProcedure,
+		svc.ShareProject,
+		connect.WithSchema(barnraiseServiceMethods.ByName("ShareProject")),
+		connect.WithHandlerOptions(opts...),
+	)
 	barnraiseServiceCapabilitiesHandler := connect.NewUnaryHandler(
 		BarnraiseServiceCapabilitiesProcedure,
 		svc.Capabilities,
@@ -2039,6 +2066,8 @@ func NewBarnraiseServiceHandler(svc BarnraiseServiceHandler, opts ...connect.Han
 			barnraiseServiceSetStandbyHandler.ServeHTTP(w, r)
 		case BarnraiseServiceSetMaxAgentsProcedure:
 			barnraiseServiceSetMaxAgentsHandler.ServeHTTP(w, r)
+		case BarnraiseServiceShareProjectProcedure:
+			barnraiseServiceShareProjectHandler.ServeHTTP(w, r)
 		case BarnraiseServiceCapabilitiesProcedure:
 			barnraiseServiceCapabilitiesHandler.ServeHTTP(w, r)
 		case BarnraiseServiceInstallToolsProcedure:
@@ -2338,6 +2367,10 @@ func (UnimplementedBarnraiseServiceHandler) SetStandby(context.Context, *connect
 
 func (UnimplementedBarnraiseServiceHandler) SetMaxAgents(context.Context, *connect.Request[v1.MaxAgentsRequest]) (*connect.Response[v1.MaxAgentsResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("barnraise.v1.BarnraiseService.SetMaxAgents is not implemented"))
+}
+
+func (UnimplementedBarnraiseServiceHandler) ShareProject(context.Context, *connect.Request[v1.ShareProjectRequest]) (*connect.Response[v1.ShareProjectResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("barnraise.v1.BarnraiseService.ShareProject is not implemented"))
 }
 
 func (UnimplementedBarnraiseServiceHandler) Capabilities(context.Context, *connect.Request[v1.CapabilitiesRequest]) (*connect.Response[v1.CapabilitiesResponse], error) {

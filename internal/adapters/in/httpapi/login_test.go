@@ -184,3 +184,19 @@ func TestSetAutopilot(t *testing.T) {
 		t.Fatalf("%+v %v", pr, err)
 	}
 }
+
+func TestShareProject(t *testing.T) {
+	ctx := context.Background()
+	var got *pb.ShareProjectRequest
+	f, _ := loginServer(t, Options{ShareProject: func(_ context.Context, r *pb.ShareProjectRequest) (*pb.ShareProjectResponse, error) {
+		got = r
+		return &pb.ShareProjectResponse{Machines: []*pb.PeerResult{{Name: "m2", Ok: true}}}, nil
+	}})
+	owner := f.client("owner-secret")
+	if _, err := owner.ShareProject(ctx, connect.NewRequest(&pb.ShareProjectRequest{Project: "nope", Machines: []string{"m2"}})); code(err) != connect.CodeNotFound {
+		t.Fatalf("unknown project: %v", err)
+	}
+	if got != nil {
+		t.Fatal("asked the machines for a project this daemon does not have")
+	}
+}

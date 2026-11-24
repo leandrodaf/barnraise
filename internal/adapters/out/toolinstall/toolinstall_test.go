@@ -204,6 +204,21 @@ func TestZipAndRaw(t *testing.T) {
 	}
 }
 
+// An asset may name its own path for the program, as Godot's carry the
+// architecture in the file name.
+func TestAssetPath(t *testing.T) {
+	z := zipOf(t, []entry{{name: "Engine_v1_linux.x86_64", body: script}})
+	srv := server(t, map[string][]byte{"/e.zip": z})
+	in, _ := newInstaller(t, srv, domain.ToolRecipe{ID: "engine", Version: "1", Bin: "engine",
+		Assets: []domain.ToolAsset{{OS: runtime.GOOS, Arch: runtime.GOARCH, URL: srv.URL + "/e.zip", SHA256: sum(z), Format: domain.FormatZip, Path: "Engine_v1_linux.x86_64"}}})
+	if res := in.Install(context.Background(), "engine"); !res.OK {
+		t.Fatalf("%+v", res)
+	}
+	if out, err := exec.Command(filepath.Join(in.BinDir(), "engine")).Output(); err != nil || !strings.Contains(string(out), "1.0.0") {
+		t.Fatalf("engine %q %v", out, err)
+	}
+}
+
 func TestRefusals(t *testing.T) {
 	good := tarGz(t, []entry{{name: "tool", body: script}})
 	cases := []struct {
