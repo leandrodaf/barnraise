@@ -2,6 +2,12 @@
 
 All notable changes to Barnraise are recorded here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses [semantic versioning](https://semver.org/). Release notes on GitHub are generated from conventional commits.
 
+## [Unreleased]
+
+### Added
+
+- **cli:** Flag missing plugin programs in the up readiness check (I-1)
+
 ## [0.1.0] - unreleased
 
 First version: one Go binary that is the daemon, the CLI, the MCP server and the provider hooks.

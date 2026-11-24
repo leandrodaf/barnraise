@@ -3,14 +3,17 @@ package cli
 import (
 	"context"
 	"fmt"
+	"maps"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strings"
 	"time"
 
 	"github.com/leandrodaf/barnraise/internal/adapters/out/keychain"
+	"github.com/leandrodaf/barnraise/internal/config"
 	"github.com/leandrodaf/barnraise/internal/domain"
 	"github.com/leandrodaf/barnraise/internal/paths"
 )
@@ -28,6 +31,8 @@ type readiness struct {
 	secret func(key string) string
 	// env reads a variable.
 	env func(string) string
+	// stat reads a file's information; nil means os.Stat.
+	stat func(string) (os.FileInfo, error)
 }
 
 func defaultReadiness() readiness {
@@ -44,7 +49,8 @@ func defaultReadiness() readiness {
 			v, _ := keychain.New("barnraise", filepath.Join(paths.ConfigDir(), "secrets")).Get(key)
 			return v
 		},
-		env: os.Getenv,
+		env:  os.Getenv,
+		stat: os.Stat,
 	}
 }
 
@@ -93,6 +99,15 @@ func (r readiness) problems(ctx context.Context, cfg *domain.ProjectConfig) []st
 	for _, p := range progs {
 		sort.Strings(missing[p])
 		out = append(out, fmt.Sprintf("%s is not on the PATH (check %s): the daemon runs checks with the PATH of the shell that starts it", p, strings.Join(missing[p], ", ")))
+	}
+	stat := r.stat
+	if stat == nil {
+		stat = os.Stat
+	}
+	for _, name := range slices.Sorted(maps.Keys(cfg.Plugins)) {
+		if msg := config.PluginProgramProblem(cfg.Root, name, cfg.Plugins[name].Command, r.lookPath, stat); msg != "" {
+			out = append(out, msg+": the daemon starts plugins with the PATH of the shell that starts it, and every tracker, check or notification call through it would fail")
+		}
 	}
 	return out
 }

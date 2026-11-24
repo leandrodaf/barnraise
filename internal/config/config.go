@@ -907,12 +907,36 @@ func def(v, d string) string {
 	return v
 }
 
-// Check compiles and validates, returning plain sentences.
+// Check compiles and validates, returning plain sentences. Besides Validate,
+// it reports plugins whose program cannot be found on this machine.
 func Check(root string) ([]string, error) {
 	cfg, err := Load(root)
 	if err != nil {
 		return nil, err
 	}
+	problems := validate(root, cfg)
+	for _, name := range slices.Sorted(maps.Keys(cfg.Plugins)) {
+		if msg := pluginProgramProblem(root, name, cfg.Plugins[name].Command); msg != "" {
+			problems = append(problems, msg)
+		}
+	}
+	sort.Strings(problems)
+	return problems, nil
+}
+
+// Validate is Check without what depends on this machine (plugin programs):
+// the problems of barnraise.yaml itself.
+func Validate(root string) ([]string, error) {
+	cfg, err := Load(root)
+	if err != nil {
+		return nil, err
+	}
+	problems := validate(root, cfg)
+	sort.Strings(problems)
+	return problems, nil
+}
+
+func validate(root string, cfg *domain.ProjectConfig) []string {
 	var problems []string
 	for _, e := range cfg.Validate() {
 		problems = append(problems, e.Error())
@@ -928,17 +952,18 @@ func Check(root string) ([]string, error) {
 			}
 		}
 	}
-	for _, name := range slices.Sorted(maps.Keys(cfg.Plugins)) {
-		if msg := pluginProgramProblem(root, name, cfg.Plugins[name].Command); msg != "" {
-			problems = append(problems, msg)
-		}
-	}
-	sort.Strings(problems)
-	return problems, nil
+	return problems
 }
 
 // pluginProgramProblem tells when a plugin's program cannot be found.
 func pluginProgramProblem(root, name, command string) string {
+	return PluginProgramProblem(root, name, command, exec.LookPath, os.Stat)
+}
+
+// PluginProgramProblem tells when a plugin's program cannot be found, with
+// the given PATH lookup and file stat: ~/ is the home folder, a relative path
+// with a slash is under root, a bare name is looked up on the PATH.
+func PluginProgramProblem(root, name, command string, lookPath func(string) (string, error), stat func(string) (os.FileInfo, error)) string {
 	if command == "" {
 		return "" // Validate says it already
 	}
@@ -950,12 +975,12 @@ func pluginProgramProblem(root, name, command string) string {
 	case !filepath.IsAbs(p) && strings.Contains(p, "/"):
 		p = filepath.Join(root, filepath.FromSlash(p))
 	case !filepath.IsAbs(p):
-		if _, err := exec.LookPath(p); err != nil {
+		if _, err := lookPath(p); err != nil {
 			return fmt.Sprintf("plugin %s runs %s, which is not on the PATH", name, command)
 		}
 		return ""
 	}
-	if st, err := os.Stat(p); err != nil || st.IsDir() {
+	if st, err := stat(p); err != nil || st.IsDir() {
 		return fmt.Sprintf("plugin %s runs %s, which does not exist", name, command)
 	}
 	return ""

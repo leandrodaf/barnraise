@@ -377,7 +377,7 @@ func (e *env) upCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			if problems, err := config.Check(root); err != nil {
+			if problems, err := config.Validate(root); err != nil {
 				return err
 			} else if len(problems) > 0 {
 				return fmt.Errorf("barnraise.yaml has problems:\n- %s", strings.Join(problems, "\n- "))
