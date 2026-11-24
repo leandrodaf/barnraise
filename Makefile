@@ -35,7 +35,7 @@ desktop: web ## Build the desktop app (desktop/, Wails: needs cgo and WebKitGTK 
 	cd desktop && wails build -tags webkit2_41 -skipbindings -s -ldflags "-X main.appVersion=$(VERSION)"
 
 desktop-dev: ## The desktop app with live reload, on the panel's dev server (pnpm dev --port 5180 in web/)
-	cd desktop && BARNRAISE_PANEL_DEV=http://localhost:5180 wails dev -tags webkit2_41 -skipbindings
+	cd desktop && BARNRAISE_PANEL_DEV=http://localhost:5180 WAILS_DEV_ALLOWED_HOSTS=wails.localhost wails dev -tags webkit2_41 -skipbindings
 
 build: ## Build ./barnraise with the version from git describe
 	CGO_ENABLED=0 $(GO) build -trimpath -tags "$(TAGS)" -ldflags "$(LDFLAGS)" -o $(BIN) $(PKG)
