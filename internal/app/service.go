@@ -68,6 +68,10 @@ type Deps struct {
 	Isolation Isolation
 	// Cloner copies build caches copy-on-write; optional.
 	Cloner ports.TreeCloner
+	// Prober and Installer answer what runs on this machine and install
+	// the optional tools (ADR-0045); optional.
+	Prober    ports.CapabilityProber
+	Installer ports.ToolInstaller
 }
 
 // ProjectPorts are per-project adapters.
@@ -117,6 +121,8 @@ type Service struct {
 	local localView
 	// stale is the stale-read warning's memory (staleread.go).
 	stale staleState
+	// caps is the last capability report of this machine (capabilities.go).
+	caps capState
 }
 
 // New creates the service.
