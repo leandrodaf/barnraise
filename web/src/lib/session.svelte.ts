@@ -15,7 +15,7 @@ const EVENT_TYPES = [
 	'proposal.created', 'proposal.updated', 'tweak.added', 'tweak.attached', 'owner.question.asked', 'owner.question.answered',
 	'goal.set', 'goal.finished', 'focus.changed', 'system.paused', 'system.resumed', 'account.updated',
 	'account.limit.reached', 'machine.updated', 'machine.left', 'machine.worktrees', 'agent.session', 'agent.usage',
-	'message.sent', 'message.delivered', 'journal.entry', 'policy.violation.blocked', 'secret.blocked', 'owner.discussion'
+	'message.sent', 'message.delivered', 'journal.entry', 'policy.violation.blocked', 'secret.blocked', 'owner.discussion', 'owner.discussion.step'
 ];
 
 class Session {
@@ -49,6 +49,8 @@ class Session {
 	tick = $state(0);
 	pulse = $state(0);
 	agents = $state(new Map<string, SessionInfo>());
+	// What the advisor is doing, live (owner.discussion.step), the latest last.
+	advisorSteps = $state<{ thread: string; tool: string; target: string; at: string }[]>([]);
 
 	#es: EventSource[] = [];
 	#lastSeq: Record<string, number> = {};
@@ -186,6 +188,11 @@ class Session {
 					/* not JSON */
 				}
 				const type = ev.type && ev.type !== 'message' ? ev.type : String(ce?.type || '').replace(/^dev\.barnraise\./, '');
+				const step = ce?.data?.discussion_step;
+				if (type === 'owner.discussion.step' && step?.thread) {
+					if (!replaying) this.advisorSteps = [...this.advisorSteps.slice(-40), { thread: step.thread, tool: step.tool || '', target: step.target || '', at: step.at || '' }];
+					return; // a step changes no screen but the conversation's
+				}
 				const s = ce?.data?.session;
 				if (type === 'agent.session' && s?.agent) {
 					const next = new Map(this.agents);

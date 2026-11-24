@@ -801,3 +801,21 @@ func (h *Handler) ListParts(ctx context.Context, r *connect.Request[pb.ProjectRe
 	v, err := h.svc().Parts(ctx, r.Msg.Project, actorFrom(ctx))
 	return respond[pb.PartsResponse](v, err)
 }
+
+// Delegate: the advisor decides a question or a proposal for the owner.
+func (h *Handler) Delegate(ctx context.Context, r *connect.Request[pb.DiscussionRef]) (*connect.Response[pb.DiscussionResponse], error) {
+	conv, err := h.svc().Delegate(ctx, r.Msg.Project, actorFrom(ctx), r.Msg.Thread)
+	if errors.Is(err, app.ErrNoAdvisor) {
+		return nil, connect.NewError(connect.CodeUnavailable, err)
+	}
+	return respond[pb.DiscussionResponse](map[string]any{"messages": conv}, err)
+}
+
+// TriageProposals: the advisor's word on every open proposal.
+func (h *Handler) TriageProposals(ctx context.Context, r *connect.Request[pb.ProjectRef]) (*connect.Response[pb.ProposalTriageResponse], error) {
+	v, err := h.svc().TriageProposals(ctx, r.Msg.Project, actorFrom(ctx))
+	if errors.Is(err, app.ErrNoAdvisor) {
+		return nil, connect.NewError(connect.CodeUnavailable, err)
+	}
+	return respond[pb.ProposalTriageResponse](map[string]any{"verdicts": v}, err)
+}

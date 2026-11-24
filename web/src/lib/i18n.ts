@@ -690,7 +690,7 @@ Object.assign(en, {
   discussIntro: 'Ask anything about this decision. The advisor reads the item, the question, what the agents did and the code, and helps you decide; it never changes anything. Each answer uses the strongest model.',
   discussWhat: 'What does each option change for the user?', discussRisk: 'What can go wrong with each option?', discussRecommend: 'What do you recommend, and why?',
   discussThinking: 'The advisor is reading the item and the code…', discussPlaceholder: 'Ask about this decision… (Ctrl+Enter sends)',
-  discussFooter: 'Read-only · strongest model · kept in the project log',
+  discussFooter: 'Read-only · strongest model · kept in the project log', discussResize: 'Drag to resize', discussWiden: 'Widen', discussNarrow: 'Back to my width', close: 'Close', discussDecision: 'The decision', discussAdvisor: 'Advisor', discussWorking: 'The advisor is working', copy: 'Copy', copied: 'Copied', copyFailed: 'Could not copy', step_read: 'reading', step_search: 'searching', step_list: 'listing',
 });
 
 Object.assign(pt, {
@@ -698,7 +698,7 @@ Object.assign(pt, {
   discussIntro: 'Pergunte qualquer coisa sobre esta decisão. O conselheiro lê o item, a pergunta, o que os agentes fizeram e o código, e ajuda você a decidir; ele nunca altera nada. Cada resposta usa o modelo mais forte.',
   discussWhat: 'O que cada opção muda para o usuário?', discussRisk: 'O que pode dar errado em cada opção?', discussRecommend: 'O que você recomenda, e por quê?',
   discussThinking: 'O conselheiro está lendo o item e o código…', discussPlaceholder: 'Pergunte sobre esta decisão… (Ctrl+Enter envia)',
-  discussFooter: 'Só leitura · modelo mais forte · fica no log do projeto',
+  discussFooter: 'Só leitura · modelo mais forte · fica no log do projeto', discussResize: 'Arraste para redimensionar', discussWiden: 'Expandir', discussNarrow: 'Voltar à minha largura', close: 'Fechar', discussDecision: 'A decisão', discussAdvisor: 'Conselheiro', discussWorking: 'O conselheiro está trabalhando', copy: 'Copiar', copied: 'Copiado', copyFailed: 'Não deu para copiar', step_read: 'lendo', step_search: 'buscando', step_list: 'listando',
 });
 
 

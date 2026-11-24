@@ -432,6 +432,47 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/barnraise.v1.ProposalResponse'
+  /barnraise.v1.BarnraiseService/Delegate:
+    post:
+      tags:
+        - barnraise.v1.BarnraiseService
+      summary: Delegate
+      description: |-
+        Delegate lets the advisor decide a question or a proposal in the
+         owner's place and applies the answer it suggests.
+      operationId: barnraise.v1.BarnraiseService.Delegate
+      parameters:
+        - name: Connect-Protocol-Version
+          in: header
+          description: Define the version of the Connect protocol
+          schema:
+            $ref: '#/components/schemas/connect-protocol-version'
+          example: 1
+        - name: Connect-Timeout-Ms
+          in: header
+          description: Define the timeout, in ms
+          schema:
+            $ref: '#/components/schemas/connect-timeout-header'
+          example: 1000
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/barnraise.v1.DiscussionRef'
+        required: true
+      responses:
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.error'
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/barnraise.v1.DiscussionResponse'
   /barnraise.v1.BarnraiseService/Deliver:
     post:
       tags:
@@ -2513,6 +2554,47 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/barnraise.v1.TimelineResponse'
+  /barnraise.v1.BarnraiseService/TriageProposals:
+    post:
+      tags:
+        - barnraise.v1.BarnraiseService
+      summary: TriageProposals
+      description: |-
+        TriageProposals asks the advisor for a decision on every open proposal;
+         nothing is applied.
+      operationId: barnraise.v1.BarnraiseService.TriageProposals
+      parameters:
+        - name: Connect-Protocol-Version
+          in: header
+          description: Define the version of the Connect protocol
+          schema:
+            $ref: '#/components/schemas/connect-protocol-version'
+          example: 1
+        - name: Connect-Timeout-Ms
+          in: header
+          description: Define the timeout, in ms
+          schema:
+            $ref: '#/components/schemas/connect-timeout-header'
+          example: 1000
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/barnraise.v1.ProjectRef'
+        required: true
+      responses:
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.error'
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/barnraise.v1.ProposalTriageResponse'
   /barnraise.v1.BarnraiseService/UpdateItem:
     post:
       tags:
@@ -3612,6 +3694,19 @@ components:
         at:
           type: string
           title: at
+        suggestOption:
+          type: string
+          title: suggest_option
+          description: |-
+            The answer the advisor proposes: an option (approve, reject or later
+             for a proposal) and what the owner would say with it.
+        suggestNote:
+          type: string
+          title: suggest_note
+        delegated:
+          type: boolean
+          title: delegated
+          description: The owner let the advisor decide, and this answer was applied.
       title: DiscussionMessage
       additionalProperties: false
     barnraise.v1.DiscussionRef:
@@ -5838,6 +5933,32 @@ components:
           $ref: '#/components/schemas/barnraise.v1.Proposal'
       title: ProposalResponse
       additionalProperties: false
+    barnraise.v1.ProposalTriageResponse:
+      type: object
+      properties:
+        verdicts:
+          type: array
+          items:
+            $ref: '#/components/schemas/barnraise.v1.ProposalVerdict'
+          title: verdicts
+      title: ProposalTriageResponse
+      additionalProperties: false
+    barnraise.v1.ProposalVerdict:
+      type: object
+      properties:
+        id:
+          type: string
+          title: id
+        decision:
+          type: string
+          title: decision
+          description: approve, reject or later.
+        reason:
+          type: string
+          title: reason
+      title: ProposalVerdict
+      additionalProperties: false
+      description: ProposalVerdict is the advisor's word on one open proposal.
     barnraise.v1.ProposeRequest:
       type: object
       properties:

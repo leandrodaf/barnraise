@@ -17,6 +17,26 @@ type DiscussionMessage struct {
 	Model  string    `json:"model,omitempty"` // the advisor's model
 	Tokens int64     `json:"tokens,omitempty"`
 	At     time.Time `json:"at"`
+	// SuggestOption and SuggestNote are the answer the advisor proposes:
+	// one of the question's options (approve, reject or later for a
+	// proposal) and what the owner could say with it.
+	SuggestOption string `json:"suggest_option,omitempty"`
+	SuggestNote   string `json:"suggest_note,omitempty"`
+	// Delegated: the owner let the advisor decide, and this answer was applied.
+	Delegated bool `json:"delegated,omitempty"`
+}
+
+// EvDiscussionStep is live only: what the advisor is doing while it
+// prepares an answer (reading a file, searching), for the owner to follow.
+const EvDiscussionStep = "owner.discussion.step"
+
+// DiscussionStep is one action of the advisor: the tool (read, search,
+// list) and what it acts on.
+type DiscussionStep struct {
+	Thread string    `json:"thread"`
+	Tool   string    `json:"tool"`
+	Target string    `json:"target,omitempty"`
+	At     time.Time `json:"at"`
 }
 
 // Roles in a discussion.

@@ -87,24 +87,25 @@ type Event struct {
 // Payload is the data of an event. Entity snapshots let any machine rebuild
 // the same state; the specific fields explain what happened.
 type Payload struct {
-	Item       *Item              `json:"item,omitempty"`
-	Proposal   *Proposal          `json:"proposal,omitempty"`
-	Goal       *Goal              `json:"goal,omitempty"`
-	Focus      *Focus             `json:"focus,omitempty"`
-	Tweak      *Tweak             `json:"tweak,omitempty"`
-	Question   *Question          `json:"question,omitempty"`
-	Message    *Message           `json:"message,omitempty"`
-	Account    *Account           `json:"account,omitempty"`
-	MachineI   *Machine           `json:"machine,omitempty"`
-	Delivery   *Delivery          `json:"delivery,omitempty"`
-	Review     *Review            `json:"review,omitempty"`
-	Check      *CheckResult       `json:"check,omitempty"`
-	Rework     *ReworkRecord      `json:"rework,omitempty"`
-	Session    *SessionInfo       `json:"session,omitempty"`
-	Usage      *TokenUsage        `json:"usage,omitempty"`
-	Journal    *JournalEntry      `json:"journal,omitempty"`
-	Lesson     *Lesson            `json:"lesson,omitempty"`
-	Discussion *DiscussionMessage `json:"discussion,omitempty"`
+	Item           *Item              `json:"item,omitempty"`
+	Proposal       *Proposal          `json:"proposal,omitempty"`
+	Goal           *Goal              `json:"goal,omitempty"`
+	Focus          *Focus             `json:"focus,omitempty"`
+	Tweak          *Tweak             `json:"tweak,omitempty"`
+	Question       *Question          `json:"question,omitempty"`
+	Message        *Message           `json:"message,omitempty"`
+	Account        *Account           `json:"account,omitempty"`
+	MachineI       *Machine           `json:"machine,omitempty"`
+	Delivery       *Delivery          `json:"delivery,omitempty"`
+	Review         *Review            `json:"review,omitempty"`
+	Check          *CheckResult       `json:"check,omitempty"`
+	Rework         *ReworkRecord      `json:"rework,omitempty"`
+	Session        *SessionInfo       `json:"session,omitempty"`
+	Usage          *TokenUsage        `json:"usage,omitempty"`
+	Journal        *JournalEntry      `json:"journal,omitempty"`
+	Lesson         *Lesson            `json:"lesson,omitempty"`
+	Discussion     *DiscussionMessage `json:"discussion,omitempty"`
+	DiscussionStep *DiscussionStep    `json:"discussion_step,omitempty"`
 	// Worktrees is a machine's inventory of what it keeps for the project.
 	Worktrees *WorktreeReport `json:"worktrees,omitempty"`
 	Cause     string          `json:"cause,omitempty"` // link to the change that caused it
@@ -132,7 +133,7 @@ func NewEvent(id, typ, project, subject, machine, actor string, at time.Time, p 
 // heartbeat and readings, an agent session's progress): only its latest
 // value matters, so it is never stored and never kept as history.
 func (e Event) LiveOnly() bool {
-	return e.Type == EvMachineUpdated || e.Type == EvAgentSession || e.Type == EvMachineWorktrees
+	return e.Type == EvMachineUpdated || e.Type == EvAgentSession || e.Type == EvMachineWorktrees || e.Type == EvDiscussionStep
 }
 
 // GPUStat is the live state of one GPU of a machine.

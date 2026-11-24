@@ -40,6 +40,9 @@ var ownerTexts = map[string][2]string{ // key: {en, pt-BR}
 	"opt.bugs_only":     {"Only bugs and approved improvements for now", "Por enquanto, só bugs e melhorias aprovadas"},
 	"if.goal":           {"Agents work only on bugs and approved improvements.", "Os agentes trabalham só em bugs e melhorias aprovadas."},
 	"answered.message":  {"Owner answered: %s", "O dono respondeu: %s"},
+	"delegate.ask":      {"Decide for me: choose the answer you recommend.", "Decida por mim: escolha a resposta que você recomenda."},
+	"delegate.note":     {"Decided by the advisor at the owner's request: %s", "Decidido pelo conselheiro a pedido do dono: %s"},
+	"delegate.done":     {"Applied: %s.", "Aplicado: %s."},
 }
 
 // ownerPortuguese reports whether the project's people read Portuguese.

@@ -123,6 +123,12 @@ const (
 	// BarnraiseServiceGetDiscussionProcedure is the fully-qualified name of the BarnraiseService's
 	// GetDiscussion RPC.
 	BarnraiseServiceGetDiscussionProcedure = "/barnraise.v1.BarnraiseService/GetDiscussion"
+	// BarnraiseServiceDelegateProcedure is the fully-qualified name of the BarnraiseService's Delegate
+	// RPC.
+	BarnraiseServiceDelegateProcedure = "/barnraise.v1.BarnraiseService/Delegate"
+	// BarnraiseServiceTriageProposalsProcedure is the fully-qualified name of the BarnraiseService's
+	// TriageProposals RPC.
+	BarnraiseServiceTriageProposalsProcedure = "/barnraise.v1.BarnraiseService/TriageProposals"
 	// BarnraiseServiceSetGoalProcedure is the fully-qualified name of the BarnraiseService's SetGoal
 	// RPC.
 	BarnraiseServiceSetGoalProcedure = "/barnraise.v1.BarnraiseService/SetGoal"
@@ -274,6 +280,12 @@ type BarnraiseServiceClient interface {
 	// barnraise.yaml) and how their work goes.
 	ListParts(context.Context, *connect.Request[v1.ProjectRef]) (*connect.Response[v1.PartsResponse], error)
 	GetDiscussion(context.Context, *connect.Request[v1.DiscussionRef]) (*connect.Response[v1.DiscussionResponse], error)
+	// Delegate lets the advisor decide a question or a proposal in the
+	// owner's place and applies the answer it suggests.
+	Delegate(context.Context, *connect.Request[v1.DiscussionRef]) (*connect.Response[v1.DiscussionResponse], error)
+	// TriageProposals asks the advisor for a decision on every open proposal;
+	// nothing is applied.
+	TriageProposals(context.Context, *connect.Request[v1.ProjectRef]) (*connect.Response[v1.ProposalTriageResponse], error)
 	SetGoal(context.Context, *connect.Request[v1.SetGoalRequest]) (*connect.Response[v1.SetGoalResponse], error)
 	SetFocus(context.Context, *connect.Request[v1.FocusRequest]) (*connect.Response[v1.FocusResponse], error)
 	ClearFocus(context.Context, *connect.Request[v1.ProjectRef]) (*connect.Response[v1.Empty], error)
@@ -513,6 +525,18 @@ func NewBarnraiseServiceClient(httpClient connect.HTTPClient, baseURL string, op
 			httpClient,
 			baseURL+BarnraiseServiceGetDiscussionProcedure,
 			connect.WithSchema(barnraiseServiceMethods.ByName("GetDiscussion")),
+			connect.WithClientOptions(opts...),
+		),
+		delegate: connect.NewClient[v1.DiscussionRef, v1.DiscussionResponse](
+			httpClient,
+			baseURL+BarnraiseServiceDelegateProcedure,
+			connect.WithSchema(barnraiseServiceMethods.ByName("Delegate")),
+			connect.WithClientOptions(opts...),
+		),
+		triageProposals: connect.NewClient[v1.ProjectRef, v1.ProposalTriageResponse](
+			httpClient,
+			baseURL+BarnraiseServiceTriageProposalsProcedure,
+			connect.WithSchema(barnraiseServiceMethods.ByName("TriageProposals")),
 			connect.WithClientOptions(opts...),
 		),
 		setGoal: connect.NewClient[v1.SetGoalRequest, v1.SetGoalResponse](
@@ -788,6 +812,8 @@ type barnraiseServiceClient struct {
 	discuss         *connect.Client[v1.DiscussRequest, v1.DiscussionResponse]
 	listParts       *connect.Client[v1.ProjectRef, v1.PartsResponse]
 	getDiscussion   *connect.Client[v1.DiscussionRef, v1.DiscussionResponse]
+	delegate        *connect.Client[v1.DiscussionRef, v1.DiscussionResponse]
+	triageProposals *connect.Client[v1.ProjectRef, v1.ProposalTriageResponse]
 	setGoal         *connect.Client[v1.SetGoalRequest, v1.SetGoalResponse]
 	setFocus        *connect.Client[v1.FocusRequest, v1.FocusResponse]
 	clearFocus      *connect.Client[v1.ProjectRef, v1.Empty]
@@ -968,6 +994,16 @@ func (c *barnraiseServiceClient) ListParts(ctx context.Context, req *connect.Req
 // GetDiscussion calls barnraise.v1.BarnraiseService.GetDiscussion.
 func (c *barnraiseServiceClient) GetDiscussion(ctx context.Context, req *connect.Request[v1.DiscussionRef]) (*connect.Response[v1.DiscussionResponse], error) {
 	return c.getDiscussion.CallUnary(ctx, req)
+}
+
+// Delegate calls barnraise.v1.BarnraiseService.Delegate.
+func (c *barnraiseServiceClient) Delegate(ctx context.Context, req *connect.Request[v1.DiscussionRef]) (*connect.Response[v1.DiscussionResponse], error) {
+	return c.delegate.CallUnary(ctx, req)
+}
+
+// TriageProposals calls barnraise.v1.BarnraiseService.TriageProposals.
+func (c *barnraiseServiceClient) TriageProposals(ctx context.Context, req *connect.Request[v1.ProjectRef]) (*connect.Response[v1.ProposalTriageResponse], error) {
+	return c.triageProposals.CallUnary(ctx, req)
 }
 
 // SetGoal calls barnraise.v1.BarnraiseService.SetGoal.
@@ -1210,6 +1246,12 @@ type BarnraiseServiceHandler interface {
 	// barnraise.yaml) and how their work goes.
 	ListParts(context.Context, *connect.Request[v1.ProjectRef]) (*connect.Response[v1.PartsResponse], error)
 	GetDiscussion(context.Context, *connect.Request[v1.DiscussionRef]) (*connect.Response[v1.DiscussionResponse], error)
+	// Delegate lets the advisor decide a question or a proposal in the
+	// owner's place and applies the answer it suggests.
+	Delegate(context.Context, *connect.Request[v1.DiscussionRef]) (*connect.Response[v1.DiscussionResponse], error)
+	// TriageProposals asks the advisor for a decision on every open proposal;
+	// nothing is applied.
+	TriageProposals(context.Context, *connect.Request[v1.ProjectRef]) (*connect.Response[v1.ProposalTriageResponse], error)
 	SetGoal(context.Context, *connect.Request[v1.SetGoalRequest]) (*connect.Response[v1.SetGoalResponse], error)
 	SetFocus(context.Context, *connect.Request[v1.FocusRequest]) (*connect.Response[v1.FocusResponse], error)
 	ClearFocus(context.Context, *connect.Request[v1.ProjectRef]) (*connect.Response[v1.Empty], error)
@@ -1445,6 +1487,18 @@ func NewBarnraiseServiceHandler(svc BarnraiseServiceHandler, opts ...connect.Han
 		BarnraiseServiceGetDiscussionProcedure,
 		svc.GetDiscussion,
 		connect.WithSchema(barnraiseServiceMethods.ByName("GetDiscussion")),
+		connect.WithHandlerOptions(opts...),
+	)
+	barnraiseServiceDelegateHandler := connect.NewUnaryHandler(
+		BarnraiseServiceDelegateProcedure,
+		svc.Delegate,
+		connect.WithSchema(barnraiseServiceMethods.ByName("Delegate")),
+		connect.WithHandlerOptions(opts...),
+	)
+	barnraiseServiceTriageProposalsHandler := connect.NewUnaryHandler(
+		BarnraiseServiceTriageProposalsProcedure,
+		svc.TriageProposals,
+		connect.WithSchema(barnraiseServiceMethods.ByName("TriageProposals")),
 		connect.WithHandlerOptions(opts...),
 	)
 	barnraiseServiceSetGoalHandler := connect.NewUnaryHandler(
@@ -1745,6 +1799,10 @@ func NewBarnraiseServiceHandler(svc BarnraiseServiceHandler, opts ...connect.Han
 			barnraiseServiceListPartsHandler.ServeHTTP(w, r)
 		case BarnraiseServiceGetDiscussionProcedure:
 			barnraiseServiceGetDiscussionHandler.ServeHTTP(w, r)
+		case BarnraiseServiceDelegateProcedure:
+			barnraiseServiceDelegateHandler.ServeHTTP(w, r)
+		case BarnraiseServiceTriageProposalsProcedure:
+			barnraiseServiceTriageProposalsHandler.ServeHTTP(w, r)
 		case BarnraiseServiceSetGoalProcedure:
 			barnraiseServiceSetGoalHandler.ServeHTTP(w, r)
 		case BarnraiseServiceSetFocusProcedure:
@@ -1944,6 +2002,14 @@ func (UnimplementedBarnraiseServiceHandler) ListParts(context.Context, *connect.
 
 func (UnimplementedBarnraiseServiceHandler) GetDiscussion(context.Context, *connect.Request[v1.DiscussionRef]) (*connect.Response[v1.DiscussionResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("barnraise.v1.BarnraiseService.GetDiscussion is not implemented"))
+}
+
+func (UnimplementedBarnraiseServiceHandler) Delegate(context.Context, *connect.Request[v1.DiscussionRef]) (*connect.Response[v1.DiscussionResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("barnraise.v1.BarnraiseService.Delegate is not implemented"))
+}
+
+func (UnimplementedBarnraiseServiceHandler) TriageProposals(context.Context, *connect.Request[v1.ProjectRef]) (*connect.Response[v1.ProposalTriageResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("barnraise.v1.BarnraiseService.TriageProposals is not implemented"))
 }
 
 func (UnimplementedBarnraiseServiceHandler) SetGoal(context.Context, *connect.Request[v1.SetGoalRequest]) (*connect.Response[v1.SetGoalResponse], error) {

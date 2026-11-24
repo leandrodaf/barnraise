@@ -959,6 +959,24 @@ message DiscussionMessage {
   string model = 6;
   int64 tokens = 7;
   string at = 8;
+  // The answer the advisor proposes: an option (approve, reject or later
+  // for a proposal) and what the owner would say with it.
+  string suggest_option = 9;
+  string suggest_note = 10;
+  // The owner let the advisor decide, and this answer was applied.
+  bool delegated = 11;
+}
+
+// ProposalVerdict is the advisor's word on one open proposal.
+message ProposalVerdict {
+  string id = 1;
+  // approve, reject or later.
+  string decision = 2;
+  string reason = 3;
+}
+
+message ProposalTriageResponse {
+  repeated ProposalVerdict verdicts = 1;
 }
 
 message DiscussRequest {
@@ -1501,6 +1519,12 @@ service BarnraiseService {
   // barnraise.yaml) and how their work goes.
   rpc ListParts(ProjectRef) returns (PartsResponse);
   rpc GetDiscussion(DiscussionRef) returns (DiscussionResponse);
+  // Delegate lets the advisor decide a question or a proposal in the
+  // owner's place and applies the answer it suggests.
+  rpc Delegate(DiscussionRef) returns (DiscussionResponse);
+  // TriageProposals asks the advisor for a decision on every open proposal;
+  // nothing is applied.
+  rpc TriageProposals(ProjectRef) returns (ProposalTriageResponse);
   rpc SetGoal(SetGoalRequest) returns (SetGoalResponse);
   rpc SetFocus(FocusRequest) returns (FocusResponse);
   rpc ClearFocus(ProjectRef) returns (Empty);
