@@ -207,6 +207,24 @@ Each account gets its own config dir (`CLAUDE_CONFIG_DIR`, `CODEX_HOME` or `GEMI
 
 Where no headless login exists, log in on a machine with a browser and copy that account's config dir to the server over a secure channel.
 
+## One account on several machines
+
+An account is used on the machines where it is logged in. To log one in on many machines at the same time, from one place:
+
+```sh
+barnraise account login claude --all              # a new account, on every connected machine
+barnraise account login codex --machine studio,laptop
+barnraise account login claude-1 --all            # a known account: more machines, or again where its login expired
+```
+
+The panel and the desktop app do the same under **Accounts → Log in on every machine**, and each account has **Log in on the machines**.
+
+Every machine named starts the provider's own login (`claude auth login`, `codex login --device-auth`) in the account's folder there, all at once, and each one shows where to sign in: for Codex, a link and a one-time code to type on that page; for Claude, a link, and the code its page shows is pasted back. You sign in once for each machine, in any order, without opening a terminal on any of them. A login nobody finishes ends after 20 minutes.
+
+Each machine keeps its own login under its data dir (`accounts/<id>`); no credential travels between machines, only the steps of the login (start, the code, cancel) go to the paired machines. When a machine's login ends well, the account enters the rotation there: it is listed with the machines where it is logged in (`machines`), and a machine that is not among them never picks it. An account pinned to one machine (`--machine` on `account add`) keeps its folder on that machine and gains the others. Gemini and the key-based providers have no login that can be followed from another machine: add them on the machine itself with `barnraise account add`.
+
+A machine that runs an older Barnraise answers that it cannot do it: update it first.
+
 ## Machines on a tailnet
 
 Machines in different places reach each other over a Tailscale network (a tailnet), or any other VPN or overlay through a network plugin, without opening router ports. `network:` in `daemon.yaml` (`barnraise machine network [auto|tailscale|tsnet|plugin|lan]`) says how:

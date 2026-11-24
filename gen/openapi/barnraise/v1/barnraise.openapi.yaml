@@ -83,6 +83,45 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/barnraise.v1.QuestionResponse'
+  /barnraise.v1.BarnraiseService/AnswerAccountLogin:
+    post:
+      tags:
+        - barnraise.v1.BarnraiseService
+      summary: AnswerAccountLogin
+      description: AnswerAccountLogin hands a machine's login the code its page showed.
+      operationId: barnraise.v1.BarnraiseService.AnswerAccountLogin
+      parameters:
+        - name: Connect-Protocol-Version
+          in: header
+          description: Define the version of the Connect protocol
+          schema:
+            $ref: '#/components/schemas/connect-protocol-version'
+          example: 1
+        - name: Connect-Timeout-Ms
+          in: header
+          description: Define the timeout, in ms
+          schema:
+            $ref: '#/components/schemas/connect-timeout-header'
+          example: 1000
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/barnraise.v1.AccountLoginRequest'
+        required: true
+      responses:
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.error'
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/barnraise.v1.AccountLoginResponse'
   /barnraise.v1.BarnraiseService/Approve:
     post:
       tags:
@@ -160,6 +199,45 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/barnraise.v1.QuestionResponse'
+  /barnraise.v1.BarnraiseService/CancelAccountLogin:
+    post:
+      tags:
+        - barnraise.v1.BarnraiseService
+      summary: CancelAccountLogin
+      description: CancelAccountLogin stops the logins that still run.
+      operationId: barnraise.v1.BarnraiseService.CancelAccountLogin
+      parameters:
+        - name: Connect-Protocol-Version
+          in: header
+          description: Define the version of the Connect protocol
+          schema:
+            $ref: '#/components/schemas/connect-protocol-version'
+          example: 1
+        - name: Connect-Timeout-Ms
+          in: header
+          description: Define the timeout, in ms
+          schema:
+            $ref: '#/components/schemas/connect-timeout-header'
+          example: 1000
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/barnraise.v1.AccountLoginRequest'
+        required: true
+      responses:
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.error'
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/barnraise.v1.AccountLoginResponse'
   /barnraise.v1.BarnraiseService/Capabilities:
     post:
       tags:
@@ -706,6 +784,45 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/barnraise.v1.KnowledgeResponse'
+  /barnraise.v1.BarnraiseService/GetAccountLogin:
+    post:
+      tags:
+        - barnraise.v1.BarnraiseService
+      summary: GetAccountLogin
+      description: GetAccountLogin tells how the login goes on each machine.
+      operationId: barnraise.v1.BarnraiseService.GetAccountLogin
+      parameters:
+        - name: Connect-Protocol-Version
+          in: header
+          description: Define the version of the Connect protocol
+          schema:
+            $ref: '#/components/schemas/connect-protocol-version'
+          example: 1
+        - name: Connect-Timeout-Ms
+          in: header
+          description: Define the timeout, in ms
+          schema:
+            $ref: '#/components/schemas/connect-timeout-header'
+          example: 1000
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/barnraise.v1.AccountLoginRequest'
+        required: true
+      responses:
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.error'
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/barnraise.v1.AccountLoginResponse'
   /barnraise.v1.BarnraiseService/GetDiscussion:
     post:
       tags:
@@ -2324,6 +2441,48 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/barnraise.v1.StandbyResponse'
+  /barnraise.v1.BarnraiseService/StartAccountLogin:
+    post:
+      tags:
+        - barnraise.v1.BarnraiseService
+      summary: StartAccountLogin
+      description: |-
+        StartAccountLogin starts the provider's login of one account on the
+         machines named, all at the same time. Each machine keeps its own login;
+         no credential travels between machines.
+      operationId: barnraise.v1.BarnraiseService.StartAccountLogin
+      parameters:
+        - name: Connect-Protocol-Version
+          in: header
+          description: Define the version of the Connect protocol
+          schema:
+            $ref: '#/components/schemas/connect-protocol-version'
+          example: 1
+        - name: Connect-Timeout-Ms
+          in: header
+          description: Define the timeout, in ms
+          schema:
+            $ref: '#/components/schemas/connect-timeout-header'
+          example: 1000
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/barnraise.v1.AccountLoginRequest'
+        required: true
+      responses:
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.error'
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/barnraise.v1.AccountLoginResponse'
   /barnraise.v1.BarnraiseService/Status:
     post:
       tags:
@@ -2761,7 +2920,103 @@ components:
           title: outlook
           description: The account seen from now; only in answers, never stored.
           $ref: '#/components/schemas/barnraise.v1.AccountOutlook'
+        machines:
+          type: array
+          items:
+            type: string
+          title: machines
+          description: |-
+            Machines where the account was logged in from the panel or with
+             `barnraise account login`, each with its own login under its data dir.
+             With any name here, only these machines (and `machine`) use the account.
       title: Account
+      additionalProperties: false
+    barnraise.v1.AccountLogin:
+      type: object
+      properties:
+        machine:
+          type: string
+          title: machine
+        account:
+          type: string
+          title: account
+        provider:
+          type: string
+          title: provider
+        state:
+          type: string
+          title: state
+          description: running, done, failed or cancelled.
+        url:
+          type: string
+          title: url
+          description: Where the owner signs in.
+        code:
+          type: string
+          title: code
+          description: The one-time code to type on that page, when the provider gives one.
+        wantsCode:
+          type: boolean
+          title: wants_code
+          description: The login waits for the code the page shows after signing in.
+        lines:
+          type: array
+          items:
+            type: string
+          title: lines
+          description: The last lines the provider's login printed.
+        error:
+          type: string
+          title: error
+        startedAt:
+          type: string
+          title: started_at
+        endedAt:
+          type: string
+          title: ended_at
+      title: AccountLogin
+      additionalProperties: false
+      description: |-
+        AccountLogin is the login of one account on one machine, as the owner
+         follows it: the provider's own login runs there, and shows where to sign in.
+    barnraise.v1.AccountLoginRequest:
+      type: object
+      properties:
+        account:
+          type: string
+          title: account
+          description: 'The account (claude-1). Empty on start: a new account of the provider.'
+        provider:
+          type: string
+          title: provider
+          description: claude or codex. Needed on start for a new account.
+        machines:
+          type: array
+          items:
+            type: string
+          title: machines
+          description: 'The machines to log in on; empty: this one. all: every connected machine.'
+        all:
+          type: boolean
+          title: all
+        code:
+          type: string
+          title: code
+          description: 'AnswerAccountLogin: the code the page showed, for the one machine named.'
+      title: AccountLoginRequest
+      additionalProperties: false
+    barnraise.v1.AccountLoginResponse:
+      type: object
+      properties:
+        account:
+          type: string
+          title: account
+        logins:
+          type: array
+          items:
+            $ref: '#/components/schemas/barnraise.v1.AccountLogin'
+          title: logins
+      title: AccountLoginResponse
       additionalProperties: false
     barnraise.v1.AccountOutlook:
       type: object

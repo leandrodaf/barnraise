@@ -520,6 +520,8 @@ func (r *Runtime) start(ctx context.Context, p *Project, slot Slot, a *Assignmen
 	if acc == nil {
 		return errors.New("no account available")
 	}
+	// The account as this machine runs it: its login folder here.
+	acc = acc.On(s.d.Machine, s.d.DataDir)
 	prov, cli, endpoint, _ := s.providerFor(p.Cfg(), choice.Provider)
 	apiKey := ""
 	if endpoint != nil {

@@ -10,6 +10,7 @@
 	import { openItem } from './open';
 	import StatusIcon from './StatusIcon.svelte';
 	import MessagesIcon from '@lucide/svelte/icons/messages-square';
+	import WandIcon from '@lucide/svelte/icons/wand-sparkles';
 	import { discussion } from './discussion.svelte';
 
 	let { q, project = '' }: { q: Question; project?: string } = $props();
@@ -40,6 +41,7 @@
 			</p>
 			<div class="flex flex-wrap gap-2 pt-1">
 				<Button size="sm" variant="secondary" class="h-auto min-h-8 py-1.5" onclick={() => discussion.show(proj, q.id, q.decision)}><MessagesIcon />{t('discuss')}</Button>
+				<Button size="sm" variant="secondary" class="h-auto min-h-8 py-1.5" disabled={busy} title={t('decideForMeHelp')} onclick={() => discussion.show(proj, q.id, q.decision, true)}><WandIcon />{t('decideForMe')}</Button>
 				{#each q.options as o (o.label)}
 					<Button size="sm" class="h-auto min-h-8 max-w-full py-1.5" variant={o.recommended ? 'default' : 'outline'} disabled={busy} onclick={() => answer(o.label)}>
 						<span class="whitespace-normal text-left">{o.label}</span>{#if o.recommended}<StarIcon class="size-3" aria-hidden="true" /><span class="sr-only">({t('recommended')})</span>{/if}

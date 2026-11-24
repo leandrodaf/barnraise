@@ -51,6 +51,9 @@ type Options struct {
 	// the requested peers (ADR-0046); nil answers for this machine only.
 	Capabilities func(ctx context.Context, r *pb.CapabilitiesRequest) (*pb.CapabilitiesResponse, error)
 	InstallTools func(ctx context.Context, a app.Actor, r *pb.InstallToolsRequest) (*pb.InstallToolsResponse, error)
+	// AccountLogin runs one step (app.LoginOp…) of an account's login on
+	// this machine and on the requested peers; nil: this machine only.
+	AccountLogin func(ctx context.Context, a app.Actor, op string, r *pb.AccountLoginRequest) (*pb.AccountLoginResponse, error)
 	Panel        fs.FS  // static panel files
 	OpenAPI      []byte // generated document
 	// WebhookSecret returns the secret for inbound webhooks of a project and source (github, gitlab, inbound).

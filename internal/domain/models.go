@@ -3,6 +3,7 @@ package domain
 import (
 	"errors"
 	"fmt"
+	"path/filepath"
 	"slices"
 	"sort"
 	"strings"
@@ -199,9 +200,52 @@ type Account struct {
 	Usage      Usage         `json:"usage"`
 	Projects   []string      `json:"projects,omitempty"` // empty: all
 	AddedAt    time.Time     `json:"added_at,omitzero"`
+	// Machines are the machines where the account was logged in one by one
+	// (LoginSession), each with its own login under its data dir. With any
+	// name here, only these machines and Machine use the account.
+	Machines []string `json:"machines,omitempty"`
 	// Outlook is filled on the copies an answer serves (WithOutlook), never
 	// on the account kept in the log.
 	Outlook *AccountOutlook `json:"outlook,omitempty"`
+}
+
+// AccountsDir is the folder, under a machine's data dir, that holds the
+// login of each account.
+const AccountsDir = "accounts"
+
+// UsableOn reports whether the machine may run the account: the machine
+// it is pinned to, a machine it was logged in on, or any machine when it
+// names none.
+func (a *Account) UsableOn(machine string) bool {
+	if a.Machine == machine || contains(a.Machines, machine) {
+		return true
+	}
+	return a.Machine == "" && len(a.Machines) == 0
+}
+
+// DirOn is the folder that holds the account's login on a machine whose data
+// dir is dataDir. ConfigDir as written belongs to the machine the account is
+// pinned to (or to every machine, for an account that names none); a path
+// that is not absolute is under the machine's data dir, so the same account
+// works on machines with different homes. Every other machine keeps its own
+// login in accounts/<id>.
+func (a *Account) DirOn(machine, dataDir string) string {
+	own := a.Machine == machine || (a.Machine == "" && !contains(a.Machines, machine))
+	switch {
+	case a.ConfigDir != "" && !filepath.IsAbs(a.ConfigDir):
+		return filepath.Join(dataDir, a.ConfigDir)
+	case own:
+		return a.ConfigDir
+	}
+	return filepath.Join(dataDir, AccountsDir, a.ID)
+}
+
+// On returns a copy of the account as the machine runs it: ConfigDir is the
+// folder of its login there.
+func (a *Account) On(machine, dataDir string) *Account {
+	c := *a
+	c.ConfigDir = a.DirOn(machine, dataDir)
+	return &c
 }
 
 // WithOutlook returns a copy of the account with its outlook at now.
@@ -247,7 +291,7 @@ func PickAccount(accounts []*Account, provider, machine, project string, now tim
 		if a.Provider != provider || !a.Available(now) {
 			continue
 		}
-		if machine != "" && a.Machine != "" && a.Machine != machine {
+		if machine != "" && !a.UsableOn(machine) {
 			continue
 		}
 		if len(a.Projects) > 0 && !contains(a.Projects, project) {

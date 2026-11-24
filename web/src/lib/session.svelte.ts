@@ -1,6 +1,7 @@
 // The signed-in session: token, projects, the machine that serves the panel,
 // and the live event stream that tells every screen when to read again.
 import { api, getToken, isAuthError, setToken, store, takeTokenFromURL } from './api';
+import { Code, ConnectError } from '@connectrpc/connect';
 import type { SessionInfo } from './gen/barnraise/v1/barnraise_pb';
 
 export type LiveMode = 'wait' | 'on' | 'off';
@@ -119,9 +120,11 @@ class Session {
 		this.signInError = msg;
 	}
 
-	// failed is where every screen sends an error: a refused token signs out.
+	// failed is where every screen sends an error: a token the daemon no
+	// longer knows signs out. An action the token may not take is an error
+	// like any other: it is shown, and the session stays.
 	failed(e: unknown): boolean {
-		if (isAuthError(e)) {
+		if (e instanceof ConnectError && e.code === Code.Unauthenticated) {
 			this.signOut('tokenBad');
 			return true;
 		}

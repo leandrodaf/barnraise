@@ -118,6 +118,7 @@ gRPC clients use the same service with HTTP/2; generated clients in Go are in `g
 | Messaging | `SendMessage`, `Inbox`, `Journal`, `ReportViolation` |
 | Knowledge | `Context`, `Find`, `Get`, `Related`, `Why`, `History`, `Rules`, `Revalidate`, `Sweep` |
 | Accounts and machines | `UpsertAccount`, `ListAccounts`, `ReportUsage`, `ListMachines`, `MachineHistory`, `LeaveMachine` |
+| Login of an account on several machines | `StartAccountLogin`, `GetAccountLogin`, `AnswerAccountLogin`, `CancelAccountLogin` (owner and admin tokens only; see [below](#login-on-several-machines)) |
 | Tokens and audit | `CreateToken`, `ListTokens`, `RevokeToken`, `ListAudit` |
 | Machine capabilities | `Capabilities`, `InstallTools` (owner and admin tokens only; see [below](#capabilities-and-tools)) |
 
@@ -178,6 +179,26 @@ curl -s --unix-socket ~/.local/share/barnraise/barnraise.sock \
 | `InstallToolsRequest` | `tools` (`mergiraf`, `rtk`, `osv-scanner`, `ast-grep`, `smolvm`), `machines`, `all`, `remove` |
 
 `CapabilitiesResponse.machines[]` has `machine`, `platform`, `probed_at`, `counts` (status -> number), `error`, `tools[]` (`id`, `title`, `installed`, `pinned`, `managed`, `available`, `path`) and `items[]`: `id` (`sandbox.landlock`, `merge.structural`, `tokens.rtk`, `plugins.<name>`, `providers.acp.<name>`…), `title`, `group`, `kind` (`native`, `optional`, `plugin`), `status` (`active`, `available`, `degraded`, `missing`, `unsupported`), `reason`, `fallback`, `fix`, `tool` (set when `InstallTools` with that tool is the fix), `version` and `needs_root`. `InstallToolsResponse.results[]` has `machine`, `tool`, `ok`, `version`, `error` and `changed`. `ListMachines` carries each machine's `capability_counts`.
+
+
+## Login on several machines
+
+`StartAccountLogin` starts the provider's own login of one account on this machine, on the named peers (`machines`) or on every connected one (`all`), all at the same time ([operations](operations.md#one-account-on-several-machines)). Every machine keeps its own login; only the steps travel between machines, never a credential. The calls need an owner or admin token; a session token is always refused.
+
+```sh
+... StartAccountLogin  -d '{"provider": "codex", "all": true}'                 # a new account: the answer names it
+... GetAccountLogin    -d '{"account": "codex-1", "all": true}'                # ask again while a login is running
+... AnswerAccountLogin -d '{"account": "claude-1", "machines": ["studio"], "code": "…"}'
+... CancelAccountLogin -d '{"account": "codex-1", "all": true}'
+```
+
+| Message | Fields |
+| --- | --- |
+| `AccountLoginRequest` | `account` (empty on start: a new account of `provider`), `provider` (`claude` or `codex`), `machines` (empty and `all` false: this machine), `all`, `code` (`AnswerAccountLogin` only, for the one machine named) |
+| `AccountLoginResponse` | `account`, `logins`: one `AccountLogin` for each machine that runs a login of the account |
+| `AccountLogin` | `machine`, `account`, `provider`, `state` (`running`, `done`, `failed`, `cancelled`), `url` (where to sign in), `code` (the one-time code to type there, when the provider gives one), `wants_code` (the login waits for the code the page shows), `lines` (the last lines the login printed), `error`, `started_at`, `ended_at` |
+
+A machine that cannot be reached, or that runs a Barnraise without this, comes back as a login with `state: failed` and `error` set. When a login ends well, the account is recorded as logged in on that machine (`Account.machines`); with any name there, only those machines and `machine` use the account.
 
 ## Events
 

@@ -7,6 +7,8 @@ All notable changes to Barnraise are recorded here. The format follows [Keep a C
 ### Added
 
 - **cli:** Flag missing plugin programs in the up readiness check (I-1)
+- **accounts:** Log one account in on several machines at the same time, from the panel, the desktop app or `barnraise account login <claude|codex|id> --all`: every machine runs the provider's own login and keeps it, and one screen shows each machine's link and code. An account lists the machines where it is logged in, and only those use it.
+- **panel:** Confirm, edit or question the answer the advisor suggests; let it decide a question or a proposal for you; talk a proposal over; triage every open proposal at once and apply the recommendations you keep.
 
 ## [0.1.0] - unreleased
 

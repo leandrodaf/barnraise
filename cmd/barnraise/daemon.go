@@ -42,6 +42,7 @@ import (
 	natsx "github.com/leandrodaf/barnraise/internal/adapters/out/nats"
 	"github.com/leandrodaf/barnraise/internal/adapters/out/notify"
 	"github.com/leandrodaf/barnraise/internal/adapters/out/plugin"
+	"github.com/leandrodaf/barnraise/internal/adapters/out/providerlogin"
 	"github.com/leandrodaf/barnraise/internal/adapters/out/reflink"
 	"github.com/leandrodaf/barnraise/internal/adapters/out/secretscan"
 	"github.com/leandrodaf/barnraise/internal/adapters/out/sqlite"
@@ -191,6 +192,7 @@ func runDaemon(ctx context.Context, opts cli.DaemonOptions) error {
 		Cloner:        reflink.New(),
 		Prober:        capprobe.New(capprobe.Options{Exec: ex, DataDir: d.dataDir, ToolsBin: toolinstall.BinDir(toolinstall.Root(d.dataDir))}),
 		Installer:     toolinstall.New(toolinstall.Options{Root: toolinstall.Root(d.dataDir)}),
+		Login:         providerlogin.New(),
 	})
 	d.svc = svc
 	app.RoleText = config.RolePrompt
@@ -226,6 +228,7 @@ func runDaemon(ctx context.Context, opts cli.DaemonOptions) error {
 	go d.serveRemoteStop(ctx)
 	go d.serveRemoteStandby(ctx)
 	go d.serveRemoteCapabilities(ctx)
+	go d.serveRemoteLogin(ctx)
 	go d.watchCapabilities(ctx)
 	go newChainWatch(d).run(ctx)
 
@@ -252,7 +255,7 @@ func runDaemon(ctx context.Context, opts cli.DaemonOptions) error {
 		},
 		Reload: d.reloadProject,
 		Peers:  d.peers, StopPeers: d.stopPeers, SetStandby: d.setStandby,
-		Capabilities: d.capabilities, InstallTools: d.installTools,
+		Capabilities: d.capabilities, InstallTools: d.installTools, AccountLogin: d.accountLogin,
 		VerifyAnchor: natsx.AnchorVerifier(df.NKeyPublic),
 		WebhookSecret: func(project, source string) string {
 			v, _ := d.secrets.Get("webhook/" + project + "/" + source)
@@ -296,6 +299,7 @@ func runDaemon(ctx context.Context, opts cli.DaemonOptions) error {
 		}
 	}
 	svc.Runtime().StopAll()
+	svc.StopLogins()
 	log.Info("barnraise daemon stopped")
 	return nil
 }
@@ -539,6 +543,7 @@ func (d *daemon) watchDaemonFile(ctx context.Context) {
 				go d.serveRemoteStop(ctx)
 				go d.serveRemoteStandby(ctx)
 				go d.serveRemoteCapabilities(ctx)
+				go d.serveRemoteLogin(ctx)
 			}
 		}
 		if d.repl != nil {
@@ -781,7 +786,7 @@ func (d *daemon) projectPorts(cfg *domain.ProjectConfig) (app.ProjectPorts, erro
 		if acc == nil {
 			return domain.Account{}, false
 		}
-		return *acc, true
+		return *acc.On(d.df.Machine, d.dataDir), true
 	}}
 	// The advisor talks a decision over with the owner, with the strongest
 	// model of the project's Claude ladder, reading only.

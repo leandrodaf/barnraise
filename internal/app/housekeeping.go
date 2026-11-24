@@ -36,10 +36,11 @@ func (r *Runtime) housekeeping(ctx context.Context, p *Project, m domain.Machine
 	r.mu.Unlock()
 	m.Accounts = nil
 	for _, a := range p.Snapshot().AccountList() {
-		if a.Machine == "" || a.Machine == s.d.Machine {
+		if a.UsableOn(s.d.Machine) {
 			m.Accounts = append(m.Accounts, a.ID)
 		}
 	}
+	s.reconcileLogins(ctx)
 	s.emitEphemeral(p, domain.EvMachineUpdated, m.Name, "barnraise", domain.Payload{MachineI: &m, Note: "heartbeat"})
 	// Worktrees are local: every machine trims its own, lease or not.
 	if now.Sub(r.lastTrim[p.Name]) > time.Hour {

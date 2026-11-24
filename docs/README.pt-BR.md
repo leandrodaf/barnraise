@@ -68,6 +68,7 @@ barnraise status               # objetivo, foco, fila, agentes, contas e máquin
 | `barnraise pause` / `barnraise resume` | Botão de emergência para todos os agentes de um projeto (`--all`: todos os projetos do daemon) |
 | `barnraise standby on` / `off` | Chave da máquina: o daemon roda, mas não inicia nada nela; vale entre reinícios e pode ser ligada com o daemon parado |
 | `barnraise account add claude` | Põe outra conta de assinatura na rotação |
+| `barnraise account login claude --all` | Entra com uma conta em todas as máquinas conectadas ao mesmo tempo; o painel faz o mesmo em Contas |
 | `barnraise account add openrouter` | Põe uma conta por chave de API (OpenRouter, ou um provedor em `providers:`) para passos baratos e pesquisa; a chave vai para o chaveiro |
 | `barnraise account add <nome>` | Põe uma conta de qualquer agente que fale o Agent Client Protocol, declarado como `type: acp` em `providers:`; os pedidos de permissão, os arquivos e os terminais dele passam pela política do Barnraise |
 

@@ -474,3 +474,30 @@ type Symbol struct {
 	Line      int    `json:"line"`
 	Signature string `json:"signature"`
 }
+
+// LoginSpec is the login of a provider account in a folder of its own.
+type LoginSpec struct {
+	Provider string
+	Dir      string
+}
+
+// LoginProcess is a provider's login while it runs: what it prints, the
+// code it may wait for, and how it ends.
+type LoginProcess interface {
+	// Output delivers what the login prints, and closes when it ends.
+	Output() <-chan string
+	// Input hands the login a line (the code the page showed).
+	Input(line string) error
+	// Wait blocks until the login ends; nil when it signed in.
+	Wait() error
+	// Stop ends the login.
+	Stop()
+}
+
+// ProviderLogin runs the providers' own logins without a terminal, so the
+// owner can follow them from another machine.
+type ProviderLogin interface {
+	Start(ctx context.Context, spec LoginSpec) (LoginProcess, error)
+	// LoggedIn reports whether the folder holds a login that works.
+	LoggedIn(ctx context.Context, spec LoginSpec) (bool, error)
+}

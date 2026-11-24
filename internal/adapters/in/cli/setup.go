@@ -962,7 +962,7 @@ func (e *env) templateCmd() *cobra.Command {
 }
 
 func (e *env) accountCmd() *cobra.Command {
-	c := &cobra.Command{Use: "account", Short: "AI accounts: add, list, relogin"}
+	c := &cobra.Command{Use: "account", Short: "AI accounts: add, list, relogin, login on several machines"}
 	var id, plan, machine string
 	var ceiling float64
 	var skipLogin, headless, isolate bool
@@ -1153,7 +1153,7 @@ func (e *env) accountCmd() *cobra.Command {
 			return nil
 		}}
 	relogin.Flags().BoolVar(&headless, "headless", false, "use a long-lived token")
-	c.AddCommand(add, list, relogin)
+	c.AddCommand(add, list, relogin, e.accountLoginCmd())
 	return c
 }
 

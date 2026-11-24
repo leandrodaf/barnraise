@@ -5,6 +5,9 @@
 	import GaugeIcon from '@lucide/svelte/icons/gauge';
 	import TimerIcon from '@lucide/svelte/icons/timer-reset';
 	import ServerIcon from '@lucide/svelte/icons/server';
+	import LogInIcon from '@lucide/svelte/icons/log-in';
+	import { Button } from '$lib/components/ui/button';
+	import { loginPanel } from '$lib/app/login.svelte';
 	import { t } from '$lib/i18n';
 	import { ago, dur, num, pct } from '$lib/format';
 	import { session } from '$lib/session.svelte';
@@ -40,10 +43,16 @@
 			.filter((r) => r.w?.resetsIn)
 			.sort((a, b) => a.w!.resetsIn - b.w!.resetsIn)
 	);
+	// The providers whose login the daemon can run for the owner to follow.
+	const LOGIN = ['claude', 'codex'];
 	const count = (key: (a: Account) => string) => accounts.reduce((m, a) => ((m[key(a) || '—'] = (m[key(a) || '—'] || 0) + 1), m), {} as Record<string, number>);
 </script>
 
-<PageHeader title={t('accounts')} icon={KeyRoundIcon} meta={[session.scope || t('allProjects'), t('accountsN', accounts.length), limited.length ? t('limitedN', limited.length) : '']} subtitle={t('accountsHelp')} />
+<PageHeader title={t('accounts')} icon={KeyRoundIcon} meta={[session.scope || t('allProjects'), t('accountsN', accounts.length), limited.length ? t('limitedN', limited.length) : '']} subtitle={t('accountsHelp')}>
+	{#snippet actions()}
+		<Button size="sm" onclick={() => loginPanel.show()} title={t('loginHelp')}><LogInIcon />{t('loginEverywhere')}</Button>
+	{/snippet}
+</PageHeader>
 
 {#if !cluster.data}<Empty text={t('loading')} />{:else}
 	<div class="mb-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
@@ -58,7 +67,7 @@
 		{#if !accounts.length}<Section title={t('accounts')}><Empty text={t('noAccounts')} /></Section>{/if}
 		{#each accounts as a (a.id)}
 			{@const u = a.usage}
-			<Section title={a.id} sub={[a.provider, a.plan, a.machine].filter(Boolean).join(' · ')}>
+			<Section title={a.id} sub={[a.provider, a.plan, a.machine, ...a.machines].filter(Boolean).join(' · ')}>
 				{#snippet right()}{#if a.outlook?.limited}<StatusBadge status="limited" tone="fail" map="accountStatus" />{:else if a.status && a.status !== 'limited'}<StatusBadge status={a.status} tone={toneOf(a.status)} map="accountStatus" />{:else}<StatusBadge status="ok" tone="done" map="accountStatus" />{/if}{/snippet}
 				<div class="grid gap-5 sm:grid-cols-2 2xl:grid-cols-3 min-[1700px]:grid-cols-2 min-[2300px]:grid-cols-3">
 					<PaceMeter label={t('fiveHour')} w={a.outlook?.fiveHour} limited={a.outlook?.limited} />
@@ -66,11 +75,16 @@
 					{#if a.outlook?.weeklyTop}<PaceMeter label={t('weeklyTop')} w={a.outlook.weeklyTop} limited={a.outlook?.limited} />{/if}
 				</div>
 				<p class="num mt-4 flex flex-wrap gap-x-3 gap-y-1 border-t pt-3 text-[11px] text-muted-foreground">
-					<span class="flex items-center gap-1"><ServerIcon class="size-3" />{a.machine || '—'}</span>
+					<span class="flex items-center gap-1"><ServerIcon class="size-3" />{[a.machine, ...a.machines].filter(Boolean).join(', ') || t('anyMachine')}</span>
 					{#if a.projects.length}<span>{t('projects')}: {a.projects.join(', ')}</span>{/if}
 					{#if a.ceilingPct}<span>{t('ceilingLabel')} {num(a.ceilingPct)}%</span>{/if}
 					{#if u?.updatedAt}<span class="sm:ml-auto">{t('usageFrom', u.source || '', ago(u.updatedAt))}</span>{/if}
 				</p>
+				{#if LOGIN.includes(a.provider)}
+					<div class="mt-3 flex flex-wrap items-center gap-2">
+						<Button size="sm" variant={a.status === 'expired' ? 'default' : 'outline'} onclick={() => loginPanel.show(a.id, a.provider)}><LogInIcon />{a.status === 'expired' ? t('loginRenew') : t('loginMore')}</Button>
+					</div>
+				{/if}
 			</Section>
 		{/each}
 		</div>

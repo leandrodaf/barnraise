@@ -330,6 +330,10 @@ message Account {
   string added_at = 11;
   // The account seen from now; only in answers, never stored.
   AccountOutlook outlook = 12;
+  // Machines where the account was logged in from the panel or with
+  // `barnraise account login`, each with its own login under its data dir.
+  // With any name here, only these machines (and `machine`) use the account.
+  repeated string machines = 13;
 }
 
 message Machine {
@@ -834,6 +838,44 @@ message AccountResponse {
 
 message AccountsResponse {
   repeated Account accounts = 1;
+}
+
+// AccountLogin is the login of one account on one machine, as the owner
+// follows it: the provider's own login runs there, and shows where to sign in.
+message AccountLogin {
+  string machine = 1;
+  string account = 2;
+  string provider = 3;
+  // running, done, failed or cancelled.
+  string state = 4;
+  // Where the owner signs in.
+  string url = 5;
+  // The one-time code to type on that page, when the provider gives one.
+  string code = 6;
+  // The login waits for the code the page shows after signing in.
+  bool wants_code = 7;
+  // The last lines the provider's login printed.
+  repeated string lines = 8;
+  string error = 9;
+  string started_at = 10;
+  string ended_at = 11;
+}
+
+message AccountLoginRequest {
+  // The account (claude-1). Empty on start: a new account of the provider.
+  string account = 1;
+  // claude or codex. Needed on start for a new account.
+  string provider = 2;
+  // The machines to log in on; empty: this one. all: every connected machine.
+  repeated string machines = 3;
+  bool all = 4;
+  // AnswerAccountLogin: the code the page showed, for the one machine named.
+  string code = 5;
+}
+
+message AccountLoginResponse {
+  string account = 1;
+  repeated AccountLogin logins = 2;
 }
 
 message ReportUsageRequest {
@@ -1563,6 +1605,16 @@ service BarnraiseService {
   // Accounts and machines
   rpc UpsertAccount(AccountRequest) returns (AccountResponse);
   rpc ListAccounts(ProjectRef) returns (AccountsResponse);
+  // StartAccountLogin starts the provider's login of one account on the
+  // machines named, all at the same time. Each machine keeps its own login;
+  // no credential travels between machines.
+  rpc StartAccountLogin(AccountLoginRequest) returns (AccountLoginResponse);
+  // GetAccountLogin tells how the login goes on each machine.
+  rpc GetAccountLogin(AccountLoginRequest) returns (AccountLoginResponse);
+  // AnswerAccountLogin hands a machine's login the code its page showed.
+  rpc AnswerAccountLogin(AccountLoginRequest) returns (AccountLoginResponse);
+  // CancelAccountLogin stops the logins that still run.
+  rpc CancelAccountLogin(AccountLoginRequest) returns (AccountLoginResponse);
   rpc ReportUsage(ReportUsageRequest) returns (Empty);
   rpc ListMachines(ProjectRef) returns (MachinesResponse);
   // Recent readings of the machines (CPU, memory, temperature, GPU), kept in

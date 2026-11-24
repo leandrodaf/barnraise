@@ -718,6 +718,54 @@ Object.assign(pt, {
   partProjectConfig: 'Configuração do projeto',
 });
 
+Object.assign(en, {
+  decideForMe: 'Decide for me', decideForMeHelp: 'The advisor reads it, chooses the answer it recommends and applies it. What it chose and why stays in the conversation.',
+  delegated: 'The advisor decided: {0}', delegatedBadge: 'decided for you',
+  suggestTitle: 'Suggested answer', suggestAccept: 'Confirm this answer', suggestEdit: 'Edit', suggestAskMore: 'Ask more', suggestSend: 'Send this answer', suggestNote: 'What you say with the answer',
+  triageRun: 'Triage with the advisor', triageRunning: 'The advisor is reading the proposals', triageHelp: 'The advisor reads every open proposal and says what it would do with each. Nothing is applied until you confirm.',
+  triageSummary: 'The advisor recommends: approve {0}, reject {1}, leave {2} for later.', triageNothing: 'Nothing was applied yet.', triageApply: 'Apply the recommendations ({0})', triageDiscard: 'Discard',
+  triageApplied: '{0} proposals decided.', triageFailed: '{0} proposals decided, {1} failed: {2}', triageEmpty: 'The advisor gave no recommendation.', triageInclude: 'Apply this recommendation',
+  triageAdvisor: 'Advisor: {0}', triageReason: 'Recommended by the advisor, confirmed by the owner: {0}', triageFollow: 'Do as recommended',
+});
+
+Object.assign(pt, {
+  decideForMe: 'Decidir por mim', decideForMeHelp: 'O conselheiro lê, escolhe a resposta que recomenda e aplica. O que ele escolheu e por quê fica na conversa.',
+  delegated: 'O conselheiro decidiu: {0}', delegatedBadge: 'decidido por você',
+  suggestTitle: 'Resposta sugerida', suggestAccept: 'Confirmar esta resposta', suggestEdit: 'Editar', suggestAskMore: 'Perguntar mais', suggestSend: 'Enviar esta resposta', suggestNote: 'O que você diz junto com a resposta',
+  triageRun: 'Triar com o conselheiro', triageRunning: 'O conselheiro está lendo as propostas', triageHelp: 'O conselheiro lê todas as propostas abertas e diz o que faria com cada uma. Nada é aplicado até você confirmar.',
+  triageSummary: 'O conselheiro recomenda: aprovar {0}, recusar {1}, deixar {2} para depois.', triageNothing: 'Nada foi aplicado ainda.', triageApply: 'Aplicar as recomendações ({0})', triageDiscard: 'Descartar',
+  triageApplied: '{0} propostas decididas.', triageFailed: '{0} propostas decididas, {1} falharam: {2}', triageEmpty: 'O conselheiro não deu nenhuma recomendação.', triageInclude: 'Aplicar esta recomendação',
+  triageAdvisor: 'Conselheiro: {0}', triageReason: 'Recomendado pelo conselheiro, confirmado pelo dono: {0}', triageFollow: 'Seguir a recomendação',
+});
+
+Object.assign(en, {
+  loginEverywhere: 'Log in on every machine', loginMore: 'Log in on the machines', loginRenew: 'Log in again', anyMachine: 'any machine',
+  loginTitle: 'Log {0} in on the machines', loginNewTitle: 'A new account on the machines',
+  loginHelp: 'Every machine runs the login of the account at the same time and keeps its own. You sign in once for each machine, all from here; no credential travels between machines.',
+  loginProvider: 'Provider', loginProviderHelp: 'claude asks you to paste the code its page shows; codex gives a one-time code to type on its page.',
+  loginMachines: 'Machines', loginThisMachine: 'this machine', loginStart: 'Start on {0} machines', loginStarting: 'Starting the login on this machine…',
+  loginFollow: 'Sign in for each machine. They wait for you at the same time, in any order.', loginEnded: '{0} of {1} machines logged in.',
+  loginStepOpen: 'Open the sign-in page of this machine.', loginOpen: 'Open the page', loginCopyLink: 'Copy the link',
+  loginStepType: 'Type this one-time code on that page.', loginStepPaste: 'Paste here the code the page shows after you sign in.', loginCodePlaceholder: 'The code of the page',
+  loginDone: '{0} is logged in on this machine.', loginPrinted: 'What the login printed', loginCancel: 'Stop the ones still waiting', loginAgain: 'Start again',
+  loginFooter: 'Each machine keeps its own login, under its data folder.',
+  loginState: { running: 'Waiting for you', done: 'Logged in', failed: 'Failed', cancelled: 'Stopped' },
+});
+
+Object.assign(pt, {
+  loginEverywhere: 'Entrar em todas as máquinas', loginMore: 'Entrar nas máquinas', loginRenew: 'Entrar de novo', anyMachine: 'qualquer máquina',
+  loginTitle: 'Entrar com {0} nas máquinas', loginNewTitle: 'Uma conta nova nas máquinas',
+  loginHelp: 'Todas as máquinas abrem o login da conta ao mesmo tempo, e cada uma guarda o seu. Você entra uma vez por máquina, tudo daqui; nenhuma credencial passa de uma máquina para outra.',
+  loginProvider: 'Provedor', loginProviderHelp: 'O claude pede que você cole o código que a página mostra; o codex dá um código de uso único para digitar na página dele.',
+  loginMachines: 'Máquinas', loginThisMachine: 'esta máquina', loginStart: 'Começar em {0} máquinas', loginStarting: 'Abrindo o login nesta máquina…',
+  loginFollow: 'Entre para cada máquina. Elas esperam você ao mesmo tempo, em qualquer ordem.', loginEnded: '{0} de {1} máquinas com login feito.',
+  loginStepOpen: 'Abra a página de entrada desta máquina.', loginOpen: 'Abrir a página', loginCopyLink: 'Copiar o link',
+  loginStepType: 'Digite este código de uso único naquela página.', loginStepPaste: 'Cole aqui o código que a página mostra depois que você entra.', loginCodePlaceholder: 'O código da página',
+  loginDone: '{0} está com login feito nesta máquina.', loginPrinted: 'O que o login imprimiu', loginCancel: 'Parar os que ainda esperam', loginAgain: 'Começar de novo',
+  loginFooter: 'Cada máquina guarda o próprio login, na pasta de dados dela.',
+  loginState: { running: 'Esperando você', done: 'Login feito', failed: 'Falhou', cancelled: 'Parado' },
+});
+
 import { locale } from './locale.svelte';
 
 // The current language; t() and tm() read it, so the screen follows a switch.

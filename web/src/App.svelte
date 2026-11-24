@@ -21,6 +21,7 @@
 	import CommandPalette from '$lib/app/CommandPalette.svelte';
 	import ShortcutsDialog from '$lib/app/ShortcutsDialog.svelte';
 	import DiscussionSheet from '$lib/app/DiscussionSheet.svelte';
+	import LoginSheet from '$lib/app/LoginSheet.svelte';
 	import ScopeSelect from '$lib/app/ScopeSelect.svelte';
 	import VersionNotice from '$lib/app/VersionNotice.svelte';
 	import SignIn from './pages/SignIn.svelte';
@@ -116,6 +117,7 @@
 	<CommandPalette />
 	<ShortcutsDialog />
 	<DiscussionSheet />
+	<LoginSheet />
 {/if}
 
 <FormDialog />

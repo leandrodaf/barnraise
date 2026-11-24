@@ -199,6 +199,18 @@ const (
 	// BarnraiseServiceListAccountsProcedure is the fully-qualified name of the BarnraiseService's
 	// ListAccounts RPC.
 	BarnraiseServiceListAccountsProcedure = "/barnraise.v1.BarnraiseService/ListAccounts"
+	// BarnraiseServiceStartAccountLoginProcedure is the fully-qualified name of the BarnraiseService's
+	// StartAccountLogin RPC.
+	BarnraiseServiceStartAccountLoginProcedure = "/barnraise.v1.BarnraiseService/StartAccountLogin"
+	// BarnraiseServiceGetAccountLoginProcedure is the fully-qualified name of the BarnraiseService's
+	// GetAccountLogin RPC.
+	BarnraiseServiceGetAccountLoginProcedure = "/barnraise.v1.BarnraiseService/GetAccountLogin"
+	// BarnraiseServiceAnswerAccountLoginProcedure is the fully-qualified name of the BarnraiseService's
+	// AnswerAccountLogin RPC.
+	BarnraiseServiceAnswerAccountLoginProcedure = "/barnraise.v1.BarnraiseService/AnswerAccountLogin"
+	// BarnraiseServiceCancelAccountLoginProcedure is the fully-qualified name of the BarnraiseService's
+	// CancelAccountLogin RPC.
+	BarnraiseServiceCancelAccountLoginProcedure = "/barnraise.v1.BarnraiseService/CancelAccountLogin"
 	// BarnraiseServiceReportUsageProcedure is the fully-qualified name of the BarnraiseService's
 	// ReportUsage RPC.
 	BarnraiseServiceReportUsageProcedure = "/barnraise.v1.BarnraiseService/ReportUsage"
@@ -320,6 +332,16 @@ type BarnraiseServiceClient interface {
 	// Accounts and machines
 	UpsertAccount(context.Context, *connect.Request[v1.AccountRequest]) (*connect.Response[v1.AccountResponse], error)
 	ListAccounts(context.Context, *connect.Request[v1.ProjectRef]) (*connect.Response[v1.AccountsResponse], error)
+	// StartAccountLogin starts the provider's login of one account on the
+	// machines named, all at the same time. Each machine keeps its own login;
+	// no credential travels between machines.
+	StartAccountLogin(context.Context, *connect.Request[v1.AccountLoginRequest]) (*connect.Response[v1.AccountLoginResponse], error)
+	// GetAccountLogin tells how the login goes on each machine.
+	GetAccountLogin(context.Context, *connect.Request[v1.AccountLoginRequest]) (*connect.Response[v1.AccountLoginResponse], error)
+	// AnswerAccountLogin hands a machine's login the code its page showed.
+	AnswerAccountLogin(context.Context, *connect.Request[v1.AccountLoginRequest]) (*connect.Response[v1.AccountLoginResponse], error)
+	// CancelAccountLogin stops the logins that still run.
+	CancelAccountLogin(context.Context, *connect.Request[v1.AccountLoginRequest]) (*connect.Response[v1.AccountLoginResponse], error)
 	ReportUsage(context.Context, *connect.Request[v1.ReportUsageRequest]) (*connect.Response[v1.Empty], error)
 	ListMachines(context.Context, *connect.Request[v1.ProjectRef]) (*connect.Response[v1.MachinesResponse], error)
 	// Recent readings of the machines (CPU, memory, temperature, GPU), kept in
@@ -701,6 +723,30 @@ func NewBarnraiseServiceClient(httpClient connect.HTTPClient, baseURL string, op
 			connect.WithSchema(barnraiseServiceMethods.ByName("ListAccounts")),
 			connect.WithClientOptions(opts...),
 		),
+		startAccountLogin: connect.NewClient[v1.AccountLoginRequest, v1.AccountLoginResponse](
+			httpClient,
+			baseURL+BarnraiseServiceStartAccountLoginProcedure,
+			connect.WithSchema(barnraiseServiceMethods.ByName("StartAccountLogin")),
+			connect.WithClientOptions(opts...),
+		),
+		getAccountLogin: connect.NewClient[v1.AccountLoginRequest, v1.AccountLoginResponse](
+			httpClient,
+			baseURL+BarnraiseServiceGetAccountLoginProcedure,
+			connect.WithSchema(barnraiseServiceMethods.ByName("GetAccountLogin")),
+			connect.WithClientOptions(opts...),
+		),
+		answerAccountLogin: connect.NewClient[v1.AccountLoginRequest, v1.AccountLoginResponse](
+			httpClient,
+			baseURL+BarnraiseServiceAnswerAccountLoginProcedure,
+			connect.WithSchema(barnraiseServiceMethods.ByName("AnswerAccountLogin")),
+			connect.WithClientOptions(opts...),
+		),
+		cancelAccountLogin: connect.NewClient[v1.AccountLoginRequest, v1.AccountLoginResponse](
+			httpClient,
+			baseURL+BarnraiseServiceCancelAccountLoginProcedure,
+			connect.WithSchema(barnraiseServiceMethods.ByName("CancelAccountLogin")),
+			connect.WithClientOptions(opts...),
+		),
 		reportUsage: connect.NewClient[v1.ReportUsageRequest, v1.Empty](
 			httpClient,
 			baseURL+BarnraiseServiceReportUsageProcedure,
@@ -784,76 +830,80 @@ func NewBarnraiseServiceClient(httpClient connect.HTTPClient, baseURL string, op
 
 // barnraiseServiceClient implements BarnraiseServiceClient.
 type barnraiseServiceClient struct {
-	listProjects    *connect.Client[v1.Empty, v1.ProjectsResponse]
-	registerProject *connect.Client[v1.RegisterProjectRequest, v1.ProjectsResponse]
-	reloadProject   *connect.Client[v1.ProjectRef, v1.ProjectsResponse]
-	createItem      *connect.Client[v1.CreateItemRequest, v1.CreateItemResponse]
-	getItem         *connect.Client[v1.ItemRef, v1.ItemResponse]
-	listItems       *connect.Client[v1.ListItemsRequest, v1.ItemsResponse]
-	updateItem      *connect.Client[v1.UpdateItemRequest, v1.ItemResponse]
-	closeItem       *connect.Client[v1.CloseItemRequest, v1.ItemResponse]
-	nextItem        *connect.Client[v1.NextItemRequest, v1.Assignment]
-	deliver         *connect.Client[v1.DeliverRequest, v1.ItemResponse]
-	submitReview    *connect.Client[v1.ReviewRequest, v1.ItemResponse]
-	reportCheck     *connect.Client[v1.ReportCheckRequest, v1.ItemResponse]
-	timeline        *connect.Client[v1.ItemRef, v1.TimelineResponse]
-	estimate        *connect.Client[v1.ItemRef, v1.EstimateResponse]
-	takeover        *connect.Client[v1.ItemRef, v1.TakeoverResponse]
-	handback        *connect.Client[v1.HandbackRequest, v1.ItemResponse]
-	redo            *connect.Client[v1.RedoRequest, v1.ItemResponse]
-	propose         *connect.Client[v1.ProposeRequest, v1.ProposeResponse]
-	listProposals   *connect.Client[v1.ListProposalsRequest, v1.ListProposalsResponse]
-	decideProposal  *connect.Client[v1.DecideProposalRequest, v1.ProposalResponse]
-	addTweak        *connect.Client[v1.AddTweakRequest, v1.AddTweakResponse]
-	askOwner        *connect.Client[v1.AskOwnerRequest, v1.QuestionResponse]
-	listQuestions   *connect.Client[v1.ProjectRef, v1.QuestionsResponse]
-	answer          *connect.Client[v1.AnswerRequest, v1.QuestionResponse]
-	approve         *connect.Client[v1.ApproveRequest, v1.Empty]
-	discuss         *connect.Client[v1.DiscussRequest, v1.DiscussionResponse]
-	listParts       *connect.Client[v1.ProjectRef, v1.PartsResponse]
-	getDiscussion   *connect.Client[v1.DiscussionRef, v1.DiscussionResponse]
-	delegate        *connect.Client[v1.DiscussionRef, v1.DiscussionResponse]
-	triageProposals *connect.Client[v1.ProjectRef, v1.ProposalTriageResponse]
-	setGoal         *connect.Client[v1.SetGoalRequest, v1.SetGoalResponse]
-	setFocus        *connect.Client[v1.FocusRequest, v1.FocusResponse]
-	clearFocus      *connect.Client[v1.ProjectRef, v1.Empty]
-	pause           *connect.Client[v1.PauseRequest, v1.Empty]
-	resume          *connect.Client[v1.ProjectRef, v1.Empty]
-	status          *connect.Client[v1.ProjectRef, v1.StatusResponse]
-	overview        *connect.Client[v1.OverviewRequest, v1.OverviewResponse]
-	metrics         *connect.Client[v1.MetricsRequest, v1.MetricsResponse]
-	digest          *connect.Client[v1.ProjectRef, v1.DigestResponse]
-	queue           *connect.Client[v1.ProjectRef, v1.QueueResponse]
-	processQueue    *connect.Client[v1.ProjectRef, v1.QueueResponse]
-	listEvents      *connect.Client[v1.EventsRequest, v1.EventsResponse]
-	sendMessage     *connect.Client[v1.SendMessageRequest, v1.MessageResponse]
-	inbox           *connect.Client[v1.InboxRequest, v1.InboxResponse]
-	journal         *connect.Client[v1.JournalRequest, v1.Empty]
-	reportViolation *connect.Client[v1.PolicyViolationRequest, v1.Empty]
-	context         *connect.Client[v1.ContextRequest, v1.ContextResponse]
-	find            *connect.Client[v1.FindRequest, v1.FindResponse]
-	get             *connect.Client[v1.KnowledgeRequest, v1.KnowledgeResponse]
-	related         *connect.Client[v1.KnowledgeRequest, v1.KnowledgeResponse]
-	why             *connect.Client[v1.KnowledgeRequest, v1.KnowledgeResponse]
-	history         *connect.Client[v1.KnowledgeRequest, v1.KnowledgeResponse]
-	rules           *connect.Client[v1.KnowledgeRequest, v1.KnowledgeResponse]
-	revalidate      *connect.Client[v1.RevalidateRequest, v1.RevalidateResponse]
-	sweep           *connect.Client[v1.ProjectRef, v1.RevalidateResponse]
-	upsertAccount   *connect.Client[v1.AccountRequest, v1.AccountResponse]
-	listAccounts    *connect.Client[v1.ProjectRef, v1.AccountsResponse]
-	reportUsage     *connect.Client[v1.ReportUsageRequest, v1.Empty]
-	listMachines    *connect.Client[v1.ProjectRef, v1.MachinesResponse]
-	machineHistory  *connect.Client[v1.MachineHistoryRequest, v1.MachineHistoryResponse]
-	leaveMachine    *connect.Client[v1.ProjectRef, v1.LeaveResponse]
-	listPeers       *connect.Client[v1.Empty, v1.PeersResponse]
-	stopPeers       *connect.Client[v1.StopPeersRequest, v1.StopPeersResponse]
-	setStandby      *connect.Client[v1.StandbyRequest, v1.StandbyResponse]
-	capabilities    *connect.Client[v1.CapabilitiesRequest, v1.CapabilitiesResponse]
-	installTools    *connect.Client[v1.InstallToolsRequest, v1.InstallToolsResponse]
-	createToken     *connect.Client[v1.CreateTokenRequest, v1.CreateTokenResponse]
-	listTokens      *connect.Client[v1.Empty, v1.TokensResponse]
-	revokeToken     *connect.Client[v1.RevokeTokenRequest, v1.Empty]
-	listAudit       *connect.Client[v1.AuditRequest, v1.AuditResponse]
+	listProjects       *connect.Client[v1.Empty, v1.ProjectsResponse]
+	registerProject    *connect.Client[v1.RegisterProjectRequest, v1.ProjectsResponse]
+	reloadProject      *connect.Client[v1.ProjectRef, v1.ProjectsResponse]
+	createItem         *connect.Client[v1.CreateItemRequest, v1.CreateItemResponse]
+	getItem            *connect.Client[v1.ItemRef, v1.ItemResponse]
+	listItems          *connect.Client[v1.ListItemsRequest, v1.ItemsResponse]
+	updateItem         *connect.Client[v1.UpdateItemRequest, v1.ItemResponse]
+	closeItem          *connect.Client[v1.CloseItemRequest, v1.ItemResponse]
+	nextItem           *connect.Client[v1.NextItemRequest, v1.Assignment]
+	deliver            *connect.Client[v1.DeliverRequest, v1.ItemResponse]
+	submitReview       *connect.Client[v1.ReviewRequest, v1.ItemResponse]
+	reportCheck        *connect.Client[v1.ReportCheckRequest, v1.ItemResponse]
+	timeline           *connect.Client[v1.ItemRef, v1.TimelineResponse]
+	estimate           *connect.Client[v1.ItemRef, v1.EstimateResponse]
+	takeover           *connect.Client[v1.ItemRef, v1.TakeoverResponse]
+	handback           *connect.Client[v1.HandbackRequest, v1.ItemResponse]
+	redo               *connect.Client[v1.RedoRequest, v1.ItemResponse]
+	propose            *connect.Client[v1.ProposeRequest, v1.ProposeResponse]
+	listProposals      *connect.Client[v1.ListProposalsRequest, v1.ListProposalsResponse]
+	decideProposal     *connect.Client[v1.DecideProposalRequest, v1.ProposalResponse]
+	addTweak           *connect.Client[v1.AddTweakRequest, v1.AddTweakResponse]
+	askOwner           *connect.Client[v1.AskOwnerRequest, v1.QuestionResponse]
+	listQuestions      *connect.Client[v1.ProjectRef, v1.QuestionsResponse]
+	answer             *connect.Client[v1.AnswerRequest, v1.QuestionResponse]
+	approve            *connect.Client[v1.ApproveRequest, v1.Empty]
+	discuss            *connect.Client[v1.DiscussRequest, v1.DiscussionResponse]
+	listParts          *connect.Client[v1.ProjectRef, v1.PartsResponse]
+	getDiscussion      *connect.Client[v1.DiscussionRef, v1.DiscussionResponse]
+	delegate           *connect.Client[v1.DiscussionRef, v1.DiscussionResponse]
+	triageProposals    *connect.Client[v1.ProjectRef, v1.ProposalTriageResponse]
+	setGoal            *connect.Client[v1.SetGoalRequest, v1.SetGoalResponse]
+	setFocus           *connect.Client[v1.FocusRequest, v1.FocusResponse]
+	clearFocus         *connect.Client[v1.ProjectRef, v1.Empty]
+	pause              *connect.Client[v1.PauseRequest, v1.Empty]
+	resume             *connect.Client[v1.ProjectRef, v1.Empty]
+	status             *connect.Client[v1.ProjectRef, v1.StatusResponse]
+	overview           *connect.Client[v1.OverviewRequest, v1.OverviewResponse]
+	metrics            *connect.Client[v1.MetricsRequest, v1.MetricsResponse]
+	digest             *connect.Client[v1.ProjectRef, v1.DigestResponse]
+	queue              *connect.Client[v1.ProjectRef, v1.QueueResponse]
+	processQueue       *connect.Client[v1.ProjectRef, v1.QueueResponse]
+	listEvents         *connect.Client[v1.EventsRequest, v1.EventsResponse]
+	sendMessage        *connect.Client[v1.SendMessageRequest, v1.MessageResponse]
+	inbox              *connect.Client[v1.InboxRequest, v1.InboxResponse]
+	journal            *connect.Client[v1.JournalRequest, v1.Empty]
+	reportViolation    *connect.Client[v1.PolicyViolationRequest, v1.Empty]
+	context            *connect.Client[v1.ContextRequest, v1.ContextResponse]
+	find               *connect.Client[v1.FindRequest, v1.FindResponse]
+	get                *connect.Client[v1.KnowledgeRequest, v1.KnowledgeResponse]
+	related            *connect.Client[v1.KnowledgeRequest, v1.KnowledgeResponse]
+	why                *connect.Client[v1.KnowledgeRequest, v1.KnowledgeResponse]
+	history            *connect.Client[v1.KnowledgeRequest, v1.KnowledgeResponse]
+	rules              *connect.Client[v1.KnowledgeRequest, v1.KnowledgeResponse]
+	revalidate         *connect.Client[v1.RevalidateRequest, v1.RevalidateResponse]
+	sweep              *connect.Client[v1.ProjectRef, v1.RevalidateResponse]
+	upsertAccount      *connect.Client[v1.AccountRequest, v1.AccountResponse]
+	listAccounts       *connect.Client[v1.ProjectRef, v1.AccountsResponse]
+	startAccountLogin  *connect.Client[v1.AccountLoginRequest, v1.AccountLoginResponse]
+	getAccountLogin    *connect.Client[v1.AccountLoginRequest, v1.AccountLoginResponse]
+	answerAccountLogin *connect.Client[v1.AccountLoginRequest, v1.AccountLoginResponse]
+	cancelAccountLogin *connect.Client[v1.AccountLoginRequest, v1.AccountLoginResponse]
+	reportUsage        *connect.Client[v1.ReportUsageRequest, v1.Empty]
+	listMachines       *connect.Client[v1.ProjectRef, v1.MachinesResponse]
+	machineHistory     *connect.Client[v1.MachineHistoryRequest, v1.MachineHistoryResponse]
+	leaveMachine       *connect.Client[v1.ProjectRef, v1.LeaveResponse]
+	listPeers          *connect.Client[v1.Empty, v1.PeersResponse]
+	stopPeers          *connect.Client[v1.StopPeersRequest, v1.StopPeersResponse]
+	setStandby         *connect.Client[v1.StandbyRequest, v1.StandbyResponse]
+	capabilities       *connect.Client[v1.CapabilitiesRequest, v1.CapabilitiesResponse]
+	installTools       *connect.Client[v1.InstallToolsRequest, v1.InstallToolsResponse]
+	createToken        *connect.Client[v1.CreateTokenRequest, v1.CreateTokenResponse]
+	listTokens         *connect.Client[v1.Empty, v1.TokensResponse]
+	revokeToken        *connect.Client[v1.RevokeTokenRequest, v1.Empty]
+	listAudit          *connect.Client[v1.AuditRequest, v1.AuditResponse]
 }
 
 // ListProjects calls barnraise.v1.BarnraiseService.ListProjects.
@@ -1141,6 +1191,26 @@ func (c *barnraiseServiceClient) ListAccounts(ctx context.Context, req *connect.
 	return c.listAccounts.CallUnary(ctx, req)
 }
 
+// StartAccountLogin calls barnraise.v1.BarnraiseService.StartAccountLogin.
+func (c *barnraiseServiceClient) StartAccountLogin(ctx context.Context, req *connect.Request[v1.AccountLoginRequest]) (*connect.Response[v1.AccountLoginResponse], error) {
+	return c.startAccountLogin.CallUnary(ctx, req)
+}
+
+// GetAccountLogin calls barnraise.v1.BarnraiseService.GetAccountLogin.
+func (c *barnraiseServiceClient) GetAccountLogin(ctx context.Context, req *connect.Request[v1.AccountLoginRequest]) (*connect.Response[v1.AccountLoginResponse], error) {
+	return c.getAccountLogin.CallUnary(ctx, req)
+}
+
+// AnswerAccountLogin calls barnraise.v1.BarnraiseService.AnswerAccountLogin.
+func (c *barnraiseServiceClient) AnswerAccountLogin(ctx context.Context, req *connect.Request[v1.AccountLoginRequest]) (*connect.Response[v1.AccountLoginResponse], error) {
+	return c.answerAccountLogin.CallUnary(ctx, req)
+}
+
+// CancelAccountLogin calls barnraise.v1.BarnraiseService.CancelAccountLogin.
+func (c *barnraiseServiceClient) CancelAccountLogin(ctx context.Context, req *connect.Request[v1.AccountLoginRequest]) (*connect.Response[v1.AccountLoginResponse], error) {
+	return c.cancelAccountLogin.CallUnary(ctx, req)
+}
+
 // ReportUsage calls barnraise.v1.BarnraiseService.ReportUsage.
 func (c *barnraiseServiceClient) ReportUsage(ctx context.Context, req *connect.Request[v1.ReportUsageRequest]) (*connect.Response[v1.Empty], error) {
 	return c.reportUsage.CallUnary(ctx, req)
@@ -1286,6 +1356,16 @@ type BarnraiseServiceHandler interface {
 	// Accounts and machines
 	UpsertAccount(context.Context, *connect.Request[v1.AccountRequest]) (*connect.Response[v1.AccountResponse], error)
 	ListAccounts(context.Context, *connect.Request[v1.ProjectRef]) (*connect.Response[v1.AccountsResponse], error)
+	// StartAccountLogin starts the provider's login of one account on the
+	// machines named, all at the same time. Each machine keeps its own login;
+	// no credential travels between machines.
+	StartAccountLogin(context.Context, *connect.Request[v1.AccountLoginRequest]) (*connect.Response[v1.AccountLoginResponse], error)
+	// GetAccountLogin tells how the login goes on each machine.
+	GetAccountLogin(context.Context, *connect.Request[v1.AccountLoginRequest]) (*connect.Response[v1.AccountLoginResponse], error)
+	// AnswerAccountLogin hands a machine's login the code its page showed.
+	AnswerAccountLogin(context.Context, *connect.Request[v1.AccountLoginRequest]) (*connect.Response[v1.AccountLoginResponse], error)
+	// CancelAccountLogin stops the logins that still run.
+	CancelAccountLogin(context.Context, *connect.Request[v1.AccountLoginRequest]) (*connect.Response[v1.AccountLoginResponse], error)
 	ReportUsage(context.Context, *connect.Request[v1.ReportUsageRequest]) (*connect.Response[v1.Empty], error)
 	ListMachines(context.Context, *connect.Request[v1.ProjectRef]) (*connect.Response[v1.MachinesResponse], error)
 	// Recent readings of the machines (CPU, memory, temperature, GPU), kept in
@@ -1663,6 +1743,30 @@ func NewBarnraiseServiceHandler(svc BarnraiseServiceHandler, opts ...connect.Han
 		connect.WithSchema(barnraiseServiceMethods.ByName("ListAccounts")),
 		connect.WithHandlerOptions(opts...),
 	)
+	barnraiseServiceStartAccountLoginHandler := connect.NewUnaryHandler(
+		BarnraiseServiceStartAccountLoginProcedure,
+		svc.StartAccountLogin,
+		connect.WithSchema(barnraiseServiceMethods.ByName("StartAccountLogin")),
+		connect.WithHandlerOptions(opts...),
+	)
+	barnraiseServiceGetAccountLoginHandler := connect.NewUnaryHandler(
+		BarnraiseServiceGetAccountLoginProcedure,
+		svc.GetAccountLogin,
+		connect.WithSchema(barnraiseServiceMethods.ByName("GetAccountLogin")),
+		connect.WithHandlerOptions(opts...),
+	)
+	barnraiseServiceAnswerAccountLoginHandler := connect.NewUnaryHandler(
+		BarnraiseServiceAnswerAccountLoginProcedure,
+		svc.AnswerAccountLogin,
+		connect.WithSchema(barnraiseServiceMethods.ByName("AnswerAccountLogin")),
+		connect.WithHandlerOptions(opts...),
+	)
+	barnraiseServiceCancelAccountLoginHandler := connect.NewUnaryHandler(
+		BarnraiseServiceCancelAccountLoginProcedure,
+		svc.CancelAccountLogin,
+		connect.WithSchema(barnraiseServiceMethods.ByName("CancelAccountLogin")),
+		connect.WithHandlerOptions(opts...),
+	)
 	barnraiseServiceReportUsageHandler := connect.NewUnaryHandler(
 		BarnraiseServiceReportUsageProcedure,
 		svc.ReportUsage,
@@ -1857,6 +1961,14 @@ func NewBarnraiseServiceHandler(svc BarnraiseServiceHandler, opts ...connect.Han
 			barnraiseServiceUpsertAccountHandler.ServeHTTP(w, r)
 		case BarnraiseServiceListAccountsProcedure:
 			barnraiseServiceListAccountsHandler.ServeHTTP(w, r)
+		case BarnraiseServiceStartAccountLoginProcedure:
+			barnraiseServiceStartAccountLoginHandler.ServeHTTP(w, r)
+		case BarnraiseServiceGetAccountLoginProcedure:
+			barnraiseServiceGetAccountLoginHandler.ServeHTTP(w, r)
+		case BarnraiseServiceAnswerAccountLoginProcedure:
+			barnraiseServiceAnswerAccountLoginHandler.ServeHTTP(w, r)
+		case BarnraiseServiceCancelAccountLoginProcedure:
+			barnraiseServiceCancelAccountLoginHandler.ServeHTTP(w, r)
 		case BarnraiseServiceReportUsageProcedure:
 			barnraiseServiceReportUsageHandler.ServeHTTP(w, r)
 		case BarnraiseServiceListMachinesProcedure:
@@ -2118,6 +2230,22 @@ func (UnimplementedBarnraiseServiceHandler) UpsertAccount(context.Context, *conn
 
 func (UnimplementedBarnraiseServiceHandler) ListAccounts(context.Context, *connect.Request[v1.ProjectRef]) (*connect.Response[v1.AccountsResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("barnraise.v1.BarnraiseService.ListAccounts is not implemented"))
+}
+
+func (UnimplementedBarnraiseServiceHandler) StartAccountLogin(context.Context, *connect.Request[v1.AccountLoginRequest]) (*connect.Response[v1.AccountLoginResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("barnraise.v1.BarnraiseService.StartAccountLogin is not implemented"))
+}
+
+func (UnimplementedBarnraiseServiceHandler) GetAccountLogin(context.Context, *connect.Request[v1.AccountLoginRequest]) (*connect.Response[v1.AccountLoginResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("barnraise.v1.BarnraiseService.GetAccountLogin is not implemented"))
+}
+
+func (UnimplementedBarnraiseServiceHandler) AnswerAccountLogin(context.Context, *connect.Request[v1.AccountLoginRequest]) (*connect.Response[v1.AccountLoginResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("barnraise.v1.BarnraiseService.AnswerAccountLogin is not implemented"))
+}
+
+func (UnimplementedBarnraiseServiceHandler) CancelAccountLogin(context.Context, *connect.Request[v1.AccountLoginRequest]) (*connect.Response[v1.AccountLoginResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("barnraise.v1.BarnraiseService.CancelAccountLogin is not implemented"))
 }
 
 func (UnimplementedBarnraiseServiceHandler) ReportUsage(context.Context, *connect.Request[v1.ReportUsageRequest]) (*connect.Response[v1.Empty], error) {

@@ -73,6 +73,9 @@ type Deps struct {
 	// the optional tools (ADR-0046); optional.
 	Prober    ports.CapabilityProber
 	Installer ports.ToolInstaller
+	// Login runs the providers' own logins for the owner to follow from the
+	// panel; optional.
+	Login ports.ProviderLogin
 }
 
 // ProjectPorts are per-project adapters.
@@ -125,6 +128,8 @@ type Service struct {
 	stale staleState
 	// caps is the last capability report of this machine (capabilities.go).
 	caps capState
+	// logins are the provider logins that run on this machine (login.go).
+	logins loginRegistry
 }
 
 // New creates the service.
