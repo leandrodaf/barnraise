@@ -52,6 +52,7 @@ func DefaultPolicy() Policy {
 			".github/workflows/**", ".gitlab-ci.yml", ".barnraise/**", "**/barnraise.yaml",
 			"**/*.keystore", "**/*.jks", "**/.env", "**/.env.*", ".git/**", "**/.git/hooks/**",
 			"criteria.json", ".claude/settings*.json", ".codex/**", ".gemini/**",
+			".barnraise-session/*.json", // the session's policy, MCP and settings files (ADR-0030)
 		},
 		LockExisting: []string{
 			"**/*_test.go", "**/test/**", "**/tests/**", "**/__tests__/**", "**/*.test.*", "**/*.spec.*",
@@ -75,7 +76,7 @@ func DefaultPolicy() Policy {
 			`\bsudo\b`,
 			`\bchmod\b.*\s/home/`,
 			`--dangerously-skip-permissions`,
-			`\bbarnraise\s+(approve|focus|pause|resume|policy|token|account|machine|daemon|takeover|handback|merge|queue\s+run)\b`,
+			`\bbarnraise\s+(approve|focus|pause|resume|policy|token|account|machine|daemon|takeover|handback|merge|trust|queue\s+run)\b`,
 			`\bnc\b.*\s-e\s`,
 			`\bcrontab\b`,
 			`\bsystemctl\b`,

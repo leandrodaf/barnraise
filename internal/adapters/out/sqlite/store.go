@@ -141,6 +141,10 @@ func (s *Store) Append(ctx context.Context, events ...domain.Event) ([]domain.Ev
 			return err
 		}
 		defer st.Close()
+		prev, err := chainTip(ctx, tx)
+		if err != nil {
+			return err
+		}
 		for _, e := range events {
 			var id any
 			if e.ID != "" {
@@ -155,6 +159,9 @@ func (s *Store) Append(ctx context.Context, events ...domain.Event) ([]domain.Ev
 				return fmt.Errorf("append %s: %w", e.ID, err)
 			}
 			e.Seq = seq
+			if prev, err = chainLink(ctx, tx, prev, e); err != nil {
+				return fmt.Errorf("append %s: %w", e.ID, err)
+			}
 			out = append(out, e)
 		}
 		return nil

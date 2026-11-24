@@ -34,3 +34,5 @@ One short record per decision: context, decision, consequences. A decision that 
 | [ADR-0036](0036-output-filters-and-recoverable-compression.md) | Output filters, recoverable compression and short answers |
 | [ADR-0042](0042-stale-read-warning.md) | Warn an agent when main changes what it read |
 | [ADR-0043](0043-lessons-from-rework.md) | Lessons from rework |
+| [ADR-0029](0029-bound-session-tokens-and-chained-event-log.md) | Session tokens bound to their session, and a hash-chained event log |
+| [ADR-0030](0030-provenance-of-hooks-and-instruction-files.md) | Provenance of hooks and instruction files |

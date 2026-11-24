@@ -641,5 +641,6 @@ func (e *env) eventsCmd() *cobra.Command {
 	c.Flags().StringVar(&types, "types", "", "comma-separated types or prefixes (item.*)")
 	c.Flags().BoolVarP(&follow, "follow", "f", false, "follow live")
 	c.Flags().Int64Var(&after, "after", 0, "after this sequence number")
+	c.AddCommand(e.eventsVerifyCmd())
 	return c
 }

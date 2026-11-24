@@ -429,6 +429,8 @@ policy:
   deny_write: ["**/release.keystore", "**/google-services.json", "fastlane/**"]
 ```
 
+The trust checks before each session ([security.md](security.md#16-provenance-of-what-steers-an-agent)) and the hash chain of the event log have no keys: they are always on. `policy:` itself is part of `barnraise.yaml`, so a change to it outside `barnraise reload` / `barnraise trust` refuses sessions until the owner re-trusts it.
+
 ## areas
 
 An area maps to folders, screens, contracts and a standard. Areas can also live in `.barnraise/areas.yaml` (same shape, without the `areas:` key); `barnraise.yaml` wins for an area defined in both.

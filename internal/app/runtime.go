@@ -456,6 +456,9 @@ func (r *Runtime) start(ctx context.Context, p *Project, slot Slot, a *Assignmen
 	if err != nil {
 		return err
 	}
+	if err := s.checkProvenance(ctx, p, a.Item.ID, dir); err != nil {
+		return err
+	}
 	p.mu.Lock()
 	it := p.state.Items[a.Item.ID].Clone()
 	accounts := p.state.AccountList()
@@ -534,8 +537,9 @@ func (r *Runtime) start(ctx context.Context, p *Project, slot Slot, a *Assignmen
 	}
 	family := p.Cfg().Models.Family(choice.Provider)
 	actor := Actor{Kind: ActorAgent, Name: slot.Agent, Role: role, Project: p.Name, ItemID: it.ID, Step: a.Step.Name, Account: acc.ID,
-		Scopes: RoleScopes(role, a.Step.Review || a.Step.Type == domain.StepApproval), Family: family, Model: choice.Model, Attempt: attempt}
-	token := s.tokens.Issue(actor, r.SessionTimeout+time.Hour)
+		Scopes: RoleScopes(role, a.Step.Review || a.Step.Type == domain.StepApproval), Family: family, Model: choice.Model, Attempt: attempt,
+		Session: NewSecret("ses_")[:20]}
+	token := s.tokens.Issue(actor, r.SessionTimeout+sessionTokenGrace)
 	prompt, err := s.BuildStepPrompt(ctx, p, it, a.Step, role, slot.Agent)
 	if err != nil {
 		s.tokens.Revoke(token)
@@ -579,6 +583,13 @@ func (r *Runtime) start(ctx context.Context, p *Project, slot Slot, a *Assignmen
 		s.tokens.Revoke(token)
 		return err
 	}
+	policyPath := filepath.Join(sessDir, "policy.json")
+	seal, err := sealFiles(mcpPath, settingsPath, policyPath)
+	if err != nil {
+		s.tokens.Revoke(token)
+		return err
+	}
+	env[domain.PolicyHashEnv] = seal[policyPath]
 	sctx, cancel := context.WithTimeout(context.Background(), r.SessionTimeout)
 	spec := ports.SessionSpec{Agent: slot.Agent, Role: role, Account: *acc, Model: choice.Model, Effort: choice.Effort, Workdir: dir,
 		Prompt: prompt.Prompt, SystemPrompt: prompt.System, Env: env, MCPConfig: mcpPath, SettingsFile: settingsPath,
@@ -601,6 +612,11 @@ func (r *Runtime) start(ctx context.Context, p *Project, slot Slot, a *Assignmen
 		// Last, after every file of the session is written: the key lives
 		// only in the CLI's environment.
 		env[ports.EndpointKeyEnv] = apiKey
+	}
+	if err := verifySeal(seal); err != nil {
+		cancel()
+		s.tokens.Revoke(token)
+		return err
 	}
 	sess, err := prov.Open(sctx, spec)
 	if err != nil {
@@ -855,7 +871,7 @@ func (r *Runtime) writeSessionFiles(p *Project, sessDir, worktree string, env ma
 			"Stop":             hook("stop"),
 		},
 		"statusLine":  map[string]any{"type": "command", "command": bin + " statusline"},
-		"permissions": map[string]any{"defaultMode": "bypassPermissions", "deny": []string{"Read(~/.ssh/**)", "Read(~/.config/gh/**)", "Read(~/.aws/**)", "Edit(.github/workflows/**)", "Edit(.barnraise/**)", "Edit(barnraise.yaml)", "Edit(criteria.json)"}},
+		"permissions": map[string]any{"defaultMode": "bypassPermissions", "deny": []string{"Read(~/.ssh/**)", "Read(~/.config/gh/**)", "Read(~/.aws/**)", "Edit(.github/workflows/**)", "Edit(.barnraise/**)", "Edit(barnraise.yaml)", "Edit(criteria.json)", "Edit(.barnraise-session/*.json)"}},
 		"env":         map[string]string{"DISABLE_AUTOUPDATER": "1"},
 	}
 	// Inside a container the container is the sandbox (bubblewrap cannot nest there).

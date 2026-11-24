@@ -8,6 +8,8 @@ Barnraise is API first. Everything the CLI, the MCP server, the hooks and the pa
 | OpenAPI document, generated from the proto | `GET /v1/openapi.yaml` |
 | Live events (CloudEvents over Server-Sent Events) | `GET /v1/events` |
 | Inbound webhooks | `POST /v1/webhooks/github`, `POST /v1/webhooks/gitlab`, `POST /v1/webhooks/inbound/{project}` |
+| Event chain check (`admin`) | `GET /v1/events/verify[?from=N]`: the report of `barnraise events verify` |
+| Trust of the files that steer agents (`admin`, never a session token) | `GET /v1/trust?project=&item=` (status), `POST /v1/trust?project=&item=` (re-trust, as `barnraise trust`) |
 | Health (no token) | `GET /healthz` |
 | Web panel | `GET /` |
 
@@ -27,7 +29,7 @@ Every RPC and `/v1/events` need `Authorization: Bearer <token>`. There are three
 | Token | Prefix | Who | Scopes |
 | --- | --- | --- | --- |
 | Owner token | `bro_` | The owner; created on the first `barnraise daemon` in `~/.config/barnraise/owner.token` (0600). Agents cannot read it: the hook denies `~/.config/barnraise/**` | everything (`*`) |
-| Agent session token | `brs_` | One per agent session, in memory, revoked when the session ends | by role (below) |
+| Agent session token | `brs_` | One per agent session, in memory, revoked when the session ends and expiring 5 minutes after the session's timeout. Bound to its session: only the procedures a session may call, only its project, and for item writes only its item; anything else is refused and recorded as `security.token.denied` ([ADR-0029](adr/0029-bound-session-tokens-and-chained-event-log.md)) | by role (below) |
 | API token | `brt_` | Created with `barnraise token create`; shown once, stored hashed | the scopes you give, optionally for one project, with a lifetime |
 
 Each token is rate limited (50 requests per second, bursts of 100); over the limit the API answers `429` with `Retry-After: 1`. Every write is in the audit log (`barnraise audit`, RPC `ListAudit`).

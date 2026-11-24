@@ -220,7 +220,7 @@ Inside the data dir:
 | `accounts/<id>/` | Provider config dirs of each account |
 | `daemon.log`, `daemon.pid` | Log and pid of a background daemon |
 
-Environment variables used by the CLI and the hooks: `BARNRAISE_URL`, `BARNRAISE_SOCKET`, `BARNRAISE_TOKEN`, `BARNRAISE_PROJECT`; inside agent sessions also `BARNRAISE_ITEM`, `BARNRAISE_STEP`, `BARNRAISE_ROLE`, `BARNRAISE_AGENT`, `BARNRAISE_POLICY`, and for the output filter `BARNRAISE_OUTFILTER_DELEGATE`, `BARNRAISE_OUTPUT_KEEP`, `BARNRAISE_OUTPUT_KEEP_BYTES` and `BARNRAISE_RUN` (the session's run id, which ties kept outputs to the step's token usage). `BARNRAISE_NO_TAILSCALE=1` turns Tailscale off (installed or embedded); `BARNRAISE_TS_AUTHKEY` is the embedded Tailscale's auth key; `BARNRAISE_NO_SELF_UPDATE=1` turns off the cluster self-update; `BARNRAISE_EGRESS` is the default of `daemon --egress`.
+Environment variables used by the CLI and the hooks: `BARNRAISE_URL`, `BARNRAISE_SOCKET`, `BARNRAISE_TOKEN`, `BARNRAISE_PROJECT`; inside agent sessions also `BARNRAISE_ITEM`, `BARNRAISE_STEP`, `BARNRAISE_ROLE`, `BARNRAISE_AGENT`, `BARNRAISE_POLICY`, `BARNRAISE_POLICY_SHA256` (the hash the hook checks the policy file against), and for the output filter `BARNRAISE_OUTFILTER_DELEGATE`, `BARNRAISE_OUTPUT_KEEP`, `BARNRAISE_OUTPUT_KEEP_BYTES` and `BARNRAISE_RUN` (the session's run id, which ties kept outputs to the step's token usage). `BARNRAISE_NO_TAILSCALE=1` turns Tailscale off (installed or embedded); `BARNRAISE_TS_AUTHKEY` is the embedded Tailscale's auth key; `BARNRAISE_NO_SELF_UPDATE=1` turns off the cluster self-update; `BARNRAISE_EGRESS` is the default of `daemon --egress`.
 
 ## Backups
 
@@ -249,13 +249,24 @@ A directory with a session running in it is never touched, and neither is a dire
 
 **Shared stores** (`worktree.stores`) live in `stores/<project>/<name>/`. They are caches: stop the daemon and delete one to start it over.
 
-Restore: stop the daemon, put the files back with the same owner and modes (0700 directories, 0600 files), start it again.
+Restore: stop the daemon, put the files back with the same owner and modes (0700 directories, 0600 files), start it again. A restored copy keeps its hash chain: run `barnraise events verify --offline --db <file>` on it before you start the daemon.
 
 ## Upgrades
 
-- **Barnraise itself.** Install the new release over the old binary (`install.sh` or your package) and restart: `systemctl --user restart barnraise`, or `barnraise down && barnraise up`. Running steps are saved and continue from their last step. In a cluster, a daemon that sees a peer on the same platform running a newer version fetches that binary by hash from the peer, verifies it, replaces its own executable and restarts, only while no agent session is running; set `BARNRAISE_NO_SELF_UPDATE=1` to opt out on a machine.
+- **Barnraise itself.** Install the new release over the old binary (`install.sh` or your package) and restart (until the restart, new agent sessions are refused: their hooks would run a binary the daemon did not start from): `systemctl --user restart barnraise`, or `barnraise down && barnraise up`. Running steps are saved and continue from their last step. In a cluster, a daemon that sees a peer on the same platform running a newer version fetches that binary by hash from the peer, verifies it, replaces its own executable and restarts, only while no agent session is running; set `BARNRAISE_NO_SELF_UPDATE=1` to opt out on a machine.
 - **The AI CLIs.** Barnraise runs every session and the service with `DISABLE_AUTOUPDATER=1`, so a CLI never updates itself under a running fleet. Upgrade `claude`, `codex` and `gemini` on purpose, on one machine first; the provider adapters detect each CLI's version and probe its capabilities before using them. Keep `DISABLE_AUTOUPDATER=1` in your own shell profile on agent machines too.
 - **The API.** The proto is checked with `buf breaking`; incompatible changes only come in a new API version, with deprecation notices first.
+
+## Integrity of the log and of what steers agents
+
+- **The event log is a hash chain** ([ADR-0029](adr/0029-bound-session-tokens-and-chained-event-log.md)). `barnraise events verify` walks it and names the first event that was edited (`hash`), removed or inserted (`link`) or written outside Barnraise (`missing`); it exits with code 2 on a break, so it fits a cron job or a backup check. It asks the daemon; `--offline [--db file]` reads a state file directly (a stopped daemon, a backup). `--from N` starts at an event. The first start after upgrading to this version runs store migration 2, which hashes the events already stored (once; it takes a moment on a large log) and records that genesis point: earlier events are vouched for as they were at the upgrade.
+- **The anchor.** At start and every hour the daemon checks the last 2000 events, then signs the head with the machine's NKey (`daemon.yaml`) and keeps it in the state. A later check that the anchored event is gone or different shows events cut off from the end. On a problem the daemon records `security.chain.broken` in every project and sends the owner an urgent notice, once per distinct problem. There is nothing to repair automatically: compare with a backup or a peer's copy of the stream, then decide.
+- **Refused sessions** ([ADR-0030](adr/0030-provenance-of-hooks-and-instruction-files.md)). A session whose hook binary, root files (`barnraise.yaml`, `.barnraise/**`) or worktree instruction files (`CLAUDE.md`, `AGENTS.md`, `GEMINI.md`, `.mcp.json`, `.claude/**`, `.codex/**`, `.gemini/**`) changed outside the owner's hands does not start: the agent shows the failure, `trust.mismatch` is recorded and the owner is notified with the files and the fix.
+  - `barnraise trust --status [I-42]` lists what would refuse a session now (exit code 2 when something would).
+  - `barnraise trust` trusts the project root as it is now; `barnraise reload` and `barnraise up` do the same. A daemon restart does not: it compares with the last record.
+  - `barnraise trust I-42` accepts the instruction files of I-42's worktrees that differ from main, as they are now. Look at them first (`git -C ~/.local/share/barnraise/worktrees/<project>/I-42 diff main -- CLAUDE.md`).
+  - A changed binary needs a daemon restart.
+- **Leaked session tokens.** A session token used for another item, another project or a procedure its role does not have is refused and recorded as `security.token.denied` (and in `barnraise audit` as `token.denied`); the owner hears of it once per session.
 
 ## Health
 

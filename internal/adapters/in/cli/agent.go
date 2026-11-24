@@ -3,6 +3,7 @@ package cli
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -228,12 +229,18 @@ func (e *env) hookCmd() *cobra.Command {
 			if err != nil {
 				return nil // never break the session on a bad payload
 			}
-			pol, err := hooks.LoadPolicy(os.Getenv("BARNRAISE_POLICY"))
-			if err != nil {
+			pol, err := hooks.LoadVerifiedPolicy(os.Getenv("BARNRAISE_POLICY"), os.Getenv(hooks.PolicyHashEnv))
+			var res hooks.PreToolResult
+			switch {
+			case errors.Is(err, hooks.ErrPolicyTampered):
+				res = hooks.DenyAll(err) // fail closed
+				res.Call = hooks.ToolCall(in)
+			case err != nil:
 				return nil // not a Barnraise session
+			default:
+				bin, _ := os.Executable()
+				res = hooks.PreTool(in, pol, hooks.ExistsOnMain(pol.Worktree, pol.MainBranch), bin)
 			}
-			bin, _ := os.Executable()
-			res := hooks.PreTool(in, pol, hooks.ExistsOnMain(pol.Worktree, pol.MainBranch), bin)
 			_ = hooks.Write(e.out, res.Output)
 			if !res.Decision.Allow {
 				// Tell the daemon, briefly; the decision is already out.

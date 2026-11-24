@@ -69,6 +69,7 @@ type Actor struct {
 	Family  string    `json:"family,omitempty"`
 	Model   string    `json:"model,omitempty"`
 	Attempt string    `json:"attempt,omitempty"` // "b" for the second attempt of a risky item
+	Session string    `json:"session,omitempty"` // agent: the session its token is bound to
 }
 
 // Owner returns the owner actor.
@@ -176,6 +177,7 @@ type TokenRegistry struct {
 type sessionToken struct {
 	actor   Actor
 	expires time.Time
+	denials int // calls refused for this token (grant.go)
 }
 
 // NewTokenRegistry creates an empty registry.
@@ -199,6 +201,20 @@ func (r *TokenRegistry) Resolve(tok string) (Actor, bool) {
 		return Actor{}, false
 	}
 	return st.actor, true
+}
+
+// noteDenied counts a refused call of a session and returns the count.
+func (r *TokenRegistry) noteDenied(session string) int {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	for h, st := range r.byHash {
+		if session != "" && st.actor.Session == session {
+			st.denials++
+			r.byHash[h] = st
+			return st.denials
+		}
+	}
+	return 1
 }
 
 // Revoke removes a token.

@@ -54,6 +54,9 @@ type Options struct {
 	RatePerSec    float64
 	Burst         int
 	Log           *slog.Logger
+	// VerifyAnchor checks the signature of the event chain's anchor (nil:
+	// the anchor's position is checked, not its signature).
+	VerifyAnchor func(domain.ChainAnchor) error
 }
 
 // Server is the HTTP side of the daemon.
@@ -76,10 +79,12 @@ func New(svc *app.Service, opts Options) *Server {
 		opts.Log = slog.Default()
 	}
 	s := &Server{svc: svc, opts: opts, mux: http.NewServeMux()}
-	path, handler := barnraisev1connect.NewBarnraiseServiceHandler(&Handler{srv: s}, connect.WithReadMaxBytes(8<<20), connect.WithCodec(snakeJSON{}))
+	path, handler := barnraisev1connect.NewBarnraiseServiceHandler(&Handler{srv: s}, connect.WithReadMaxBytes(8<<20), connect.WithCodec(snakeJSON{}),
+		connect.WithInterceptors(s.sessionGuard()))
 	s.mux.Handle(path, s.auth(handler))
-	s.mux.Handle("GET /v1/events", s.auth(http.HandlerFunc(s.handleSSE)))
+	s.mux.Handle("GET /v1/events", s.auth(s.guardHTTP(app.ProcStreamEvents, http.HandlerFunc(s.handleSSE))))
 	s.routeLessons()
+	s.trustRoutes()
 	s.mux.HandleFunc("POST /v1/webhooks/github", s.handleGitHub)
 	s.mux.HandleFunc("POST /v1/webhooks/gitlab", s.handleGitLab)
 	s.mux.HandleFunc("POST /v1/webhooks/inbound/{project}", s.handleInbound)

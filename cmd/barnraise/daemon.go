@@ -233,6 +233,7 @@ func runDaemon(ctx context.Context, opts cli.DaemonOptions) error {
 	d.stopSelf = stopSelf
 	go d.serveRemoteStop(ctx)
 	go d.serveRemoteStandby(ctx)
+	go newChainWatch(d).run(ctx)
 
 	srv := httpapi.New(svc, httpapi.Options{
 		Version: version, OwnerToken: owner, Store: d.store, Probe: d.probe, Panel: panel.FS(), OpenAPI: openapi.Document(),
@@ -257,6 +258,7 @@ func runDaemon(ctx context.Context, opts cli.DaemonOptions) error {
 		},
 		Reload: d.reloadProject,
 		Peers:  d.peers, StopPeers: d.stopPeers, SetStandby: d.setStandby,
+		VerifyAnchor: natsx.AnchorVerifier(df.NKeyPublic),
 		WebhookSecret: func(project, source string) string {
 			v, _ := d.secrets.Get("webhook/" + project + "/" + source)
 			return v
@@ -593,6 +595,9 @@ func (d *daemon) addProject(ctx context.Context, root string, paused bool) error
 	if _, err := d.svc.AddProject(ctx, cfg, pp); err != nil {
 		return err
 	}
+	if err := d.svc.TrustOnLoad(ctx, cfg.Name); err != nil {
+		d.log.Warn("record the trusted files", "project", cfg.Name, "err", err)
+	}
 	if paused {
 		if p, err := d.svc.Project(cfg.Name); err == nil && !p.Snapshot().Paused {
 			if err := d.svc.Pause(ctx, cfg.Name, app.System(), pausedNote); err != nil {
@@ -657,6 +662,10 @@ func (d *daemon) reloadRoot(ctx context.Context, root string) error {
 	}
 	if err := d.svc.ReloadConfig(cfg.Name, cfg); err != nil {
 		return err
+	}
+	// The owner reloads (barnraise reload, barnraise up): the files as they are now are trusted.
+	if err := d.svc.RecordTrust(ctx, cfg.Name, "reloaded by the owner"); err != nil {
+		d.log.Warn("record the trusted files", "project", cfg.Name, "err", err)
 	}
 	cur := *p.Ports()
 	cur.Tracker, cur.CodeHost, cur.Triage = pp.Tracker, pp.CodeHost, pp.Triage

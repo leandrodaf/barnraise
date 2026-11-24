@@ -62,6 +62,7 @@ CREATE TABLE audit (
 CREATE INDEX audit_project_time ON audit(project, time);
 CREATE INDEX audit_time ON audit(time);
 `},
+	{2, chainMigrationSQL},
 	// 3: the files each item's agent sessions read or changed on this
 	// machine (the stale-read warning). Local, never replicated.
 	{3, `
@@ -74,6 +75,13 @@ CREATE TABLE file_reads (
 	PRIMARY KEY (project, item, path)
 );
 `},
+}
+
+// migrationCode holds the steps a migration takes in Go after its SQL, in
+// the same transaction (component -> version -> step): what SQL alone
+// cannot compute, like the hash chain of the events already stored.
+var migrationCode = map[string]map[int]func(context.Context, *sql.Tx) error{
+	"store": {2: chainExisting},
 }
 
 // migrate applies the pending migrations of a component inside one
@@ -110,6 +118,12 @@ func migrate(ctx context.Context, db *sql.DB, component string, steps []Migratio
 		if _, err := tx.ExecContext(ctx, m.SQL); err != nil {
 			tx.Rollback()
 			return fmt.Errorf("migration %s/%d: %w", component, m.Version, err)
+		}
+		if fn := migrationCode[component][m.Version]; fn != nil {
+			if err := fn(ctx, tx); err != nil {
+				tx.Rollback()
+				return fmt.Errorf("migration %s/%d: %w", component, m.Version, err)
+			}
 		}
 		if _, err := tx.ExecContext(ctx, `INSERT INTO schema_migrations(component, version, applied) VALUES(?, ?, ?)`,
 			component, m.Version, time.Now().UTC().Unix()); err != nil {

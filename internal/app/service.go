@@ -98,6 +98,8 @@ type Service struct {
 	tokens   *TokenRegistry
 	sessions *sessionRegistry
 	runtime  *Runtime
+	// trust is the provenance state (provenance.go).
+	trust *trustState
 	// telemetry is the short in-memory window of machine readings.
 	telemetry telemetry
 	// trackerMu serializes the tracker updates of each item (project/item -> *sync.Mutex).
@@ -129,6 +131,7 @@ func New(d Deps) *Service {
 	}
 	s := &Service{d: d, projects: map[string]*Project{}, hub: NewHub(), tokens: NewTokenRegistry(), sessions: newSessionRegistry()}
 	s.runtime = newRuntime(s)
+	s.trust = newTrustState(d.BinaryPath)
 	return s
 }
 
