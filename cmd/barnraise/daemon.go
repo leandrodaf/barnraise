@@ -673,6 +673,7 @@ func (d *daemon) projectPorts(cfg *domain.ProjectConfig) (app.ProjectPorts, erro
 		return app.ProjectPorts{}, fmt.Errorf("%s is not a git repository: run `git init` (Barnraise works on branches and a main)", cfg.Root)
 	}
 	repo := gitx.New(cfg.Root, remote, cfg.MainBranch)
+	d.setupMerge(cfg, repo)
 	pp := app.ProjectPorts{Git: repo, Arbiter: gitx.NewArbiter(repo, nil)}
 	token := func(ref, env string) string {
 		if after, ok := strings.CutPrefix(ref, "keychain:"); ok {

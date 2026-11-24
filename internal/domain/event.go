@@ -56,6 +56,9 @@ const (
 	EvAgentUsage          = "agent.usage"
 	EvJournal             = "journal.entry"
 	EvSecretBlocked       = "secret.blocked"
+	// EvConflictsReapplied: a rebase conflict was resolved again from a
+	// resolution git recorded earlier (rerere); the checks still run.
+	EvConflictsReapplied = "merge.conflicts.reapplied"
 )
 
 // Event is one entry of the append-only log. The current state is derived

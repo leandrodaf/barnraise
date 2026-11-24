@@ -270,6 +270,14 @@ A second machine is where this matters most: give it its own credential for the 
 - `barnraise status`, `barnraise cluster status`, `barnraise machine list`, `barnraise account list`.
 - `barnraise events -f` and the panel for the live stream; `barnraise audit` for who did what.
 
+## Merge settings in the repository
+
+When the daemon loads a project it adjusts the repository's local git settings, never a tracked file ([merge](configuration.md#recorded-resolutions-and-structural-merge)):
+
+- `rerere.enabled` and `rerere.autoupdate` in `.git/config`, unless you set them yourself; `barnraise.rerere = true` marks that Barnraise added them, and `merge.rerere: false` removes them. They also apply to your own checkout of the repository. Recorded resolutions are in `.git/rr-cache`; `git rerere forget <file>` during a conflicted rebase drops a bad one, and deleting the folder drops them all.
+- With `mergiraf` on the daemon's `PATH`: the `merge.barnraise-structural` section in `.git/config` (its absolute path, so agents with a different `PATH` use it too) and a managed block in `.git/info/attributes`. Install or remove mergiraf, then restart the daemon or touch `barnraise.yaml` to reload; the log says `structural merge driver in use` with the number of patterns. To stop using it for the project, set `merge.structural: off`. mergiraf is GPL-3.0 software you install yourself (for example `cargo install --locked mergiraf`, or your package manager); Barnraise only runs it. git 2.44 or newer is recommended for it.
+- `merge.conflicts.reapplied` in `barnraise events` and the item's timeline says when a conflict was resolved from a recorded resolution; the merge queue then runs every local check on the result.
+
 ## Capacity
 
 A machine runs as many sessions as its CPUs and total memory allow (`barnraise cluster status` shows `busy n/slots`). On top of that, **no new session starts while the machine has less than 3 GB of memory available, or no idle CPU**: the builds, tests and emulators of the items in progress keep the memory instead of being killed by the kernel. Sessions already running are never stopped for it, and work resumes by itself when the pressure passes. The daemon logs the reason once.

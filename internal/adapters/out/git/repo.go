@@ -356,6 +356,7 @@ func (r *Repo) worktreesOn(ctx context.Context, branch string) ([]string, error)
 // CommitAll stages everything in dir and commits when there are changes.
 // It returns the HEAD sha and whether a commit was made.
 func (r *Repo) CommitAll(ctx context.Context, dir, message string) (string, bool, error) {
+	r.recordResolutions(ctx, dir)
 	if _, err := r.git(ctx, dir, "add", "-A"); err != nil {
 		return "", false, err
 	}
@@ -461,27 +462,6 @@ func parseLsRemote(out, ref string) (string, bool) {
 func hasExactRef(out, ref string) bool {
 	_, ok := parseLsRemote(out, ref)
 	return ok
-}
-
-// Rebase rebases the branch checked out in dir onto rev onto. On conflict it
-// aborts the rebase, leaving dir as it was, and returns ports.ErrConflict.
-func (r *Repo) Rebase(ctx context.Context, dir, onto string) error {
-	_, err := r.git(ctx, dir, r.withIdentity(ctx, "rebase", "--quiet", "--no-autostash", onto)...)
-	if err == nil {
-		return nil
-	}
-	if !r.rebaseInProgress(ctx, dir) {
-		return err
-	}
-	files, _ := r.git(ctx, dir, "diff", "--name-only", "--diff-filter=U")
-	if _, aerr := r.git(ctx, dir, "rebase", "--abort"); aerr != nil {
-		return fmt.Errorf("%w (abort failed: %v): %v", ports.ErrConflict, aerr, err)
-	}
-	list := strings.Join(strings.Fields(files), ", ")
-	if list == "" {
-		return fmt.Errorf("%w: %v", ports.ErrConflict, err)
-	}
-	return fmt.Errorf("%w: %s", ports.ErrConflict, list)
 }
 
 func (r *Repo) rebaseInProgress(ctx context.Context, dir string) bool {

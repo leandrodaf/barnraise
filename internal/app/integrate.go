@@ -166,6 +166,7 @@ func (s *Service) tryIntegrate(ctx context.Context, p *Project, items []*domain.
 	// next attempt (bisection would then blame the innocent items too).
 	type origin struct{ dir, branch, head string }
 	var origins []origin
+	var reapplied []string // files whose conflicts git resolved from a recorded resolution
 	defer func() {
 		if ok {
 			return
@@ -189,7 +190,9 @@ func (s *Service) tryIntegrate(ctx context.Context, p *Project, items []*domain.
 		if h, err := g.Head(ctx, dir); err == nil {
 			origins = append(origins, origin{dir: dir, branch: it.Branch, head: h})
 		}
-		if err := g.Rebase(ctx, dir, head); err != nil {
+		again, err := s.rebaseItem(ctx, p, it, dir, head)
+		reapplied = append(reapplied, again...)
+		if err != nil {
 			if errors.Is(err, ports.ErrConflict) {
 				return false, it, "rebase on main conflicts: " + err.Error(), nil
 			}
@@ -220,7 +223,8 @@ func (s *Service) tryIntegrate(ctx context.Context, p *Project, items []*domain.
 		done = append(done, built{it, sha})
 	}
 	// Check the combined result: every local check over the whole tree.
-	if pass, why := s.runQueueChecks(ctx, p, lastDir, head, items); !pass {
+	if pass, why := s.runQueueChecksWith(ctx, p, lastDir, head, items, len(reapplied) > 0); !pass {
+		why += reappliedHint(reapplied)
 		if len(items) == 1 {
 			return false, items[0], why, nil
 		}
@@ -344,10 +348,17 @@ func (s *Service) sameTreeAsChecked(ctx context.Context, p *Project, head string
 
 // runQueueChecks runs the local checks over the combined tree.
 func (s *Service) runQueueChecks(ctx context.Context, p *Project, dir, head string, items []*domain.Item) (bool, string) {
+	return s.runQueueChecksWith(ctx, p, dir, head, items, false)
+}
+
+// runQueueChecksWith is runQueueChecks; full runs every local check over
+// the whole tree (conflicts were resolved by git from a recorded
+// resolution, so nothing about the result is taken as already checked).
+func (s *Service) runQueueChecksWith(ctx context.Context, p *Project, dir, head string, items []*domain.Item, full bool) (bool, string) {
 	if s.d.Checks == nil || dir == "" {
 		return true, ""
 	}
-	if s.sameTreeAsChecked(ctx, p, head, items) {
+	if !full && s.sameTreeAsChecked(ctx, p, head, items) {
 		return true, "" // main did not move since the item's own checks: nothing new to check
 	}
 	// What the batch changes, from git (deliveries may list fewer files).
@@ -375,8 +386,8 @@ func (s *Service) runQueueChecks(ctx context.Context, p *Project, dir, head stri
 			}
 		}
 	}
-	if !fromGit {
-		touched = nil // the change is unknown: never skip blind
+	if !fromGit || full {
+		touched = nil // the change is unknown (or reapplied by git): never skip blind
 	}
 	for _, dec := range p.Cfg().SelectChecks(sortedKeys(p.Cfg().Checks), touched, nil) {
 		name := dec.Name

@@ -776,7 +776,7 @@ const EVENT_TYPES = [
   'proposal.created', 'proposal.updated', 'tweak.added', 'tweak.attached', 'owner.question.asked', 'owner.question.answered',
   'goal.set', 'goal.finished', 'focus.changed', 'system.paused', 'system.resumed', 'account.updated',
   'account.limit.reached', 'machine.updated', 'machine.left', 'agent.session', 'agent.usage', 'message.sent',
-  'message.delivered', 'journal.entry', 'policy.violation.blocked', 'secret.blocked',
+  'message.delivered', 'journal.entry', 'policy.violation.blocked', 'secret.blocked', 'merge.conflicts.reapplied',
 ];
 
 const live = { es: null, lastSeq: 0, backoff: 1000, timer: 0, countdown: 0 };

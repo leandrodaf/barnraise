@@ -352,6 +352,12 @@ type MergeDef struct {
 	Changelog    string `json:"changelog,omitempty"`
 	Tag          bool   `json:"tag,omitempty"`
 	UseHostQueue bool   `json:"use_host_queue,omitempty"`
+	// Rerere keeps git's record of conflict resolutions (rerere) on for the
+	// project, so a conflict resolved once is reapplied the next time.
+	Rerere bool `json:"rerere"`
+	// Structural is when to merge with a structural merge driver
+	// (mergiraf): "auto" when it is installed, "off" never.
+	Structural string `json:"structural,omitempty"`
 }
 
 // LeaseDef sets claim renewals.

@@ -165,7 +165,7 @@ Everything that happens becomes an event in an append-only log. Event types are 
 | --- | --- |
 | Item lifecycle | `item.created`, `item.updated`, `item.claimed`, `item.released`, `item.step.started`, `item.step.finished`, `item.waiting_owner`, `item.blocked`, `item.queued`, `item.integrated`, `item.closed`, `item.paused`, `item.resumed`, `item.redo` |
 | Living plan | `item.impacted`, `item.revalidated`, `item.updated_by_change`, `item.superseded`, `item.obsoleted`, `item.merged_into` |
-| Work | `delivery.submitted`, `review.submitted`, `check.requested`, `check.completed`, `rework.started` |
+| Work | `delivery.submitted`, `review.submitted`, `check.requested`, `check.completed`, `rework.started`, `merge.conflicts.reapplied` |
 | Goal and focus | `goal.set`, `goal.finished`, `focus.changed` |
 | Proposals and tweaks | `proposal.created`, `proposal.updated`, `tweak.added`, `tweak.attached` |
 | Owner | `owner.question.asked`, `owner.question.answered` |

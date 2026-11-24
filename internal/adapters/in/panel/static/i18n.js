@@ -247,6 +247,7 @@ const en = {
     'owner.question.asked': 'Question to the owner', 'owner.question.answered': 'Owner answered',
     'agent.usage': 'Tokens', 'tweak.attached': 'Tweak attached', 'message.sent': 'Message',
     'policy.violation.blocked': 'Violation blocked', 'secret.blocked': 'Secret blocked', 'journal.entry': 'Journal',
+    'merge.conflicts.reapplied': 'Conflict resolved again from a recorded resolution',
   },
 };
 
@@ -486,6 +487,7 @@ const pt = {
     'owner.question.asked': 'Pergunta ao dono', 'owner.question.answered': 'O dono respondeu',
     'agent.usage': 'Tokens', 'tweak.attached': 'Ajuste rápido anexado', 'message.sent': 'Mensagem',
     'policy.violation.blocked': 'Violação bloqueada', 'secret.blocked': 'Segredo bloqueado', 'journal.entry': 'Diário',
+    'merge.conflicts.reapplied': 'Conflito resolvido de novo por uma resolução gravada',
   },
 };
 

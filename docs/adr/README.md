@@ -29,3 +29,4 @@ One short record per decision: context, decision, consequences. A decision that 
 | [ADR-0023](0023-security-by-os-layers.md) | Security by OS layers, not by prompt |
 | [ADR-0024](0024-license-apache-2.md) | License: Apache-2.0 |
 | [ADR-0025](0025-embedded-tailscale-behind-a-build-tag.md) | Embedded Tailscale (tsnet) behind a build tag |
+| [ADR-0033](0033-recorded-resolutions-and-structural-merge.md) | Recorded conflict resolutions, and a structural merge driver when installed |

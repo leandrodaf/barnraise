@@ -456,8 +456,17 @@ checks:
 | `changelog` | `CHANGELOG.md` | Changelog file Barnraise keeps, in the [Keep a Changelog](https://keepachangelog.com) format; empty turns it off |
 | `tag` | `false` | Tag after integrating |
 | `use_host_queue` | `false` | Use the code host's merge queue when it has one |
+| `rerere` | `true` | Keep git's record of conflict resolutions (`rerere`) on for the repository, so a conflict resolved once is resolved again the same way; `false` removes the settings Barnraise added |
+| `structural` | `auto` | `auto` merges supported files with [mergiraf](https://mergiraf.org) when it is on the `PATH`; `off` never does. Without it, git's normal merge is used |
 
 With `squash`, the item's own files (`plan.md`, `criteria.json`) are left out of the commit that lands on main.
+
+### Recorded resolutions and structural merge
+
+Barnraise never commits merge settings to the project. At each start and reload of the project it writes them where git keeps local, untracked settings, shared by the main checkout and every worktree (the item worktrees and the merge queue's checkouts alike):
+
+- `rerere`: `rerere.enabled` and `rerere.autoupdate` are set to `true` in the repository's local config (`.git/config`) when no git config sets them; a value you set yourself, in any scope, is kept. Resolutions live in the shared `.git/rr-cache`, so a conflict an agent resolves while rebasing its item is reapplied by the merge queue, by another item or by a retry. When git reapplies one, the item's timeline gets `merge.conflicts.reapplied` with the files, and the merge queue runs every local check on the result (it never skips a check because the tree looks like one already checked). If the checks fail, the reason tells the agent which files came from a recorded resolution and how to forget it (`git rerere forget <file>` during a rebase on main).
+- `structural`: with `mergiraf` on the `PATH`, Barnraise registers it as the merge driver `barnraise-structural` in the local config and writes the patterns it supports (from `mergiraf languages --gitattributes`) in a block marked as managed in `.git/info/attributes`. Patterns your `.gitattributes` already gives a merge behaviour (`merge=…`, `-merge`, `binary`) are left out, so your choice wins. Lines of `.git/info/attributes` outside the block are yours and stay. When mergiraf cannot merge a file structurally it falls back to a line merge and leaves conflict markers, and the conflict is handled as any other; where mergiraf is not available to git (an agent in a container), the driver falls back to git's own line merge. With `off`, or when mergiraf is no longer installed, the block and the driver are removed and git merges as before. Barnraise does not ship or vendor mergiraf (GPL-3.0); it only runs it when you installed it.
 
 ### Commits and the changelog
 

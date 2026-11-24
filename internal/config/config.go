@@ -297,6 +297,8 @@ type rawConfig struct {
 		Changelog    string `yaml:"changelog"`
 		Tag          bool   `yaml:"tag"`
 		UseHostQueue bool   `yaml:"use_host_queue"`
+		Rerere       *bool  `yaml:"rerere"`
+		Structural   string `yaml:"structural"`
 	} `yaml:"merge"`
 	Container struct {
 		Image   string   `yaml:"image"`
@@ -580,6 +582,11 @@ func (r *rawConfig) compile(root, tmpl string) (*domain.ProjectConfig, error) {
 	}
 	if c.Merge.Mode != "squash" && c.Merge.Mode != "steps" {
 		return nil, fmt.Errorf("merge.mode must be squash or steps")
+	}
+	c.Merge.Rerere = r.Merge.Rerere == nil || *r.Merge.Rerere
+	c.Merge.Structural = def(strings.TrimSpace(r.Merge.Structural), "auto")
+	if c.Merge.Structural != "auto" && c.Merge.Structural != "off" {
+		return nil, fmt.Errorf("merge.structural must be auto or off")
 	}
 
 	c.Lease = domain.LeaseDef{Renew: 30 * time.Second, TTL: 2 * time.Minute}
