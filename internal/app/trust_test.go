@@ -367,3 +367,18 @@ func TestProvenanceAcceptsTheBranchBase(t *testing.T) {
 		t.Fatal("a planted map")
 	}
 }
+
+// The repository map in the root is Barnraise's own output: it changes at
+// every integration and never makes the root untrusted.
+func TestRootManifestLeavesOutTheRepositoryMap(t *testing.T) {
+	root := t.TempDir()
+	testkit.WriteFile(t, root, ".barnraise/constitution.md", "be careful\n")
+	testkit.WriteFile(t, root, domain.RepoMapFile, "a.go: one\n")
+	m, err := RootManifest(root)
+	if err != nil || m[".barnraise/constitution.md"] == "" {
+		t.Fatalf("manifest %v %v", m, err)
+	}
+	if _, ok := m[domain.RepoMapFile]; ok {
+		t.Fatalf("the map is in the manifest: %v", m)
+	}
+}

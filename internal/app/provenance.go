@@ -82,7 +82,8 @@ func bytesSHA(b []byte) string {
 const rootConfigFile = "barnraise.yaml"
 
 // RootManifest hashes barnraise.yaml and every file under .barnraise/ in a
-// project root.
+// project root, but the repository map: Barnraise writes it itself when an
+// item lands, and the checkout of the root follows main.
 func RootManifest(root string) (domain.Manifest, error) {
 	m := domain.Manifest{}
 	if h, err := fileSHA(filepath.Join(root, rootConfigFile)); err == nil {
@@ -91,6 +92,9 @@ func RootManifest(root string) (domain.Manifest, error) {
 		return nil, err
 	}
 	err := walkFiles(filepath.Join(root, ".barnraise"), func(rel, abs string) error {
+		if ".barnraise/"+rel == domain.RepoMapFile {
+			return nil // Barnraise's own output, rewritten at every integration
+		}
 		h, err := fileSHA(abs)
 		if err != nil {
 			return err

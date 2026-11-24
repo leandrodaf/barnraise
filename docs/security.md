@@ -148,7 +148,7 @@ Every event stored in `barnraise.db` carries the hash of the event before it and
 Before each session the daemon checks ([ADR-0030](adr/0030-provenance-of-hooks-and-instruction-files.md)):
 
 - the `barnraise` binary the hooks run is the one the daemon started from;
-- `barnraise.yaml` and `.barnraise/**` in the project root match the hashes recorded when the owner loaded the project (`barnraise up`, `barnraise reload`, `barnraise trust`); a daemon restart compares, it does not re-trust;
+- `barnraise.yaml` and `.barnraise/**` in the project root (but the repository map `.barnraise/map.md`, which Barnraise itself writes when an item lands) match the hashes recorded when the owner loaded the project (`barnraise up`, `barnraise reload`, `barnraise trust`); a daemon restart compares, it does not re-trust;
 - the instruction files of the worktree (`CLAUDE.md`, `AGENTS.md`, `GEMINI.md` anywhere, `.mcp.json`, `.claude/**`, `.codex/**`, `.gemini/**`, `.barnraise/**`) are the main branch's (as it is now, or as it was where the item's branch left it: main moving on, for example the repository map `.barnraise/map.md` Barnraise rewrites at each integration, does not refuse the items in progress), or were accepted by the owner for that item (`barnraise trust I-42`), so one session cannot plant instructions for the next;
 - the session's `settings.json`, `mcp.json` and `policy.json` are the ones it just wrote. The hook gets the policy's hash in `BARNRAISE_POLICY_SHA256` and blocks every tool call if the policy file it reads is different or gone.
 
