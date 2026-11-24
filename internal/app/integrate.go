@@ -55,7 +55,7 @@ func (s *Service) ProcessQueue(ctx context.Context, project string) (int, error)
 	}
 	defer p.queueMu.Unlock()
 	snap := p.Snapshot()
-	if snap.Paused {
+	if on, _ := s.runtime.Standby(); snap.Paused || on {
 		return 0, nil
 	}
 	var queued []*domain.Item

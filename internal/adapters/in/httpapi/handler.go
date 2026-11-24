@@ -63,7 +63,8 @@ func (h *Handler) audit(ctx context.Context, action, target, project, detail str
 // ---------- projects ----------
 
 func (h *Handler) ListProjects(ctx context.Context, _ *connect.Request[pb.Empty]) (*connect.Response[pb.ProjectsResponse], error) {
-	return connect.NewResponse(&pb.ProjectsResponse{Projects: h.svc().Projects(), Machine: h.svc().Machine(), Version: h.srv.opts.Version}), nil
+	on, why := h.svc().Runtime().Standby()
+	return connect.NewResponse(&pb.ProjectsResponse{Projects: h.svc().Projects(), Machine: h.svc().Machine(), Version: h.srv.opts.Version, Standby: on, StandbyWhy: why}), nil
 }
 
 func (h *Handler) RegisterProject(ctx context.Context, r *connect.Request[pb.RegisterProjectRequest]) (*connect.Response[pb.ProjectsResponse], error) {
@@ -691,6 +692,25 @@ func (h *Handler) StopPeers(ctx context.Context, r *connect.Request[pb.StopPeers
 		}
 	}
 	h.audit(ctx, "machine.stop", strings.Join(stopped, ","), "", "")
+	return connect.NewResponse(out), nil
+}
+
+func (h *Handler) SetStandby(ctx context.Context, r *connect.Request[pb.StandbyRequest]) (*connect.Response[pb.StandbyResponse], error) {
+	if err := actorFrom(ctx).Require(app.ScopeAdmin, ""); err != nil {
+		return nil, connectErr(err)
+	}
+	if h.srv.opts.SetStandby == nil {
+		return nil, connect.NewError(connect.CodeUnimplemented, errors.New("this daemon has no standby"))
+	}
+	out, err := h.srv.opts.SetStandby(ctx, r.Msg.On, r.Msg.Why, r.Msg.Peers)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	action := "machine.standby.off"
+	if r.Msg.On {
+		action = "machine.standby.on"
+	}
+	h.audit(ctx, action, h.svc().Machine(), "", r.Msg.Why)
 	return connect.NewResponse(out), nil
 }
 

@@ -52,6 +52,9 @@ func (s *Service) NextWork(ctx context.Context, project string, slot Slot) (*Ass
 	if err != nil {
 		return nil, err
 	}
+	if on, _ := s.runtime.Standby(); on {
+		return nil, ErrStandby
+	}
 	p.mu.Lock()
 	if p.state.Paused {
 		p.mu.Unlock()

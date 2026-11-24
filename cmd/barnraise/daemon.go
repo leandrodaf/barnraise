@@ -230,6 +230,7 @@ func runDaemon(ctx context.Context, opts cli.DaemonOptions) error {
 	go d.serveRemoteChecks(ctx)
 	d.stopSelf = stopSelf
 	go d.serveRemoteStop(ctx)
+	go d.serveRemoteStandby(ctx)
 
 	srv := httpapi.New(svc, httpapi.Options{
 		Version: version, OwnerToken: owner, Store: d.store, Probe: d.probe, Panel: panel.FS(), OpenAPI: openapi.Document(),
@@ -253,7 +254,7 @@ func runDaemon(ctx context.Context, opts cli.DaemonOptions) error {
 			return nil
 		},
 		Reload: d.reloadProject,
-		Peers:  d.peers, StopPeers: d.stopPeers,
+		Peers:  d.peers, StopPeers: d.stopPeers, SetStandby: d.setStandby,
 		WebhookSecret: func(project, source string) string {
 			v, _ := d.secrets.Get("webhook/" + project + "/" + source)
 			return v
@@ -282,6 +283,11 @@ func runDaemon(ctx context.Context, opts cli.DaemonOptions) error {
 		}
 	}
 	log.Info("barnraise daemon up", "machine", df.Machine, "socket", paths.Socket(), "listen", df.Listen, "projects", svc.Projects(), "version", version)
+	if df.Standby {
+		// Before the first pass: a machine left in standby starts nothing.
+		svc.Runtime().SetStandby(true, df.StandbyWhy)
+		log.Info("this machine is in standby: no agent, check or merge starts here until `barnraise standby off`", "why", df.StandbyWhy)
+	}
 	go svc.Runtime().Run(ctx)
 	select {
 	case <-ctx.Done():
@@ -503,6 +509,10 @@ func (d *daemon) watchDaemonFile(ctx context.Context) {
 		oldPeers := len(d.df.Peers)
 		d.df.Peers = df.Peers
 		d.df.Notify = df.Notify
+		// `barnraise standby` may have written the file itself.
+		if on, why := d.svc.Runtime().Standby(); on != df.Standby || (on && why != df.StandbyWhy) {
+			d.svc.Runtime().SetStandby(df.Standby, df.StandbyWhy)
+		}
 		for _, root := range df.Projects {
 			if !d.loaded(root) {
 				if err := d.addProject(ctx, root, false); err != nil {
@@ -526,8 +536,9 @@ func (d *daemon) watchDaemonFile(ctx context.Context) {
 			if err := d.startNATS(ctx); err != nil {
 				d.log.Warn("NATS restart", "err", err)
 			} else {
-				// The subscription went with the old connection.
+				// The subscriptions went with the old connection.
 				go d.serveRemoteStop(ctx)
+				go d.serveRemoteStandby(ctx)
 			}
 		}
 		if d.repl != nil {
@@ -973,6 +984,9 @@ func (d *daemon) serveRemoteChecks(ctx context.Context) {
 		}
 	}
 	_ = natsx.Serve(ctx, b.Conn(), natsx.RPCSubject(d.df.Machine, "check"), func(ctx context.Context, data []byte) ([]byte, error) {
+		if on, _ := d.svc.Runtime().Standby(); on {
+			return nil, errors.New("this machine is in standby") // the asking machine runs the check itself
+		}
 		var rc remoteCheck
 		if err := json.Unmarshal(data, &rc); err != nil {
 			return nil, err
@@ -1027,6 +1041,84 @@ func (d *daemon) serveRemoteStop(ctx context.Context) {
 		time.AfterFunc(500*time.Millisecond, d.stopSelf)
 		return []byte("ok"), nil
 	})
+}
+
+// remoteStandby is what one daemon asks another on the "standby" subject.
+type remoteStandby struct {
+	On   bool   `json:"on"`
+	Why  string `json:"why,omitempty"`
+	From string `json:"from,omitempty"`
+}
+
+// serveRemoteStandby switches this machine's standby when a paired machine asks.
+func (d *daemon) serveRemoteStandby(ctx context.Context) {
+	b := d.bus.v.Load()
+	if b == nil {
+		return
+	}
+	_ = natsx.Serve(ctx, b.Conn(), natsx.RPCSubject(d.df.Machine, "standby"), func(_ context.Context, data []byte) ([]byte, error) {
+		var rs remoteStandby
+		if err := json.Unmarshal(data, &rs); err != nil {
+			return nil, err
+		}
+		d.log.Info("a paired machine switched this machine's standby", "from", rs.From, "on", rs.On)
+		if _, err := d.applyStandby(rs.On, rs.Why); err != nil {
+			return nil, err
+		}
+		return []byte("ok"), nil
+	})
+}
+
+// applyStandby writes the switch to daemon.yaml first, so a daemon that
+// stops now starts the same way, and then applies it to the running loop.
+// It returns the sessions stopped.
+func (d *daemon) applyStandby(on bool, why string) (int, error) {
+	cur, err := daemoncfg.Load()
+	if err != nil {
+		return 0, err
+	}
+	if !on {
+		why = ""
+	}
+	if cur.Standby != on || cur.StandbyWhy != why {
+		cur.Standby, cur.StandbyWhy = on, why
+		if err := cur.Save(); err != nil {
+			return 0, fmt.Errorf("standby not kept in %s: %w", paths.DaemonConfig(), err)
+		}
+	}
+	return d.svc.Runtime().SetStandby(on, why), nil
+}
+
+// setStandby switches this machine and, through NATS, the named peers.
+func (d *daemon) setStandby(ctx context.Context, on bool, why string, peers []string) (*pb.StandbyResponse, error) {
+	stopped, err := d.applyStandby(on, why)
+	if err != nil {
+		return nil, err
+	}
+	out := &pb.StandbyResponse{On: on, Stopped: int32(stopped), Peers: make([]*pb.PeerResult, len(peers))}
+	body, _ := json.Marshal(remoteStandby{On: on, Why: why, From: d.df.Machine})
+	var wg sync.WaitGroup
+	for i, name := range peers {
+		wg.Go(func() {
+			res := &pb.PeerResult{Name: name}
+			out.Peers[i] = res
+			if d.repl == nil {
+				res.Error = "this daemon has no connection to other machines"
+				return
+			}
+			_, err := d.repl.Request(ctx, name, natsx.RPCSubject(name, "standby"), body, 10*time.Second, 0)
+			switch {
+			case err == nil:
+				res.Ok = true
+			case errors.Is(err, nats.ErrNoResponders):
+				res.Error = "it runs an older Barnraise without standby; run `barnraise standby` there after updating it"
+			default:
+				res.Error = err.Error()
+			}
+		})
+	}
+	wg.Wait()
+	return out, nil
 }
 
 // peers lists the machines this daemon is paired with.

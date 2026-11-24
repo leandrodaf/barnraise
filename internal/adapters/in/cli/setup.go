@@ -435,6 +435,9 @@ func (e *env) upCmd() *cobra.Command {
 				return err
 			}
 			fmt.Fprintf(e.out, "✔ Barnraise is up on machine %s with projects: %s\n", res.Msg.Machine, strings.Join(res.Msg.Projects, ", "))
+			if res.Msg.Standby {
+				fmt.Fprintln(e.out, "  This machine is in standby: nothing starts here until `barnraise standby off`.")
+			}
 			if paused {
 				fmt.Fprintf(e.out, "  %s is paused: no agent starts until barnraise resume.\n", cfg.Name)
 			}
@@ -553,14 +556,12 @@ func (e *env) downCmd() *cobra.Command {
 	return c
 }
 
-// stopPeers offers to stop Barnraise on the connected machines too (yes: no
-// question). A failure here never keeps this machine from stopping.
-func (e *env) stopPeers(yes bool) {
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
+// connectedPeers lists the machines the local daemon holds a connection to.
+// An error means the daemon does not answer, or is older than the question.
+func (e *env) connectedPeers(ctx context.Context) ([]string, error) {
 	res, err := e.client().ListPeers(ctx, req(&pb.Empty{}))
 	if err != nil {
-		return // the daemon does not answer, or is older: only this machine stops
+		return nil, err
 	}
 	var names []string
 	for _, p := range res.Msg.Peers {
@@ -568,20 +569,39 @@ func (e *env) stopPeers(yes bool) {
 			names = append(names, p.Name)
 		}
 	}
+	return names, nil
+}
+
+// askPeers returns the connected machines an action should reach too: all
+// of them with yes, the ones the owner agrees to otherwise (one question,
+// "no" by default and when there is nobody to answer), none when there are
+// none.
+func (e *env) askPeers(ctx context.Context, question string, yes bool) []string {
+	names, err := e.connectedPeers(ctx)
+	if err != nil || len(names) == 0 || yes {
+		return names
+	}
+	fmt.Fprintf(e.out, "Barnraise is also connected to: %s.\n%s (y/n) [n]: ", strings.Join(names, ", "), question)
+	sc := bufio.NewScanner(e.in)
+	if !sc.Scan() {
+		fmt.Fprintln(e.out)
+		return nil
+	}
+	v := strings.ToLower(strings.TrimSpace(sc.Text()))
+	if !strings.HasPrefix(v, "y") && !strings.HasPrefix(v, "s") {
+		return nil
+	}
+	return names
+}
+
+// stopPeers offers to stop Barnraise on the connected machines too (yes: no
+// question). A failure here never keeps this machine from stopping.
+func (e *env) stopPeers(yes bool) {
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	names := e.askPeers(ctx, "Stop it there too?", yes)
 	if len(names) == 0 {
 		return
-	}
-	if !yes {
-		fmt.Fprintf(e.out, "Barnraise is also connected to: %s.\nStop it there too? (y/n) [n]: ", strings.Join(names, ", "))
-		sc := bufio.NewScanner(e.in)
-		if !sc.Scan() {
-			fmt.Fprintln(e.out)
-			return
-		}
-		v := strings.ToLower(strings.TrimSpace(sc.Text()))
-		if !strings.HasPrefix(v, "y") && !strings.HasPrefix(v, "s") {
-			return
-		}
 	}
 	out, err := e.client().StopPeers(ctx, req(&pb.StopPeersRequest{Names: names}))
 	if err != nil {
@@ -595,6 +615,130 @@ func (e *env) stopPeers(yes bool) {
 			fmt.Fprintf(e.out, "✘ %s was not stopped: %s\n", r.Name, r.Error)
 		}
 	}
+}
+
+func (e *env) standbyCmd() *cobra.Command {
+	var all, here bool
+	c := &cobra.Command{Use: "standby [on|off] [why]", Short: "This machine's switch: the daemon runs, but starts no agent, check or merge", Args: cobra.ArbitraryArgs,
+		Long: "Standby is the machine's own switch. In standby the daemon keeps running: status, the panel,\n" +
+			"questions and events between machines all work. It starts no agent, no check and no merge,\n" +
+			"in any project, and takes no work from other machines. Sessions running here are stopped as\n" +
+			"`barnraise pause` stops them: their steps are saved and the items continue later.\n\n" +
+			"The switch is kept in the machine's configuration, so it holds across restarts, and it works\n" +
+			"with the daemon stopped: `barnraise standby on` before `barnraise up` starts a daemon that\n" +
+			"starts nothing.\n\n" +
+			"When other machines are connected it asks whether to switch them too; --all switches them\n" +
+			"without asking, --here only this machine. Without arguments it shows the state.\n\n" +
+			"`barnraise pause` is the other switch: it stops one project on every machine.",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			if all && here {
+				return errors.New("--all and --here contradict each other: choose one")
+			}
+			running := e.daemonRunning()
+			if len(args) == 0 {
+				return e.showStandby(running)
+			}
+			var on bool
+			switch strings.ToLower(args[0]) {
+			case "on":
+				on = true
+			case "off":
+			default:
+				return fmt.Errorf("standby takes on or off, not %q", args[0])
+			}
+			why := strings.Join(args[1:], " ")
+			if !running {
+				// No daemon to ask: the switch is the file it reads when it starts.
+				df, err := daemoncfg.Load()
+				if err != nil {
+					return err
+				}
+				df.Standby, df.StandbyWhy = on, why
+				if !on {
+					df.StandbyWhy = ""
+				}
+				if err := df.Save(); err != nil {
+					return err
+				}
+				if on {
+					fmt.Fprintln(e.out, "✔ Standby is on. The daemon is not running; when it starts, it starts no agent, check or merge.")
+				} else {
+					fmt.Fprintln(e.out, "✔ Standby is off. The daemon is not running; when it starts, it works as usual.")
+				}
+				if len(df.Peers) > 0 && !here {
+					fmt.Fprintln(e.out, "  Other machines were not reached (this daemon is the one that talks to them): run it there too.")
+				}
+				return nil
+			}
+			ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
+			defer cancel()
+			var peers []string
+			if !here {
+				q := "Take them out of standby too?"
+				if on {
+					q = "Put them in standby too?"
+				}
+				peers = e.askPeers(ctx, q, all)
+			}
+			res, err := e.client().SetStandby(ctx, req(&pb.StandbyRequest{On: on, Why: why, Peers: peers}))
+			if err != nil {
+				return err
+			}
+			e.print(res.Msg, func(w io.Writer) {
+				if on {
+					fmt.Fprintf(w, "✔ This machine is in standby: nothing starts here until `barnraise standby off`. Sessions stopped: %d.\n", res.Msg.Stopped)
+				} else {
+					fmt.Fprintln(w, "✔ This machine is out of standby: work starts again.")
+				}
+				for _, p := range res.Msg.Peers {
+					switch {
+					case p.Ok && on:
+						fmt.Fprintf(w, "✔ %s is in standby.\n", p.Name)
+					case p.Ok:
+						fmt.Fprintf(w, "✔ %s is out of standby.\n", p.Name)
+					default:
+						fmt.Fprintf(w, "✘ %s was not switched: %s\n", p.Name, p.Error)
+					}
+				}
+			})
+			return nil
+		}}
+	c.Flags().BoolVar(&all, "all", false, "also switch every connected machine, without asking")
+	c.Flags().BoolVar(&here, "here", false, "switch only this machine, without asking")
+	return c
+}
+
+// showStandby prints the machine's standby: what the daemon says when it
+// runs, what its configuration says when it does not.
+func (e *env) showStandby(running bool) error {
+	on, why, where := false, "", "The daemon is not running; this is how it will start."
+	if running {
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+		res, err := e.client().ListProjects(ctx, req(&pb.Empty{}))
+		if err != nil {
+			return err
+		}
+		on, why, where = res.Msg.Standby, res.Msg.StandbyWhy, ""
+	} else {
+		df, err := daemoncfg.Load()
+		if err != nil {
+			return err
+		}
+		on, why = df.Standby, df.StandbyWhy
+	}
+	state := "off: this machine works as usual"
+	if on {
+		state = "on: nothing starts on this machine"
+		if why != "" {
+			state += " (" + why + ")"
+		}
+	}
+	fmt.Fprintln(e.out, "Standby is "+state+".")
+	if where != "" {
+		fmt.Fprintln(e.out, where)
+	}
+	return nil
 }
 
 func (e *env) daemonCmd() *cobra.Command {
@@ -1551,7 +1695,11 @@ func (e *env) clusterStatus(cmd *cobra.Command, _ []string) error {
 	}
 	e.print(res.Msg, func(w io.Writer) {
 		for _, m := range res.Msg.Machines {
-			fmt.Fprintf(w, "%-6s %-20s cpu %d mem %.0fGB emulators %d busy %d/%d version %s seen %s\n", m.Health, m.Name, m.Cpus, m.MemGb, m.Emulators, m.Busy, m.Slots, m.Version, when(m.LastSeen))
+			name := m.Name
+			if m.Standby {
+				name += " (standby)"
+			}
+			fmt.Fprintf(w, "%-6s %-20s cpu %d mem %.0fGB emulators %d busy %d/%d version %s seen %s\n", m.Health, name, m.Cpus, m.MemGb, m.Emulators, m.Busy, m.Slots, m.Version, when(m.LastSeen))
 			if live := machineLive(m); live != "" {
 				fmt.Fprintf(w, "       %s\n", live)
 			}

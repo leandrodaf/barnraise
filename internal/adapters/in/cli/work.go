@@ -55,10 +55,22 @@ func (e *env) statusCmd() *cobra.Command {
 				return err
 			}
 			st := res.Msg
+			// The machine's own switch is not the project's: ask the daemon for it.
+			standby, standbyWhy := false, ""
+			if ps, err := e.client().ListProjects(ctx, req(&pb.Empty{})); err == nil {
+				standby, standbyWhy = ps.Msg.Standby, ps.Msg.StandbyWhy
+			}
 			e.print(st, func(w io.Writer) {
 				fmt.Fprintf(w, "Project %s · machine %s\n", st.Project, st.Machine)
 				if st.Paused {
 					fmt.Fprintf(w, "PAUSED: %s\n", st.PausedWhy)
+				}
+				if standby {
+					note := ""
+					if standbyWhy != "" {
+						note = " (" + standbyWhy + ")"
+					}
+					fmt.Fprintf(w, "STANDBY: nothing starts on this machine until `barnraise standby off`%s\n", note)
 				}
 				if st.Goal != nil {
 					p := st.Progress

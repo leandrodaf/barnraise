@@ -64,7 +64,7 @@ func ChooseOffload(self Machine, peers []*Machine, now time.Time, ttl time.Durat
 	}
 	var cands []cand
 	for _, p := range peers {
-		if p == nil || p.Name == "" || p.Name == self.Name || p.Left || p.Leaving {
+		if p == nil || p.Name == "" || p.Name == self.Name || p.Left || p.Leaving || p.Standby {
 			continue
 		}
 		if p.Health(now, ttl) != "green" {

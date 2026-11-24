@@ -2036,6 +2036,49 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/barnraise.v1.SetGoalResponse'
+  /barnraise.v1.BarnraiseService/SetStandby:
+    post:
+      tags:
+        - barnraise.v1.BarnraiseService
+      summary: SetStandby
+      description: |-
+        Standby is the machine's own switch: in standby its daemon keeps
+         answering (status, panel, events between machines) and starts no agent,
+         check or merge. It is kept in the machine's configuration, so the daemon
+         starts the way it stopped.
+      operationId: barnraise.v1.BarnraiseService.SetStandby
+      parameters:
+        - name: Connect-Protocol-Version
+          in: header
+          description: Define the version of the Connect protocol
+          schema:
+            $ref: '#/components/schemas/connect-protocol-version'
+          example: 1
+        - name: Connect-Timeout-Ms
+          in: header
+          description: Define the timeout, in ms
+          schema:
+            $ref: '#/components/schemas/connect-timeout-header'
+          example: 1000
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/barnraise.v1.StandbyRequest'
+        required: true
+      responses:
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.error'
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/barnraise.v1.StandbyResponse'
   /barnraise.v1.BarnraiseService/Status:
     post:
       tags:
@@ -4213,6 +4256,10 @@ components:
           items:
             $ref: '#/components/schemas/barnraise.v1.GpuStat'
           title: gpus
+        standby:
+          type: boolean
+          title: standby
+          description: 'The machine is in standby: its daemon runs, but it starts no work.'
       title: Machine
       additionalProperties: false
     barnraise.v1.MachineHistoryRequest:
@@ -4688,6 +4735,22 @@ components:
       title: Peer
       additionalProperties: false
       description: A machine this daemon is paired with.
+    barnraise.v1.PeerResult:
+      type: object
+      properties:
+        name:
+          type: string
+          title: name
+        ok:
+          type: boolean
+          title: ok
+        error:
+          type: string
+          title: error
+          description: Why it did not do it, in a plain sentence.
+      title: PeerResult
+      additionalProperties: false
+      description: What a machine answered to a request sent through another one.
     barnraise.v1.PeerStop:
       type: object
       properties:
@@ -4971,6 +5034,13 @@ components:
         version:
           type: string
           title: version
+        standby:
+          type: boolean
+          title: standby
+          description: This machine is in standby (see SetStandby), and why.
+        standbyWhy:
+          type: string
+          title: standby_why
       title: ProjectsResponse
       additionalProperties: false
     barnraise.v1.Proposal:
@@ -5517,6 +5587,42 @@ components:
             $ref: '#/components/schemas/barnraise.v1.Item'
           title: inventory
       title: SetGoalResponse
+      additionalProperties: false
+    barnraise.v1.StandbyRequest:
+      type: object
+      properties:
+        on:
+          type: boolean
+          title: on
+          description: True puts the machine in standby, false takes it out.
+        why:
+          type: string
+          title: why
+        peers:
+          type: array
+          items:
+            type: string
+          title: peers
+          description: Other machines to switch the same way, through this daemon.
+      title: StandbyRequest
+      additionalProperties: false
+    barnraise.v1.StandbyResponse:
+      type: object
+      properties:
+        on:
+          type: boolean
+          title: on
+        stopped:
+          type: integer
+          title: stopped
+          format: int32
+          description: Sessions of this machine stopped by the switch.
+        peers:
+          type: array
+          items:
+            $ref: '#/components/schemas/barnraise.v1.PeerResult'
+          title: peers
+      title: StandbyResponse
       additionalProperties: false
     barnraise.v1.StatusResponse:
       type: object

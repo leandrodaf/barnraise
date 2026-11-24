@@ -339,6 +339,8 @@ message Machine {
   // CPU temperature in degrees Celsius.
   double temp_c = 21;
   repeated GpuStat gpus = 22;
+  // The machine is in standby: its daemon runs, but it starts no work.
+  bool standby = 23;
 }
 
 // GpuStat is the live state of one GPU of a machine.
@@ -878,6 +880,29 @@ message StopPeersResponse {
   repeated PeerStop results = 1;
 }
 
+message StandbyRequest {
+  // True puts the machine in standby, false takes it out.
+  bool on = 1;
+  string why = 2;
+  // Other machines to switch the same way, through this daemon.
+  repeated string peers = 3;
+}
+
+// What a machine answered to a request sent through another one.
+message PeerResult {
+  string name = 1;
+  bool ok = 2;
+  // Why it did not do it, in a plain sentence.
+  string error = 3;
+}
+
+message StandbyResponse {
+  bool on = 1;
+  // Sessions of this machine stopped by the switch.
+  int32 stopped = 2;
+  repeated PeerResult peers = 3;
+}
+
 message CreateTokenRequest {
   string name = 1;
   string project = 2;
@@ -933,6 +958,9 @@ message ProjectsResponse {
   repeated string projects = 1;
   string machine = 2;
   string version = 3;
+  // This machine is in standby (see SetStandby), and why.
+  bool standby = 4;
+  string standby_why = 5;
 }
 
 message PolicyViolationRequest {
@@ -1311,6 +1339,11 @@ service BarnraiseService {
   rpc ListPeers(Empty) returns (PeersResponse);
   // Asks other machines to stop their daemon, as `barnraise down` does there.
   rpc StopPeers(StopPeersRequest) returns (StopPeersResponse);
+  // Standby is the machine's own switch: in standby its daemon keeps
+  // answering (status, panel, events between machines) and starts no agent,
+  // check or merge. It is kept in the machine's configuration, so the daemon
+  // starts the way it stopped.
+  rpc SetStandby(StandbyRequest) returns (StandbyResponse);
 
   // Tokens and audit
   rpc CreateToken(CreateTokenRequest) returns (CreateTokenResponse);

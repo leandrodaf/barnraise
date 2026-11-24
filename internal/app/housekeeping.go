@@ -31,6 +31,7 @@ func (r *Runtime) housekeeping(ctx context.Context, p *Project, m domain.Machine
 	m.Version = s.d.Version
 	r.mu.Lock()
 	m.Busy = len(r.running)
+	m.Standby = r.standby
 	r.mu.Unlock()
 	m.Accounts = nil
 	for _, a := range p.Snapshot().AccountList() {
@@ -56,6 +57,12 @@ func (r *Runtime) housekeeping(ctx context.Context, p *Project, m domain.Machine
 					"scratch", t.Scratch, "trash", t.Trash, "stripped", t.Stripped)
 			}
 		}()
+	}
+	if m.Standby {
+		// A machine in standby takes no duty: the cluster's housekeeping
+		// (items of dead machines, imports, digests) goes to one that works.
+		s.releaseLease(ctx, p, HousekeepingKey)
+		return
 	}
 	if !s.holdHousekeeping(ctx, p) {
 		return

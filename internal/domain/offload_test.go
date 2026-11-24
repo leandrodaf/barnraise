@@ -42,6 +42,7 @@ func TestChooseOffload(t *testing.T) {
 		"gone silent":        func(p *Machine) { p.LastSeen = now.Add(-10 * time.Minute) },
 		"late heartbeat":     func(p *Machine) { p.LastSeen = now.Add(-90 * time.Second) },
 		"leaving":            func(p *Machine) { p.Leaving = true },
+		"in standby":         func(p *Machine) { p.Standby = true },
 		"left":               func(p *Machine) { p.Left = true },
 		"another platform":   func(p *Machine) { p.Platform = "darwin/arm64" },
 		"no readings":        func(p *Machine) { p.Load1, p.FreeMemGB = 0, 0 },

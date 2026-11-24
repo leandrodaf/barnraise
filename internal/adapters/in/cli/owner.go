@@ -2,6 +2,7 @@ package cli
 
 import (
 	"bufio"
+	"context"
 	"fmt"
 	"io"
 	"os"
@@ -184,30 +185,77 @@ func def(v, d string) string {
 	return v
 }
 
+// eachProject runs fn for the current project, or for every project of the
+// daemon with all, and reports the ones done.
+func (e *env) eachProject(ctx context.Context, all bool, fn func(project string) error) ([]string, error) {
+	if !all {
+		name := e.proj(ctx)
+		return []string{name}, fn(name)
+	}
+	res, err := e.client().ListProjects(ctx, req(&pb.Empty{}))
+	if err != nil {
+		return nil, err
+	}
+	var done []string
+	for _, name := range res.Msg.Projects {
+		if err := fn(name); err != nil {
+			return done, fmt.Errorf("%s: %w", name, err)
+		}
+		done = append(done, name)
+	}
+	return done, nil
+}
+
 func (e *env) pauseCmd() *cobra.Command {
-	return &cobra.Command{Use: "pause [why]", Short: "Emergency button: stop every agent and start nothing", Args: cobra.ArbitraryArgs,
+	var all bool
+	c := &cobra.Command{Use: "pause [why]", Short: "Emergency button: stop every agent and start nothing", Args: cobra.ArbitraryArgs,
+		Long: "Pauses a project: its sessions stop on every machine and nothing starts until `barnraise resume`.\n" +
+			"--all pauses every project of this daemon.\n\n" +
+			"To keep one machine from working, whatever the project, use `barnraise standby on`.",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx, cancel := e.ctx()
 			defer cancel()
-			if _, err := e.client().Pause(ctx, req(&pb.PauseRequest{Project: e.proj(ctx), Why: strings.Join(args, " ")})); err != nil {
+			done, err := e.eachProject(ctx, all, func(project string) error {
+				_, err := e.client().Pause(ctx, req(&pb.PauseRequest{Project: project, Why: strings.Join(args, " ")}))
+				return err
+			})
+			if all && len(done) > 0 {
+				fmt.Fprintf(e.out, "Paused: %s.\n", strings.Join(done, ", "))
+			}
+			if err != nil {
 				return err
 			}
 			fmt.Fprintln(e.out, "Paused. Running sessions were stopped; `barnraise resume` continues.")
 			return nil
 		}}
+	c.Flags().BoolVar(&all, "all", false, "pause every project of this daemon")
+	return c
 }
 
 func (e *env) resumeCmd() *cobra.Command {
-	return &cobra.Command{Use: "resume", Short: "Lift the pause", Args: cobra.NoArgs,
+	var all bool
+	c := &cobra.Command{Use: "resume", Short: "Lift the pause", Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			ctx, cancel := e.ctx()
 			defer cancel()
-			if _, err := e.client().Resume(ctx, req(&pb.ProjectRef{Project: e.proj(ctx)})); err != nil {
+			done, err := e.eachProject(ctx, all, func(project string) error {
+				_, err := e.client().Resume(ctx, req(&pb.ProjectRef{Project: project}))
+				return err
+			})
+			if all && len(done) > 0 {
+				fmt.Fprintf(e.out, "Resumed: %s.\n", strings.Join(done, ", "))
+			}
+			if err != nil {
 				return err
 			}
 			fmt.Fprintln(e.out, "Resumed.")
+			if ps, err := e.client().ListProjects(ctx, req(&pb.Empty{})); err == nil && ps.Msg.Standby {
+				fmt.Fprintln(e.out, "This machine is still in standby: nothing starts here until `barnraise standby off`.")
+			}
 			return nil
 		}}
+	c.Flags().BoolVar(&all, "all", false, "resume every project of this daemon")
+	return c
 }
 
 func (e *env) takeoverCmd() *cobra.Command {

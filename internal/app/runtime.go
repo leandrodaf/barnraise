@@ -32,6 +32,11 @@ type Runtime struct {
 	running map[string]*liveSession // by agent name
 	probe   func() domain.Machine
 	stopped bool
+	// standby: the owner's switch for this machine. While it is on, the
+	// runtime starts nothing here (no agent, no driver step, no merge), in
+	// any project; standbyWhy is the owner's note.
+	standby    bool
+	standbyWhy string
 	// SessionTimeout bounds one step session.
 	SessionTimeout time.Duration
 	// MaxSessions caps concurrent sessions on this machine (0 = machine slots).
@@ -100,6 +105,43 @@ func (ls *liveSession) stop() {
 }
 
 // isStopped reports whether the runtime is shutting down.
+// Standby reports whether this machine is in standby, and why.
+func (r *Runtime) Standby() (bool, string) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return r.standby, r.standbyWhy
+}
+
+// SetStandby switches the machine's standby. Turning it on stops the
+// sessions running here, in every project, as a pause does: their steps are
+// saved and the items continue from their last step later. Turning it off
+// wakes the loop. It returns how many sessions were stopped.
+func (r *Runtime) SetStandby(on bool, why string) int {
+	r.mu.Lock()
+	changed := r.standby != on
+	r.standby, r.standbyWhy = on, why
+	if !on {
+		r.standbyWhy = ""
+	}
+	var list []*liveSession
+	if on {
+		for _, ls := range r.running {
+			list = append(list, ls)
+		}
+	}
+	r.mu.Unlock()
+	for _, ls := range list {
+		ls.stop()
+	}
+	if changed {
+		r.s.d.Log.Info("standby", "on", on, "why", why, "sessions_stopped", len(list))
+	}
+	if !on {
+		r.Poke()
+	}
+	return len(list)
+}
+
 func (r *Runtime) isStopped() bool {
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -194,7 +236,7 @@ func (r *Runtime) Tick(ctx context.Context) {
 		r.renewLeases(ctx, p)
 		r.housekeeping(ctx, p, m)
 		snap := p.Snapshot()
-		if snap.Paused {
+		if on, _ := r.Standby(); snap.Paused || on {
 			continue
 		}
 		r.s.driveHeld(ctx, p)
@@ -229,6 +271,9 @@ func (r *Runtime) slotsFor(p *Project, m domain.Machine) []Slot {
 
 func (r *Runtime) fillSlots(ctx context.Context, p *Project, m domain.Machine) {
 	if r.isStopped() || r.MaxSessions < 0 {
+		return
+	}
+	if on, _ := r.Standby(); on {
 		return
 	}
 	limit := r.MaxSessions

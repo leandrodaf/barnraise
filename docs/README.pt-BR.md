@@ -60,7 +60,8 @@ barnraise status               # objetivo, foco, fila, agentes, contas e máquin
 | `barnraise approve I-7 --plan` | Aprova o plano de um item (`--delivery` para a entrega) |
 | `barnraise questions` / `barnraise answer` | O que os agentes perguntaram ao dono, e as respostas |
 | `barnraise events -f` | Acompanha todos os eventos ao vivo |
-| `barnraise pause` / `barnraise resume` | Botão de emergência para todos os agentes |
+| `barnraise pause` / `barnraise resume` | Botão de emergência para todos os agentes de um projeto (`--all`: todos os projetos do daemon) |
+| `barnraise standby on` / `off` | Chave da máquina: o daemon roda, mas não inicia nada nela; vale entre reinícios e pode ser ligada com o daemon parado |
 | `barnraise account add claude` | Põe outra conta de assinatura na rotação |
 | `barnraise account add openrouter` | Põe uma conta por chave de API (OpenRouter, ou um provedor em `providers:`) para passos baratos e pesquisa; a chave vai para o chaveiro |
 

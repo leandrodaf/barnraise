@@ -29,7 +29,9 @@ var (
 	ErrConflict    = errors.New("conflict")
 	ErrUnknownProj = errors.New("unknown project")
 	ErrPaused      = errors.New("barnraise is paused")
-	ErrNoWork      = errors.New("no authorized work")
+	// ErrStandby is ErrPaused for a machine: nothing starts on it.
+	ErrStandby = fmt.Errorf("%w: this machine is in standby (barnraise standby off)", ErrPaused)
+	ErrNoWork  = errors.New("no authorized work")
 )
 
 // Deps are the ports shared by all projects of a daemon.

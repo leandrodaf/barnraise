@@ -44,8 +44,11 @@ type Options struct {
 	// them to stop their daemon (empty names: every connected one).
 	Peers     func() []*pb.Peer
 	StopPeers func(ctx context.Context, names []string) []*pb.PeerStop
-	Panel     fs.FS  // static panel files
-	OpenAPI   []byte // generated document
+	// SetStandby switches this machine's standby, keeps it in the machine's
+	// configuration and passes it on to the named peers.
+	SetStandby func(ctx context.Context, on bool, why string, peers []string) (*pb.StandbyResponse, error)
+	Panel      fs.FS  // static panel files
+	OpenAPI    []byte // generated document
 	// WebhookSecret returns the secret for inbound webhooks of a project and source (github, gitlab, inbound).
 	WebhookSecret func(project, source string) string
 	RatePerSec    float64

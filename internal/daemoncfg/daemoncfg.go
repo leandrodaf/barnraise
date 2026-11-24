@@ -90,8 +90,12 @@ type File struct {
 	NKeySeed   string   `yaml:"nkey_seed,omitempty"`
 	NKeyPublic string   `yaml:"nkey_public,omitempty"`
 	Peers      []Peer   `yaml:"peers,omitempty"`
-	Network    string   `yaml:"network,omitempty"` // empty (auto), tailscale, tsnet, plugin, lan
-	TSNet      TSNet    `yaml:"tsnet,omitempty"`
+	// Standby keeps the daemon from starting any work on this machine
+	// (`barnraise standby on`); StandbyWhy is the owner's note.
+	Standby    bool   `yaml:"standby,omitempty"`
+	StandbyWhy string `yaml:"standby_why,omitempty"`
+	Network    string `yaml:"network,omitempty"` // empty (auto), tailscale, tsnet, plugin, lan
+	TSNet      TSNet  `yaml:"tsnet,omitempty"`
 	// NetworkPlugin is used with `network: plugin`.
 	NetworkPlugin *NetworkPlugin `yaml:"network_plugin,omitempty"`
 	Notify        []struct {

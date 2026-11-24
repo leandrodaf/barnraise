@@ -202,6 +202,9 @@ const (
 	// BarnraiseServiceStopPeersProcedure is the fully-qualified name of the BarnraiseService's
 	// StopPeers RPC.
 	BarnraiseServiceStopPeersProcedure = "/barnraise.v1.BarnraiseService/StopPeers"
+	// BarnraiseServiceSetStandbyProcedure is the fully-qualified name of the BarnraiseService's
+	// SetStandby RPC.
+	BarnraiseServiceSetStandbyProcedure = "/barnraise.v1.BarnraiseService/SetStandby"
 	// BarnraiseServiceCreateTokenProcedure is the fully-qualified name of the BarnraiseService's
 	// CreateToken RPC.
 	BarnraiseServiceCreateTokenProcedure = "/barnraise.v1.BarnraiseService/CreateToken"
@@ -291,6 +294,11 @@ type BarnraiseServiceClient interface {
 	ListPeers(context.Context, *connect.Request[v1.Empty]) (*connect.Response[v1.PeersResponse], error)
 	// Asks other machines to stop their daemon, as `barnraise down` does there.
 	StopPeers(context.Context, *connect.Request[v1.StopPeersRequest]) (*connect.Response[v1.StopPeersResponse], error)
+	// Standby is the machine's own switch: in standby its daemon keeps
+	// answering (status, panel, events between machines) and starts no agent,
+	// check or merge. It is kept in the machine's configuration, so the daemon
+	// starts the way it stopped.
+	SetStandby(context.Context, *connect.Request[v1.StandbyRequest]) (*connect.Response[v1.StandbyResponse], error)
 	// Tokens and audit
 	CreateToken(context.Context, *connect.Request[v1.CreateTokenRequest]) (*connect.Response[v1.CreateTokenResponse], error)
 	ListTokens(context.Context, *connect.Request[v1.Empty]) (*connect.Response[v1.TokensResponse], error)
@@ -657,6 +665,12 @@ func NewBarnraiseServiceClient(httpClient connect.HTTPClient, baseURL string, op
 			connect.WithSchema(barnraiseServiceMethods.ByName("StopPeers")),
 			connect.WithClientOptions(opts...),
 		),
+		setStandby: connect.NewClient[v1.StandbyRequest, v1.StandbyResponse](
+			httpClient,
+			baseURL+BarnraiseServiceSetStandbyProcedure,
+			connect.WithSchema(barnraiseServiceMethods.ByName("SetStandby")),
+			connect.WithClientOptions(opts...),
+		),
 		createToken: connect.NewClient[v1.CreateTokenRequest, v1.CreateTokenResponse](
 			httpClient,
 			baseURL+BarnraiseServiceCreateTokenProcedure,
@@ -744,6 +758,7 @@ type barnraiseServiceClient struct {
 	leaveMachine    *connect.Client[v1.ProjectRef, v1.LeaveResponse]
 	listPeers       *connect.Client[v1.Empty, v1.PeersResponse]
 	stopPeers       *connect.Client[v1.StopPeersRequest, v1.StopPeersResponse]
+	setStandby      *connect.Client[v1.StandbyRequest, v1.StandbyResponse]
 	createToken     *connect.Client[v1.CreateTokenRequest, v1.CreateTokenResponse]
 	listTokens      *connect.Client[v1.Empty, v1.TokensResponse]
 	revokeToken     *connect.Client[v1.RevokeTokenRequest, v1.Empty]
@@ -1040,6 +1055,11 @@ func (c *barnraiseServiceClient) StopPeers(ctx context.Context, req *connect.Req
 	return c.stopPeers.CallUnary(ctx, req)
 }
 
+// SetStandby calls barnraise.v1.BarnraiseService.SetStandby.
+func (c *barnraiseServiceClient) SetStandby(ctx context.Context, req *connect.Request[v1.StandbyRequest]) (*connect.Response[v1.StandbyResponse], error) {
+	return c.setStandby.CallUnary(ctx, req)
+}
+
 // CreateToken calls barnraise.v1.BarnraiseService.CreateToken.
 func (c *barnraiseServiceClient) CreateToken(ctx context.Context, req *connect.Request[v1.CreateTokenRequest]) (*connect.Response[v1.CreateTokenResponse], error) {
 	return c.createToken.CallUnary(ctx, req)
@@ -1135,6 +1155,11 @@ type BarnraiseServiceHandler interface {
 	ListPeers(context.Context, *connect.Request[v1.Empty]) (*connect.Response[v1.PeersResponse], error)
 	// Asks other machines to stop their daemon, as `barnraise down` does there.
 	StopPeers(context.Context, *connect.Request[v1.StopPeersRequest]) (*connect.Response[v1.StopPeersResponse], error)
+	// Standby is the machine's own switch: in standby its daemon keeps
+	// answering (status, panel, events between machines) and starts no agent,
+	// check or merge. It is kept in the machine's configuration, so the daemon
+	// starts the way it stopped.
+	SetStandby(context.Context, *connect.Request[v1.StandbyRequest]) (*connect.Response[v1.StandbyResponse], error)
 	// Tokens and audit
 	CreateToken(context.Context, *connect.Request[v1.CreateTokenRequest]) (*connect.Response[v1.CreateTokenResponse], error)
 	ListTokens(context.Context, *connect.Request[v1.Empty]) (*connect.Response[v1.TokensResponse], error)
@@ -1497,6 +1522,12 @@ func NewBarnraiseServiceHandler(svc BarnraiseServiceHandler, opts ...connect.Han
 		connect.WithSchema(barnraiseServiceMethods.ByName("StopPeers")),
 		connect.WithHandlerOptions(opts...),
 	)
+	barnraiseServiceSetStandbyHandler := connect.NewUnaryHandler(
+		BarnraiseServiceSetStandbyProcedure,
+		svc.SetStandby,
+		connect.WithSchema(barnraiseServiceMethods.ByName("SetStandby")),
+		connect.WithHandlerOptions(opts...),
+	)
 	barnraiseServiceCreateTokenHandler := connect.NewUnaryHandler(
 		BarnraiseServiceCreateTokenProcedure,
 		svc.CreateToken,
@@ -1639,6 +1670,8 @@ func NewBarnraiseServiceHandler(svc BarnraiseServiceHandler, opts ...connect.Han
 			barnraiseServiceListPeersHandler.ServeHTTP(w, r)
 		case BarnraiseServiceStopPeersProcedure:
 			barnraiseServiceStopPeersHandler.ServeHTTP(w, r)
+		case BarnraiseServiceSetStandbyProcedure:
+			barnraiseServiceSetStandbyHandler.ServeHTTP(w, r)
 		case BarnraiseServiceCreateTokenProcedure:
 			barnraiseServiceCreateTokenHandler.ServeHTTP(w, r)
 		case BarnraiseServiceListTokensProcedure:
@@ -1886,6 +1919,10 @@ func (UnimplementedBarnraiseServiceHandler) ListPeers(context.Context, *connect.
 
 func (UnimplementedBarnraiseServiceHandler) StopPeers(context.Context, *connect.Request[v1.StopPeersRequest]) (*connect.Response[v1.StopPeersResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("barnraise.v1.BarnraiseService.StopPeers is not implemented"))
+}
+
+func (UnimplementedBarnraiseServiceHandler) SetStandby(context.Context, *connect.Request[v1.StandbyRequest]) (*connect.Response[v1.StandbyResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("barnraise.v1.BarnraiseService.SetStandby is not implemented"))
 }
 
 func (UnimplementedBarnraiseServiceHandler) CreateToken(context.Context, *connect.Request[v1.CreateTokenRequest]) (*connect.Response[v1.CreateTokenResponse], error) {

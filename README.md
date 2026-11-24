@@ -58,7 +58,8 @@ barnraise status               # goal, focus, queue, agents, accounts and machin
 | `barnraise approve I-7 --plan` | Approve the plan of an item (`--delivery` for the delivery) |
 | `barnraise questions` / `barnraise answer` | What agents asked the owner, and the answers |
 | `barnraise events -f` | Follow every event live |
-| `barnraise pause` / `barnraise resume` | Emergency button for every agent |
+| `barnraise pause` / `barnraise resume` | Emergency button for every agent of a project (`--all`: every project of the daemon) |
+| `barnraise standby on` / `off` | This machine's switch: the daemon runs but starts nothing here, kept across restarts and settable with the daemon stopped |
 | `barnraise account add claude` | Add another subscription account to the rotation |
 | `barnraise account add openrouter` | Add an API-key account (OpenRouter, or a provider under `providers:`) for cheap steps and research; the key goes to the keychain |
 

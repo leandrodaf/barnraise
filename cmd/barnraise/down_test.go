@@ -82,15 +82,12 @@ func (m *machineEnv) exited(t *testing.T, logPath string) {
 	}
 }
 
-// TestTwoMachinesDown: `barnraise down` on one machine asks whether the
-// connected ones stop too. "n" stops only the machine that asked; "y" stops
-// both, each with a clean exit, so a service manager does not start it again.
-func TestTwoMachinesDown(t *testing.T) {
-	if testing.Short() {
-		t.Skip("cluster")
-	}
-	base := t.TempDir()
-	bin := filepath.Join(base, "barnraise")
+// pairedMachines builds the binary and two machines, alpha and beta, on the
+// same repository, paired with the 6-digit code. Neither daemon is started.
+func pairedMachines(t *testing.T) (bin, base string, alpha, beta *machineEnv) {
+	t.Helper()
+	base = t.TempDir()
+	bin = filepath.Join(base, "barnraise")
 	if out, err := exec.Command("go", "build", "-o", bin, ".").CombinedOutput(); err != nil {
 		t.Fatalf("build: %v\n%s", err, out)
 	}
@@ -117,7 +114,7 @@ func TestTwoMachinesDown(t *testing.T) {
 			"BARNRAISE_PROJECT=", "BARNRAISE_TOKEN=", "BARNRAISE_URL=", "GIT_AUTHOR_NAME=t", "GIT_AUTHOR_EMAIL=t@t", "GIT_COMMITTER_NAME=t", "GIT_COMMITTER_EMAIL=t@t")
 		return &machineEnv{name: name, root: root, env: env}
 	}
-	alpha, beta := mk("alpha"), mk("beta")
+	alpha, beta = mk("alpha"), mk("beta")
 
 	pairPort := freePort(t)
 	inv := exec.Command(bin, "machine", "invite", "--listen", fmt.Sprintf("127.0.0.1:%d", pairPort))
@@ -150,16 +147,27 @@ func TestTwoMachinesDown(t *testing.T) {
 		t.Fatalf("invite: %v", err)
 	}
 
-	alphaLog, betaLog := filepath.Join(base, "alpha.log"), filepath.Join(base, "beta.log")
-	alpha.start(t, bin, alphaLog)
-	beta.start(t, bin, betaLog)
 	t.Cleanup(func() {
 		for _, m := range []*machineEnv{alpha, beta} {
-			if m.daemon.ProcessState == nil {
+			if m.daemon != nil && m.daemon.ProcessState == nil {
 				_ = m.daemon.Process.Kill()
 			}
 		}
 	})
+	return bin, base, alpha, beta
+}
+
+// TestTwoMachinesDown: `barnraise down` on one machine asks whether the
+// connected ones stop too. "n" stops only the machine that asked; "y" stops
+// both, each with a clean exit, so a service manager does not start it again.
+func TestTwoMachinesDown(t *testing.T) {
+	if testing.Short() {
+		t.Skip("cluster")
+	}
+	bin, base, alpha, beta := pairedMachines(t)
+	alphaLog, betaLog := filepath.Join(base, "alpha.log"), filepath.Join(base, "beta.log")
+	alpha.start(t, bin, alphaLog)
+	beta.start(t, bin, betaLog)
 	alpha.waitConnected(t, "beta")
 	beta.waitConnected(t, "alpha")
 
