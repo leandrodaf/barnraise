@@ -204,6 +204,10 @@ type Confinement struct {
 	ReadWrite []string `json:"read_write,omitempty"`
 	// ReadOnly are the system, the toolchains and the dependencies.
 	ReadOnly []string `json:"read_only,omitempty"`
+	// Tools are the folders of the tools Barnraise installed (ADR-0045):
+	// read-only, and kept even inside a denied folder (they live in the data
+	// folder, which is denied).
+	Tools []string `json:"tools,omitempty"`
 	// DenyRead are folders and files never granted, even when a parent is.
 	DenyRead []string `json:"deny_read,omitempty"`
 	// Network: open, registries or local.
@@ -237,6 +241,7 @@ type ConfineInput struct {
 	Command  string
 	Hosts    []string
 	Env      []string
+	Tools    []string // folders of the tools Barnraise installed, read-only
 }
 
 // systemRead is readable by every confined command: the system, its
@@ -274,6 +279,11 @@ func BuildConfinement(in ConfineInput) (Confinement, error) {
 		return path.Clean(p)
 	}
 	c := Confinement{Profile: prof.Name, Network: prof.Network, Command: in.Command, Hosts: in.Hosts, Env: in.Env}
+	for _, t := range in.Tools {
+		if t != "" {
+			c.Tools = appendUnique(c.Tools, path.Clean(t))
+		}
+	}
 	for _, w := range in.Work {
 		if w != "" {
 			c.Work = appendUnique(c.Work, path.Clean(w))
