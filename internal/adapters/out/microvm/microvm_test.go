@@ -153,3 +153,23 @@ func TestExpand(t *testing.T) {
 		t.Fatal("only Linux needs /dev/kvm")
 	}
 }
+
+func TestStoresReachTheVMButNotTheHostScratch(t *testing.T) {
+	store := t.TempDir()
+	work := t.TempDir()
+	c := New(Options{Image: "img", LookPath: func(string) (string, error) { return "/bin/smolvm", nil }, KVM: func() bool { return true },
+		Version: func(context.Context, string) (string, error) { return "smolvm 1.37.0", nil }})
+	_, args, err := c.Wrap(domain.Confinement{Profile: "check", Work: []string{work}, ReadWrite: []string{store, "/tmp", "/var/tmp", "/dev"}}, "true", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	line := strings.Join(args, " ")
+	if !strings.Contains(line, "--volume "+store+":"+store) {
+		t.Fatalf("store not mounted: %s", line)
+	}
+	for _, p := range []string{"/tmp:/tmp", "/var/tmp:/var/tmp", "/dev:/dev"} {
+		if strings.Contains(line, "--volume "+p) {
+			t.Fatalf("%s mounted: %s", p, line)
+		}
+	}
+}

@@ -205,6 +205,14 @@ func (c *Confiner) values(conf domain.Confinement, name string, args []string) m
 	for _, w := range conf.Work {
 		vol(w, false)
 	}
+	// The project's shared stores (and other writable folders) reach the VM
+	// at the same path; the guest keeps its own /tmp, /var/tmp and /dev.
+	for _, p := range conf.ReadWrite {
+		if guestOwned(p) {
+			continue
+		}
+		vol(p, false)
+	}
 	for _, m := range c.o.Mounts {
 		p, ro := strings.CutSuffix(m, ":ro")
 		vol(p, ro)
@@ -268,6 +276,16 @@ func isPlaceholder(a string) bool {
 		if a == p {
 			return true
 		}
+	}
+	return false
+}
+
+// guestOwned reports whether p is a folder the VM's own system provides
+// (its scratch space and devices), never mounted from the host.
+func guestOwned(p string) bool {
+	switch filepath.Clean(p) {
+	case "/", "/tmp", "/var/tmp", "/dev", filepath.Clean(os.TempDir()):
+		return true
 	}
 	return false
 }
