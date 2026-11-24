@@ -499,3 +499,9 @@ func TestHeartbeat(t *testing.T) {
 		t.Fatal("no heartbeat")
 	}
 }
+
+func (r *recorder) has(id string) bool {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return r.counts[id] > 0
+}

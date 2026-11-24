@@ -137,6 +137,26 @@ type peerLink struct {
 
 	mu      sync.Mutex
 	lastErr string
+	// reconnected is closed (and replaced) each time the connection comes
+	// back: the consumers start over then. A restarted peer numbers its
+	// in-memory live stream from 1 again, and an ordered consumer that
+	// resumes where it stopped would wait for numbers that never come.
+	reconnected chan struct{}
+}
+
+// onReconnect wakes the consumers of a link that came back.
+func (p *peerLink) onReconnect() {
+	p.mu.Lock()
+	close(p.reconnected)
+	p.reconnected = make(chan struct{})
+	p.mu.Unlock()
+}
+
+// reconnects returns the channel closed at the next reconnection.
+func (p *peerLink) reconnects() <-chan struct{} {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	return p.reconnected
 }
 
 // NewReplicator creates a replicator for the local machine.
@@ -169,6 +189,9 @@ func Backoff(n int, base, max time.Duration) time.Duration {
 	return d - time.Duration(rand.Int64N(int64(d)/5+1))
 }
 
+// fetchWait bounds how long one batch waits for messages.
+var fetchWait = 2 * time.Second
+
 // AddPeer starts replicating from a peer server. Extra options (for example
 // NkeyOption) are passed to the connection. Adding a known peer replaces it.
 func (r *Replicator) AddPeer(name, url string, opts ...nats.Option) error {
@@ -180,7 +203,7 @@ func (r *Replicator) AddPeer(name, url string, opts ...nats.Option) error {
 	if max <= 0 {
 		max = 30 * time.Second
 	}
-	p := &peerLink{name: name, url: url, done: make(chan struct{})}
+	p := &peerLink{name: name, url: url, done: make(chan struct{}), reconnected: make(chan struct{})}
 	all := []nats.Option{
 		nats.Name("barnraise-replica-" + Token(r.machine)),
 		nats.MaxReconnects(-1),
@@ -188,6 +211,10 @@ func (r *Replicator) AddPeer(name, url string, opts ...nats.Option) error {
 		nats.CustomReconnectDelay(func(attempts int) time.Duration { return Backoff(attempts, 250*time.Millisecond, max) }),
 		nats.ConnectHandler(func(*nats.Conn) { r.logf("replica %s: connected", name) }),
 		nats.DisconnectErrHandler(func(_ *nats.Conn, err error) { r.logf("replica %s: disconnected: %v", name, err) }),
+		nats.ReconnectHandler(func(*nats.Conn) {
+			r.logf("replica %s: reconnected", name)
+			p.onReconnect()
+		}),
 	}
 	nc, err := nats.Connect(url, append(all, opts...)...)
 	if err != nil {
@@ -330,24 +357,29 @@ func (r *Replicator) consumeLive(ctx context.Context, js jetstream.JetStream, p 
 		}
 		return fmt.Errorf("live consumer: %w", err)
 	}
-	it, err := cons.Messages(jetstream.PullMaxMessages(64))
-	if err != nil {
-		return fmt.Errorf("live messages: %w", err)
-	}
-	stop := context.AfterFunc(ctx, it.Stop)
-	defer stop()
-	defer it.Stop()
+	wake := p.reconnects()
 	for {
-		msg, err := it.Next()
-		if err != nil {
-			if errors.Is(err, jetstream.ErrMsgIteratorClosed) {
-				return ctx.Err()
-			}
-			return err
+		// Batches with a bounded wait: between two of them the loop sees a
+		// reconnection or the end of ctx, and never waits on a dead link.
+		select {
+		case <-wake:
+			return nil // the peer came back: a new consumer reads from its latest values
+		case <-ctx.Done():
+			return ctx.Err()
+		default:
 		}
-		var e domain.Event
-		if json.Unmarshal(msg.Data(), &e) == nil && e.Machine == p.name && e.LiveOnly() {
-			_ = r.apply(e) // a lost reading is replaced by the next one
+		batch, err := cons.Fetch(64, jetstream.FetchMaxWait(fetchWait))
+		if err != nil {
+			return fmt.Errorf("live messages: %w", err)
+		}
+		for msg := range batch.Messages() {
+			var e domain.Event
+			if json.Unmarshal(msg.Data(), &e) == nil && e.Machine == p.name && e.LiveOnly() {
+				_ = r.apply(e) // a lost reading is replaced by the next one
+			}
+		}
+		if err := batch.Error(); err != nil && !errors.Is(err, nats.ErrTimeout) {
+			return fmt.Errorf("live messages: %w", err)
 		}
 	}
 }
@@ -392,39 +424,42 @@ func (r *Replicator) consume(ctx context.Context, js jetstream.JetStream, p *pee
 	if err != nil {
 		return false, fmt.Errorf("consumer: %w", err)
 	}
-	it, err := cons.Messages(jetstream.PullMaxMessages(256))
-	if err != nil {
-		return false, fmt.Errorf("messages: %w", err)
-	}
-	stop := context.AfterFunc(ctx, it.Stop)
-	defer stop()
-	defer it.Stop()
+	wake := p.reconnects()
 	for {
-		msg, err := it.Next()
+		select {
+		case <-wake:
+			return progressed, nil // a new consumer goes on from the cursor
+		case <-ctx.Done():
+			return progressed, ctx.Err()
+		default:
+		}
+		batch, err := cons.Fetch(256, jetstream.FetchMaxWait(fetchWait))
 		if err != nil {
-			if errors.Is(err, jetstream.ErrMsgIteratorClosed) {
-				return progressed, ctx.Err()
+			return progressed, fmt.Errorf("messages: %w", err)
+		}
+		for msg := range batch.Messages() {
+			md, err := msg.Metadata()
+			if err != nil {
+				continue
 			}
-			return progressed, err
-		}
-		md, err := msg.Metadata()
-		if err != nil {
-			continue
-		}
-		seq := md.Sequence.Stream
-		if origin := msg.Headers().Get(HeaderMachine); origin == "" || origin == p.name {
-			var e domain.Event
-			if json.Unmarshal(msg.Data(), &e) == nil && e.Machine == p.name {
-				if err := r.apply(e); err != nil {
-					// Do not move the cursor: the event comes again after the backoff.
-					return progressed, fmt.Errorf("apply %s: %w", e.ID, err)
+			seq := md.Sequence.Stream
+			if origin := msg.Headers().Get(HeaderMachine); origin == "" || origin == p.name {
+				var e domain.Event
+				if json.Unmarshal(msg.Data(), &e) == nil && e.Machine == p.name {
+					if err := r.apply(e); err != nil {
+						// Do not move the cursor: the event comes again after the backoff.
+						return progressed, fmt.Errorf("apply %s: %w", e.ID, err)
+					}
 				}
 			}
+			if err := r.store.SetCursor(p.name, seq); err != nil {
+				return progressed, fmt.Errorf("cursor: %w", err)
+			}
+			progressed = true
 		}
-		if err := r.store.SetCursor(p.name, seq); err != nil {
-			return progressed, fmt.Errorf("cursor: %w", err)
+		if err := batch.Error(); err != nil && !errors.Is(err, nats.ErrTimeout) {
+			return progressed, fmt.Errorf("messages: %w", err)
 		}
-		progressed = true
 	}
 }
 

@@ -84,3 +84,41 @@ func TestLiveSubject(t *testing.T) {
 		t.Fatal(got)
 	}
 }
+
+// A peer that restarts keeps reaching the others: after alpha's daemon comes
+// back on the same port, beta reads alpha's live state again (heartbeats,
+// versions). On the cluster, a restarted machine stayed red for the others
+// because the live consumer never came back.
+func TestLiveStateSurvivesAPeerRestart(t *testing.T) {
+	seed, pub, err := NewMachineKey()
+	if err != nil {
+		t.Fatal(err)
+	}
+	dir, port := t.TempDir(), freePort(t)
+	a := startMachine(t, "alpha", dir, port, PeerPermissions(pub, "alpha"))
+	ctx := context.Background()
+	auth, err := NkeyOption(seed)
+	if err != nil {
+		t.Fatal(err)
+	}
+	rec := newRecorder()
+	rep := NewReplicator("beta", rec.apply, nil)
+	rep.MaxBackoff = time.Second
+	rep.Logf = t.Logf
+	defer rep.Close()
+	if err := rep.AddPeer("alpha", a.srv.ClientURL(), auth); err != nil {
+		t.Fatal(err)
+	}
+	if err := a.bus.Publish(ctx, heartbeat("hb-1", "alpha", 1)); err != nil {
+		t.Fatal(err)
+	}
+	waitFor(t, "the first heartbeat", 10*time.Second, func() bool { return rec.has("hb-1") })
+
+	a.stop()
+	a = startMachine(t, "alpha", dir, port, PeerPermissions(pub, "alpha"))
+	defer a.stop()
+	if err := a.bus.Publish(ctx, heartbeat("hb-2", "alpha", 2)); err != nil {
+		t.Fatal(err)
+	}
+	waitFor(t, "a heartbeat after alpha restarted", 30*time.Second, func() bool { return rec.has("hb-2") })
+}
