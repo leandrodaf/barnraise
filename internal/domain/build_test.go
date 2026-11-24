@@ -25,6 +25,13 @@ func TestBuildNewer(t *testing.T) {
 		{"the same commit, clean over dirty, is not newer", Build{Version: "9a64ec7", Time: day2}, Build{Version: "9a64ec7-dirty", Time: day2}, false},
 		{"commits without times cannot be ordered", Build{Version: "8cbf79a"}, Build{Version: "9a64ec7-dirty"}, false},
 		{"a release and a commit, by time", Build{Version: "0.2.0", Time: day2}, Build{Version: "8cbf79a", Time: day1}, true},
+		// Builds after a release, as git describe names them.
+		{"a build after its release", Build{Version: "0.1.0-1-gebe2f36"}, Build{Version: "0.1.0"}, true},
+		{"the release is not newer than a build after it", Build{Version: "0.1.0", Time: day2}, Build{Version: "0.1.0-1-gebe2f36", Time: day1}, false},
+		{"more commits after the same release", Build{Version: "0.1.0-12-g1234567"}, Build{Version: "0.1.0-3-gabcdef0"}, true},
+		{"a build after a release is older than the next release", Build{Version: "0.1.0-30-g1234567"}, Build{Version: "0.2.0"}, false},
+		{"dirty changes nothing in the order", Build{Version: "0.1.0-dirty", Time: day2}, Build{Version: "0.1.0", Time: day2}, false},
+		{"a dirty build after a release", Build{Version: "0.1.0-2-g1234567-dirty"}, Build{Version: "0.1.0-1-gebe2f36"}, true},
 	}
 	for _, c := range cases {
 		if got := c.a.Newer(c.b); got != c.want {
