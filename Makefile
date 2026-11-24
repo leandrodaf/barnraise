@@ -36,13 +36,17 @@ web-check: ## Fail when the committed panel build does not match web/
 desktop: web ## Build the desktop app (desktop/, Wails: needs cgo and WebKitGTK 4.1) with barnraise next to it
 	$(MAKE) build BIN=desktop/build/bin/barnraise
 	cd desktop && wails build -tags webkit2_41 -skipbindings -s -ldflags "-X main.appVersion=$(VERSION)"
-	@# Wails makes the macOS icon by downscaling appicon.png; put the one drawn
-	@# for each size in its place, and name the bundle as the app is named.
+	@# macOS: Wails makes the icon by downscaling appicon.png, so put the one
+	@# drawn for each size in its place; carry barnraise inside the bundle (an
+	@# app opened from Finder does not see the shell's PATH); name the bundle
+	@# as the app is named.
 	@if [ "$$(uname)" = Darwin ] && [ -d desktop/build/bin/barnraise-desktop.app ]; then \
 		cp desktop/build/darwin/iconfile.icns desktop/build/bin/barnraise-desktop.app/Contents/Resources/iconfile.icns; \
+		install -m755 desktop/build/bin/barnraise desktop/build/bin/barnraise-desktop.app/Contents/MacOS/barnraise; \
 		rm -rf desktop/build/bin/Barnraise.app; \
 		mv desktop/build/bin/barnraise-desktop.app desktop/build/bin/Barnraise.app; \
 		touch desktop/build/bin/Barnraise.app; \
+		echo "built desktop/build/bin/Barnraise.app: drag it to /Applications"; \
 	fi
 
 DESKTOP_ID := io.github.leandrodaf.barnraise
@@ -52,6 +56,10 @@ desktop-install: ## Linux: install the built desktop app for this user (PREFIX=~
 	@test "$$(uname)" = Linux || { echo "desktop-install is for Linux; on macOS drag Barnraise.app to Applications"; exit 1; }
 	@test -x desktop/build/bin/barnraise-desktop || { echo "run make desktop first"; exit 1; }
 	install -Dm755 desktop/build/bin/barnraise-desktop $(PREFIX)/bin/barnraise-desktop
+	@# The app looks for barnraise next to itself first. Keep one that is
+	@# already there (install.sh's, kept current by barnraise update).
+	@if [ -x $(PREFIX)/bin/barnraise ]; then echo "keeping $(PREFIX)/bin/barnraise"; \
+	else install -Dm755 desktop/build/bin/barnraise $(PREFIX)/bin/barnraise; echo "installed $(PREFIX)/bin/barnraise"; fi
 	sed 's|^Exec=.*|Exec=$(PREFIX)/bin/barnraise-desktop|; s|^TryExec=.*|TryExec=$(PREFIX)/bin/barnraise-desktop|' \
 		desktop/build/linux/$(DESKTOP_ID).desktop > desktop/build/bin/$(DESKTOP_ID).desktop
 	install -Dm644 desktop/build/bin/$(DESKTOP_ID).desktop $(PREFIX)/share/applications/$(DESKTOP_ID).desktop
@@ -59,9 +67,10 @@ desktop-install: ## Linux: install the built desktop app for this user (PREFIX=~
 	cd desktop/build/linux/icons && find hicolor -type f -exec install -Dm644 {} $(PREFIX)/share/icons/{} \;
 	-gtk-update-icon-cache -q -t -f $(PREFIX)/share/icons/hicolor 2>/dev/null
 	-update-desktop-database -q $(PREFIX)/share/applications 2>/dev/null
-	@echo "installed: $(PREFIX)/bin/barnraise-desktop (barnraise itself is found on PATH)"
+	@echo "installed: Barnraise is in the applications menu ($(PREFIX)/bin/barnraise-desktop)"
 
 desktop-uninstall: ## Linux: remove what desktop-install put in PREFIX
+	@# barnraise itself stays: the daemon may be running from it.
 	rm -f $(PREFIX)/bin/barnraise-desktop $(PREFIX)/share/applications/$(DESKTOP_ID).desktop $(PREFIX)/share/metainfo/$(DESKTOP_ID).metainfo.xml
 	find $(PREFIX)/share/icons/hicolor -name '$(DESKTOP_ID).*' -delete 2>/dev/null || true
 	-gtk-update-icon-cache -q -t -f $(PREFIX)/share/icons/hicolor 2>/dev/null

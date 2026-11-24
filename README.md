@@ -69,7 +69,7 @@ barnraise status               # goal, focus, queue, agents, accounts and machin
 | `barnraise account add openrouter` | Add an API-key account (OpenRouter, or a provider under `providers:`) for cheap steps and research; the key goes to the keychain |
 | `barnraise account add <name>` | Add an account of any agent that speaks the Agent Client Protocol, declared as `type: acp` under `providers:`; its permission requests, files and terminals go through Barnraise's policy |
 
-Every command prints text for people by default and JSON with `--json`. The web panel is served by the daemon at `http://127.0.0.1:7420/`; the desktop app (`make desktop`) opens the same panel and can start the daemon or reach another machine ([ADR-0045](docs/adr/0045-panel-and-desktop-app.md)). To work on the panel: `cd web && pnpm dev` (it talks to the local daemon), and `make desktop-dev` for the app with live reload.
+Every command prints text for people by default and JSON with `--json`. The web panel is served by the daemon at `http://127.0.0.1:7420/`; the desktop app (`make desktop`) opens the same panel and can start the daemon or reach another machine ([ADR-0045](docs/adr/0045-panel-and-desktop-app.md)). On Linux, `make desktop desktop-install` puts it in the applications menu with its icon; on macOS, `make desktop` builds `desktop/build/bin/Barnraise.app`, with barnraise inside, to drag to Applications. To work on the panel: `cd web && pnpm dev` (it talks to the local daemon), and `make desktop-dev` for the app with live reload.
 
 ## How an item moves
 

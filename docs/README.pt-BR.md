@@ -71,7 +71,7 @@ barnraise status               # objetivo, foco, fila, agentes, contas e máquin
 | `barnraise account add openrouter` | Põe uma conta por chave de API (OpenRouter, ou um provedor em `providers:`) para passos baratos e pesquisa; a chave vai para o chaveiro |
 | `barnraise account add <nome>` | Põe uma conta de qualquer agente que fale o Agent Client Protocol, declarado como `type: acp` em `providers:`; os pedidos de permissão, os arquivos e os terminais dele passam pela política do Barnraise |
 
-Todo comando imprime texto para pessoas por padrão e JSON com `--json`. O painel web é servido pelo daemon em `http://127.0.0.1:7420/`; o app desktop (`make desktop`) abre o mesmo painel e pode iniciar o daemon ou alcançar outra máquina ([ADR-0045](adr/0045-panel-and-desktop-app.md)). Para mexer no painel: `cd web && pnpm dev` (ele fala com o daemon local), e `make desktop-dev` para o app com recarga ao vivo.
+Todo comando imprime texto para pessoas por padrão e JSON com `--json`. O painel web é servido pelo daemon em `http://127.0.0.1:7420/`; o app desktop (`make desktop`) abre o mesmo painel e pode iniciar o daemon ou alcançar outra máquina ([ADR-0045](adr/0045-panel-and-desktop-app.md)). No Linux, `make desktop desktop-install` o coloca no menu de aplicativos com o ícone; no macOS, `make desktop` gera `desktop/build/bin/Barnraise.app`, com o barnraise dentro, para arrastar para Aplicativos. Para mexer no painel: `cd web && pnpm dev` (ele fala com o daemon local), e `make desktop-dev` para o app com recarga ao vivo.
 
 ## Como um item anda
 
