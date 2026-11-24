@@ -50,12 +50,14 @@ type Deps struct {
 	Blobs         ports.BlobStore // optional
 	Knowledge     ports.Knowledge // optional
 	Exec          ports.Exec      // optional
-	Log           *slog.Logger
-	Machine       string
-	Version       string
-	DataDir       string // worktrees, logs, policy files
-	SocketPath    string
-	BinaryPath    string // the barnraise binary, for hooks and MCP config
+	// Host reads this machine's processes and disk for the inventory; optional.
+	Host       ports.Host
+	Log        *slog.Logger
+	Machine    string
+	Version    string
+	DataDir    string // worktrees, logs, policy files
+	SocketPath string
+	BinaryPath string // the barnraise binary, for hooks and MCP config
 }
 
 // ProjectPorts are per-project adapters.
@@ -99,6 +101,8 @@ type Service struct {
 	trackerMu sync.Map
 	// wtLocks serializes setup and stripping of each worktree (dir -> *sync.Mutex).
 	wtLocks sync.Map
+	// local is what only this machine sees: its worktrees and their processes.
+	local localView
 }
 
 // New creates the service.
@@ -287,6 +291,9 @@ func cloneState(s *domain.State) *domain.State {
 		c.Focus = &f
 	}
 	c.Seen = nil
+	c.Worktrees = domain.CloneWorktrees(s.Worktrees)
+	// The ledger grows with the log: it is copied only for who asks (Project.Ledger).
+	c.Ledger = nil
 	return &c
 }
 

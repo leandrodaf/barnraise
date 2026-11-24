@@ -112,11 +112,50 @@ gRPC clients use the same service with HTTP/2; generated clients in Go are in `g
 | Items | `CreateItem`, `GetItem`, `ListItems`, `UpdateItem`, `CloseItem`, `NextItem`, `Deliver`, `SubmitReview`, `ReportCheck`, `Timeline`, `Estimate`, `Takeover`, `Handback`, `Redo` |
 | Proposals and tweaks | `Propose`, `ListProposals`, `DecideProposal`, `AddTweak` |
 | Owner | `AskOwner`, `ListQuestions`, `Answer`, `Approve`, `SetGoal`, `SetFocus`, `ClearFocus`, `Pause`, `Resume` |
-| Views | `Status`, `Metrics`, `Digest`, `Queue`, `ProcessQueue`, `ListEvents` |
+| Views | `Status`, `Overview`, `Metrics`, `Digest`, `Queue`, `ProcessQueue`, `ListEvents` |
 | Messaging | `SendMessage`, `Inbox`, `Journal`, `ReportViolation` |
 | Knowledge | `Context`, `Find`, `Get`, `Related`, `Why`, `History`, `Rules`, `Revalidate`, `Sweep` |
 | Accounts and machines | `UpsertAccount`, `ListAccounts`, `ReportUsage`, `ListMachines`, `MachineHistory`, `LeaveMachine` |
 | Tokens and audit | `CreateToken`, `ListTokens`, `RevokeToken`, `ListAudit` |
+
+## Overview
+
+`Overview` is the whole cluster in one answer: what every item is doing, on which machine, with which worktrees, processes, pull request and cost. `barnraise overview` prints it (`--json` for the structure).
+
+```sh
+# Everything that is not finished, plus what finished in the last 7 days, of every project
+curl -s --unix-socket ~/.local/share/barnraise/barnraise.sock \
+  -X POST http://localhost/barnraise.v1.BarnraiseService/Overview \
+  -H 'Content-Type: application/json' -d '{}'
+
+# One item with everything about it; only what is on one machine; only what waits
+... -d '{"project": "shop", "item": "I-42"}'
+... -d '{"machine": "studio"}'
+... -d '{"activity": ["waiting_owner", "blocked", "stalled"], "brief": true}'
+```
+
+| Request field | Meaning |
+| --- | --- |
+| `project` | One project; empty is every project the token may read |
+| `item` | Only this item |
+| `activity` | Only these activities or statuses |
+| `machine` | Only items held by, running on or with a worktree on this machine |
+| `finished` | How far back integrated and closed items are listed (`7d` by default) |
+| `all` | Every finished item, whatever its age |
+| `limit`, `offset` | Items per project: 500 by default, at most 5000. `items_matched` says how many there are, `truncated` that some were left out |
+| `brief` | Totals only: no per-item breakdowns, no process lists |
+
+The answer has three parts.
+
+- **`projects[]`**: pause state, goal and progress, counts of every item by `status` and by `activity`, usage in total and split by model, role, account, machine, agent and day (last 30 days), and `items[]`.
+- **`projects[].items[]`**: one entry per item. `activity` says what it is doing now: `working` (an agent session runs), `refining`, `running` (processes run for it and no agent: a check, a build), `idle` (a machine holds it and nothing runs), `stalled` (the machine that holds it is out), `waiting_owner`, `blocked`, `paused`, `parked`, `queued`, `ready`, `draft`, `integrated`, `closed`; `detail` says why in a sentence. Then where it is (`machine`, `claim`), `branch`, `pr` (number, URL and a state derived from the item: `draft`, `ready`, `merged`, `closed`), `tracker_ref`, times (`step_seconds`, `quiet_seconds`, `lead_seconds`), live `sessions[]` with their machine, start and tokens so far, `worktrees[]` on every machine, `procs`, `usage` with `usage_by_step`, `usage_by_model`, `usage_by_machine` and `usage_by_role`, the last result of each check, the last review and the last delivery.
+- **`machines[]`**: each machine with its health and live readings, its sessions, the items it holds, every directory it keeps (`kind`: `root`, `item`, `alt`, `refine`, `scratch`, `repro`, `trash`; path, branch, commit, size, whether its setup is done), free disk, the processes that run for items and what was spent there.
+
+**Usage** (`usage*`) counts `input`, `output`, `cache_read`, `cache_write`, their sum `tokens`, `cost_usd`, `seconds` of agent sessions, `sessions`, and what the sessions ran on their machine: `cpu_seconds` and `peak_rss_bytes`. 64-bit numbers are strings in JSON, as protobuf writes them.
+
+**Processes** (`procs`) are everything that runs for a worktree: the agent's CLI, tests, browsers, builds, emulators. A process belongs to the worktree its working directory is in, and so does everything it starts. Each one has a `kind` (`agent`, `test`, `browser`, `build`, `emulator`, `runtime`, `container`, `git`, `shell`, `other`), `cpu_pct` (share of one processor since the previous sample; 200 is two processors busy), `rss_bytes` and a short `command`: the program and its first plain arguments. Options are never sent, because that is where keys travel. The six heaviest are listed in `top`; the totals count all of them. Processes are measured on Linux; a machine that does not measure them answers `procs_supported: false`.
+
+**What it costs.** An answer reads only the memory of the daemon that is asked: no git, no disk, no other machine. Totals are added up as events are applied, so finished items are counted and not walked: with 5,000 finished items an answer takes about a third of a millisecond. What only a machine can see is read there on a timer and sent to the others as live state (the event `machine.worktrees`, never stored): the list of worktrees every 30 seconds while something runs and every 2 minutes otherwise; the processes of the machine in one pass of at most every 15 seconds (about 7 ms with 500 processes), less often when a pass turns out slow; sizes in the background, one worktree at a time, and again only for a worktree that was used since it was measured. A machine that just started is complete in the others' answers after its first report.
 
 ## Events
 

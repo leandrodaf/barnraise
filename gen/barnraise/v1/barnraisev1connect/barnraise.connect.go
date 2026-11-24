@@ -129,6 +129,9 @@ const (
 	BarnraiseServiceResumeProcedure = "/barnraise.v1.BarnraiseService/Resume"
 	// BarnraiseServiceStatusProcedure is the fully-qualified name of the BarnraiseService's Status RPC.
 	BarnraiseServiceStatusProcedure = "/barnraise.v1.BarnraiseService/Status"
+	// BarnraiseServiceOverviewProcedure is the fully-qualified name of the BarnraiseService's Overview
+	// RPC.
+	BarnraiseServiceOverviewProcedure = "/barnraise.v1.BarnraiseService/Overview"
 	// BarnraiseServiceMetricsProcedure is the fully-qualified name of the BarnraiseService's Metrics
 	// RPC.
 	BarnraiseServiceMetricsProcedure = "/barnraise.v1.BarnraiseService/Metrics"
@@ -251,6 +254,10 @@ type BarnraiseServiceClient interface {
 	Resume(context.Context, *connect.Request[v1.ProjectRef]) (*connect.Response[v1.Empty], error)
 	// Views
 	Status(context.Context, *connect.Request[v1.ProjectRef]) (*connect.Response[v1.StatusResponse], error)
+	// The whole cluster in one answer: what each item is doing, on which
+	// machine, with which worktrees, processes, pull request and cost. It is
+	// answered from memory, whatever the size of the history.
+	Overview(context.Context, *connect.Request[v1.OverviewRequest]) (*connect.Response[v1.OverviewResponse], error)
 	Metrics(context.Context, *connect.Request[v1.MetricsRequest]) (*connect.Response[v1.MetricsResponse], error)
 	Digest(context.Context, *connect.Request[v1.ProjectRef]) (*connect.Response[v1.DigestResponse], error)
 	Queue(context.Context, *connect.Request[v1.ProjectRef]) (*connect.Response[v1.QueueResponse], error)
@@ -488,6 +495,12 @@ func NewBarnraiseServiceClient(httpClient connect.HTTPClient, baseURL string, op
 			connect.WithSchema(barnraiseServiceMethods.ByName("Status")),
 			connect.WithClientOptions(opts...),
 		),
+		overview: connect.NewClient[v1.OverviewRequest, v1.OverviewResponse](
+			httpClient,
+			baseURL+BarnraiseServiceOverviewProcedure,
+			connect.WithSchema(barnraiseServiceMethods.ByName("Overview")),
+			connect.WithClientOptions(opts...),
+		),
 		metrics: connect.NewClient[v1.MetricsRequest, v1.MetricsResponse](
 			httpClient,
 			baseURL+BarnraiseServiceMetricsProcedure,
@@ -704,6 +717,7 @@ type barnraiseServiceClient struct {
 	pause           *connect.Client[v1.PauseRequest, v1.Empty]
 	resume          *connect.Client[v1.ProjectRef, v1.Empty]
 	status          *connect.Client[v1.ProjectRef, v1.StatusResponse]
+	overview        *connect.Client[v1.OverviewRequest, v1.OverviewResponse]
 	metrics         *connect.Client[v1.MetricsRequest, v1.MetricsResponse]
 	digest          *connect.Client[v1.ProjectRef, v1.DigestResponse]
 	queue           *connect.Client[v1.ProjectRef, v1.QueueResponse]
@@ -889,6 +903,11 @@ func (c *barnraiseServiceClient) Resume(ctx context.Context, req *connect.Reques
 // Status calls barnraise.v1.BarnraiseService.Status.
 func (c *barnraiseServiceClient) Status(ctx context.Context, req *connect.Request[v1.ProjectRef]) (*connect.Response[v1.StatusResponse], error) {
 	return c.status.CallUnary(ctx, req)
+}
+
+// Overview calls barnraise.v1.BarnraiseService.Overview.
+func (c *barnraiseServiceClient) Overview(ctx context.Context, req *connect.Request[v1.OverviewRequest]) (*connect.Response[v1.OverviewResponse], error) {
+	return c.overview.CallUnary(ctx, req)
 }
 
 // Metrics calls barnraise.v1.BarnraiseService.Metrics.
@@ -1079,6 +1098,10 @@ type BarnraiseServiceHandler interface {
 	Resume(context.Context, *connect.Request[v1.ProjectRef]) (*connect.Response[v1.Empty], error)
 	// Views
 	Status(context.Context, *connect.Request[v1.ProjectRef]) (*connect.Response[v1.StatusResponse], error)
+	// The whole cluster in one answer: what each item is doing, on which
+	// machine, with which worktrees, processes, pull request and cost. It is
+	// answered from memory, whatever the size of the history.
+	Overview(context.Context, *connect.Request[v1.OverviewRequest]) (*connect.Response[v1.OverviewResponse], error)
 	Metrics(context.Context, *connect.Request[v1.MetricsRequest]) (*connect.Response[v1.MetricsResponse], error)
 	Digest(context.Context, *connect.Request[v1.ProjectRef]) (*connect.Response[v1.DigestResponse], error)
 	Queue(context.Context, *connect.Request[v1.ProjectRef]) (*connect.Response[v1.QueueResponse], error)
@@ -1310,6 +1333,12 @@ func NewBarnraiseServiceHandler(svc BarnraiseServiceHandler, opts ...connect.Han
 		BarnraiseServiceStatusProcedure,
 		svc.Status,
 		connect.WithSchema(barnraiseServiceMethods.ByName("Status")),
+		connect.WithHandlerOptions(opts...),
+	)
+	barnraiseServiceOverviewHandler := connect.NewUnaryHandler(
+		BarnraiseServiceOverviewProcedure,
+		svc.Overview,
+		connect.WithSchema(barnraiseServiceMethods.ByName("Overview")),
 		connect.WithHandlerOptions(opts...),
 	)
 	barnraiseServiceMetricsHandler := connect.NewUnaryHandler(
@@ -1556,6 +1585,8 @@ func NewBarnraiseServiceHandler(svc BarnraiseServiceHandler, opts ...connect.Han
 			barnraiseServiceResumeHandler.ServeHTTP(w, r)
 		case BarnraiseServiceStatusProcedure:
 			barnraiseServiceStatusHandler.ServeHTTP(w, r)
+		case BarnraiseServiceOverviewProcedure:
+			barnraiseServiceOverviewHandler.ServeHTTP(w, r)
 		case BarnraiseServiceMetricsProcedure:
 			barnraiseServiceMetricsHandler.ServeHTTP(w, r)
 		case BarnraiseServiceDigestProcedure:
@@ -1747,6 +1778,10 @@ func (UnimplementedBarnraiseServiceHandler) Resume(context.Context, *connect.Req
 
 func (UnimplementedBarnraiseServiceHandler) Status(context.Context, *connect.Request[v1.ProjectRef]) (*connect.Response[v1.StatusResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("barnraise.v1.BarnraiseService.Status is not implemented"))
+}
+
+func (UnimplementedBarnraiseServiceHandler) Overview(context.Context, *connect.Request[v1.OverviewRequest]) (*connect.Response[v1.OverviewResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("barnraise.v1.BarnraiseService.Overview is not implemented"))
 }
 
 func (UnimplementedBarnraiseServiceHandler) Metrics(context.Context, *connect.Request[v1.MetricsRequest]) (*connect.Response[v1.MetricsResponse], error) {

@@ -835,6 +835,11 @@ func (r *Runtime) watch(p *Project, slot Slot, a *Assignment, ls *liveSession, a
 		r.Poke()
 	}()
 	var usage domain.TokenUsage
+	procDir := s.WorktreeDir(p.Name, runKey)
+	if a.Step.Name == RefineStep {
+		procDir = s.WorktreeDir(p.Name, "_refine-"+a.Item.ID)
+	}
+	procMark := s.procMark(procDir)
 	limited := false
 	var resets time.Time
 	lastState := time.Time{}
@@ -869,7 +874,7 @@ loop:
 				}
 				if time.Since(lastState) > 15*time.Second {
 					lastState = time.Now()
-					s.sessionState(ctx, p, slot, a, "working", ev.Tool, acc.ID, choice.Provider, choice.String())
+					s.sessionState(ctx, p, slot, a, "working", ev.Tool, acc.ID, choice.Provider, choice.String(), usage)
 				}
 			}
 		case <-safety.C:
@@ -889,6 +894,7 @@ loop:
 	}
 	usage.Agent, usage.Account, usage.Provider, usage.Model, usage.Role, usage.ItemID, usage.Step = slot.Agent, acc.ID, choice.Provider, choice.Model, slot.Role, a.Item.ID, a.Step.Name
 	usage.Duration = s.d.Clock.Now().Sub(ls.started)
+	usage.CPUSeconds, usage.PeakRSSBytes = s.procSince(procDir, procMark)
 	_, _ = s.emit(ctx, p, domain.EvAgentUsage, a.Item.ID, slot.Agent, domain.Payload{Usage: &usage})
 	if limited {
 		s.markAccountLimited(ctx, p, acc.ID, resets)
@@ -901,7 +907,7 @@ loop:
 	if err != nil {
 		state, detail = "failed", err.Error()
 	}
-	s.sessionState(ctx, p, slot, a, state, detail, acc.ID, choice.Provider, choice.String())
+	s.sessionState(ctx, p, slot, a, state, detail, acc.ID, choice.Provider, choice.String(), usage)
 	if attempt == "b" {
 		// The second attempt ends either way: if it did not deliver, attempt a alone decides.
 		p.mu.Lock()
@@ -993,8 +999,11 @@ func maxDur(a, b time.Duration) time.Duration {
 }
 
 // sessionState publishes the agent's state for the panel.
-func (s *Service) sessionState(ctx context.Context, p *Project, slot Slot, a *Assignment, state, detail, account, provider, model string) {
-	info := &domain.SessionInfo{Agent: slot.Agent, Role: slot.Role, Account: account, Provider: provider, Model: model, State: state, Detail: truncate(detail, 200), At: s.d.Clock.Now().UTC()}
+func (s *Service) sessionState(ctx context.Context, p *Project, slot Slot, a *Assignment, state, detail, account, provider, model string, sofar ...domain.TokenUsage) {
+	info := &domain.SessionInfo{Agent: slot.Agent, Role: slot.Role, Account: account, Provider: provider, Model: model, State: state, Detail: truncate(detail, 200), At: s.d.Clock.Now().UTC(), Machine: s.d.Machine}
+	for _, u := range sofar {
+		info.Tokens, info.CostUSD = u.Total(), u.CostUSD
+	}
 	if a != nil && a.Item != nil {
 		info.ItemID, info.Step = a.Item.ID, a.Step.Name
 	}

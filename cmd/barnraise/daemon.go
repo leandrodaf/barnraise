@@ -179,7 +179,7 @@ func runDaemon(ctx context.Context, opts cli.DaemonOptions) error {
 	svc := app.New(app.Deps{
 		Store: d.store, Bus: &d.bus, Checks: &checkRouter{d: d}, Providers: providers, Knowledge: kn, Exec: ex, Log: log,
 		Machine: df.Machine, Version: version, DataDir: d.dataDir, SocketPath: paths.Socket(), BinaryPath: exe,
-		Notifier: d.notifier(), Blobs: blobsOrNil(d.blobs),
+		Notifier: d.notifier(), Blobs: blobsOrNil(d.blobs), Host: sysinfo.NewHost(),
 		ResolveSecret: func(ref string) (string, error) { return notify.SecretRef(d.secrets, ref) },
 	})
 	d.svc = svc
@@ -1230,7 +1230,7 @@ func (d *daemon) forwardHooks(ctx context.Context) {
 			if !ok {
 				return
 			}
-			if e.Type == domain.EvAgentSession || e.Type == domain.EvMachineUpdated {
+			if e.LiveOnly() {
 				continue // live-only noise
 			}
 			prefix := e.Project + "/"
@@ -1261,7 +1261,7 @@ func (d *daemon) forwardWebhooks(ctx context.Context) {
 			if !ok {
 				return
 			}
-			if e.Type == domain.EvAgentSession || e.Type == domain.EvMachineUpdated {
+			if e.LiveOnly() {
 				continue // live-only noise; SSE carries them
 			}
 			p, err := d.svc.Project(e.Project)

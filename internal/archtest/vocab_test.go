@@ -42,6 +42,7 @@ var vocabAllowed = []struct{ file, phrase, why string }{
 	{"", `"nodes"`, "GraphQL connection field of the GitHub and Linear APIs"},
 	{"", "node_modules", "npm folder name"},
 	{"", "Node.js", "runtime name"},
+	{"internal/app/local.go", "node", "the Node.js program, as its process is named"},
 	{"internal/adapters/out/jira/jira.go", "task", `Jira's own issue type name ("Task")`},
 	{"internal/adapters/out/outfilter/outfilter.go", "> Task ", "Gradle prints failed tasks as \"> Task :app:test FAILED\""},
 }

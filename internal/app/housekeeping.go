@@ -16,6 +16,8 @@ import (
 // holding refs/barnraise/lease/housekeeping (another takes over if it dies).
 func (r *Runtime) housekeeping(ctx context.Context, p *Project, m domain.Machine) {
 	s := r.s
+	// Worktrees and processes are local: told to the others on their own timer.
+	s.reportLocal(p, r.busyItems(p.Name))
 	now := time.Now()
 	every := p.Cfg().Lease.Renew
 	if every <= 0 || every > 30*time.Second {

@@ -1308,6 +1308,48 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/barnraise.v1.Assignment'
+  /barnraise.v1.BarnraiseService/Overview:
+    post:
+      tags:
+        - barnraise.v1.BarnraiseService
+      summary: Overview
+      description: |-
+        The whole cluster in one answer: what each item is doing, on which
+         machine, with which worktrees, processes, pull request and cost. It is
+         answered from memory, whatever the size of the history.
+      operationId: barnraise.v1.BarnraiseService.Overview
+      parameters:
+        - name: Connect-Protocol-Version
+          in: header
+          description: Define the version of the Connect protocol
+          schema:
+            $ref: '#/components/schemas/connect-protocol-version'
+          example: 1
+        - name: Connect-Timeout-Ms
+          in: header
+          description: Define the timeout, in ms
+          schema:
+            $ref: '#/components/schemas/connect-timeout-header'
+          example: 1000
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/barnraise.v1.OverviewRequest'
+        required: true
+      responses:
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.error'
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/barnraise.v1.OverviewResponse'
   /barnraise.v1.BarnraiseService/Pause:
     post:
       tags:
@@ -2417,6 +2459,23 @@ components:
           title: accounts
       title: AccountsResponse
       additionalProperties: false
+    barnraise.v1.Activity:
+      type: object
+      properties:
+        type:
+          type: string
+          title: type
+        machine:
+          type: string
+          title: machine
+        actor:
+          type: string
+          title: actor
+        at:
+          type: string
+          title: at
+      title: Activity
+      additionalProperties: false
     barnraise.v1.AddTweakRequest:
       type: object
       properties:
@@ -2634,6 +2693,46 @@ components:
       description: |-
         ChangeNote describes a change in the form of Conventional Commits. It
          becomes the header of the commit that lands and a line of the changelog.
+    barnraise.v1.CheckMark:
+      type: object
+      properties:
+        check:
+          type: string
+          title: check
+        passed:
+          type: boolean
+          title: passed
+        flaky:
+          type: boolean
+          title: flaky
+        mainRed:
+          type: boolean
+          title: main_red
+        commit:
+          type: string
+          title: commit
+        runsOn:
+          type: string
+          title: runs_on
+        seconds:
+          oneOf:
+            - type: number
+              format: double
+            - type: string
+              enum:
+                - NaN
+                - Infinity
+                - -Infinity
+          title: seconds
+        runs:
+          type: integer
+          title: runs
+          format: int32
+        at:
+          type: string
+          title: at
+      title: CheckMark
+      additionalProperties: false
     barnraise.v1.CheckResult:
       type: object
       properties:
@@ -3024,6 +3123,26 @@ components:
           description: How the change is described on main, in English.
           $ref: '#/components/schemas/barnraise.v1.ChangeNote'
       title: Delivery
+      additionalProperties: false
+    barnraise.v1.DeliveryMark:
+      type: object
+      properties:
+        step:
+          type: string
+          title: step
+        agent:
+          type: string
+          title: agent
+        status:
+          type: string
+          title: status
+        commit:
+          type: string
+          title: commit
+        at:
+          type: string
+          title: at
+      title: DeliveryMark
       additionalProperties: false
     barnraise.v1.DigestResponse:
       type: object
@@ -3618,6 +3737,238 @@ components:
           $ref: '#/components/schemas/barnraise.v1.ChangeNote'
       title: Item
       additionalProperties: false
+    barnraise.v1.ItemOverview:
+      type: object
+      properties:
+        id:
+          type: string
+          title: id
+        title:
+          type: string
+          title: title
+        kind:
+          type: string
+          title: kind
+        priority:
+          type: integer
+          title: priority
+          format: int32
+        lane:
+          type: string
+          title: lane
+        area:
+          type: string
+          title: area
+        goalId:
+          type: string
+          title: goal_id
+        size:
+          type: string
+          title: size
+        class:
+          type: string
+          title: class
+        status:
+          type: string
+          title: status
+        step:
+          type: string
+          title: step
+        activity:
+          type: string
+          title: activity
+          description: |-
+            working, refining, running, idle, stalled, waiting_owner, blocked,
+             paused, parked, queued, ready, draft, integrated or closed.
+        detail:
+          type: string
+          title: detail
+          description: Why it is where it is, when there is a why.
+        machine:
+          type: string
+          title: machine
+          description: Where the item is being worked on (its claim).
+        claim:
+          title: claim
+          $ref: '#/components/schemas/barnraise.v1.Claim'
+        branch:
+          type: string
+          title: branch
+        pr:
+          title: pr
+          $ref: '#/components/schemas/barnraise.v1.PullRequestView'
+        trackerRef:
+          type: string
+          title: tracker_ref
+        adopted:
+          type: boolean
+          title: adopted
+        paused:
+          type: boolean
+          title: paused
+        parked:
+          type: boolean
+          title: parked
+        risky:
+          type: boolean
+          title: risky
+        tier:
+          type: integer
+          title: tier
+          format: int32
+        attempts:
+          type: integer
+          title: attempts
+          format: int32
+        reworkRounds:
+          type: integer
+          title: rework_rounds
+          format: int32
+        deps:
+          type: array
+          items:
+            type: string
+          title: deps
+        blockedBy:
+          type: array
+          items:
+            type: string
+          title: blocked_by
+        waitingQuestion:
+          type: string
+          title: waiting_question
+        criteriaMet:
+          type: integer
+          title: criteria_met
+          format: int32
+        criteriaTotal:
+          type: integer
+          title: criteria_total
+          format: int32
+        createdAt:
+          type: string
+          title: created_at
+        updatedAt:
+          type: string
+          title: updated_at
+        stepStartedAt:
+          type: string
+          title: step_started_at
+        integratedAt:
+          type: string
+          title: integrated_at
+        mergeCommit:
+          type: string
+          title: merge_commit
+        closedReason:
+          type: string
+          title: closed_reason
+        closedBy:
+          type: string
+          title: closed_by
+        stepSeconds:
+          oneOf:
+            - type: number
+              format: double
+            - type: string
+              enum:
+                - NaN
+                - Infinity
+                - -Infinity
+          title: step_seconds
+          description: At the current step; since anything changed; from creation to integration (or to now).
+        quietSeconds:
+          oneOf:
+            - type: number
+              format: double
+            - type: string
+              enum:
+                - NaN
+                - Infinity
+                - -Infinity
+          title: quiet_seconds
+        leadSeconds:
+          oneOf:
+            - type: number
+              format: double
+            - type: string
+              enum:
+                - NaN
+                - Infinity
+                - -Infinity
+          title: lead_seconds
+        sessions:
+          type: array
+          items:
+            $ref: '#/components/schemas/barnraise.v1.SessionInfo'
+          title: sessions
+        worktrees:
+          type: array
+          items:
+            $ref: '#/components/schemas/barnraise.v1.WorktreeInfo'
+          title: worktrees
+        procs:
+          title: procs
+          description: What runs for the item on every machine, added up.
+          $ref: '#/components/schemas/barnraise.v1.ProcSummary'
+        usage:
+          title: usage
+          $ref: '#/components/schemas/barnraise.v1.UsageTotals'
+        usageByStep:
+          type: object
+          title: usage_by_step
+          additionalProperties:
+            title: value
+            $ref: '#/components/schemas/barnraise.v1.UsageTotals'
+        usageByModel:
+          type: object
+          title: usage_by_model
+          additionalProperties:
+            title: value
+            $ref: '#/components/schemas/barnraise.v1.UsageTotals'
+        usageByMachine:
+          type: object
+          title: usage_by_machine
+          additionalProperties:
+            title: value
+            $ref: '#/components/schemas/barnraise.v1.UsageTotals'
+        usageByRole:
+          type: object
+          title: usage_by_role
+          additionalProperties:
+            title: value
+            $ref: '#/components/schemas/barnraise.v1.UsageTotals'
+        runs:
+          type: object
+          title: runs
+          additionalProperties:
+            title: value
+            $ref: '#/components/schemas/barnraise.v1.StepRun'
+        checks:
+          type: array
+          items:
+            $ref: '#/components/schemas/barnraise.v1.CheckMark'
+          title: checks
+        reviews:
+          type: integer
+          title: reviews
+          format: int32
+        lastReview:
+          title: last_review
+          $ref: '#/components/schemas/barnraise.v1.ReviewMark'
+        deliveries:
+          type: integer
+          title: deliveries
+          format: int32
+        lastDelivery:
+          title: last_delivery
+          $ref: '#/components/schemas/barnraise.v1.DeliveryMark'
+        lastActivity:
+          title: last_activity
+          $ref: '#/components/schemas/barnraise.v1.Activity'
+      title: ItemOverview
+      additionalProperties: false
+      description: ItemOverview is everything known about one item, on every machine.
     barnraise.v1.ItemRef:
       type: object
       properties:
@@ -3890,6 +4241,62 @@ components:
           title: series
       title: MachineHistoryResponse
       additionalProperties: false
+    barnraise.v1.MachineOverview:
+      type: object
+      properties:
+        machine:
+          title: machine
+          $ref: '#/components/schemas/barnraise.v1.Machine'
+        projects:
+          type: array
+          items:
+            type: string
+          title: projects
+        sessions:
+          type: array
+          items:
+            $ref: '#/components/schemas/barnraise.v1.SessionInfo'
+          title: sessions
+        items:
+          type: array
+          items:
+            type: string
+          title: items
+          description: The items this machine holds, as project/id.
+        worktrees:
+          type: array
+          items:
+            $ref: '#/components/schemas/barnraise.v1.WorktreeInfo'
+          title: worktrees
+        worktreeBytes:
+          type: string
+          title: worktree_bytes
+          format: int64
+        diskFreeBytes:
+          type: string
+          title: disk_free_bytes
+          format: int64
+        diskTotalBytes:
+          type: string
+          title: disk_total_bytes
+          format: int64
+        procs:
+          title: procs
+          $ref: '#/components/schemas/barnraise.v1.ProcSummary'
+        procsSupported:
+          type: boolean
+          title: procs_supported
+          description: False where the machine does not attribute processes to worktrees.
+        reportedAt:
+          type: string
+          title: reported_at
+          description: When the machine last told what it keeps.
+        usage:
+          title: usage
+          $ref: '#/components/schemas/barnraise.v1.UsageTotals'
+      title: MachineOverview
+      additionalProperties: false
+      description: MachineOverview is one machine across the projects.
     barnraise.v1.MachineSample:
       type: object
       properties:
@@ -4181,6 +4588,82 @@ components:
           title: recommended
       title: Option
       additionalProperties: false
+    barnraise.v1.OverviewRequest:
+      type: object
+      properties:
+        project:
+          type: string
+          title: project
+          description: 'Empty: every project the token may read.'
+        item:
+          type: string
+          title: item
+          description: Only this item.
+        activity:
+          type: array
+          items:
+            type: string
+          title: activity
+          description: Only these activities or statuses.
+        machine:
+          type: string
+          title: machine
+          description: Only what is on this machine.
+        finished:
+          type: string
+          title: finished
+          description: 'Integrated and closed items of this long ago (Go duration or days: 7d). Default 7d.'
+        all:
+          type: boolean
+          title: all
+          description: Every finished item, whatever its age.
+        limit:
+          type: integer
+          title: limit
+          format: int32
+          description: 'Items per project: default 500, at most 5000.'
+        offset:
+          type: integer
+          title: offset
+          format: int32
+        brief:
+          type: boolean
+          title: brief
+          description: Without the per-item breakdowns and process lists.
+      title: OverviewRequest
+      additionalProperties: false
+    barnraise.v1.OverviewResponse:
+      type: object
+      properties:
+        generatedAt:
+          type: string
+          title: generated_at
+        machine:
+          type: string
+          title: machine
+          description: The machine that answered.
+        projects:
+          type: array
+          items:
+            $ref: '#/components/schemas/barnraise.v1.ProjectOverview'
+          title: projects
+        machines:
+          type: array
+          items:
+            $ref: '#/components/schemas/barnraise.v1.MachineOverview'
+          title: machines
+        activity:
+          type: object
+          title: activity
+          additionalProperties:
+            type: integer
+            title: value
+            format: int32
+        usage:
+          title: usage
+          $ref: '#/components/schemas/barnraise.v1.UsageTotals'
+      title: OverviewResponse
+      additionalProperties: false
     barnraise.v1.PauseRequest:
       type: object
       properties:
@@ -4256,6 +4739,216 @@ components:
           title: excerpt
       title: PolicyViolationRequest
       additionalProperties: false
+    barnraise.v1.ProcInfo:
+      type: object
+      properties:
+        pid:
+          type: integer
+          title: pid
+          format: int32
+        name:
+          type: string
+          title: name
+        command:
+          type: string
+          title: command
+          description: The program and its first plain arguments; options are left out.
+        kind:
+          type: string
+          title: kind
+          description: agent, test, browser, build, emulator, runtime, container, git, shell or other.
+        cpuPct:
+          oneOf:
+            - type: number
+              format: double
+            - type: string
+              enum:
+                - NaN
+                - Infinity
+                - -Infinity
+          title: cpu_pct
+          description: Share of one processor since the previous sample (200 = two busy).
+        rssBytes:
+          type: string
+          title: rss_bytes
+          format: int64
+        cpuSeconds:
+          oneOf:
+            - type: number
+              format: double
+            - type: string
+              enum:
+                - NaN
+                - Infinity
+                - -Infinity
+          title: cpu_seconds
+        startedAt:
+          type: string
+          title: started_at
+      title: ProcInfo
+      additionalProperties: false
+      description: ProcInfo is one process that runs for a worktree.
+    barnraise.v1.ProcSummary:
+      type: object
+      properties:
+        count:
+          type: integer
+          title: count
+          format: int32
+        cpuPct:
+          oneOf:
+            - type: number
+              format: double
+            - type: string
+              enum:
+                - NaN
+                - Infinity
+                - -Infinity
+          title: cpu_pct
+        rssBytes:
+          type: string
+          title: rss_bytes
+          format: int64
+        byKind:
+          type: object
+          title: by_kind
+          additionalProperties:
+            type: integer
+            title: value
+            format: int32
+        top:
+          type: array
+          items:
+            $ref: '#/components/schemas/barnraise.v1.ProcInfo'
+          title: top
+          description: The heaviest processes; the rest is in the totals.
+        cpuSeconds:
+          oneOf:
+            - type: number
+              format: double
+            - type: string
+              enum:
+                - NaN
+                - Infinity
+                - -Infinity
+          title: cpu_seconds
+          description: Measured since the machine's daemon started; they stay after the processes end.
+        peakRssBytes:
+          type: string
+          title: peak_rss_bytes
+          format: int64
+      title: ProcSummary
+      additionalProperties: false
+      description: ProcSummary measures everything that runs for a worktree, an item or a machine.
+    barnraise.v1.ProjectOverview:
+      type: object
+      properties:
+        project:
+          type: string
+          title: project
+        paused:
+          type: boolean
+          title: paused
+        pausedWhy:
+          type: string
+          title: paused_why
+        goal:
+          title: goal
+          $ref: '#/components/schemas/barnraise.v1.Goal'
+        progress:
+          title: progress
+          $ref: '#/components/schemas/barnraise.v1.GoalProgress'
+        focus:
+          title: focus
+          $ref: '#/components/schemas/barnraise.v1.Focus'
+        status:
+          type: object
+          title: status
+          additionalProperties:
+            type: integer
+            title: value
+            format: int32
+          description: Every item of the project, by status and by activity.
+        activity:
+          type: object
+          title: activity
+          additionalProperties:
+            type: integer
+            title: value
+            format: int32
+        openQuestions:
+          type: integer
+          title: open_questions
+          format: int32
+        openProposals:
+          type: integer
+          title: open_proposals
+          format: int32
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/barnraise.v1.ItemOverview'
+          title: items
+          description: The items that match the request, after offset and limit.
+        itemsMatched:
+          type: integer
+          title: items_matched
+          format: int32
+        itemsTotal:
+          type: integer
+          title: items_total
+          format: int32
+        truncated:
+          type: boolean
+          title: truncated
+        usage:
+          title: usage
+          $ref: '#/components/schemas/barnraise.v1.UsageTotals'
+        usageByModel:
+          type: object
+          title: usage_by_model
+          additionalProperties:
+            title: value
+            $ref: '#/components/schemas/barnraise.v1.UsageTotals'
+        usageByRole:
+          type: object
+          title: usage_by_role
+          additionalProperties:
+            title: value
+            $ref: '#/components/schemas/barnraise.v1.UsageTotals'
+        usageByAccount:
+          type: object
+          title: usage_by_account
+          additionalProperties:
+            title: value
+            $ref: '#/components/schemas/barnraise.v1.UsageTotals'
+        usageByMachine:
+          type: object
+          title: usage_by_machine
+          additionalProperties:
+            title: value
+            $ref: '#/components/schemas/barnraise.v1.UsageTotals'
+        usageByAgent:
+          type: object
+          title: usage_by_agent
+          additionalProperties:
+            title: value
+            $ref: '#/components/schemas/barnraise.v1.UsageTotals'
+        usageByDay:
+          type: object
+          title: usage_by_day
+          additionalProperties:
+            title: value
+            $ref: '#/components/schemas/barnraise.v1.UsageTotals'
+          description: The last 30 days (UTC), by 2006-01-02.
+        accounts:
+          type: array
+          items:
+            $ref: '#/components/schemas/barnraise.v1.Account'
+          title: accounts
+      title: ProjectOverview
+      additionalProperties: false
+      description: ProjectOverview is one project across the cluster.
     barnraise.v1.ProjectRef:
       type: object
       properties:
@@ -4392,6 +5085,25 @@ components:
           title: duplicate
       title: ProposeResponse
       additionalProperties: false
+    barnraise.v1.PullRequestView:
+      type: object
+      properties:
+        number:
+          type: integer
+          title: number
+          format: int32
+        url:
+          type: string
+          title: url
+        state:
+          type: string
+          title: state
+          description: draft, ready, merged or closed.
+      title: PullRequestView
+      additionalProperties: false
+      description: |-
+        PullRequestView is an item's pull request. The state is derived from the
+         item, not asked to the host.
     barnraise.v1.Question:
       type: object
       properties:
@@ -4591,6 +5303,33 @@ components:
           title: at
       title: Review
       additionalProperties: false
+    barnraise.v1.ReviewMark:
+      type: object
+      properties:
+        step:
+          type: string
+          title: step
+        reviewer:
+          type: string
+          title: reviewer
+        decision:
+          type: string
+          title: decision
+        criteriaVerdict:
+          type: string
+          title: criteria_verdict
+        codeVerdict:
+          type: string
+          title: code_verdict
+        findings:
+          type: integer
+          title: findings
+          format: int32
+        at:
+          type: string
+          title: at
+      title: ReviewMark
+      additionalProperties: false
     barnraise.v1.ReviewRequest:
       type: object
       properties:
@@ -4730,6 +5469,29 @@ components:
         at:
           type: string
           title: at
+        machine:
+          type: string
+          title: machine
+          description: The machine that runs the session.
+        since:
+          type: string
+          title: since
+          description: When the session started on this item and step.
+        tokens:
+          type: string
+          title: tokens
+          format: int64
+          description: Tokens and cost of the session so far (final when it ends).
+        costUsd:
+          oneOf:
+            - type: number
+              format: double
+            - type: string
+              enum:
+                - NaN
+                - Infinity
+                - -Infinity
+          title: cost_usd
       title: SessionInfo
       additionalProperties: false
     barnraise.v1.SetGoalRequest:
@@ -5059,6 +5821,136 @@ components:
           title: source
       title: Usage
       additionalProperties: false
+    barnraise.v1.UsageTotals:
+      type: object
+      properties:
+        input:
+          type: string
+          title: input
+          format: int64
+        output:
+          type: string
+          title: output
+          format: int64
+        cacheRead:
+          type: string
+          title: cache_read
+          format: int64
+        cacheWrite:
+          type: string
+          title: cache_write
+          format: int64
+        tokens:
+          type: string
+          title: tokens
+          format: int64
+          description: The four above.
+        costUsd:
+          oneOf:
+            - type: number
+              format: double
+            - type: string
+              enum:
+                - NaN
+                - Infinity
+                - -Infinity
+          title: cost_usd
+        seconds:
+          oneOf:
+            - type: number
+              format: double
+            - type: string
+              enum:
+                - NaN
+                - Infinity
+                - -Infinity
+          title: seconds
+          description: Seconds of agent sessions (two agents at once count twice).
+        sessions:
+          type: integer
+          title: sessions
+          format: int32
+        lastAt:
+          type: string
+          title: last_at
+        cpuSeconds:
+          oneOf:
+            - type: number
+              format: double
+            - type: string
+              enum:
+                - NaN
+                - Infinity
+                - -Infinity
+          title: cpu_seconds
+          description: |-
+            Processor time of everything the sessions ran (the CLI, tests,
+             browsers, builds) and the most memory at once. 0 = not measured.
+        peakRssBytes:
+          type: string
+          title: peak_rss_bytes
+          format: int64
+      title: UsageTotals
+      additionalProperties: false
+      description: 'UsageTotals adds up agent sessions: tokens, cost and time.'
+    barnraise.v1.WorktreeInfo:
+      type: object
+      properties:
+        machine:
+          type: string
+          title: machine
+        project:
+          type: string
+          title: project
+        name:
+          type: string
+          title: name
+        kind:
+          type: string
+          title: kind
+          description: root, item, alt, refine, scratch, repro or trash.
+        itemId:
+          type: string
+          title: item_id
+        path:
+          type: string
+          title: path
+        branch:
+          type: string
+          title: branch
+          description: Empty when detached.
+        head:
+          type: string
+          title: head
+        inUse:
+          type: boolean
+          title: in_use
+          description: A session or a check of that machine runs there right now.
+        setupDone:
+          type: boolean
+          title: setup_done
+          description: The worktree setup finished there (dependencies are installed).
+        modifiedAt:
+          type: string
+          title: modified_at
+        sizeBytes:
+          type: string
+          title: size_bytes
+          format: int64
+          description: Measured in the background; sized_at is empty until the first measure ends.
+        files:
+          type: string
+          title: files
+          format: int64
+        sizedAt:
+          type: string
+          title: sized_at
+        procs:
+          title: procs
+          $ref: '#/components/schemas/barnraise.v1.ProcSummary'
+      title: WorktreeInfo
+      additionalProperties: false
+      description: WorktreeInfo is one directory a machine keeps for a project.
     connect-protocol-version:
       type: number
       examples:
@@ -5152,6 +6044,3 @@ components:
 security: []
 tags:
   - name: barnraise.v1.BarnraiseService
-    description: |-
-      BarnraiseService is the daemon's whole API. The CLI, the MCP server, the
-       panel and any other interface use it.

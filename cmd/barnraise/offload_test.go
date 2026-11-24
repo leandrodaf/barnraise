@@ -141,6 +141,10 @@ func TestTwoMachinesOffloadChecks(t *testing.T) {
 		time.Sleep(300 * time.Millisecond)
 	}
 
+	// Each one also learns what the other keeps on its own disk.
+	alpha.waitOverviewOfPeer(t, bin, "beta")
+	beta.waitOverviewOfPeer(t, bin, "alpha")
+
 	alpha.run(t, bin, "item", "add", "Report", "--area", "reports", "-c", "WHEN the user opens reports, THE SYSTEM SHALL list them | main",
 		"--body", "fake: write app/report.txt report")
 	deadline = time.Now().Add(90 * time.Second)
@@ -153,6 +157,27 @@ func TestTwoMachinesOffloadChecks(t *testing.T) {
 			a, _ := os.ReadFile(filepath.Join(base, "alpha.log"))
 			b, _ := os.ReadFile(filepath.Join(base, "beta.log"))
 			t.Fatalf("not integrated: %v\n--- alpha\n%s\n--- beta\n%s", it, a, b)
+		}
+		time.Sleep(300 * time.Millisecond)
+	}
+
+	// The machine that only ran the check answers the whole story of the item:
+	// who worked on it, what it cost there and where its check ran.
+	deadline = time.Now().Add(30 * time.Second)
+	for {
+		o := beta.overview(t, bin, "--item", "I-1")
+		if o != nil && len(o.Projects) == 1 && len(o.Projects[0].Items) == 1 {
+			it := o.Projects[0].Items[0]
+			onBeta := false
+			for _, c := range it.Checks {
+				onBeta = onBeta || (c.Check == "main" && c.Passed && strings.HasSuffix(c.RunsOn, "beta"))
+			}
+			if o.Machine == "beta" && it.Activity == "integrated" && it.UsageByMachine["alpha"].Sessions > 0 && it.Usage.Tokens != "" && it.Usage.Tokens != "0" && onBeta {
+				break
+			}
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("beta's overview of I-1: %+v", o)
 		}
 		time.Sleep(300 * time.Millisecond)
 	}

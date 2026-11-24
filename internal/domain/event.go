@@ -75,25 +75,27 @@ type Event struct {
 // Payload is the data of an event. Entity snapshots let any machine rebuild
 // the same state; the specific fields explain what happened.
 type Payload struct {
-	Item     *Item          `json:"item,omitempty"`
-	Proposal *Proposal      `json:"proposal,omitempty"`
-	Goal     *Goal          `json:"goal,omitempty"`
-	Focus    *Focus         `json:"focus,omitempty"`
-	Tweak    *Tweak         `json:"tweak,omitempty"`
-	Question *Question      `json:"question,omitempty"`
-	Message  *Message       `json:"message,omitempty"`
-	Account  *Account       `json:"account,omitempty"`
-	MachineI *Machine       `json:"machine,omitempty"`
-	Delivery *Delivery      `json:"delivery,omitempty"`
-	Review   *Review        `json:"review,omitempty"`
-	Check    *CheckResult   `json:"check,omitempty"`
-	Rework   *ReworkRecord  `json:"rework,omitempty"`
-	Session  *SessionInfo   `json:"session,omitempty"`
-	Usage    *TokenUsage    `json:"usage,omitempty"`
-	Journal  *JournalEntry  `json:"journal,omitempty"`
-	Cause    string         `json:"cause,omitempty"` // link to the change that caused it
-	Note     string         `json:"note,omitempty"`
-	Extra    map[string]any `json:"extra,omitempty"`
+	Item     *Item         `json:"item,omitempty"`
+	Proposal *Proposal     `json:"proposal,omitempty"`
+	Goal     *Goal         `json:"goal,omitempty"`
+	Focus    *Focus        `json:"focus,omitempty"`
+	Tweak    *Tweak        `json:"tweak,omitempty"`
+	Question *Question     `json:"question,omitempty"`
+	Message  *Message      `json:"message,omitempty"`
+	Account  *Account      `json:"account,omitempty"`
+	MachineI *Machine      `json:"machine,omitempty"`
+	Delivery *Delivery     `json:"delivery,omitempty"`
+	Review   *Review       `json:"review,omitempty"`
+	Check    *CheckResult  `json:"check,omitempty"`
+	Rework   *ReworkRecord `json:"rework,omitempty"`
+	Session  *SessionInfo  `json:"session,omitempty"`
+	Usage    *TokenUsage   `json:"usage,omitempty"`
+	Journal  *JournalEntry `json:"journal,omitempty"`
+	// Worktrees is a machine's inventory of what it keeps for the project.
+	Worktrees *WorktreeReport `json:"worktrees,omitempty"`
+	Cause     string          `json:"cause,omitempty"` // link to the change that caused it
+	Note      string          `json:"note,omitempty"`
+	Extra     map[string]any  `json:"extra,omitempty"`
 }
 
 // DecodePayload reads the payload of an event.
@@ -116,7 +118,7 @@ func NewEvent(id, typ, project, subject, machine, actor string, at time.Time, p 
 // heartbeat and readings, an agent session's progress): only its latest
 // value matters, so it is never stored and never kept as history.
 func (e Event) LiveOnly() bool {
-	return e.Type == EvMachineUpdated || e.Type == EvAgentSession
+	return e.Type == EvMachineUpdated || e.Type == EvAgentSession || e.Type == EvMachineWorktrees
 }
 
 // GPUStat is the live state of one GPU of a machine.
@@ -214,6 +216,12 @@ type SessionInfo struct {
 	State     string    `json:"state"` // starting, working, waiting, idle, done, failed
 	Detail    string    `json:"detail,omitempty"`
 	At        time.Time `json:"at,omitzero"`
+	// Machine runs the session; Since is when it started on this item and step.
+	Machine string    `json:"machine,omitempty"`
+	Since   time.Time `json:"since,omitzero"`
+	// Tokens and CostUSD are the session's count so far (final when it ends).
+	Tokens  int64   `json:"tokens,omitempty"`
+	CostUSD float64 `json:"cost_usd,omitempty"`
 }
 
 // TokenUsage is counted per step.
@@ -232,6 +240,10 @@ type TokenUsage struct {
 	CostUSD      float64       `json:"cost_usd,omitempty"`
 	Duration     time.Duration `json:"duration"`
 	ExploreReads int           `json:"explore_reads,omitempty"` // reads outside the context pack
+	// CPUSeconds and PeakRSSBytes measure what the session ran on its machine
+	// (the CLI and every process under its worktree); zero when not measured.
+	CPUSeconds   float64 `json:"cpu_seconds,omitempty"`
+	PeakRSSBytes int64   `json:"peak_rss_bytes,omitempty"`
 }
 
 // Total tokens counted against limits.
@@ -259,12 +271,16 @@ type State struct {
 	Accounts  map[string]*Account     `json:"accounts"`
 	Machines  map[string]*Machine     `json:"machines"`
 	Sessions  map[string]*SessionInfo `json:"sessions"` // by agent
-	Journal   []*JournalEntry         `json:"journal"`
-	Paused    bool                    `json:"paused"`
-	PausedWhy string                  `json:"paused_why,omitempty"`
-	Seen      map[string]bool         `json:"-"` // applied event ids
-	LastSeq   int64                   `json:"last_seq"`
-	Counters  map[IDKind]int          `json:"counters"`
+	// Worktrees is what each machine last said it keeps, by machine.
+	Worktrees map[string]*WorktreeReport `json:"worktrees,omitempty"`
+	// Ledger adds up usage, checks, reviews and deliveries as events are applied.
+	Ledger    *Ledger         `json:"-"`
+	Journal   []*JournalEntry `json:"journal"`
+	Paused    bool            `json:"paused"`
+	PausedWhy string          `json:"paused_why,omitempty"`
+	Seen      map[string]bool `json:"-"` // applied event ids
+	LastSeq   int64           `json:"last_seq"`
+	Counters  map[IDKind]int  `json:"counters"`
 }
 
 // NewState creates an empty projection.
@@ -273,6 +289,7 @@ func NewState(project string) *State {
 		Project: project, Items: map[string]*Item{}, Goals: map[string]*Goal{}, Proposals: map[string]*Proposal{},
 		Tweaks: map[string]*Tweak{}, Questions: map[string]*Question{}, Accounts: map[string]*Account{},
 		Machines: map[string]*Machine{}, Sessions: map[string]*SessionInfo{}, Seen: map[string]bool{}, Counters: map[IDKind]int{},
+		Worktrees: map[string]*WorktreeReport{}, Ledger: NewLedger(),
 	}
 }
 
@@ -361,7 +378,31 @@ func (s *State) Apply(e Event) error {
 		}
 	}
 	if p.Session != nil {
+		if p.Session.Machine == "" {
+			p.Session.Machine = e.Machine
+		}
+		if p.Session.Since.IsZero() {
+			// The same run goes on: it started when it was first heard of.
+			p.Session.Since = p.Session.At
+			if cur := s.Sessions[p.Session.Agent]; cur != nil && cur.Live() && cur.ItemID == p.Session.ItemID && cur.Step == p.Session.Step && !cur.Since.IsZero() {
+				p.Session.Since = cur.Since
+			}
+		}
 		s.Sessions[p.Session.Agent] = p.Session
+	}
+	if w := p.Worktrees; w != nil && e.Type == EvMachineWorktrees {
+		if s.Worktrees == nil {
+			s.Worktrees = map[string]*WorktreeReport{}
+		}
+		if cur := s.Worktrees[w.Machine]; cur == nil || !w.At.Before(cur.At) {
+			s.Worktrees[w.Machine] = w
+		}
+	}
+	if !e.LiveOnly() {
+		if s.Ledger == nil {
+			s.Ledger = NewLedger()
+		}
+		s.Ledger.apply(e, p)
 	}
 	if p.Journal != nil {
 		s.Journal = append(s.Journal, p.Journal)

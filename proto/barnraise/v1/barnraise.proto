@@ -363,6 +363,13 @@ message SessionInfo {
   string state = 10;
   string detail = 11;
   string at = 12;
+  // The machine that runs the session.
+  string machine = 13;
+  // When the session started on this item and step.
+  string since = 14;
+  // Tokens and cost of the session so far (final when it ends).
+  int64 tokens = 15;
+  double cost_usd = 16;
 }
 
 // Event is one entry of the log; the CloudEvents form is served by /v1/events.
@@ -961,6 +968,268 @@ message RegisterProjectRequest {
 
 // BarnraiseService is the daemon's whole API. The CLI, the MCP server, the
 // panel and any other interface use it.
+// ---------- overview ----------
+
+// UsageTotals adds up agent sessions: tokens, cost and time.
+message UsageTotals {
+  int64 input = 1;
+  int64 output = 2;
+  int64 cache_read = 3;
+  int64 cache_write = 4;
+  // The four above.
+  int64 tokens = 5;
+  double cost_usd = 6;
+  // Seconds of agent sessions (two agents at once count twice).
+  double seconds = 7;
+  int32 sessions = 8;
+  string last_at = 9;
+  // Processor time of everything the sessions ran (the CLI, tests,
+  // browsers, builds) and the most memory at once. 0 = not measured.
+  double cpu_seconds = 10;
+  int64 peak_rss_bytes = 11;
+}
+
+// ProcInfo is one process that runs for a worktree.
+message ProcInfo {
+  int32 pid = 1;
+  string name = 2;
+  // The program and its first plain arguments; options are left out.
+  string command = 3;
+  // agent, test, browser, build, emulator, runtime, container, git, shell or other.
+  string kind = 4;
+  // Share of one processor since the previous sample (200 = two busy).
+  double cpu_pct = 5;
+  int64 rss_bytes = 6;
+  double cpu_seconds = 7;
+  string started_at = 8;
+}
+
+// ProcSummary measures everything that runs for a worktree, an item or a machine.
+message ProcSummary {
+  int32 count = 1;
+  double cpu_pct = 2;
+  int64 rss_bytes = 3;
+  map<string, int32> by_kind = 4;
+  // The heaviest processes; the rest is in the totals.
+  repeated ProcInfo top = 5;
+  // Measured since the machine's daemon started; they stay after the processes end.
+  double cpu_seconds = 6;
+  int64 peak_rss_bytes = 7;
+}
+
+// WorktreeInfo is one directory a machine keeps for a project.
+message WorktreeInfo {
+  string machine = 1;
+  string project = 2;
+  string name = 3;
+  // root, item, alt, refine, scratch, repro or trash.
+  string kind = 4;
+  string item_id = 5;
+  string path = 6;
+  // Empty when detached.
+  string branch = 7;
+  string head = 8;
+  // A session or a check of that machine runs there right now.
+  bool in_use = 9;
+  // The worktree setup finished there (dependencies are installed).
+  bool setup_done = 10;
+  string modified_at = 11;
+  // Measured in the background; sized_at is empty until the first measure ends.
+  int64 size_bytes = 12;
+  int64 files = 13;
+  string sized_at = 14;
+  ProcSummary procs = 15;
+}
+
+message CheckMark {
+  string check = 1;
+  bool passed = 2;
+  bool flaky = 3;
+  bool main_red = 4;
+  string commit = 5;
+  string runs_on = 6;
+  double seconds = 7;
+  int32 runs = 8;
+  string at = 9;
+}
+
+message ReviewMark {
+  string step = 1;
+  string reviewer = 2;
+  string decision = 3;
+  string criteria_verdict = 4;
+  string code_verdict = 5;
+  int32 findings = 6;
+  string at = 7;
+}
+
+message DeliveryMark {
+  string step = 1;
+  string agent = 2;
+  string status = 3;
+  string commit = 4;
+  string at = 5;
+}
+
+message Activity {
+  string type = 1;
+  string machine = 2;
+  string actor = 3;
+  string at = 4;
+}
+
+// PullRequestView is an item's pull request. The state is derived from the
+// item, not asked to the host.
+message PullRequestView {
+  int32 number = 1;
+  string url = 2;
+  // draft, ready, merged or closed.
+  string state = 3;
+}
+
+// ItemOverview is everything known about one item, on every machine.
+message ItemOverview {
+  string id = 1;
+  string title = 2;
+  string kind = 3;
+  int32 priority = 4;
+  string lane = 5;
+  string area = 6;
+  string goal_id = 7;
+  string size = 8;
+  string class = 9;
+  string status = 10;
+  string step = 11;
+  // working, refining, running, idle, stalled, waiting_owner, blocked,
+  // paused, parked, queued, ready, draft, integrated or closed.
+  string activity = 12;
+  // Why it is where it is, when there is a why.
+  string detail = 13;
+  // Where the item is being worked on (its claim).
+  string machine = 14;
+  Claim claim = 15;
+  string branch = 16;
+  PullRequestView pr = 17;
+  string tracker_ref = 18;
+  bool adopted = 19;
+  bool paused = 20;
+  bool parked = 21;
+  bool risky = 22;
+  int32 tier = 23;
+  int32 attempts = 24;
+  int32 rework_rounds = 25;
+  repeated string deps = 26;
+  repeated string blocked_by = 27;
+  string waiting_question = 28;
+  int32 criteria_met = 29;
+  int32 criteria_total = 30;
+  string created_at = 31;
+  string updated_at = 32;
+  string step_started_at = 33;
+  string integrated_at = 34;
+  string merge_commit = 35;
+  string closed_reason = 36;
+  string closed_by = 37;
+  // At the current step; since anything changed; from creation to integration (or to now).
+  double step_seconds = 38;
+  double quiet_seconds = 39;
+  double lead_seconds = 40;
+  repeated SessionInfo sessions = 41;
+  repeated WorktreeInfo worktrees = 42;
+  // What runs for the item on every machine, added up.
+  ProcSummary procs = 43;
+  UsageTotals usage = 44;
+  map<string, UsageTotals> usage_by_step = 45;
+  map<string, UsageTotals> usage_by_model = 46;
+  map<string, UsageTotals> usage_by_machine = 47;
+  map<string, UsageTotals> usage_by_role = 48;
+  map<string, StepRun> runs = 49;
+  repeated CheckMark checks = 50;
+  int32 reviews = 51;
+  ReviewMark last_review = 52;
+  int32 deliveries = 53;
+  DeliveryMark last_delivery = 54;
+  Activity last_activity = 55;
+}
+
+// ProjectOverview is one project across the cluster.
+message ProjectOverview {
+  string project = 1;
+  bool paused = 2;
+  string paused_why = 3;
+  Goal goal = 4;
+  GoalProgress progress = 5;
+  Focus focus = 6;
+  // Every item of the project, by status and by activity.
+  map<string, int32> status = 7;
+  map<string, int32> activity = 8;
+  int32 open_questions = 9;
+  int32 open_proposals = 10;
+  // The items that match the request, after offset and limit.
+  repeated ItemOverview items = 11;
+  int32 items_matched = 12;
+  int32 items_total = 13;
+  bool truncated = 14;
+  UsageTotals usage = 15;
+  map<string, UsageTotals> usage_by_model = 16;
+  map<string, UsageTotals> usage_by_role = 17;
+  map<string, UsageTotals> usage_by_account = 18;
+  map<string, UsageTotals> usage_by_machine = 19;
+  map<string, UsageTotals> usage_by_agent = 20;
+  // The last 30 days (UTC), by 2006-01-02.
+  map<string, UsageTotals> usage_by_day = 21;
+  repeated Account accounts = 22;
+}
+
+// MachineOverview is one machine across the projects.
+message MachineOverview {
+  Machine machine = 1;
+  repeated string projects = 2;
+  repeated SessionInfo sessions = 3;
+  // The items this machine holds, as project/id.
+  repeated string items = 4;
+  repeated WorktreeInfo worktrees = 5;
+  int64 worktree_bytes = 6;
+  int64 disk_free_bytes = 7;
+  int64 disk_total_bytes = 8;
+  ProcSummary procs = 9;
+  // False where the machine does not attribute processes to worktrees.
+  bool procs_supported = 10;
+  // When the machine last told what it keeps.
+  string reported_at = 11;
+  UsageTotals usage = 12;
+}
+
+message OverviewRequest {
+  // Empty: every project the token may read.
+  string project = 1;
+  // Only this item.
+  string item = 2;
+  // Only these activities or statuses.
+  repeated string activity = 3;
+  // Only what is on this machine.
+  string machine = 4;
+  // Integrated and closed items of this long ago (Go duration or days: 7d). Default 7d.
+  string finished = 5;
+  // Every finished item, whatever its age.
+  bool all = 6;
+  // Items per project: default 500, at most 5000.
+  int32 limit = 7;
+  int32 offset = 8;
+  // Without the per-item breakdowns and process lists.
+  bool brief = 9;
+}
+
+message OverviewResponse {
+  string generated_at = 1;
+  // The machine that answered.
+  string machine = 2;
+  repeated ProjectOverview projects = 3;
+  repeated MachineOverview machines = 4;
+  map<string, int32> activity = 5;
+  UsageTotals usage = 6;
+}
+
 service BarnraiseService {
   // Projects
   rpc ListProjects(Empty) returns (ProjectsResponse);
@@ -1002,6 +1271,10 @@ service BarnraiseService {
 
   // Views
   rpc Status(ProjectRef) returns (StatusResponse);
+  // The whole cluster in one answer: what each item is doing, on which
+  // machine, with which worktrees, processes, pull request and cost. It is
+  // answered from memory, whatever the size of the history.
+  rpc Overview(OverviewRequest) returns (OverviewResponse);
   rpc Metrics(MetricsRequest) returns (MetricsResponse);
   rpc Digest(ProjectRef) returns (DigestResponse);
   rpc Queue(ProjectRef) returns (QueueResponse);
