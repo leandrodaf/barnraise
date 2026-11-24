@@ -60,6 +60,36 @@ type SelectionDef struct {
 	NoneWhen []string `json:"none_when,omitempty"` // globs: a change to these alone needs no check
 }
 
+// SchedulingDef tunes how items are spread over the agents.
+type SchedulingDef struct {
+	// SharedFiles are globs of files several items may change at the same
+	// time (a central scene or script every item touches): they do not keep
+	// two items apart, and the merge queue settles what they both changed.
+	SharedFiles []string `json:"shared_files,omitempty"`
+}
+
+// Exclusive drops the shared files from what an item is predicted to touch:
+// what is left keeps two items from running at the same time.
+func (s SchedulingDef) Exclusive(files []string) []string {
+	if len(s.SharedFiles) == 0 {
+		return files
+	}
+	var out []string
+	for _, f := range files {
+		shared := false
+		for _, g := range s.SharedFiles {
+			if f == g || MatchGlob(g, f) {
+				shared = true
+				break
+			}
+		}
+		if !shared {
+			out = append(out, f)
+		}
+	}
+	return out
+}
+
 // CheckDecision is the verdict of the selection for one check.
 type CheckDecision struct {
 	Name string `json:"name"`
@@ -416,6 +446,7 @@ type ProjectConfig struct {
 	Egress          EgressDef               `json:"egress"`
 	Merge           MergeDef                `json:"merge"`
 	Selection       SelectionDef            `json:"selection,omitzero"`
+	Scheduling      SchedulingDef           `json:"scheduling,omitzero"`
 	Dependencies    DependencyPolicy        `json:"dependencies,omitzero"`
 	Container       ContainerDef            `json:"container,omitzero"`
 	Lease           LeaseDef                `json:"lease"`

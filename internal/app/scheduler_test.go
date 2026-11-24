@@ -116,6 +116,20 @@ func TestNextWorkOrder(t *testing.T) {
 			t.Fatalf("got %v %v, want %s (not %s)", got, err, c.ID, b.ID)
 		}
 	})
+	t.Run("shared files do not keep two agents apart", func(t *testing.T) {
+		e := newEnv(t, withCfg(func(c *domain.ProjectConfig) { c.Scheduling.SharedFiles = []string{"bastion.gd", "tests/*.gd"} }))
+		a := e.create(NewItem{Title: "a", Criteria: crit(ears), Anchors: domain.Anchors{Files: []string{"bastion.gd", "tests/a.gd", "quarry.gd"}}})
+		b := e.create(NewItem{Title: "b", Criteria: crit(ears), Anchors: domain.Anchors{Files: []string{"bastion.gd", "tests/b.gd"}}})
+		e.create(NewItem{Title: "c", Criteria: crit(ears), Anchors: domain.Anchors{Files: []string{"quarry.gd"}}})
+		e.nextBusy("implementer", a.ID)
+		got, err := e.svc.NextWork(e.ctx, "demo", Slot{Agent: "implementer-2", Role: "implementer"})
+		if err != nil || got.Item.ID != b.ID {
+			t.Fatalf("got %v %v, want %s beside %s", got, err, b.ID, a.ID)
+		}
+		// A file that is not shared still keeps them apart.
+		_, err = e.svc.NextWork(e.ctx, "demo", Slot{Agent: "implementer-3", Role: "implementer"})
+		wantErr(t, err, ErrNoWork)
+	})
 	t.Run("roles and machine labels", func(t *testing.T) {
 		e := newEnv(t, withCfg(func(c *domain.ProjectConfig) {
 			r := c.Roles["implementer"]

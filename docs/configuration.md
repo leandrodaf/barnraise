@@ -543,6 +543,17 @@ checks:
 
 `project`, `template`, `flows`, `roles` and `plugins` belong in the root file only. When the parts bring checks, the template's own guesses (a single `make test` for everything) are dropped, and the flow steps that pointed at them run every check that applies; checks the root file declares itself are kept. An area declared both in the root and in a part's file is an error.
 
+## scheduling
+
+Two items that touch the same files never run at the same time, so their changes do not collide. A project with a central file that nearly every item touches (a game's main scene or script, a large router) would then run one item at a time. List those files as shared: they no longer keep items apart, and the merge queue settles what two items both changed (rebase, recorded resolutions, the structural merge, and a rework when a conflict remains).
+
+```yaml
+scheduling:
+  shared_files: [bastion.gd, bastion.tscn, project.godot]   # globs
+```
+
+Any other file an item is predicted to touch still keeps the items apart.
+
 ## merge
 
 | Key | Default | Meaning |

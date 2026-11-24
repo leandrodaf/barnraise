@@ -323,6 +323,9 @@ type rawConfig struct {
 		AllWhen  []string `yaml:"all_when"`
 		NoneWhen []string `yaml:"none_when"`
 	} `yaml:"selection"`
+	Scheduling struct {
+		SharedFiles []string `yaml:"shared_files"`
+	} `yaml:"scheduling"`
 	Lease struct {
 		Renew string `yaml:"renew"`
 		TTL   string `yaml:"ttl"`
@@ -624,6 +627,7 @@ func (r *rawConfig) compile(root, tmpl string) (*domain.ProjectConfig, error) {
 
 	c.Container = domain.ContainerDef{Image: strings.TrimSpace(r.Container.Image), Engine: r.Container.Engine, Network: r.Container.Network, Mounts: r.Container.Mounts, GPU: r.Container.GPU}
 	c.Selection = domain.SelectionDef{AllWhen: r.Selection.AllWhen, NoneWhen: r.Selection.NoneWhen}
+	c.Scheduling = domain.SchedulingDef{SharedFiles: r.Scheduling.SharedFiles}
 	c.Merge = domain.MergeDef{Mode: def(r.Merge.Mode, "squash"), Batch: r.Merge.Batch, Changelog: r.Merge.Changelog, Tag: r.Merge.Tag, UseHostQueue: r.Merge.UseHostQueue}
 	if c.Merge.Batch <= 0 {
 		c.Merge.Batch = 4

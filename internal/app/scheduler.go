@@ -202,7 +202,7 @@ func (s *Service) candidatesLocked(p *Project, slot Slot) []*domain.Item {
 	var inProgressFiles [][]string
 	for _, it := range items {
 		if it.Status == domain.StatusInProgress || it.Status == domain.StatusQueued {
-			inProgressFiles = append(inProgressFiles, domain.PredictedFiles(it))
+			inProgressFiles = append(inProgressFiles, p.Cfg().Scheduling.Exclusive(domain.PredictedFiles(it)))
 		}
 	}
 	byLane := map[domain.Lane][]*domain.Item{}
@@ -236,7 +236,7 @@ func (s *Service) candidatesLocked(p *Project, slot Slot) []*domain.Item {
 		if role == "" && slot.Role != firstAgentRole(f) {
 			continue // driver steps first: any implementer may claim it
 		}
-		pf := domain.PredictedFiles(it)
+		pf := p.Cfg().Scheduling.Exclusive(domain.PredictedFiles(it))
 		overlap := false
 		for _, other := range inProgressFiles {
 			if domain.FilesOverlap(pf, other) {
