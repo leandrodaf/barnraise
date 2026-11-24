@@ -81,7 +81,7 @@ func (d *daemon) targets(machines []string, all bool) (bool, []string) {
 
 func peerError(err error, what string) string {
 	if errors.Is(err, nats.ErrNoResponders) {
-		return "it runs an older Barnraise without " + what + "; update it (barnraise update) or run the command there"
+		return "it runs an older Barnraise without " + what + "; install the newer release there (install.sh, or a build of the same version) and restart it, or run the command on that machine"
 	}
 	return err.Error()
 }
