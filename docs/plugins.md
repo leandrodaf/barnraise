@@ -184,7 +184,7 @@ A plugin with `events:` in `barnraise.yaml` receives each matching event of its 
   "machine":"desk","actor":"agent","time":"2026-11-23T10:00:00Z","data":{…}}}}
 ```
 
-Useful types: `item.step.started` and `item.step.finished` (before and after each step), `item.updated`, `item.waiting_owner`, `item.blocked`, `item.queued`, `item.closed` (status changes), `item.integrated` (integration), `check.completed`, `owner.question.asked`. The full list is the `Ev…` constants in `internal/domain/event.go`. Answer `{}`.
+Useful types: `item.step.started` and `item.step.finished` (before and after each step; the item in `item.step.finished` has already moved to its next step, and `data.extra.step` and `data.extra.outcome` name the step that ended and how), `item.updated`, `item.waiting_owner`, `item.blocked`, `item.queued`, `item.closed` (status changes), `item.integrated` (integration), `check.completed`, `owner.question.asked`. The full list is the `Ev…` constants in `internal/domain/event.go`. Answer `{}`.
 
 Hooks observe: they are told what happened and cannot hold or change the flow. Events wait in a queue of 256 per plugin; when a plugin falls that far behind, new events are dropped with a warning in the log.
 
@@ -281,6 +281,45 @@ for line in sys.stdin:
 ```
 
 Nebula, Netbird or a company VPN follow the same shape: this machine's address from the overlay's interface or command, the peers from its lighthouse, controller or a static list.
+
+## OpenTelemetry (shipped)
+
+Barnraise ships a hook plugin inside its own binary: `barnraise plugin otel` exports the work as [OpenTelemetry](https://opentelemetry.io) spans to any collector that takes OTLP over HTTP (the OpenTelemetry Collector, Grafana Tempo or Alloy, Jaeger, Honeycomb, Datadog, …). It is opt-in: nothing is exported until a project declares it.
+
+```yaml
+plugins:
+  otel:
+    command: barnraise
+    args: [plugin, otel]
+    events: ["item.*", agent.usage, check.completed]
+    options:
+      endpoint: http://localhost:4318        # the collector; /v1/traces is added
+      service_name: barnraise
+    secrets:
+      OTEL_EXPORTER_OTLP_HEADERS: "keychain:otel-headers"   # e.g. "x-honeycomb-team=…" or "Authorization=Bearer%20…"
+```
+
+Each item is one trace, with ids derived from the project and the item, so its spans join up across restarts and machines:
+
+| Span | From → to | Attributes |
+| --- | --- | --- |
+| `item <id>` (root) | creation → `item.integrated` or `item.closed` | `barnraise.item.kind`, `.priority`, `.area`, `.lane`, `.status`, `.rework` (rounds), `barnraise.commit` |
+| `step <name>` | the step's start → `item.step.finished` | `barnraise.step`, `barnraise.outcome`, `barnraise.actor`; an error for `fail`, `reject`, `blocked` |
+| `agent <role>` | one agent run of the ledger (`agent.usage`), under its step | `gen_ai.system`, `gen_ai.request.model`, `gen_ai.usage.input_tokens`, `gen_ai.usage.output_tokens`, `barnraise.tokens.cache_read`, `.cache_write`, `barnraise.cost_usd`, `barnraise.duration_ms`, `barnraise.agent`, `.account`, `.role` |
+| `check <name>` | one result (`check.completed`), under its step | `barnraise.check.passed`, `.runs_on`, `.flaky`, `.main_red`, `barnraise.commit`; an error when it failed, with its summary |
+
+Every span also has `barnraise.project`, `barnraise.machine`, `barnraise.item.id` and `barnraise.event.id`; the resource has `service.name`, `service.version` and `barnraise.project`. Ledger entries without an item (the analyst's triage) are traces of their own. A step that was already running when the plugin started is closed with `barnraise.start_unknown: true`.
+
+| Option | Default | Meaning |
+| --- | --- | --- |
+| `endpoint` | `OTEL_EXPORTER_OTLP_TRACES_ENDPOINT`, else `OTEL_EXPORTER_OTLP_ENDPOINT`, else `http://localhost:4318` | The collector's OTLP/HTTP base URL (or the full `…/v1/traces` URL) |
+| `headers` | none | Headers sent with every export; put credentials in the `OTEL_EXPORTER_OTLP_HEADERS` secret (`key=value` pairs, comma separated, values URL-encoded), not here |
+| `service_name` | `barnraise` | `service.name` of the resource |
+| `interval` | `5s` | How often waiting spans are sent |
+| `batch` | `256` | Send at once when this many wait |
+| `timeout` | `10s` | Per export request |
+
+The spans are sent as OTLP/HTTP JSON, written with the standard library from the OTLP specification (no OpenTelemetry SDK in the binary). While the collector is unreachable, up to 4096 spans wait and the oldest are dropped, with a warning in the daemon's log; on `shutdown` what is left is sent within the daemon's grace. The `OTEL_EXPORTER_OTLP_*` variables reach the plugin only through its `env` or `secrets`, like any plugin's environment.
 
 ## Security
 

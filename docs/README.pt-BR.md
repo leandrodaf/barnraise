@@ -97,6 +97,7 @@ checks:                                       kinds: { feature: feature-mobile }
 - **Só se verifica o que a mudança toca.** Um item do backend roda as verificações do backend, dentro de `backend/`. As de web e mobile são puladas, e a linha do tempo diz por quê.
 - **Terreno desconhecido roda tudo.** Arquivo que não pertence a nenhuma parte, ou que você listou em `selection.all_when` (um `Makefile`, um `go.mod`), roda todas as verificações. Arquivos em `selection.none_when` (documentação, backlog) não exigem nenhuma.
 - **Sem trabalho repetido.** Uma verificação pode cobrir outra (`covers`), as baratas rodam primeiro e a etapa para na primeira falha, e a fila de integração não verifica de novo uma árvore que já foi verificada.
+- **Dependências novas são verificadas contra vulnerabilidades conhecidas.** Uma mudança num lockfile ou manifesto é consultada no [OSV](https://osv.dev) antes de integrar (com o osv-scanner quando instalado, a API do OSV caso contrário); só conta o que a mudança traz, e um achado igual ou acima de `dependencies.fail_at` volta para o agente. Veja [configuration.md](configuration.md#dependencies).
 - **Cada parte pode se comportar de um jeito.** A parte escolhe o fluxo dos itens dela (`kinds`) e as máquinas de que as verificações precisam (`runs_on: machine:emulators`). Os agentes ficam sabendo em que parte estão trabalhando e quais não são deles.
 
 `barnraise check --touched mobile/src/Home.tsx` mostra quais verificações rodariam para uma mudança. Detalhes em [configuration.md](configuration.md#several-parts-in-one-repository).

@@ -43,3 +43,5 @@ One short record per decision: context, decision, consequences. A decision that 
 | [ADR-0032](0032-opt-in-microvm-isolation.md) | Opt-in microVM isolation through an external runner |
 | [ADR-0040](0040-services-per-item-worktree.md) | Services of their own (compose project, database, ports) for each item worktree |
 | [ADR-0041](0041-build-caches-copy-on-write-and-worktree-hooks.md) | Build caches copy-on-write, and hooks at the phases of a worktree |
+| [ADR-0034](0034-built-in-dependency-and-structural-checks.md) | Built-in dependencies check against OSV, and ast-grep as a built-in check kind |
+| [ADR-0035](0035-opentelemetry-export-as-a-shipped-hook-plugin.md) | OpenTelemetry export as a hook plugin shipped in the binary |

@@ -29,6 +29,7 @@ Formats used below:
 | `tracker` | mapping | `{type: local}` | See [tracker](#tracker) |
 | `code_host` | mapping | derived from the tracker | See [code_host](#code_host) |
 | `checks` | mapping | from the template | See [checks](#checks) |
+| `dependencies` | `off` or mapping | `{fail_at: high}` | The built-in check of the dependencies a change adds or updates; see [dependencies](#dependencies) |
 | `roles` | mapping | see [roles](#roles) | Functions agents play |
 | `flows` | mapping | from the template | See [flows](#flows) |
 | `kinds` | mapping | see [kinds](#kinds) | Item kind to flow name |
@@ -124,7 +125,7 @@ Each check is a command string or a mapping:
 | Key | Default | Meaning |
 | --- | --- | --- |
 | `run` | none | Command, for `local` and `machine:<label>` checks |
-| `runs_on` | `local` | `local`, `github-actions`, `machine:<label>` (a paired machine with that label, e.g. `machine:emulators`), `webhook`, `plugin:<name>` (a check plugin, see [plugins](#plugins); it receives `run` as given) |
+| `runs_on` | `local` | `local`, `github-actions`, `machine:<label>` (a paired machine with that label, e.g. `machine:emulators`), `webhook`, `plugin:<name>` (a check plugin, see [plugins](#plugins); it receives `run` as given), or a built-in kind: `builtin:ast-grep` (see [Structural rules with ast-grep](#structural-rules-with-ast-grep)) or `builtin:dependencies` (the check Barnraise adds by itself, see [dependencies](#dependencies)) |
 | `workflow` | none | Workflow file for `github-actions`; dispatched with inputs `item`, `commit` and `check` |
 | `url` | none | Endpoint for `webhook` checks; the result comes back on the signed inbound webhook |
 | `scope` | `touched` | `touched` runs only for the areas the item changed; `all` runs everything |
@@ -174,6 +175,44 @@ selection:
 `barnraise check --touched backend/api/user.go --touched web/src/App.tsx` shows which checks would run for those files, and why the others are skipped. Each check also receives `BARNRAISE_TOUCHED` (the files, one per line) and `BARNRAISE_AREAS`, so a command can narrow itself further, for example to the tests related to the touched sources.
 
 A `github-actions` check needs the code host to be GitHub; see [`action/check`](../action/check) for the workflow side. `barnraise check` reports a check with no command, no workflow or no url.
+
+### Structural rules with ast-grep
+
+A check with `runs_on: builtin:ast-grep` runs [ast-grep](https://ast-grep.github.io) with the project's own rules: `ast-grep scan --json=stream` in the check's folder (the repository root, or `dir`), on the files the change touches there (everything when nothing is known about the change). `run`, when set, is extra arguments for `ast-grep scan`, split on spaces (`-c rules/sgconfig.yml`, `--filter no-unwrap`); without `-c` the rules come from `sgconfig.yml` in that folder. It is opt-in: declare it, and install `ast-grep` on the machines that run it.
+
+```yaml
+checks:
+  structure:
+    runs_on: builtin:ast-grep    # sgconfig.yml and rules/ at the root
+    order: -1                    # cheap: before the tests
+```
+
+A match of a rule with `severity: error` fails the check, and the agent gets each one as `file:line:column rule-id [error]: message` (at most 30, the rest in the log). Warnings, info and hints are listed without failing. When ast-grep is not installed on the machine, finds no `sgconfig.yml` or cannot read a rule, the check is red without being the change's fault: the item is held for the owner, as a check red on main is, instead of going back to an agent. `barnraise check` reports an ast-grep check on a machine without ast-grep and a folder without `sgconfig.yml`.
+
+## dependencies
+
+When a change touches a dependency manifest or lockfile, Barnraise checks the dependencies it **adds or updates** against [OSV](https://osv.dev), the open database of known vulnerabilities, before the item integrates. The check is built in and on by default: it is added to the project's checks as `dependencies` (`runs_on: builtin:dependencies`) and runs with the last check step of each flow, so once per round, right before the merge queue. A change that touches no manifest skips it, with the reason in the timeline.
+
+| Key | Default | Meaning |
+| --- | --- | --- |
+| `check` | `true` | `false` (or `dependencies: off`) removes the check |
+| `fail_at` | `high` | The least severity that fails: `low`, `medium`, `high` or `critical` |
+| `unknown` | `high` | The severity of an advisory that gives none |
+| `ignore` | none | Advisory ids the owner accepts (`GHSA-…`, `CVE-…`, `GO-…`); an alias matches too |
+| `scanner` | `auto` | `auto` runs [osv-scanner](https://github.com/google/osv-scanner) when it is installed and asks the OSV API otherwise; `osv-scanner` requires it; `api` never runs it |
+| `api` | `https://api.osv.dev` | An OSV-compatible service (a mirror inside the company) |
+
+```yaml
+dependencies:
+  fail_at: critical
+  ignore: [GHSA-xxxx-yyyy-zzzz]   # accepted until the upstream fix ships
+```
+
+What counts as a manifest: `go.mod`, `go.sum`, `package.json`, `package-lock.json`, `npm-shrinkwrap.json`, `pnpm-lock.yaml`, `yarn.lock`, `requirements*.txt`, `Pipfile.lock`, `poetry.lock`, `uv.lock`, `pyproject.toml`, `Cargo.toml`, `Cargo.lock`, `Gemfile`, `Gemfile.lock`, `build.gradle(.kts)`, `gradle.lockfile`, `pom.xml`, in any folder. A manifest that pins nothing (`package.json`, `Cargo.toml`, `pyproject.toml`, `Gemfile`, `build.gradle`) is followed to its lockfile, in its folder or the nearest folder above (a workspace root). Without osv-scanner, Barnraise reads the lockfiles itself: Go (`go.mod`, with the standard library at the `toolchain`/`go` version), npm (`package-lock.json` v1 to v3, `npm-shrinkwrap.json`, `pnpm-lock.yaml`, `yarn.lock` classic and berry), PyPI (pinned `==` lines of `requirements*.txt`, `Pipfile.lock`, `poetry.lock`, `uv.lock`), crates.io (`Cargo.lock`), RubyGems (`Gemfile.lock`) and Maven (`gradle.lockfile`, and the versions written in `pom.xml`).
+
+Only what the change brings in counts: each lockfile is compared with its state where the item's branch forked from main, and a vulnerability the same package already had there is not this change's (an update that keeps it open does not fail). The severity is the highest of the advisory's CVSS v3 base score and its stated rating, across the records that are aliases of each other (a `GO-` entry and its `GHSA-`). A failure sends the item back to the agent with each finding: lockfile, package and version, ids, severity, summary and the versions that fix it. Findings below `fail_at` and accepted ones are listed without failing.
+
+The daemon runs the check with its own network (osv-scanner, or `api.osv.dev` over HTTPS), never an agent, so the agents' egress list does not need OSV. When OSV cannot be reached or osv-scanner fails, the check says so and the item is held for the owner, as for a check red on main: nothing passes unverified, and no agent is asked to fix the network. A project that declares its own check named `dependencies` keeps it, and the built-in one is not added.
 
 ## roles
 
@@ -706,6 +745,8 @@ notifications:
   - type: plugin:farm
     target: "#mobile"
 ```
+
+Barnraise ships one plugin inside its own binary: `command: barnraise` with `args: [plugin, otel]` exports the work as OpenTelemetry spans; see [plugins.md](plugins.md#opentelemetry-shipped).
 
 `barnraise check` reports a plugin without `command`, a program that is not found, an `env` entry that is not a variable name, a secret that is a value instead of a reference, and a `plugin:<name>` that names no declared plugin. Plugins belong in the root `barnraise.yaml`, not in a part's file. A plugin program inside the repository is added to the policy's `deny_write`, so agents cannot change it.
 

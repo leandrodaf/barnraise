@@ -335,6 +335,19 @@ Each session writes its whole conversation with the agent, one JSON line per mes
 
 Barnraise asks for the model of the session when the agent lists it and ignores it otherwise. Policy refusals show up as `policy.violation` events (`barnraise events`, `barnraise audit`). Terminals run in bubblewrap when the probe succeeds on the machine. Where it does not (AppArmor forbids unprivileged namespaces) and the kernel has Landlock, they run in the session's [Landlock profile](configuration.md#sandbox) instead. Without either (macOS, old kernels), they run after the policy check, as the session's user, the way Claude Code's commands run when its sandbox is off.
 
+## Dependencies check
+
+Every project has the built-in [dependencies check](configuration.md#dependencies): a change that touches a manifest or lockfile is looked up in OSV before it integrates. The daemon runs it, on the machine that runs the item's checks:
+
+- with [osv-scanner](https://github.com/google/osv-scanner) when it is on the daemon's `PATH` (install it on the machines for the widest lockfile support; it reaches `api.osv.dev` and, for some files, the package registries);
+- otherwise by reading the lockfiles itself and asking `https://api.osv.dev` (or the `dependencies.api` mirror) over HTTPS.
+
+Either way the machine needs outbound HTTPS to `api.osv.dev` from the daemon's user. The [agents' egress proxy](#restricted-network-for-agents) does not apply to the daemon, so nothing is added to it. A firewall in front of the whole machine must let the daemon through, or point `dependencies.api` at a mirror. When OSV cannot be reached the item is held for the owner with the reason (`barnraise questions`), never passed unverified; fix the network and retry the step, or set `dependencies: off` for a project that must work offline.
+
+## Telemetry (OpenTelemetry)
+
+To see items, steps, checks and the token and cost ledger in Grafana, Jaeger, Honeycomb or any OTLP backend, declare the shipped [OpenTelemetry plugin](plugins.md#opentelemetry-shipped) in the project's `barnraise.yaml`, with the collector's credentials as a secret reference (`keychain:<key>` for an entry of the system keychain, or `env:<NAME>` for a variable of the daemon's environment), never in the file. The daemon starts `barnraise plugin otel` with the first event; its warnings (an unreachable collector, dropped spans) are in the daemon's log under the plugin's name.
+
 ## Capacity
 
 A machine runs as many sessions as its CPUs and total memory allow (`barnraise cluster status` shows `busy n/slots`). On top of that, **no new session starts while the machine has less than 3 GB of memory available, or no idle CPU**: the builds, tests and emulators of the items in progress keep the memory instead of being killed by the kernel. Sessions already running are never stopped for it, and work resumes by itself when the pressure passes. The daemon logs the reason once.

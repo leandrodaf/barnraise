@@ -95,6 +95,7 @@ checks:                                       kinds: { feature: feature-mobile }
 - **Only what the change touches is checked.** A backend item runs the backend checks, inside `backend/`. Web and mobile checks are skipped, and the timeline says why.
 - **Unknown ground runs everything.** A file that belongs to no part, or one you list in `selection.all_when` (a `Makefile`, a `go.mod`), runs every check. Files in `selection.none_when` (docs, the backlog) need none.
 - **No repeated work.** A check may cover another (`covers`), cheap checks run first and the step stops at the first failure, and the merge queue does not check again a tree that was already checked.
+- **New dependencies are checked for known vulnerabilities.** A change to a lockfile or manifest is looked up in [OSV](https://osv.dev) before it integrates (with osv-scanner when installed, the OSV API otherwise); only what the change brings in counts, and a finding at or above `dependencies.fail_at` goes back to the agent. See [docs/configuration.md](docs/configuration.md#dependencies).
 - **Each part may behave differently.** A part chooses the flow of its items (`kinds`) and the machines its checks need (`runs_on: machine:emulators`). Agents are told which part they work in and which ones are not theirs to change.
 
 `barnraise check --touched mobile/src/Home.tsx` shows which checks would run for a change. Details in [docs/configuration.md](docs/configuration.md#several-parts-in-one-repository).
