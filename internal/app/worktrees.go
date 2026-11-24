@@ -131,20 +131,26 @@ func samePath(a, b string) bool {
 }
 
 // dropItemWorkspaces removes what an item left on this machine: its
-// worktree, the second attempt's and the analyst's checkout.
+// worktree and the second attempt's (retired: pre_remove hook, teardown,
+// compose project), and the analyst's checkout.
 func (s *Service) dropItemWorkspaces(ctx context.Context, p *Project, id string) {
 	g := p.Ports().Git
 	if g == nil {
 		return
 	}
-	for _, dir := range []string{s.WorktreeDir(p.Name, id), s.altDir(p.Name, id), s.WorktreeDir(p.Name, "_refine-"+id)} {
-		if _, err := os.Lstat(dir); err != nil {
-			continue
-		}
+	for _, key := range []string{id, altKey(id)} {
+		s.retireWorktree(ctx, p, key, s.WorktreeDir(p.Name, key), retireRemove)
+	}
+	if dir := s.WorktreeDir(p.Name, "_refine-"+id); pathExists(dir) {
 		if err := g.RemoveWorktree(ctx, dir); err != nil {
 			s.d.Log.Warn("remove the worktree of a finished item", "item", id, "err", err)
 		}
 	}
+}
+
+func pathExists(path string) bool {
+	_, err := os.Lstat(path)
+	return err == nil
 }
 
 // Trimmed counts what one sweep of a project's directories removed.
@@ -184,6 +190,14 @@ func (s *Service) trimWorkspaces(ctx context.Context, p *Project, busy map[strin
 		}
 		*n++
 	}
+	// An item's worktree is retired, not only removed: its pre_remove hook,
+	// teardown and compose project go with it.
+	retire := func(key, dir string, n *int) {
+		s.retireWorktree(ctx, p, key, dir, retireRemove)
+		if !pathExists(dir) {
+			*n++
+		}
+	}
 	entries, _ := os.ReadDir(s.WorktreeDir(p.Name, ""))
 	for _, e := range entries {
 		name := e.Name()
@@ -214,11 +228,11 @@ func (s *Service) trimWorkspaces(ctx context.Context, p *Project, busy map[strin
 			switch {
 			case it == nil:
 				if old(dir, unknownKeep) {
-					remove(dir, &out.Unknown)
+					retire(name, dir, &out.Unknown)
 				}
 			case it.Status.Terminal():
 				if now.Sub(it.UpdatedAt) > finishedKeep {
-					remove(dir, &out.Finished)
+					retire(name, dir, &out.Finished)
 				}
 			case it.Status == domain.StatusWaitingOwner || it.Status == domain.StatusBlocked:
 				if s.stripWorktree(p, id, dir) {
