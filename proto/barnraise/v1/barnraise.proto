@@ -364,6 +364,8 @@ message Machine {
   bool standby = 23;
   // The time of the commit its binary was built from.
   string build_time = 24;
+  // What runs on the machine: capability status -> count (see Capabilities).
+  map<string, int32> capability_counts = 25;
 }
 
 // GpuStat is the live state of one GPU of a machine.
@@ -1327,6 +1329,67 @@ message OverviewResponse {
   map<string, UsageTotals> usage_by_day = 11;
 }
 
+message CapabilitiesRequest {
+  repeated string machines = 1; // empty + all=false: this machine only
+  bool all = 2;                 // every connected machine
+  string project = 3;           // evaluate config-gated items for this project ("" = all projects of the machine)
+  bool refresh = 4;             // probe again instead of the cached report
+}
+
+message CapabilityItem {
+  string id = 1;        // e.g. sandbox.landlock, merge.structural, tools.rtk
+  string title = 2;     // short English title
+  string group = 3;     // security | isolation | merge | checks | context | tokens | worktrees | providers | telemetry
+  string kind = 4;      // native | optional | plugin
+  string status = 5;    // active | available | degraded | missing | unsupported
+  string reason = 6;    // one plain sentence: why this status
+  string fallback = 7;  // what runs instead when not active ("" when active)
+  string fix = 8;       // exact command or config to make it active ("" when nothing to do)
+  string tool = 9;      // installable tool id when `barnraise tools install <tool>` fixes it, else ""
+  string version = 10;  // detected version of the tool/feature, if any
+  bool needs_root = 11; // the fix needs root (shown, never automated)
+}
+
+message CapabilityTool {
+  string id = 1;
+  string title = 2;
+  string installed = 3;  // installed version, "" if none
+  string pinned = 4;     // version Barnraise installs
+  bool managed = 5;      // installed by Barnraise (removable)
+  bool available = 6;    // upstream ships a build for this machine's platform
+  string path = 7;
+}
+
+message MachineCapabilities {
+  string machine = 1;
+  string platform = 2;
+  string probed_at = 3; // RFC3339
+  repeated CapabilityItem items = 4;
+  repeated CapabilityTool tools = 5;
+  map<string, int32> counts = 6; // status -> count
+  string error = 7;              // the machine could not be reached / probed
+}
+
+message CapabilitiesResponse { repeated MachineCapabilities machines = 1; }
+
+message InstallToolsRequest {
+  repeated string tools = 1;
+  repeated string machines = 2;
+  bool all = 3;
+  bool remove = 4;
+}
+
+message ToolInstallResult {
+  string machine = 1;
+  string tool = 2;
+  bool ok = 3;
+  string version = 4;
+  string error = 5;
+  bool changed = 6;
+}
+
+message InstallToolsResponse { repeated ToolInstallResult results = 1; }
+
 service BarnraiseService {
   // Projects
   rpc ListProjects(Empty) returns (ProjectsResponse);
@@ -1413,6 +1476,12 @@ service BarnraiseService {
   // check or merge. It is kept in the machine's configuration, so the daemon
   // starts the way it stopped.
   rpc SetStandby(StandbyRequest) returns (StandbyResponse);
+  // What is active on each machine, what falls back and why, and how to fix
+  // it (ADR-0045). Owner and admin tokens only.
+  rpc Capabilities(CapabilitiesRequest) returns (CapabilitiesResponse);
+  // Installs (or removes) the optional tools Barnraise ships recipes for,
+  // without root, on this machine and the named ones.
+  rpc InstallTools(InstallToolsRequest) returns (InstallToolsResponse);
 
   // Tokens and audit
   rpc CreateToken(CreateTokenRequest) returns (CreateTokenResponse);

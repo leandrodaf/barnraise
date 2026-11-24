@@ -160,6 +160,47 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/barnraise.v1.QuestionResponse'
+  /barnraise.v1.BarnraiseService/Capabilities:
+    post:
+      tags:
+        - barnraise.v1.BarnraiseService
+      summary: Capabilities
+      description: |-
+        What is active on each machine, what falls back and why, and how to fix
+         it (ADR-0045). Owner and admin tokens only.
+      operationId: barnraise.v1.BarnraiseService.Capabilities
+      parameters:
+        - name: Connect-Protocol-Version
+          in: header
+          description: Define the version of the Connect protocol
+          schema:
+            $ref: '#/components/schemas/connect-protocol-version'
+          example: 1
+        - name: Connect-Timeout-Ms
+          in: header
+          description: Define the timeout, in ms
+          schema:
+            $ref: '#/components/schemas/connect-timeout-header'
+          example: 1000
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/barnraise.v1.CapabilitiesRequest'
+        required: true
+      responses:
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.error'
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/barnraise.v1.CapabilitiesResponse'
   /barnraise.v1.BarnraiseService/ClearFocus:
     post:
       tags:
@@ -733,6 +774,47 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/barnraise.v1.InboxResponse'
+  /barnraise.v1.BarnraiseService/InstallTools:
+    post:
+      tags:
+        - barnraise.v1.BarnraiseService
+      summary: InstallTools
+      description: |-
+        Installs (or removes) the optional tools Barnraise ships recipes for,
+         without root, on this machine and the named ones.
+      operationId: barnraise.v1.BarnraiseService.InstallTools
+      parameters:
+        - name: Connect-Protocol-Version
+          in: header
+          description: Define the version of the Connect protocol
+          schema:
+            $ref: '#/components/schemas/connect-protocol-version'
+          example: 1
+        - name: Connect-Timeout-Ms
+          in: header
+          description: Define the timeout, in ms
+          schema:
+            $ref: '#/components/schemas/connect-timeout-header'
+          example: 1000
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/barnraise.v1.InstallToolsRequest'
+        required: true
+      responses:
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.error'
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/barnraise.v1.InstallToolsResponse'
   /barnraise.v1.BarnraiseService/Journal:
     post:
       tags:
@@ -2731,6 +2813,118 @@ components:
           title: entries
       title: AuditResponse
       additionalProperties: false
+    barnraise.v1.CapabilitiesRequest:
+      type: object
+      properties:
+        machines:
+          type: array
+          items:
+            type: string
+          title: machines
+          description: 'empty + all=false: this machine only'
+        all:
+          type: boolean
+          title: all
+          description: every connected machine
+        project:
+          type: string
+          title: project
+          description: evaluate config-gated items for this project ("" = all projects of the machine)
+        refresh:
+          type: boolean
+          title: refresh
+          description: probe again instead of the cached report
+      title: CapabilitiesRequest
+      additionalProperties: false
+    barnraise.v1.CapabilitiesResponse:
+      type: object
+      properties:
+        machines:
+          type: array
+          items:
+            $ref: '#/components/schemas/barnraise.v1.MachineCapabilities'
+          title: machines
+      title: CapabilitiesResponse
+      additionalProperties: false
+    barnraise.v1.CapabilityItem:
+      type: object
+      properties:
+        id:
+          type: string
+          title: id
+          description: e.g. sandbox.landlock, merge.structural, tools.rtk
+        title:
+          type: string
+          title: title
+          description: short English title
+        group:
+          type: string
+          title: group
+          description: security | isolation | merge | checks | context | tokens | worktrees | providers | telemetry
+        kind:
+          type: string
+          title: kind
+          description: native | optional | plugin
+        status:
+          type: string
+          title: status
+          description: active | available | degraded | missing | unsupported
+        reason:
+          type: string
+          title: reason
+          description: 'one plain sentence: why this status'
+        fallback:
+          type: string
+          title: fallback
+          description: what runs instead when not active ("" when active)
+        fix:
+          type: string
+          title: fix
+          description: exact command or config to make it active ("" when nothing to do)
+        tool:
+          type: string
+          title: tool
+          description: installable tool id when `barnraise tools install <tool>` fixes it, else ""
+        version:
+          type: string
+          title: version
+          description: detected version of the tool/feature, if any
+        needsRoot:
+          type: boolean
+          title: needs_root
+          description: the fix needs root (shown, never automated)
+      title: CapabilityItem
+      additionalProperties: false
+    barnraise.v1.CapabilityTool:
+      type: object
+      properties:
+        id:
+          type: string
+          title: id
+        title:
+          type: string
+          title: title
+        installed:
+          type: string
+          title: installed
+          description: installed version, "" if none
+        pinned:
+          type: string
+          title: pinned
+          description: version Barnraise installs
+        managed:
+          type: boolean
+          title: managed
+          description: installed by Barnraise (removable)
+        available:
+          type: boolean
+          title: available
+          description: upstream ships a build for this machine's platform
+        path:
+          type: string
+          title: path
+      title: CapabilityTool
+      additionalProperties: false
     barnraise.v1.ChangeNote:
       type: object
       properties:
@@ -3671,6 +3865,37 @@ components:
           title: messages
       title: InboxResponse
       additionalProperties: false
+    barnraise.v1.InstallToolsRequest:
+      type: object
+      properties:
+        tools:
+          type: array
+          items:
+            type: string
+          title: tools
+        machines:
+          type: array
+          items:
+            type: string
+          title: machines
+        all:
+          type: boolean
+          title: all
+        remove:
+          type: boolean
+          title: remove
+      title: InstallToolsRequest
+      additionalProperties: false
+    barnraise.v1.InstallToolsResponse:
+      type: object
+      properties:
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/barnraise.v1.ToolInstallResult'
+          title: results
+      title: InstallToolsResponse
+      additionalProperties: false
     barnraise.v1.Item:
       type: object
       properties:
@@ -4327,7 +4552,52 @@ components:
           type: string
           title: build_time
           description: The time of the commit its binary was built from.
+        capabilityCounts:
+          type: object
+          title: capability_counts
+          additionalProperties:
+            type: integer
+            title: value
+            format: int32
+          description: 'What runs on the machine: capability status -> count (see Capabilities).'
       title: Machine
+      additionalProperties: false
+    barnraise.v1.MachineCapabilities:
+      type: object
+      properties:
+        machine:
+          type: string
+          title: machine
+        platform:
+          type: string
+          title: platform
+        probedAt:
+          type: string
+          title: probed_at
+          description: RFC3339
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/barnraise.v1.CapabilityItem'
+          title: items
+        tools:
+          type: array
+          items:
+            $ref: '#/components/schemas/barnraise.v1.CapabilityTool'
+          title: tools
+        counts:
+          type: object
+          title: counts
+          additionalProperties:
+            type: integer
+            title: value
+            format: int32
+          description: status -> count
+        error:
+          type: string
+          title: error
+          description: the machine could not be reached / probed
+      title: MachineCapabilities
       additionalProperties: false
     barnraise.v1.MachineHistoryRequest:
       type: object
@@ -5973,6 +6243,29 @@ components:
             $ref: '#/components/schemas/barnraise.v1.Token'
           title: tokens
       title: TokensResponse
+      additionalProperties: false
+    barnraise.v1.ToolInstallResult:
+      type: object
+      properties:
+        machine:
+          type: string
+          title: machine
+        tool:
+          type: string
+          title: tool
+        ok:
+          type: boolean
+          title: ok
+        version:
+          type: string
+          title: version
+        error:
+          type: string
+          title: error
+        changed:
+          type: boolean
+          title: changed
+      title: ToolInstallResult
       additionalProperties: false
     barnraise.v1.Tweak:
       type: object

@@ -205,6 +205,12 @@ const (
 	// BarnraiseServiceSetStandbyProcedure is the fully-qualified name of the BarnraiseService's
 	// SetStandby RPC.
 	BarnraiseServiceSetStandbyProcedure = "/barnraise.v1.BarnraiseService/SetStandby"
+	// BarnraiseServiceCapabilitiesProcedure is the fully-qualified name of the BarnraiseService's
+	// Capabilities RPC.
+	BarnraiseServiceCapabilitiesProcedure = "/barnraise.v1.BarnraiseService/Capabilities"
+	// BarnraiseServiceInstallToolsProcedure is the fully-qualified name of the BarnraiseService's
+	// InstallTools RPC.
+	BarnraiseServiceInstallToolsProcedure = "/barnraise.v1.BarnraiseService/InstallTools"
 	// BarnraiseServiceCreateTokenProcedure is the fully-qualified name of the BarnraiseService's
 	// CreateToken RPC.
 	BarnraiseServiceCreateTokenProcedure = "/barnraise.v1.BarnraiseService/CreateToken"
@@ -299,6 +305,12 @@ type BarnraiseServiceClient interface {
 	// check or merge. It is kept in the machine's configuration, so the daemon
 	// starts the way it stopped.
 	SetStandby(context.Context, *connect.Request[v1.StandbyRequest]) (*connect.Response[v1.StandbyResponse], error)
+	// What is active on each machine, what falls back and why, and how to fix
+	// it (ADR-0045). Owner and admin tokens only.
+	Capabilities(context.Context, *connect.Request[v1.CapabilitiesRequest]) (*connect.Response[v1.CapabilitiesResponse], error)
+	// Installs (or removes) the optional tools Barnraise ships recipes for,
+	// without root, on this machine and the named ones.
+	InstallTools(context.Context, *connect.Request[v1.InstallToolsRequest]) (*connect.Response[v1.InstallToolsResponse], error)
 	// Tokens and audit
 	CreateToken(context.Context, *connect.Request[v1.CreateTokenRequest]) (*connect.Response[v1.CreateTokenResponse], error)
 	ListTokens(context.Context, *connect.Request[v1.Empty]) (*connect.Response[v1.TokensResponse], error)
@@ -671,6 +683,18 @@ func NewBarnraiseServiceClient(httpClient connect.HTTPClient, baseURL string, op
 			connect.WithSchema(barnraiseServiceMethods.ByName("SetStandby")),
 			connect.WithClientOptions(opts...),
 		),
+		capabilities: connect.NewClient[v1.CapabilitiesRequest, v1.CapabilitiesResponse](
+			httpClient,
+			baseURL+BarnraiseServiceCapabilitiesProcedure,
+			connect.WithSchema(barnraiseServiceMethods.ByName("Capabilities")),
+			connect.WithClientOptions(opts...),
+		),
+		installTools: connect.NewClient[v1.InstallToolsRequest, v1.InstallToolsResponse](
+			httpClient,
+			baseURL+BarnraiseServiceInstallToolsProcedure,
+			connect.WithSchema(barnraiseServiceMethods.ByName("InstallTools")),
+			connect.WithClientOptions(opts...),
+		),
 		createToken: connect.NewClient[v1.CreateTokenRequest, v1.CreateTokenResponse](
 			httpClient,
 			baseURL+BarnraiseServiceCreateTokenProcedure,
@@ -759,6 +783,8 @@ type barnraiseServiceClient struct {
 	listPeers       *connect.Client[v1.Empty, v1.PeersResponse]
 	stopPeers       *connect.Client[v1.StopPeersRequest, v1.StopPeersResponse]
 	setStandby      *connect.Client[v1.StandbyRequest, v1.StandbyResponse]
+	capabilities    *connect.Client[v1.CapabilitiesRequest, v1.CapabilitiesResponse]
+	installTools    *connect.Client[v1.InstallToolsRequest, v1.InstallToolsResponse]
 	createToken     *connect.Client[v1.CreateTokenRequest, v1.CreateTokenResponse]
 	listTokens      *connect.Client[v1.Empty, v1.TokensResponse]
 	revokeToken     *connect.Client[v1.RevokeTokenRequest, v1.Empty]
@@ -1060,6 +1086,16 @@ func (c *barnraiseServiceClient) SetStandby(ctx context.Context, req *connect.Re
 	return c.setStandby.CallUnary(ctx, req)
 }
 
+// Capabilities calls barnraise.v1.BarnraiseService.Capabilities.
+func (c *barnraiseServiceClient) Capabilities(ctx context.Context, req *connect.Request[v1.CapabilitiesRequest]) (*connect.Response[v1.CapabilitiesResponse], error) {
+	return c.capabilities.CallUnary(ctx, req)
+}
+
+// InstallTools calls barnraise.v1.BarnraiseService.InstallTools.
+func (c *barnraiseServiceClient) InstallTools(ctx context.Context, req *connect.Request[v1.InstallToolsRequest]) (*connect.Response[v1.InstallToolsResponse], error) {
+	return c.installTools.CallUnary(ctx, req)
+}
+
 // CreateToken calls barnraise.v1.BarnraiseService.CreateToken.
 func (c *barnraiseServiceClient) CreateToken(ctx context.Context, req *connect.Request[v1.CreateTokenRequest]) (*connect.Response[v1.CreateTokenResponse], error) {
 	return c.createToken.CallUnary(ctx, req)
@@ -1160,6 +1196,12 @@ type BarnraiseServiceHandler interface {
 	// check or merge. It is kept in the machine's configuration, so the daemon
 	// starts the way it stopped.
 	SetStandby(context.Context, *connect.Request[v1.StandbyRequest]) (*connect.Response[v1.StandbyResponse], error)
+	// What is active on each machine, what falls back and why, and how to fix
+	// it (ADR-0045). Owner and admin tokens only.
+	Capabilities(context.Context, *connect.Request[v1.CapabilitiesRequest]) (*connect.Response[v1.CapabilitiesResponse], error)
+	// Installs (or removes) the optional tools Barnraise ships recipes for,
+	// without root, on this machine and the named ones.
+	InstallTools(context.Context, *connect.Request[v1.InstallToolsRequest]) (*connect.Response[v1.InstallToolsResponse], error)
 	// Tokens and audit
 	CreateToken(context.Context, *connect.Request[v1.CreateTokenRequest]) (*connect.Response[v1.CreateTokenResponse], error)
 	ListTokens(context.Context, *connect.Request[v1.Empty]) (*connect.Response[v1.TokensResponse], error)
@@ -1528,6 +1570,18 @@ func NewBarnraiseServiceHandler(svc BarnraiseServiceHandler, opts ...connect.Han
 		connect.WithSchema(barnraiseServiceMethods.ByName("SetStandby")),
 		connect.WithHandlerOptions(opts...),
 	)
+	barnraiseServiceCapabilitiesHandler := connect.NewUnaryHandler(
+		BarnraiseServiceCapabilitiesProcedure,
+		svc.Capabilities,
+		connect.WithSchema(barnraiseServiceMethods.ByName("Capabilities")),
+		connect.WithHandlerOptions(opts...),
+	)
+	barnraiseServiceInstallToolsHandler := connect.NewUnaryHandler(
+		BarnraiseServiceInstallToolsProcedure,
+		svc.InstallTools,
+		connect.WithSchema(barnraiseServiceMethods.ByName("InstallTools")),
+		connect.WithHandlerOptions(opts...),
+	)
 	barnraiseServiceCreateTokenHandler := connect.NewUnaryHandler(
 		BarnraiseServiceCreateTokenProcedure,
 		svc.CreateToken,
@@ -1672,6 +1726,10 @@ func NewBarnraiseServiceHandler(svc BarnraiseServiceHandler, opts ...connect.Han
 			barnraiseServiceStopPeersHandler.ServeHTTP(w, r)
 		case BarnraiseServiceSetStandbyProcedure:
 			barnraiseServiceSetStandbyHandler.ServeHTTP(w, r)
+		case BarnraiseServiceCapabilitiesProcedure:
+			barnraiseServiceCapabilitiesHandler.ServeHTTP(w, r)
+		case BarnraiseServiceInstallToolsProcedure:
+			barnraiseServiceInstallToolsHandler.ServeHTTP(w, r)
 		case BarnraiseServiceCreateTokenProcedure:
 			barnraiseServiceCreateTokenHandler.ServeHTTP(w, r)
 		case BarnraiseServiceListTokensProcedure:
@@ -1923,6 +1981,14 @@ func (UnimplementedBarnraiseServiceHandler) StopPeers(context.Context, *connect.
 
 func (UnimplementedBarnraiseServiceHandler) SetStandby(context.Context, *connect.Request[v1.StandbyRequest]) (*connect.Response[v1.StandbyResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("barnraise.v1.BarnraiseService.SetStandby is not implemented"))
+}
+
+func (UnimplementedBarnraiseServiceHandler) Capabilities(context.Context, *connect.Request[v1.CapabilitiesRequest]) (*connect.Response[v1.CapabilitiesResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("barnraise.v1.BarnraiseService.Capabilities is not implemented"))
+}
+
+func (UnimplementedBarnraiseServiceHandler) InstallTools(context.Context, *connect.Request[v1.InstallToolsRequest]) (*connect.Response[v1.InstallToolsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("barnraise.v1.BarnraiseService.InstallTools is not implemented"))
 }
 
 func (UnimplementedBarnraiseServiceHandler) CreateToken(context.Context, *connect.Request[v1.CreateTokenRequest]) (*connect.Response[v1.CreateTokenResponse], error) {
