@@ -130,6 +130,8 @@ type Service struct {
 	caps capState
 	// logins are the provider logins that run on this machine (login.go).
 	logins loginRegistry
+	// autopilot is each project's autopilot run (autopilot.go).
+	autopilot sync.Map
 }
 
 // New creates the service.

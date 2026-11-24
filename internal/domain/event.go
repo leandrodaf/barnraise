@@ -52,10 +52,14 @@ const (
 	EvPolicyViolation     = "policy.violation.blocked"
 	EvSystemPaused        = "system.paused"
 	EvSystemResumed       = "system.resumed"
-	EvAgentSession        = "agent.session"
-	EvAgentUsage          = "agent.usage"
-	EvJournal             = "journal.entry"
-	EvSecretBlocked       = "secret.blocked"
+	// EvAutopilot switches a project's autopilot: Note is "on" or "off".
+	// With it on, the advisor takes the owner's decisions (questions,
+	// approvals, proposals) and leaves only what it cannot resolve.
+	EvAutopilot     = "autopilot.changed"
+	EvAgentSession  = "agent.session"
+	EvAgentUsage    = "agent.usage"
+	EvJournal       = "journal.entry"
+	EvSecretBlocked = "secret.blocked"
 	// EvConflictsReapplied: a rebase conflict was resolved again from a
 	// resolution git recorded earlier (rerere); the checks still run.
 	EvConflictsReapplied = "merge.conflicts.reapplied"
@@ -310,9 +314,11 @@ type State struct {
 	Discussions map[string][]*DiscussionMessage `json:"discussions,omitempty"`
 	Paused      bool                            `json:"paused"`
 	PausedWhy   string                          `json:"paused_why,omitempty"`
-	Seen        map[string]bool                 `json:"-"` // applied event ids
-	LastSeq     int64                           `json:"last_seq"`
-	Counters    map[IDKind]int                  `json:"counters"`
+	// Autopilot: the advisor takes the owner's decisions by itself.
+	Autopilot bool            `json:"autopilot,omitempty"`
+	Seen      map[string]bool `json:"-"` // applied event ids
+	LastSeq   int64           `json:"last_seq"`
+	Counters  map[IDKind]int  `json:"counters"`
 }
 
 // NewState creates an empty projection.
@@ -461,6 +467,8 @@ func (s *State) Apply(e Event) error {
 		s.Paused, s.PausedWhy = true, p.Note
 	case EvSystemResumed:
 		s.Paused, s.PausedWhy = false, ""
+	case EvAutopilot:
+		s.Autopilot = p.Note == "on"
 	}
 	return nil
 }

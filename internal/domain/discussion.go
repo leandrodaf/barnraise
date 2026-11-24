@@ -24,6 +24,9 @@ type DiscussionMessage struct {
 	SuggestNote   string `json:"suggest_note,omitempty"`
 	// Delegated: the owner let the advisor decide, and this answer was applied.
 	Delegated bool `json:"delegated,omitempty"`
+	// LeftToOwner: the autopilot could not decide this one; Text says what
+	// only the owner can do. It is not asked again until the decision changes.
+	LeftToOwner bool `json:"left_to_owner,omitempty"`
 }
 
 // EvDiscussionStep is live only: what the advisor is doing while it

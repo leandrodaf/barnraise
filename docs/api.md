@@ -213,7 +213,7 @@ Everything that happens becomes an event in an append-only log. Event types are 
 | Trust | `trust.recorded`, `trust.accepted`, `trust.mismatch`, `security.token.denied`, `security.chain.broken` |
 | Goal and focus | `goal.set`, `goal.finished`, `focus.changed` |
 | Proposals and tweaks | `proposal.created`, `proposal.updated`, `tweak.added`, `tweak.attached` |
-| Owner | `owner.question.asked`, `owner.question.answered` |
+| Owner | `owner.question.asked`, `owner.question.answered`, `owner.discussion`, `autopilot.changed` |
 | Messages | `message.sent`, `message.delivered` |
 | Accounts and machines | `account.updated`, `account.limit.reached`, `machine.updated`, `machine.left`, `machine.tool.installed`, `machine.tool.removed`, `machine.tool.failed` |
 | Agents | `agent.session`, `agent.usage`, `journal.entry` |

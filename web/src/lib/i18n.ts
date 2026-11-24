@@ -800,6 +800,22 @@ Object.assign(pt, {
   mLimitSet: '{0} roda até {1} agentes ao mesmo tempo.', mLimitAuto: '{0} volta a medir o próprio limite.',
 });
 
+Object.assign(en, {
+  autopilot: 'Autopilot', autopilotOnHelp: 'On in every project: the advisor answers the questions, approves or sends back plans and deliveries, and decides the proposals. Only what it cannot resolve is left to you.',
+  autopilotOffHelp: 'Off: the decisions wait for you. Switch it on to let the advisor take them in every project.', autopilotSome: 'On in: {0}. Switch it to set every project the same way.',
+  autopilotOnToast: 'Autopilot on: the advisor takes your decisions.', autopilotOffToast: 'Autopilot off: the decisions wait for you.', autopilotFailed: 'Not switched: {0}',
+  autopilotBanner: 'Autopilot on in {0}: the advisor takes your decisions. What is here is what only you can do.', autopilotLeft: 'The autopilot left it to you:',
+  leftToOwnerBadge: 'left to you',
+});
+
+Object.assign(pt, {
+  autopilot: 'Piloto automático', autopilotOnHelp: 'Ligado em todos os projetos: o conselheiro responde as perguntas, aprova ou devolve planos e entregas e decide as propostas. Só o que ele não consegue resolver fica para você.',
+  autopilotOffHelp: 'Desligado: as decisões esperam por você. Ligue para o conselheiro tomá-las em todos os projetos.', autopilotSome: 'Ligado em: {0}. Use o botão para deixar todos os projetos iguais.',
+  autopilotOnToast: 'Piloto automático ligado: o conselheiro toma as decisões por você.', autopilotOffToast: 'Piloto automático desligado: as decisões esperam por você.', autopilotFailed: 'Não mudou: {0}',
+  autopilotBanner: 'Piloto automático ligado em {0}: o conselheiro toma as decisões por você. O que aparece aqui é o que só você pode fazer.', autopilotLeft: 'O piloto deixou para você:',
+  leftToOwnerBadge: 'ficou para você',
+});
+
 import { locale } from './locale.svelte';
 
 // The current language; t() and tm() read it, so the screen follows a switch.

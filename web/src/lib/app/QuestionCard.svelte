@@ -18,6 +18,19 @@
 	let busy = $state(false);
 	let more = $state(false);
 	const long = $derived((q.context || '').length + (q.decision || '').length > 320);
+	// On autopilot, a question that reaches the owner is one the advisor left
+	// to them: say what it said they must do.
+	let left = $state('');
+	$effect(() => {
+		const id = q.id;
+		if (!session.autopilot.includes(proj)) return void (left = '');
+		api.getDiscussion({ project: proj, thread: id })
+			.then((r) => {
+				const m = [...r.messages].reverse().find((x) => x.leftToOwner);
+				left = m && Date.parse(m.at) >= Date.parse(q.askedAt || '0') ? m.text : '';
+			})
+			.catch(() => (left = ''));
+	});
 	async function answer(label: string) {
 		busy = true;
 		await act(() => api.answer({ project: proj, id: q.id, answer: label }), t('answered', label));
@@ -32,6 +45,7 @@
 			<p class="font-medium leading-snug [overflow-wrap:anywhere] {long && !more ? 'line-clamp-5' : ''}">{q.decision}</p>
 			{#if q.context}<p class="text-sm text-muted-foreground [overflow-wrap:anywhere] {long && !more ? 'line-clamp-4' : ''}">{q.context}</p>{/if}
 			{#if long}<button class="text-xs font-medium hover:underline" onclick={() => (more = !more)}>{more ? t('showLess') : t('showMore')}</button>{/if}
+			{#if left}<p class="rounded-md border border-st-review/30 bg-st-review/[0.06] px-3 py-2 text-sm [overflow-wrap:anywhere]"><span class="font-medium text-st-review">{t('autopilotLeft')}</span> {left}</p>{/if}
 			<p class="num flex flex-wrap gap-x-3 text-[11px] text-muted-foreground">
 				{#if q.urgent}<span class="font-semibold text-st-fail">{t('urgent')}</span>{/if}
 				{#if q.itemId}<button class="hover:text-foreground hover:underline" onclick={() => openItem(proj, q.itemId)}>{q.itemId}</button>{/if}

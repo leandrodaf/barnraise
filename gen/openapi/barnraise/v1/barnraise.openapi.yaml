@@ -2322,6 +2322,47 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/barnraise.v1.MessageResponse'
+  /barnraise.v1.BarnraiseService/SetAutopilot:
+    post:
+      tags:
+        - barnraise.v1.BarnraiseService
+      summary: SetAutopilot
+      description: |-
+        SetAutopilot lets the advisor take the owner's decisions in a project,
+         or in every project; only what it cannot resolve is left to the owner.
+      operationId: barnraise.v1.BarnraiseService.SetAutopilot
+      parameters:
+        - name: Connect-Protocol-Version
+          in: header
+          description: Define the version of the Connect protocol
+          schema:
+            $ref: '#/components/schemas/connect-protocol-version'
+          example: 1
+        - name: Connect-Timeout-Ms
+          in: header
+          description: Define the timeout, in ms
+          schema:
+            $ref: '#/components/schemas/connect-timeout-header'
+          example: 1000
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/barnraise.v1.AutopilotRequest'
+        required: true
+      responses:
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.error'
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/barnraise.v1.AutopilotResponse'
   /barnraise.v1.BarnraiseService/SetFocus:
     post:
       tags:
@@ -3311,6 +3352,34 @@ components:
           title: entries
       title: AuditResponse
       additionalProperties: false
+    barnraise.v1.AutopilotRequest:
+      type: object
+      properties:
+        project:
+          type: string
+          title: project
+        on:
+          type: boolean
+          title: on
+        all:
+          type: boolean
+          title: all
+          description: Every project of this daemon, whatever project says.
+      title: AutopilotRequest
+      additionalProperties: false
+      description: |-
+        AutopilotRequest switches the autopilot: the advisor takes the owner's
+         decisions (questions, approvals, proposals) and leaves only what it cannot.
+    barnraise.v1.AutopilotResponse:
+      type: object
+      properties:
+        projects:
+          type: array
+          items:
+            $ref: '#/components/schemas/barnraise.v1.ProjectAutopilot'
+          title: projects
+      title: AutopilotResponse
+      additionalProperties: false
     barnraise.v1.CapabilitiesRequest:
       type: object
       properties:
@@ -4005,6 +4074,10 @@ components:
           type: boolean
           title: delegated
           description: The owner let the advisor decide, and this answer was applied.
+        leftToOwner:
+          type: boolean
+          title: left_to_owner
+          description: The autopilot left this decision to the owner; text says what to do.
       title: DiscussionMessage
       additionalProperties: false
     barnraise.v1.DiscussionRef:
@@ -6016,6 +6089,20 @@ components:
       title: ProcSummary
       additionalProperties: false
       description: ProcSummary measures everything that runs for a worktree, an item or a machine.
+    barnraise.v1.ProjectAutopilot:
+      type: object
+      properties:
+        project:
+          type: string
+          title: project
+        on:
+          type: boolean
+          title: on
+        error:
+          type: string
+          title: error
+      title: ProjectAutopilot
+      additionalProperties: false
     barnraise.v1.ProjectOverview:
       type: object
       properties:
@@ -6175,6 +6262,12 @@ components:
           type: boolean
           title: self_update
           description: The daemon takes a newer peer's binary by itself, between sessions.
+        autopilot:
+          type: array
+          items:
+            type: string
+          title: autopilot
+          description: The projects whose autopilot is on (SetAutopilot).
       title: ProjectsResponse
       additionalProperties: false
     barnraise.v1.Proposal:

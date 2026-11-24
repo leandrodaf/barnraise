@@ -16,7 +16,7 @@ const EVENT_TYPES = [
 	'proposal.created', 'proposal.updated', 'tweak.added', 'tweak.attached', 'owner.question.asked', 'owner.question.answered',
 	'goal.set', 'goal.finished', 'focus.changed', 'system.paused', 'system.resumed', 'account.updated',
 	'account.limit.reached', 'machine.updated', 'machine.left', 'machine.worktrees', 'agent.session', 'agent.usage',
-	'message.sent', 'message.delivered', 'journal.entry', 'policy.violation.blocked', 'secret.blocked', 'owner.discussion', 'owner.discussion.step'
+	'message.sent', 'message.delivered', 'journal.entry', 'policy.violation.blocked', 'secret.blocked', 'owner.discussion', 'owner.discussion.step', 'autopilot.changed'
 ];
 
 class Session {
@@ -44,6 +44,8 @@ class Session {
 	selfUpdate = $state(true);
 	standby = $state(false);
 	standbyWhy = $state('');
+	// The projects whose autopilot is on: the advisor takes the owner's decisions.
+	autopilot = $state<string[]>([]);
 	live = $state<LiveMode>('wait');
 	retryIn = $state(0);
 	// tick changes when something happened: screens read again on it.
@@ -107,6 +109,7 @@ class Session {
 		this.selfUpdate = r.selfUpdate;
 		this.standby = r.standby;
 		this.standbyWhy = r.standbyWhy;
+		this.autopilot = r.autopilot;
 		const saved = store.get('project');
 		if (this.scope && !this.projects.includes(this.scope)) this.scope = '';
 		if (this.scope) this.project = this.scope;

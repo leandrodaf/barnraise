@@ -1011,6 +1011,8 @@ message DiscussionMessage {
   string suggest_note = 10;
   // The owner let the advisor decide, and this answer was applied.
   bool delegated = 11;
+  // The autopilot left this decision to the owner; text says what to do.
+  bool left_to_owner = 12;
 }
 
 // ProposalVerdict is the advisor's word on one open proposal.
@@ -1142,6 +1144,27 @@ message ProjectsResponse {
   string newest_build_time = 10;
   // The daemon takes a newer peer's binary by itself, between sessions.
   bool self_update = 11;
+  // The projects whose autopilot is on (SetAutopilot).
+  repeated string autopilot = 12;
+}
+
+// AutopilotRequest switches the autopilot: the advisor takes the owner's
+// decisions (questions, approvals, proposals) and leaves only what it cannot.
+message AutopilotRequest {
+  string project = 1;
+  bool on = 2;
+  // Every project of this daemon, whatever project says.
+  bool all = 3;
+}
+
+message ProjectAutopilot {
+  string project = 1;
+  bool on = 2;
+  string error = 3;
+}
+
+message AutopilotResponse {
+  repeated ProjectAutopilot projects = 1;
 }
 
 message PolicyViolationRequest {
@@ -1580,6 +1603,9 @@ service BarnraiseService {
   // Delegate lets the advisor decide a question or a proposal in the
   // owner's place and applies the answer it suggests.
   rpc Delegate(DiscussionRef) returns (DiscussionResponse);
+  // SetAutopilot lets the advisor take the owner's decisions in a project,
+  // or in every project; only what it cannot resolve is left to the owner.
+  rpc SetAutopilot(AutopilotRequest) returns (AutopilotResponse);
   // TriageProposals asks the advisor for a decision on every open proposal;
   // nothing is applied.
   rpc TriageProposals(ProjectRef) returns (ProposalTriageResponse);

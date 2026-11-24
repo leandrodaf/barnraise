@@ -43,6 +43,16 @@ var ownerTexts = map[string][2]string{ // key: {en, pt-BR}
 	"delegate.ask":      {"Decide for me: choose the answer you recommend.", "Decida por mim: escolha a resposta que você recomenda."},
 	"delegate.note":     {"Decided by the advisor at the owner's request: %s", "Decidido pelo conselheiro a pedido do dono: %s"},
 	"delegate.done":     {"Applied: %s.", "Aplicado: %s."},
+	"autopilot.reason":  {"Decided by the advisor on autopilot: %s", "Decidido pelo conselheiro no piloto automático: %s"},
+	"autopilot.ask": {"Autopilot: the owner is away and asked you to take this decision. Choose the answer you recommend and say why. " +
+		"Only when the decision truly needs the owner (signing in to an account, spending money, a physical device or place, giving an access or a secret, " +
+		"a legal, brand or personal choice) end with option: OWNER and, in the note, exactly what the owner must do.",
+		"Piloto automático: o dono está ausente e pediu que você tome esta decisão. Escolha a resposta que recomenda e diga por quê. " +
+			"Só quando a decisão realmente precisa do dono (entrar numa conta, gastar dinheiro, um aparelho ou lugar físico, dar um acesso ou um segredo, " +
+			"uma escolha legal, de marca ou pessoal) termine com option: OWNER e, na nota, exatamente o que o dono precisa fazer."},
+	"autopilot.approve": {"\nThe decision is the approval of %s of this item: the options are approve or send back.", "\nA decisão é a aprovação %s deste item: as opções são approve ou send back."},
+	"autopilot.left":    {"Left to you: %s", "Ficou para você: %s"},
+	"autopilot.done":    {"Decided on autopilot: %s.", "Decidido no piloto automático: %s."},
 }
 
 // ownerPortuguese reports whether the project's people read Portuguese.

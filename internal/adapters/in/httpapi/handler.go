@@ -68,7 +68,38 @@ func (h *Handler) ListProjects(ctx context.Context, _ *connect.Request[pb.Empty]
 	v := h.svc().Versions()
 	return connect.NewResponse(&pb.ProjectsResponse{Projects: h.svc().Projects(), Machine: h.svc().Machine(), Version: h.srv.opts.Version, Standby: on, StandbyWhy: why,
 		BuildTime: rfc3339(v.Self.Time), Outdated: v.Outdated, NewestMachine: v.NewestMachine, NewestVersion: v.Newest.Version,
-		NewestBuildTime: rfc3339(v.Newest.Time), SelfUpdate: v.SelfUpdate}), nil
+		NewestBuildTime: rfc3339(v.Newest.Time), SelfUpdate: v.SelfUpdate, Autopilot: h.svc().AutopilotProjects()}), nil
+}
+
+// SetAutopilot switches the autopilot of one project, or of every project.
+func (h *Handler) SetAutopilot(ctx context.Context, r *connect.Request[pb.AutopilotRequest]) (*connect.Response[pb.AutopilotResponse], error) {
+	a := actorFrom(ctx)
+	targets := []string{r.Msg.Project}
+	if r.Msg.All {
+		targets = h.svc().Projects()
+	}
+	out := &pb.AutopilotResponse{}
+	done := 0
+	for _, p := range targets {
+		res := &pb.ProjectAutopilot{Project: p, On: r.Msg.On}
+		if err := h.svc().SetAutopilot(ctx, p, a, r.Msg.On); err != nil {
+			if !r.Msg.All {
+				return nil, connectErr(err)
+			}
+			res.On, res.Error = !r.Msg.On, err.Error()
+		} else {
+			done++
+		}
+		out.Projects = append(out.Projects, res)
+	}
+	action := "autopilot.off"
+	if r.Msg.On {
+		action = "autopilot.on"
+	}
+	if done > 0 {
+		h.audit(ctx, action, strings.Join(targets, ","), "", "")
+	}
+	return connect.NewResponse(out), nil
 }
 
 func (h *Handler) RegisterProject(ctx context.Context, r *connect.Request[pb.RegisterProjectRequest]) (*connect.Response[pb.ProjectsResponse], error) {

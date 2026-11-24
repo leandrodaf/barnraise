@@ -63,6 +63,7 @@ barnraise panel                # the web panel in the browser, already signed in
 | `barnraise focus <area> --until done` | Point most of the capacity at one area for a while |
 | `barnraise approve I-7 --plan` | Approve the plan of an item (`--delivery` for the delivery) |
 | `barnraise questions` / `barnraise answer` | What agents asked the owner, and the answers |
+| `barnraise autopilot on --all` | The advisor takes your decisions in every project (questions, approvals, proposals) and leaves you only what it cannot resolve; the switch at the top of the panel does the same |
 | `barnraise events -f` | Follow every event live |
 | `barnraise pause` / `barnraise resume` | Emergency button for every agent of a project (`--all`: every project of the daemon) |
 | `barnraise standby on` / `off` | This machine's switch: the daemon runs but starts nothing here, kept across restarts and settable with the daemon stopped |
@@ -83,6 +84,7 @@ Every command prints text for people by default and JSON with `--json`. The web 
 - **Talk it over before you answer.** The advisor is a session on the project's strongest model that reads the item, the question, what the agents did and the code, and never changes anything. You follow it live (what it reads and searches) and it ends with a suggested answer: confirm it, edit it, or ask more.
 - **Or let it decide.** *Decide for me* has the advisor answer a question or decide a proposal; the conversation keeps what it chose and why, marked as delegated.
 - **Proposals at once.** *Triage with the advisor* reads every open proposal and says approve, reject or later for each, with one sentence; nothing is applied until you keep the ones you agree with.
+- **Or let the autopilot take them all.** With the autopilot on (the switch at the top of the panel, or `barnraise autopilot on --all`), the advisor answers the questions, approves or sends back plans and deliveries, and decides the proposals in every project, each with its reasons. What only you can do (an account, money, a device, an access, a personal choice) stays for you, with what to do.
 - **Your words travel.** What you said while deciding goes, as your words, to the next agent that works on the item.
 
 ## How an item moves

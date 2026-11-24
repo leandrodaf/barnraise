@@ -265,6 +265,7 @@
 								<SparklesIcon class="size-3.5 text-st-review" /><span class="font-medium text-foreground">{t('discussAdvisor')}</span>
 								<span class="num">{m.model}{m.tokens && !m.delegated ? ' · ' + compact(m.tokens) + ' tokens' : ''} · {ago(m.at)}</span>
 								{#if m.delegated}<span class="rounded-full bg-st-review/15 px-2 py-0.5 font-medium text-st-review">{t('delegatedBadge')}</span>{/if}
+								{#if m.leftToOwner}<span class="rounded-full bg-st-needs/15 px-2 py-0.5 font-medium text-st-needs">{t('leftToOwnerBadge')}</span>{/if}
 								<button class="ml-auto inline-flex items-center gap-1 rounded px-1.5 py-0.5 opacity-0 transition-opacity group-hover:opacity-100 hover:bg-muted focus:opacity-100" onclick={() => copy(i, m.text)}>
 									{#if copied === i}<CheckIcon class="size-3" />{t('copied')}{:else}<CopyIcon class="size-3" />{t('copy')}{/if}
 								</button>

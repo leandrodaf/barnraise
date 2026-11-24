@@ -69,6 +69,7 @@ barnraise panel                # o painel web no navegador, já com a sessão in
 | `barnraise pause` / `barnraise resume` | Botão de emergência para todos os agentes de um projeto (`--all`: todos os projetos do daemon) |
 | `barnraise standby on` / `off` | Chave da máquina: o daemon roda, mas não inicia nada nela; vale entre reinícios e pode ser ligada com o daemon parado |
 | `barnraise panel` | Abre o painel web no navegador, já com a sessão iniciada (`--print` escreve o endereço) |
+| `barnraise autopilot on --all` | O conselheiro toma as suas decisões em todos os projetos (perguntas, aprovações, propostas) e deixa para você só o que não consegue resolver; o botão no topo do painel faz o mesmo |
 | `barnraise account add claude` | Põe outra conta de assinatura na rotação |
 | `barnraise account login claude --all` | Entra com uma conta em todas as máquinas conectadas ao mesmo tempo; o painel faz o mesmo em Contas |
 | `barnraise machine agents 5 --machine studio` | Quantos agentes uma máquina roda ao mesmo tempo (`auto`: medido pelos núcleos e pela memória) |
@@ -85,6 +86,7 @@ Todo comando imprime texto para pessoas por padrão e JSON com `--json`. O paine
 - **Converse antes de responder.** O conselheiro é uma sessão no modelo mais forte do projeto que lê o item, a pergunta, o que os agentes fizeram e o código, e nunca altera nada. Você acompanha ao vivo o que ele lê e busca, e ele termina com uma resposta sugerida: confirme, edite ou pergunte mais.
 - **Ou deixe ele decidir.** *Decidir por mim* faz o conselheiro responder uma pergunta ou decidir uma proposta; a conversa guarda o que ele escolheu e por quê, marcado como delegado.
 - **Propostas de uma vez.** *Triar com o conselheiro* lê todas as propostas abertas e diz aprovar, recusar ou depois para cada uma, com uma frase; nada é aplicado até você manter as que concorda.
+- **Ou deixe o piloto automático tomar todas.** Com o piloto ligado (o botão no topo do painel, ou `barnraise autopilot on --all`), o conselheiro responde as perguntas, aprova ou devolve planos e entregas e decide as propostas em todos os projetos, cada uma com o motivo. O que só você pode fazer (uma conta, dinheiro, um aparelho, um acesso, uma escolha pessoal) fica para você, com o que fazer.
 - **Suas palavras seguem junto.** O que você disse enquanto decidia vai, com as suas palavras, para o próximo agente que trabalhar no item.
 
 ## Como um item anda

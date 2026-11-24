@@ -126,6 +126,9 @@ const (
 	// BarnraiseServiceDelegateProcedure is the fully-qualified name of the BarnraiseService's Delegate
 	// RPC.
 	BarnraiseServiceDelegateProcedure = "/barnraise.v1.BarnraiseService/Delegate"
+	// BarnraiseServiceSetAutopilotProcedure is the fully-qualified name of the BarnraiseService's
+	// SetAutopilot RPC.
+	BarnraiseServiceSetAutopilotProcedure = "/barnraise.v1.BarnraiseService/SetAutopilot"
 	// BarnraiseServiceTriageProposalsProcedure is the fully-qualified name of the BarnraiseService's
 	// TriageProposals RPC.
 	BarnraiseServiceTriageProposalsProcedure = "/barnraise.v1.BarnraiseService/TriageProposals"
@@ -298,6 +301,9 @@ type BarnraiseServiceClient interface {
 	// Delegate lets the advisor decide a question or a proposal in the
 	// owner's place and applies the answer it suggests.
 	Delegate(context.Context, *connect.Request[v1.DiscussionRef]) (*connect.Response[v1.DiscussionResponse], error)
+	// SetAutopilot lets the advisor take the owner's decisions in a project,
+	// or in every project; only what it cannot resolve is left to the owner.
+	SetAutopilot(context.Context, *connect.Request[v1.AutopilotRequest]) (*connect.Response[v1.AutopilotResponse], error)
 	// TriageProposals asks the advisor for a decision on every open proposal;
 	// nothing is applied.
 	TriageProposals(context.Context, *connect.Request[v1.ProjectRef]) (*connect.Response[v1.ProposalTriageResponse], error)
@@ -558,6 +564,12 @@ func NewBarnraiseServiceClient(httpClient connect.HTTPClient, baseURL string, op
 			httpClient,
 			baseURL+BarnraiseServiceDelegateProcedure,
 			connect.WithSchema(barnraiseServiceMethods.ByName("Delegate")),
+			connect.WithClientOptions(opts...),
+		),
+		setAutopilot: connect.NewClient[v1.AutopilotRequest, v1.AutopilotResponse](
+			httpClient,
+			baseURL+BarnraiseServiceSetAutopilotProcedure,
+			connect.WithSchema(barnraiseServiceMethods.ByName("SetAutopilot")),
 			connect.WithClientOptions(opts...),
 		),
 		triageProposals: connect.NewClient[v1.ProjectRef, v1.ProposalTriageResponse](
@@ -870,6 +882,7 @@ type barnraiseServiceClient struct {
 	listParts          *connect.Client[v1.ProjectRef, v1.PartsResponse]
 	getDiscussion      *connect.Client[v1.DiscussionRef, v1.DiscussionResponse]
 	delegate           *connect.Client[v1.DiscussionRef, v1.DiscussionResponse]
+	setAutopilot       *connect.Client[v1.AutopilotRequest, v1.AutopilotResponse]
 	triageProposals    *connect.Client[v1.ProjectRef, v1.ProposalTriageResponse]
 	setGoal            *connect.Client[v1.SetGoalRequest, v1.SetGoalResponse]
 	setFocus           *connect.Client[v1.FocusRequest, v1.FocusResponse]
@@ -1061,6 +1074,11 @@ func (c *barnraiseServiceClient) GetDiscussion(ctx context.Context, req *connect
 // Delegate calls barnraise.v1.BarnraiseService.Delegate.
 func (c *barnraiseServiceClient) Delegate(ctx context.Context, req *connect.Request[v1.DiscussionRef]) (*connect.Response[v1.DiscussionResponse], error) {
 	return c.delegate.CallUnary(ctx, req)
+}
+
+// SetAutopilot calls barnraise.v1.BarnraiseService.SetAutopilot.
+func (c *barnraiseServiceClient) SetAutopilot(ctx context.Context, req *connect.Request[v1.AutopilotRequest]) (*connect.Response[v1.AutopilotResponse], error) {
+	return c.setAutopilot.CallUnary(ctx, req)
 }
 
 // TriageProposals calls barnraise.v1.BarnraiseService.TriageProposals.
@@ -1336,6 +1354,9 @@ type BarnraiseServiceHandler interface {
 	// Delegate lets the advisor decide a question or a proposal in the
 	// owner's place and applies the answer it suggests.
 	Delegate(context.Context, *connect.Request[v1.DiscussionRef]) (*connect.Response[v1.DiscussionResponse], error)
+	// SetAutopilot lets the advisor take the owner's decisions in a project,
+	// or in every project; only what it cannot resolve is left to the owner.
+	SetAutopilot(context.Context, *connect.Request[v1.AutopilotRequest]) (*connect.Response[v1.AutopilotResponse], error)
 	// TriageProposals asks the advisor for a decision on every open proposal;
 	// nothing is applied.
 	TriageProposals(context.Context, *connect.Request[v1.ProjectRef]) (*connect.Response[v1.ProposalTriageResponse], error)
@@ -1592,6 +1613,12 @@ func NewBarnraiseServiceHandler(svc BarnraiseServiceHandler, opts ...connect.Han
 		BarnraiseServiceDelegateProcedure,
 		svc.Delegate,
 		connect.WithSchema(barnraiseServiceMethods.ByName("Delegate")),
+		connect.WithHandlerOptions(opts...),
+	)
+	barnraiseServiceSetAutopilotHandler := connect.NewUnaryHandler(
+		BarnraiseServiceSetAutopilotProcedure,
+		svc.SetAutopilot,
+		connect.WithSchema(barnraiseServiceMethods.ByName("SetAutopilot")),
 		connect.WithHandlerOptions(opts...),
 	)
 	barnraiseServiceTriageProposalsHandler := connect.NewUnaryHandler(
@@ -1930,6 +1957,8 @@ func NewBarnraiseServiceHandler(svc BarnraiseServiceHandler, opts ...connect.Han
 			barnraiseServiceGetDiscussionHandler.ServeHTTP(w, r)
 		case BarnraiseServiceDelegateProcedure:
 			barnraiseServiceDelegateHandler.ServeHTTP(w, r)
+		case BarnraiseServiceSetAutopilotProcedure:
+			barnraiseServiceSetAutopilotHandler.ServeHTTP(w, r)
 		case BarnraiseServiceTriageProposalsProcedure:
 			barnraiseServiceTriageProposalsHandler.ServeHTTP(w, r)
 		case BarnraiseServiceSetGoalProcedure:
@@ -2145,6 +2174,10 @@ func (UnimplementedBarnraiseServiceHandler) GetDiscussion(context.Context, *conn
 
 func (UnimplementedBarnraiseServiceHandler) Delegate(context.Context, *connect.Request[v1.DiscussionRef]) (*connect.Response[v1.DiscussionResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("barnraise.v1.BarnraiseService.Delegate is not implemented"))
+}
+
+func (UnimplementedBarnraiseServiceHandler) SetAutopilot(context.Context, *connect.Request[v1.AutopilotRequest]) (*connect.Response[v1.AutopilotResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("barnraise.v1.BarnraiseService.SetAutopilot is not implemented"))
 }
 
 func (UnimplementedBarnraiseServiceHandler) TriageProposals(context.Context, *connect.Request[v1.ProjectRef]) (*connect.Response[v1.ProposalTriageResponse], error) {

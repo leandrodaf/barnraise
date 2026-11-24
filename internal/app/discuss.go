@@ -455,6 +455,13 @@ func (s *Service) TriageProposals(ctx context.Context, project string, a Actor) 
 	if err := a.Require(ScopeApprove, p.Name); err != nil {
 		return nil, err
 	}
+	return s.triage(ctx, p, func(pr *domain.Proposal) bool {
+		return pr.Status == domain.ProposalOpen || pr.Status == domain.ProposalLater
+	})
+}
+
+// triage weighs the proposals that pass keep, a few per answer of the advisor.
+func (s *Service) triage(ctx context.Context, p *Project, keep func(*domain.Proposal) bool) ([]ProposalVerdict, error) {
 	adv := p.Ports().Advisor
 	if adv == nil {
 		return nil, ErrNoAdvisor
@@ -462,7 +469,7 @@ func (s *Service) TriageProposals(ctx context.Context, project string, a Actor) 
 	snap := p.Snapshot()
 	var open []triageEntry
 	for _, pr := range snap.Proposals {
-		if pr.Status == domain.ProposalOpen || pr.Status == "later" {
+		if keep(pr) {
 			open = append(open, triageEntry{pr.ID, pr.Title, pr.Kind, pr.Area, pr.Size, pr.Problem, pr.Evidence, pr.Impact, pr.GoalLink, int(pr.Priority)})
 		}
 	}

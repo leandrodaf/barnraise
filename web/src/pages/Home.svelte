@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { Progress } from '$lib/components/ui/progress';
+	import PlaneIcon from '@lucide/svelte/icons/plane';
 	import HouseIcon from '@lucide/svelte/icons/house';
 	import CircleHelpIcon from '@lucide/svelte/icons/circle-help';
 	import ActivityIcon from '@lucide/svelte/icons/activity';
@@ -41,6 +42,11 @@
 </script>
 
 <PageHeader title={t('navHome')} icon={HouseIcon} meta={[session.scope || t('allProjects'), session.machine, t('homeSpendShort', money(usage.cost), compact(usage.tokens))]} subtitle={t('homeSummary', needs, g.working.length, g.blocked.length)} />
+{#if session.autopilot.length}
+	<p class="mb-4 flex items-start gap-2 rounded-lg border border-st-review/40 bg-st-review/[0.06] px-3 py-2 text-sm">
+		<PlaneIcon class="mt-0.5 size-4 shrink-0 text-st-review" /><span>{t('autopilotBanner', session.autopilot.join(', '))}</span>
+	</p>
+{/if}
 
 <div class="mb-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
 	<Kpi label={t('kpiNeeds')} value={needs} tone="needs" icon={CircleHelpIcon} hint={t('kpiNeedsHint', questions.length, approvals.length)} />

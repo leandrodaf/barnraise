@@ -73,6 +73,9 @@ func (r *Runtime) housekeeping(ctx context.Context, p *Project, m domain.Machine
 	if n := s.expireProposals(ctx, p); n > 0 {
 		s.d.Log.Info("proposals expired", "project", p.Name, "count", n)
 	}
+	if s.autopilotDue(p, now) {
+		go s.runAutopilot(context.WithoutCancel(ctx), p)
+	}
 	if now.Sub(r.lastImport[p.Name]) > 2*time.Minute && p.Ports().Tracker != nil {
 		r.mu.Lock()
 		since := r.importedTo[p.Name]

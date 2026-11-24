@@ -166,3 +166,21 @@ func TestSetMaxAgents(t *testing.T) {
 		t.Fatalf("no option: %v", err)
 	}
 }
+
+func TestSetAutopilot(t *testing.T) {
+	f, _ := loginServer(t, Options{})
+	ctx := context.Background()
+	owner := f.client("owner-secret")
+	// No project here: one project fails as an error, every project answers per project.
+	if _, err := owner.SetAutopilot(ctx, connect.NewRequest(&pb.AutopilotRequest{Project: "nope", On: true})); code(err) != connect.CodeNotFound {
+		t.Fatalf("unknown project: %v", err)
+	}
+	res, err := owner.SetAutopilot(ctx, connect.NewRequest(&pb.AutopilotRequest{All: true, On: true}))
+	if err != nil || len(res.Msg.Projects) != 0 {
+		t.Fatalf("%+v %v", res, err)
+	}
+	pr, err := owner.ListProjects(ctx, connect.NewRequest(&pb.Empty{}))
+	if err != nil || len(pr.Msg.Autopilot) != 0 {
+		t.Fatalf("%+v %v", pr, err)
+	}
+}
