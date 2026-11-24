@@ -88,7 +88,7 @@ func (e *env) rootCmd() *cobra.Command {
 		}
 	}
 	add("work", e.statusCmd(), e.overviewCmd(), e.itemCmd(), e.queueCmd(), e.proposalsCmd(), e.proposeCmd(), e.tweakCmd(), e.agentsCmd(), e.metricsCmd(), e.digestCmd(), e.eventsCmd(), e.evalCmd())
-	add("owner", e.approveCmd(true), e.approveCmd(false), e.answerCmd(), e.questionsCmd(), e.goalCmd(), e.focusCmd(), e.pauseCmd(), e.resumeCmd(), e.standbyCmd(), e.takeoverCmd(), e.handbackCmd(), e.chatCmd(), e.trustCmd())
+	add("owner", e.approveCmd(true), e.approveCmd(false), e.answerCmd(), e.questionsCmd(), e.goalCmd(), e.focusCmd(), e.pauseCmd(), e.resumeCmd(), e.standbyCmd(), e.panelCmd(), e.takeoverCmd(), e.handbackCmd(), e.chatCmd(), e.trustCmd())
 	add("owner", e.lessonCmd())
 	add("know", e.contextCmd(), e.findCmd(), e.knowCmd("get", "Get the full content of an id (I-142, D-12, a file or a symbol)"),
 		e.knowCmd("related", "Show what is linked to an id"), e.knowCmd("why", "Explain why a line is the way it is (path:line)"),

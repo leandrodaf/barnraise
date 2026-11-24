@@ -1,0 +1,70 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 640" width="1200" height="640" role="img" aria-labelledby="t d" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">
+<title id="t">Inside the binary</title><desc id="d">One Go binary, hexagonal. Inbound adapters (CLI, Connect API with gRPC, JSON and OpenAPI, MCP server, provider hooks, web panel and desktop app) call the use cases of the application, which hold the rules of the domain and reach the world through ports implemented by outbound adapters (providers, trackers, git, NATS, SQLite, network, sandbox, tools).</desc>
+<defs><marker id="a0969da" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#0969da"/></marker><marker id="a1a7f37" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#1a7f37"/></marker><marker id="a1f2328" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#1f2328"/></marker><marker id="a57606a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#57606a"/></marker><marker id="a6e7781" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#6e7781"/></marker><marker id="a8250df" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#8250df"/></marker><marker id="abc4c00" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#bc4c00"/></marker><marker id="acf222e" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#cf222e"/></marker><marker id="ad0d7de" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#d0d7de"/></marker></defs>
+<rect x="0.5" y="0.5" width="1199" height="639" rx="12" fill="#ffffff" stroke="#d0d7de"/>
+<text x="40" y="52" font-size="22" fill="#1f2328" font-weight="600" text-anchor="start">Inside: one binary, the daemon is the only authority</text>
+<text x="40" y="80" font-size="14" fill="#57606a" font-weight="400" text-anchor="start">Only the daemon writes state, touches main and decides transitions. Everything else is a client of the same API.</text>
+<text x="170" y="122" font-size="13" fill="#1f2328" font-weight="600" text-anchor="middle">In: clients of the API</text>
+<rect x="40" y="136" width="260" height="60" rx="8" fill="#f6f8fa" stroke="#6e7781" stroke-width="1.2"/>
+<text x="170.0" y="162.0" font-size="14" fill="#1f2328" font-weight="600" text-anchor="middle">CLI</text>
+<text x="170.0" y="181.0" font-size="12.5" fill="#57606a" font-weight="400" text-anchor="middle">barnraise …, text or --json</text>
+<path d="M 300 166 L 380 166" fill="none" stroke="#57606a" stroke-width="1.6" marker-end="url(#a57606a)"/>
+<rect x="40" y="208" width="260" height="60" rx="8" fill="#f6f8fa" stroke="#6e7781" stroke-width="1.2"/>
+<text x="170.0" y="234.0" font-size="14" fill="#1f2328" font-weight="600" text-anchor="middle">Connect API</text>
+<text x="170.0" y="253.0" font-size="12.5" fill="#57606a" font-weight="400" text-anchor="middle">gRPC · JSON over HTTP · OpenAPI</text>
+<path d="M 300 238 L 380 238" fill="none" stroke="#57606a" stroke-width="1.6" marker-end="url(#a57606a)"/>
+<rect x="40" y="280" width="260" height="60" rx="8" fill="#f6f8fa" stroke="#6e7781" stroke-width="1.2"/>
+<text x="170.0" y="306.0" font-size="14" fill="#1f2328" font-weight="600" text-anchor="middle">MCP server</text>
+<text x="170.0" y="325.0" font-size="12.5" fill="#57606a" font-weight="400" text-anchor="middle">the agents&#x27; tools, by role</text>
+<path d="M 300 310 L 380 310" fill="none" stroke="#57606a" stroke-width="1.6" marker-end="url(#a57606a)"/>
+<rect x="40" y="352" width="260" height="60" rx="8" fill="#f6f8fa" stroke="#6e7781" stroke-width="1.2"/>
+<text x="170.0" y="378.0" font-size="14" fill="#1f2328" font-weight="600" text-anchor="middle">Provider hooks</text>
+<text x="170.0" y="397.0" font-size="12.5" fill="#57606a" font-weight="400" text-anchor="middle">before every tool call, status line</text>
+<path d="M 300 382 L 380 382" fill="none" stroke="#57606a" stroke-width="1.6" marker-end="url(#a57606a)"/>
+<rect x="40" y="424" width="260" height="60" rx="8" fill="#f6f8fa" stroke="#6e7781" stroke-width="1.2"/>
+<text x="170.0" y="450.0" font-size="14" fill="#1f2328" font-weight="600" text-anchor="middle">Web panel · desktop app</text>
+<text x="170.0" y="469.0" font-size="12.5" fill="#57606a" font-weight="400" text-anchor="middle">the same panel, served by the daemon</text>
+<path d="M 300 454 L 380 454" fill="none" stroke="#57606a" stroke-width="1.6" marker-end="url(#a57606a)"/>
+<rect x="380" y="112" width="440" height="368" rx="10" fill="#f6f8fa" stroke="#d0d7de" stroke-width="1.2"/>
+<text x="400" y="140" font-size="15" fill="#1f2328" font-weight="600" text-anchor="start">barnraise daemon</text>
+<rect x="400" y="156" width="400" height="120" rx="8" fill="#ddf4ff" stroke="#0969da" stroke-width="1.2"/>
+<text x="600.0" y="194.0" font-size="14" fill="#1f2328" font-weight="600" text-anchor="middle">app: use cases</text>
+<text x="600.0" y="213.0" font-size="12.5" fill="#57606a" font-weight="400" text-anchor="middle">claim, deliver, review, integrate, propose,</text>
+<text x="600.0" y="231.0" font-size="12.5" fill="#57606a" font-weight="400" text-anchor="middle">focus, discuss with the advisor, log in…</text>
+<text x="600.0" y="249.0" font-size="12.5" fill="#57606a" font-weight="400" text-anchor="middle">the runtime that starts sessions</text>
+<rect x="400" y="292" width="400" height="100" rx="8" fill="#fbefff" stroke="#8250df" stroke-width="1.2"/>
+<text x="600.0" y="329.0" font-size="14" fill="#1f2328" font-weight="600" text-anchor="middle">domain: pure rules</text>
+<text x="600.0" y="348.0" font-size="12.5" fill="#57606a" font-weight="400" text-anchor="middle">item, flow, rework, capacity, policy, capabilities</text>
+<text x="600.0" y="366.0" font-size="12.5" fill="#57606a" font-weight="400" text-anchor="middle">standard library only</text>
+<rect x="400" y="408" width="195" height="56" rx="8" fill="#f6f8fa" stroke="#d0d7de" stroke-width="1.2"/>
+<text x="497.5" y="432.0" font-size="14" fill="#1f2328" font-weight="600" text-anchor="middle">SQLite</text>
+<text x="497.5" y="451.0" font-size="12.5" fill="#57606a" font-weight="400" text-anchor="middle">append-only event log</text>
+<rect x="605" y="408" width="195" height="56" rx="8" fill="#f6f8fa" stroke="#d0d7de" stroke-width="1.2"/>
+<text x="702.5" y="432.0" font-size="14" fill="#1f2328" font-weight="600" text-anchor="middle">ports</text>
+<text x="702.5" y="451.0" font-size="12.5" fill="#57606a" font-weight="400" text-anchor="middle">small interfaces</text>
+<text x="1010" y="122" font-size="13" fill="#1f2328" font-weight="600" text-anchor="middle">Out: adapters behind the ports</text>
+<rect x="900" y="136" width="260" height="60" rx="8" fill="#fff1e5" stroke="#bc4c00" stroke-width="1.2"/>
+<text x="1030.0" y="162.0" font-size="14" fill="#1f2328" font-weight="600" text-anchor="middle">Providers</text>
+<text x="1030.0" y="181.0" font-size="12.5" fill="#57606a" font-weight="400" text-anchor="middle">claude · codex · gemini · ACP · API keys</text>
+<path d="M 820 166 L 900 166" fill="none" stroke="#57606a" stroke-width="1.6" marker-end="url(#a57606a)"/>
+<rect x="900" y="208" width="260" height="60" rx="8" fill="#fff1e5" stroke="#bc4c00" stroke-width="1.2"/>
+<text x="1030.0" y="234.0" font-size="14" fill="#1f2328" font-weight="600" text-anchor="middle">Trackers</text>
+<text x="1030.0" y="253.0" font-size="12.5" fill="#57606a" font-weight="400" text-anchor="middle">github · gitlab · jira · linear · plugin</text>
+<path d="M 820 238 L 900 238" fill="none" stroke="#57606a" stroke-width="1.6" marker-end="url(#a57606a)"/>
+<rect x="900" y="280" width="260" height="60" rx="8" fill="#fff1e5" stroke="#bc4c00" stroke-width="1.2"/>
+<text x="1030.0" y="306.0" font-size="14" fill="#1f2328" font-weight="600" text-anchor="middle">git · NATS</text>
+<text x="1030.0" y="325.0" font-size="12.5" fill="#57606a" font-weight="400" text-anchor="middle">claims, main, events between machines</text>
+<path d="M 820 310 L 900 310" fill="none" stroke="#57606a" stroke-width="1.6" marker-end="url(#a57606a)"/>
+<rect x="900" y="352" width="260" height="60" rx="8" fill="#fff1e5" stroke="#bc4c00" stroke-width="1.2"/>
+<text x="1030.0" y="378.0" font-size="14" fill="#1f2328" font-weight="600" text-anchor="middle">Network</text>
+<text x="1030.0" y="397.0" font-size="12.5" fill="#57606a" font-weight="400" text-anchor="middle">tsnet · tailscale · LAN · plugin · egress</text>
+<path d="M 820 382 L 900 382" fill="none" stroke="#57606a" stroke-width="1.6" marker-end="url(#a57606a)"/>
+<rect x="900" y="424" width="260" height="60" rx="8" fill="#fff1e5" stroke="#bc4c00" stroke-width="1.2"/>
+<text x="1030.0" y="450.0" font-size="14" fill="#1f2328" font-weight="600" text-anchor="middle">Machine</text>
+<text x="1030.0" y="469.0" font-size="12.5" fill="#57606a" font-weight="400" text-anchor="middle">landlock · microVM · tools · logins</text>
+<path d="M 820 454 L 900 454" fill="none" stroke="#57606a" stroke-width="1.6" marker-end="url(#a57606a)"/>
+<rect x="40" y="512" width="1120" height="96" rx="8" fill="#f6f8fa" stroke="#d0d7de" stroke-width="1.2"/>
+<text x="62" y="538" font-size="13" fill="#1f2328" text-anchor="start"><tspan font-weight="600">Where things live:</tspan> a project&#x27;s repository holds only configuration (barnraise.yaml and .barnraise/), never state and never secrets.</text>
+<text x="62" y="558" font-size="13" fill="#57606a" font-weight="400" text-anchor="start">State is derived from the events, so there is full history and any step can be redone. The dependency rule is</text>
+<text x="62" y="578" font-size="13" fill="#57606a" font-weight="400" text-anchor="start">enforced by tests and the linter: domain uses only the standard library, app only domain and ports, outbound adapters never call the app.</text>
+</svg>

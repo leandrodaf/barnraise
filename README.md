@@ -9,7 +9,7 @@ Barnraise is one Go binary that drives a software project with AI coding agents,
 
 The name comes from "barn raising": neighbours building a barn together in a day.
 
-> Status: 0.1.0, unreleased. See [CHANGELOG.md](CHANGELOG.md). Leia em português: [docs/README.pt-BR.md](docs/README.pt-BR.md).
+> Status: 0.1.0, the first release. See [CHANGELOG.md](CHANGELOG.md). Leia em português: [docs/README.pt-BR.md](docs/README.pt-BR.md).
 
 ![Topology: equal machines, each with its daemon, event log and agents, mirror events over Tailscale; the git server is the arbiter](docs/img/topology.svg)
 
@@ -54,6 +54,7 @@ barnraise item add "Sign-in screen" \
   --area auth
 
 barnraise status               # goal, focus, queue, agents, accounts and machines in one look
+barnraise panel                # the web panel in the browser, already signed in
 ```
 
 | Command | What it does |
@@ -65,12 +66,24 @@ barnraise status               # goal, focus, queue, agents, accounts and machin
 | `barnraise events -f` | Follow every event live |
 | `barnraise pause` / `barnraise resume` | Emergency button for every agent of a project (`--all`: every project of the daemon) |
 | `barnraise standby on` / `off` | This machine's switch: the daemon runs but starts nothing here, kept across restarts and settable with the daemon stopped |
+| `barnraise panel` | Open the web panel in the browser, already signed in (`--print` writes the address) |
 | `barnraise account add claude` | Add another subscription account to the rotation |
 | `barnraise account login claude --all` | Log one account in on every connected machine at the same time; the panel does the same under Accounts |
+| `barnraise machine agents 5 --machine studio` | How many agents a machine runs at once (`auto`: measured from its cores and memory) |
 | `barnraise account add openrouter` | Add an API-key account (OpenRouter, or a provider under `providers:`) for cheap steps and research; the key goes to the keychain |
 | `barnraise account add <name>` | Add an account of any agent that speaks the Agent Client Protocol, declared as `type: acp` under `providers:`; its permission requests, files and terminals go through Barnraise's policy |
 
-Every command prints text for people by default and JSON with `--json`. The web panel is served by the daemon at `http://127.0.0.1:7420/`; the desktop app (`make desktop`) opens the same panel and can start the daemon or reach another machine ([ADR-0045](docs/adr/0045-panel-and-desktop-app.md)). On Linux, `make desktop desktop-install` puts it in the applications menu with its icon; on macOS, `make desktop` builds `desktop/build/bin/Barnraise.app`, with barnraise inside, to drag to Applications. To work on the panel: `cd web && pnpm dev` (it talks to the local daemon), and `make desktop-dev` for the app with live reload.
+Every command prints text for people by default and JSON with `--json`. The web panel is served by the daemon at `http://127.0.0.1:7420/`, and `barnraise panel` opens it signed in (the owner's token is in `~/.config/barnraise/owner.token`); the desktop app (`make desktop`) opens the same panel and can start the daemon or reach another machine ([ADR-0045](docs/adr/0045-panel-and-desktop-app.md)). On Linux, `make desktop desktop-install` puts it in the applications menu with its icon; on macOS, `make desktop` builds `desktop/build/bin/Barnraise.app`, with barnraise inside, to drag to Applications. To work on the panel: `cd web && pnpm dev` (it talks to the local daemon), and `make desktop-dev` for the app with live reload.
+
+## Your decisions, in one place
+
+![The owner decides, the advisor helps: questions, approvals and proposals reach the panel; the owner answers, or talks it over with a read-only advisor on the strongest model that suggests an answer; confirm, edit, ask more, let it decide, or triage every proposal at once](docs/img/owner.svg)
+
+- **Everything that waits for you reaches one screen**: the questions agents could not answer alone, the plans and deliveries to approve, and the proposals. The panel's Home starts with them; each part of the repository says what it waits on, and each one can be answered right there.
+- **Talk it over before you answer.** The advisor is a session on the project's strongest model that reads the item, the question, what the agents did and the code, and never changes anything. You follow it live (what it reads and searches) and it ends with a suggested answer: confirm it, edit it, or ask more.
+- **Or let it decide.** *Decide for me* has the advisor answer a question or decide a proposal; the conversation keeps what it chose and why, marked as delegated.
+- **Proposals at once.** *Triage with the advisor* reads every open proposal and says approve, reject or later for each, with one sentence; nothing is applied until you keep the ones you agree with.
+- **Your words travel.** What you said while deciding goes, as your words, to the next agent that works on the item.
 
 ## How an item moves
 
@@ -88,6 +101,8 @@ Flows, roles and checks are data in `barnraise.yaml`, merged over a template (`m
 ## One repository, several parts
 
 A repository with a Go backend, a React web app and a React Native app is one project with three parts. Each part carries its own `barnraise.yaml` in its folder; Barnraise finds them by itself, and `barnraise init` writes them.
+
+![Only what the change touches is checked: a change inside backend runs the backend checks only; go.mod, a Makefile or a file of no part runs every check; docs need none](docs/img/parts.svg)
 
 ```yaml
 # backend/barnraise.yaml                      # mobile/barnraise.yaml
@@ -117,11 +132,20 @@ Every machine runs the same binary and pulls its own next item. There is no coor
 - **Any other network through a plugin.** ZeroTier, Nebula, a Headscale client, plain WireGuard or a company VPN: a [network plugin](docs/plugins.md#network), a small program in any language, tells Barnraise this machine's address and the other machines' names, addresses and online state, and the overlay carries the traffic. `barnraise machine network plugin --command <program>`, no rebuild; [examples/plugins/network-static.py](docs/examples/plugins/network-static.py) reads the machines from a file.
 - **One version.** A machine that sees a peer with a newer version fetches the binary, verifies its hash and restarts while no session runs.
 - **Machines know each other's load.** Each one reports CPU, memory, temperature and GPU, as live state that is never stored. A loaded machine hands its checks to an idle one, which cleans up after itself; `barnraise machine history` draws the recent readings.
-- **Each machine says what runs there.** `barnraise capabilities --all` lists, per machine, every feature that depends on it (Landlock, bubblewrap, microVM, the egress broker, mergiraf, rtk, osv-scanner, ast-grep, copy-on-write caches, provider logins…) as active, available, degraded or missing, with the reason, the fallback and the exact fix; `barnraise tools install mergiraf rtk --all` installs the optional tools without root, at pinned versions checked against their sha256. See [operations.md](docs/operations.md#what-runs-on-each-machine).
+- **Each machine says how many agents it runs, and why.** By default 2 cores and 4 GB of memory per agent, 2 GB kept for the system; the panel says which of the two bounds each machine, and the owner sets another number per machine with − and + (or `barnraise machine agents`).
+- **Each machine says what runs there.** `barnraise capabilities --all` and the Capabilities screen start with what needs the owner, in plain words, and the one thing to do: install, log in, or a command to run once. Every feature that depends on the machine (Landlock, bubblewrap, microVM, the egress broker, mergiraf, rtk, osv-scanner, ast-grep, gitleaks, copy-on-write caches, provider logins…) is active, available, degraded or missing, with the reason and the fallback; extras switched off are not problems. `barnraise tools install mergiraf rtk gitleaks --all` installs the optional tools without root, at pinned versions checked against their sha256. See [operations.md](docs/operations.md#what-runs-on-each-machine).
 
 ![Failover: machine A claims an item with a git ref and renews it; when A dies, machine B takes the ref after the deadline and continues from the last pushed step](docs/img/failover.svg)
 
 `barnraise cluster status` shows each machine in green, yellow or red. `barnraise machine leave` gives this machine's items back before leaving.
+
+## Accounts on every machine
+
+![One account, every machine, one screen: the daemon starts the provider's own login on each machine, each shows its link and code side by side, the owner signs in once per machine; only the steps travel, never a credential](docs/img/accounts.svg)
+
+An account is a login at a provider (a Claude or ChatGPT subscription, a Google account, an API key). Several accounts per provider rotate by their real 5-hour and weekly windows, and the least loaded one with room takes the next step.
+
+`barnraise account login claude --all`, or **Accounts → Log in on every machine** in the panel, starts the provider's own login of one account on every machine at the same time. Each machine shows its link and its code on one screen; you sign in once per machine, in any order, without opening a terminal on any of them. Each machine keeps its own login under its data folder, and only the steps of the login travel between machines. The account then lists the machines where it is logged in, and only those use it. Gemini and API-key accounts are added on the machine itself (`barnraise account add`). See [operations.md](docs/operations.md#one-account-on-several-machines).
 
 ## GitHub
 
@@ -134,7 +158,7 @@ The daemon owns the state of the flow. GitHub is where people read, comment and 
 | Item `I-42` | Issue `[I-42] Title`, labels `barnraise`, `area:…`, `kind:…`, `status:…`, priority; column of the Project | Barnraise creates and updates the issue and keeps the labels people added. New issues become items: directly from `tracker.trusted` authors or labels, through the analyst otherwise |
 | Branch `br/I-42-title` | Draft pull request | Opened at the first step, updated at each one, marked ready after the review, which is posted on it |
 | Check with `runs_on: github-actions` | Actions workflow | Dispatched with the inputs `item`, `commit` and `check`; the result comes back through the [check action](action/check) or the webhook. Local check results show as commit statuses |
-| Merge queue | `main` | Rebase, check again, one squash commit `I-42: Title` with the trailer `Barnraise-Item: I-42` |
+| Merge queue | `main` | Rebase, check again, one squash commit in the Conventional Commits form (`feat(auth): sign in with the bank's app`) with the trailer `Barnraise-Item: I-42`, and its line in the changelog |
 | Approval | Issue comment | `/barnraise approve plan I-42` from a trusted author approves the plan |
 
 Set it up:
@@ -164,14 +188,16 @@ Any other tracker, check runner, notification channel or event hook is an extern
 
 Agents read untrusted text, could reach private data and could send data out. Barnraise breaks all three, in layers. Details in [docs/security.md](docs/security.md).
 
+![Security in layers: untrusted text as data, secrets in the keychain, one Linux user per account, a blocking hook, a sandbox or container, an allow-list network, role scopes in the daemon, and a secret scan and audit before anything leaves](docs/img/security.svg)
+
 1. **Secrets** live in the system keychain, never in YAML or in the repository.
 2. **One Linux user per agent account** (`barnraise account add --isolate`), without access to the owner's home.
 3. **A blocking hook** before every tool call, decided locally from a compiled policy: no writes to workflows, `.barnraise/`, `.env*` or existing tests; no push to main, `sudo` or `curl | sh`. It works even when the CLI runs without permission prompts.
-4. **A sandbox or a container**: Claude Code's native sandbox when `bwrap` works on the machine, Codex in `workspace-write`, and the Gemini CLI as a reader without shell or write tools; or, with `container:` in `barnraise.yaml`, every session inside a container that sees only the item's worktree, with the machine's GPU passed in by default.
-5. **Restricted network**: an allow-list proxy and `nftables` rules per agent user.
+4. **A sandbox or a container**: Landlock confines setup, checks and sessions where the kernel has it; Claude Code's native sandbox when `bwrap` works on the machine, Codex in `workspace-write`, and the Gemini CLI as a reader without shell or write tools; or, with `container:` in `barnraise.yaml`, every session inside a container that sees only the item's worktree, with the machine's GPU passed in by default; or a microVM per session.
+5. **Restricted network**: an allow-list proxy with method and path rules (writes only to the project's repository), signed receipts, and the provider keys kept behind a broker.
 6. **Only the tools you allow in a session**: Barnraise's own MCP server plus the ones listed under `mcp:` in `barnraise.yaml`, per role. The account owner's own MCP servers, plugins and personal settings are not loaded.
 7. **Permission by role in the daemon**: an implementer has no `approve` scope and never sees the tool.
-8. **A secret scan before every push**, scoped API tokens, an audit log, signed webhooks.
+8. **A secret scan before every push** (gitleaks and built-in patterns), scoped API tokens, a chained event log, an audit log, signed webhooks.
 
 ## Concepts
 
@@ -213,7 +239,9 @@ Short ids are the same everywhere (tracker, pull request title, branch, commit t
 
 State is an append-only event log in SQLite; the current state is derived from the events, so there is full history and any step can be redone. The repository of a project holds only configuration (`barnraise.yaml` and `.barnraise/`), never state and never secrets.
 
-The code is hexagonal, and the dependency rule is enforced by the linter:
+![Inside: clients of the API on the left (CLI, Connect API, MCP server, provider hooks, web panel and desktop app), the daemon with its use cases, domain rules, event log and ports in the middle, adapters on the right (providers, trackers, git and NATS, network, machine)](docs/img/inside.svg)
+
+The code is hexagonal, and the dependency rule is enforced by tests and the linter:
 
 ```
 cmd/barnraise/            composition root: wires adapters to ports, one binary
@@ -221,7 +249,9 @@ internal/domain/          pure rules: item, goal, focus, flow, rework, capacity,
 internal/app/             use cases: claim, deliver, review, integrate, propose, set focus…
 internal/ports/           small interfaces: Provider, Tracker, CodeHost, Arbiter, EventBus, StateStore…
 internal/adapters/in/     httpapi (Connect), mcp, cli, hooks, panel
-internal/adapters/out/    claude, codex, gemini, github, gitlab, jira, linear, plugin, nats, sqlite, git, tailnet, pairing…
+internal/adapters/out/    claude, codex, gemini, acp, github, gitlab, jira, linear, plugin, nats, sqlite, git, tailnet,
+                          pairing, landlock, microvm, egress, toolinstall, providerlogin, capprobe…
+web/ · desktop/           the panel (Svelte) and the desktop app (Wails) that opens it
 proto/ · gen/             the API contract (protobuf) and the generated code
 templates/                base defaults and the project templates
 docs/adr/                 architecture decision records
@@ -254,6 +284,8 @@ Requirements: Go 1.27 and `git`; for the contract, `buf` with `protoc-gen-go`, `
 | `make lint` · `make vuln` | `golangci-lint` (with the architecture rules) · `govulncheck` |
 | `make smoke` | From `init` to one integrated item on a scratch repository (`SMOKE_PROVIDER=claude` uses a real account) |
 | `make proto` · `make proto-breaking` | `buf generate` · `buf breaking` against main |
+| `make web` · `make desktop` | The panel into the daemon's embedded files · the desktop app |
+| `python3 scripts/diagrams/build.py` | Draws the README diagrams that are generated (owner, accounts, parts, security, inside) |
 
 Tests run against real git, real embedded NATS and SQLite, recorded provider sessions, and a scripted fake provider for the end-to-end and cluster tests. Contributions: [CONTRIBUTING.md](CONTRIBUTING.md). Security reports: [SECURITY.md](SECURITY.md).
 

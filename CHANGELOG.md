@@ -4,6 +4,10 @@ All notable changes to Barnraise are recorded here. The format follows [Keep a C
 
 ## [Unreleased]
 
+## [0.1.0] - 2026-11-24
+
+First version: one Go binary that is the daemon, the CLI, the MCP server and the provider hooks.
+
 ### Added
 
 - **cli:** Flag missing plugin programs in the up readiness check (I-1)
@@ -11,13 +15,8 @@ All notable changes to Barnraise are recorded here. The format follows [Keep a C
 - **machines:** Each machine says how many agents it runs at once and why (its cores or its memory), and the owner sets the number from the panel or with `barnraise machine agents <n|auto> --machine <name>` (`max_agents` in daemon.yaml). The sidebar sums the cluster up and lists the busiest machines first.
 - **panel:** Parts show the question each one waits on, answerable there; Capabilities lead with what needs the owner and the one thing to do; gitleaks installs with one click.
 - **panel:** Confirm, edit or question the answer the advisor suggests; let it decide a question or a proposal for you; talk a proposal over; triage every open proposal at once and apply the recommendations you keep.
-
-## [0.1.0] - unreleased
-
-First version: one Go binary that is the daemon, the CLI, the MCP server and the provider hooks.
-
-### Added
-
+- **cli:** `barnraise panel` opens the web panel in the browser, already signed in; `--print` writes the address.
+- **docs:** The README draws the owner's decisions, accounts on every machine, the parts of a repository, the security layers and the inside of the binary (`scripts/diagrams/build.py`), and the topology and GitHub diagrams say what runs today.
 - **New panel and desktop app** ([ADR-0045](docs/adr/0045-panel-and-desktop-app.md)): the panel served by the daemon at `/` is rebuilt in Svelte with shadcn-svelte (`web/`): Home with the decisions waiting for the owner, the cluster with spend by model, machine, account, role and day, a board with the real state of each item, items with their flow, accounts with pace and projection, machines with two-hour charts and the standby switch, a command palette (Ctrl+K) and keyboard shortcuts, English and Brazilian Portuguese, light and dark. A desktop app (`desktop/`, Wails) finds or starts this machine's daemon, or reaches another one, and opens the same panel; the agents never depend on it.
 - The overview says, for each item, its flow, what the owner approves now, its board column and the signal to read first; accounts carry their outlook and metrics name the numbers past their limit, so no client decides them. `Overview` adds the projects' usage up.
 - The version is shown in the panel, which says when a machine of the cluster runs a newer build and asks to reload when the daemon was updated under the page. Builds compare by release, then by commit time: a development build is no longer replaced by a peer's older commit.

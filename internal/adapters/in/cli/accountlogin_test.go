@@ -5,6 +5,8 @@ import (
 	"context"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"strings"
 	"sync"
 	"testing"
@@ -142,5 +144,36 @@ func TestMachineAgents(t *testing.T) {
 	}
 	if _, err := run("machine", "agents", "0"); err == nil {
 		t.Fatal("0 was taken")
+	}
+}
+
+func TestPanelAddress(t *testing.T) {
+	dir := t.TempDir()
+	t.Setenv("BARNRAISE_CONFIG_DIR", dir)
+	if err := os.WriteFile(filepath.Join(dir, "daemon.yaml"), []byte("machine: m1\nlisten: 0.0.0.0:7420\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := panelAddress(); err == nil || !strings.Contains(err.Error(), "barnraise up") {
+		t.Fatalf("no token: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "owner.token"), []byte("bro_a+b\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	u, err := panelAddress()
+	if err != nil || u != "http://127.0.0.1:7420/?token=bro_a%2Bb" {
+		t.Fatalf("%q %v", u, err)
+	}
+	var out bytes.Buffer
+	e := &env{out: &out, errOut: &out, in: strings.NewReader("")}
+	root := e.rootCmd()
+	root.SetArgs([]string{"panel", "--print"})
+	if err := root.Execute(); err != nil || strings.TrimSpace(out.String()) != u {
+		t.Fatalf("%v %q", err, out.String())
+	}
+	if err := os.WriteFile(filepath.Join(dir, "daemon.yaml"), []byte("machine: m1\nlisten: \"off\"\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := panelAddress(); err == nil {
+		t.Fatal("listen off gave an address")
 	}
 }

@@ -122,6 +122,14 @@ func startHarnessWith(t *testing.T, yml string, opts cli.DaemonOptions) *harness
 		case <-h.done:
 		case <-time.After(15 * time.Second):
 		}
+		// Work the daemon started in the background (an index, a probe) may
+		// still write in its data folder for a moment after it stopped; in a
+		// real process that work ends with the process. Empty the folder
+		// before the test's own cleanup does, so it does not fail on it.
+		data := filepath.Join(base, "data")
+		for i := 0; i < 50 && os.RemoveAll(data) != nil; i++ {
+			time.Sleep(100 * time.Millisecond)
+		}
 	})
 	return h
 }

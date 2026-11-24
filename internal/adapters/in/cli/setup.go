@@ -443,7 +443,7 @@ func (e *env) upCmd() *cobra.Command {
 				fmt.Fprintf(e.out, "  %s is paused: no agent starts until barnraise resume.\n", cfg.Name)
 			}
 			if df.Listen != "off" && df.Listen != "" {
-				fmt.Fprintf(e.out, "  Panel: http://%s/?token=$(cat %s)\n", df.Listen, paths.OwnerTokenFile())
+				fmt.Fprintln(e.out, "  Panel: `barnraise panel` opens it in the browser, already signed in.")
 			}
 			return nil
 		}}

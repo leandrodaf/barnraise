@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 540" width="1200" height="540" role="img" aria-labelledby="t d" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">
+<title id="t">Only what the change touches is checked</title><desc id="d">A repository with a backend, a web app and a mobile app is one project with three parts, each with its own barnraise.yaml. A change inside one part runs that part&#x27;s checks only; a file of no part, or one listed in selection.all_when, runs every check; files in selection.none_when need none.</desc>
+<defs><marker id="a0969da" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#0969da"/></marker><marker id="a1a7f37" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#1a7f37"/></marker><marker id="a1f2328" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#1f2328"/></marker><marker id="a57606a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#57606a"/></marker><marker id="a6e7781" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#6e7781"/></marker><marker id="a8250df" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#8250df"/></marker><marker id="abc4c00" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#bc4c00"/></marker><marker id="acf222e" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#cf222e"/></marker><marker id="ad0d7de" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#d0d7de"/></marker></defs>
+<rect x="0.5" y="0.5" width="1199" height="539" rx="12" fill="#ffffff" stroke="#d0d7de"/>
+<text x="40" y="52" font-size="22" fill="#1f2328" font-weight="600" text-anchor="start">One repository, several parts: only what the change touches is checked</text>
+<text x="40" y="80" font-size="14" fill="#57606a" font-weight="400" text-anchor="start">Each part has its own barnraise.yaml, found by itself: what it is, the flow of each kind and the checks that guard it.</text>
+<rect x="40" y="130" width="300" height="74" rx="8" fill="#ddf4ff" stroke="#0969da" stroke-width="1.2"/>
+<text x="190.0" y="163.0" font-size="14" fill="#1f2328" font-weight="600" text-anchor="middle">backend/</text>
+<text x="190.0" y="182.0" font-size="12.5" fill="#57606a" font-weight="400" text-anchor="middle">go · lint, test</text>
+<rect x="40" y="222" width="300" height="74" rx="8" fill="#ddf4ff" stroke="#0969da" stroke-width="1.2"/>
+<text x="190.0" y="255.0" font-size="14" fill="#1f2328" font-weight="600" text-anchor="middle">web/</text>
+<text x="190.0" y="274.0" font-size="12.5" fill="#57606a" font-weight="400" text-anchor="middle">react · lint, test, e2e</text>
+<rect x="40" y="314" width="300" height="74" rx="8" fill="#ddf4ff" stroke="#0969da" stroke-width="1.2"/>
+<text x="190.0" y="347.0" font-size="14" fill="#1f2328" font-weight="600" text-anchor="middle">mobile/</text>
+<text x="190.0" y="366.0" font-size="12.5" fill="#57606a" font-weight="400" text-anchor="middle">react-native · test, device (emulators)</text>
+<text x="190" y="120" font-size="12.5" fill="#57606a" font-weight="400" text-anchor="middle">parts, each with its barnraise.yaml</text>
+<rect x="430" y="137" width="320" height="60" rx="8" fill="#f6f8fa" stroke="#d0d7de" stroke-width="1.2"/>
+<text x="590" y="172" font-size="12.5" fill="#1f2328" font-weight="400" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace">backend/internal/plan.go</text>
+<rect x="840" y="137" width="320" height="60" rx="8" fill="#dafbe1" stroke="#1a7f37" stroke-width="1.2"/>
+<text x="1000" y="172" font-size="12.5" fill="#1f2328" font-weight="400" text-anchor="middle">backend checks only, inside backend/</text>
+<path d="M 750 167 L 840 167" fill="none" stroke="#57606a" stroke-width="1.6" marker-end="url(#a57606a)"/>
+<rect x="430" y="229" width="320" height="60" rx="8" fill="#f6f8fa" stroke="#d0d7de" stroke-width="1.2"/>
+<text x="590" y="264" font-size="12.5" fill="#1f2328" font-weight="400" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace">go.mod · Makefile · a file of no part</text>
+<rect x="840" y="229" width="320" height="60" rx="8" fill="#fff1e5" stroke="#bc4c00" stroke-width="1.2"/>
+<text x="1000" y="264" font-size="12.5" fill="#1f2328" font-weight="400" text-anchor="middle">every check (selection.all_when)</text>
+<path d="M 750 259 L 840 259" fill="none" stroke="#57606a" stroke-width="1.6" marker-end="url(#a57606a)"/>
+<rect x="430" y="321" width="320" height="60" rx="8" fill="#f6f8fa" stroke="#d0d7de" stroke-width="1.2"/>
+<text x="590" y="356" font-size="12.5" fill="#1f2328" font-weight="400" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace">docs/** · the backlog</text>
+<rect x="840" y="321" width="320" height="60" rx="8" fill="#f6f8fa" stroke="#6e7781" stroke-width="1.2"/>
+<text x="1000" y="356" font-size="12.5" fill="#1f2328" font-weight="400" text-anchor="middle">no check (selection.none_when)</text>
+<path d="M 750 351 L 840 351" fill="none" stroke="#57606a" stroke-width="1.6" marker-end="url(#a57606a)"/>
+<text x="590" y="120" font-size="12.5" fill="#57606a" font-weight="400" text-anchor="middle">the change touches</text>
+<text x="1000" y="120" font-size="12.5" fill="#57606a" font-weight="400" text-anchor="middle">what runs</text>
+<rect x="40" y="420" width="1120" height="88" rx="8" fill="#f6f8fa" stroke="#d0d7de" stroke-width="1.2"/>
+<text x="62" y="446" font-size="13" fill="#1f2328" text-anchor="start"><tspan font-weight="600">No repeated work:</tspan> a check may cover another (covers), cheap checks run first and the step stops at the first failure,</text>
+<text x="62" y="466" font-size="13" fill="#57606a" font-weight="400" text-anchor="start">and the merge queue does not check again a tree that was already checked. New dependencies are looked up in OSV.</text>
+<text x="62" y="486" font-size="13" fill="#57606a" font-weight="400" text-anchor="start">barnraise check --touched mobile/src/Home.tsx shows what would run.</text>
+</svg>

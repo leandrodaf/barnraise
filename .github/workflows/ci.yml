@@ -77,6 +77,8 @@ jobs:
         run: go run golang.org/x/vuln/cmd/govulncheck@latest ./...
       - name: govulncheck of the desktop app (its own module)
         run: |
+          # The app sets its window class through GLib (cgo): the headers must be here.
+          sudo apt-get update -qq && sudo apt-get install -y -qq libglib2.0-dev pkg-config
           mkdir -p desktop/frontend/dist && echo '<!doctype html>' > desktop/frontend/dist/index.html
           cd desktop && go run golang.org/x/vuln/cmd/govulncheck@latest ./...
       - uses: ./.github/actions/go-cache-save

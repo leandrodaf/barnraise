@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 690" width="1200" height="690" role="img" aria-labelledby="t d" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">
+<title id="t">Security in layers</title><desc id="d">Untrusted text, private data and the way out are broken apart in layers: fenced untrusted text, secrets in the keychain, one Linux user per account, a blocking hook before every tool call, a sandbox or container, an allow-list network, role scopes in the daemon, and a secret scan and audit before anything leaves.</desc>
+<defs><marker id="a0969da" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#0969da"/></marker><marker id="a1a7f37" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#1a7f37"/></marker><marker id="a1f2328" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#1f2328"/></marker><marker id="a57606a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#57606a"/></marker><marker id="a6e7781" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#6e7781"/></marker><marker id="a8250df" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#8250df"/></marker><marker id="abc4c00" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#bc4c00"/></marker><marker id="acf222e" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#cf222e"/></marker><marker id="ad0d7de" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#d0d7de"/></marker></defs>
+<rect x="0.5" y="0.5" width="1199" height="689" rx="12" fill="#ffffff" stroke="#d0d7de"/>
+<text x="40" y="52" font-size="22" fill="#1f2328" font-weight="600" text-anchor="start">Security in layers: no prompt asks for permission</text>
+<text x="40" y="80" font-size="14" fill="#57606a" font-weight="400" text-anchor="start">The barrier is the operating system and the daemon. A model can be talked into anything; these layers cannot.</text>
+<rect x="40" y="112" width="1120" height="54" rx="8" fill="#f6f8fa" stroke="#6e7781" stroke-width="1.2"/>
+<text x="60" y="135" font-size="14" fill="#1f2328" font-weight="600" text-anchor="start">1. Untrusted text is data</text>
+<text x="60" y="154" font-size="12.5" fill="#57606a" font-weight="400" text-anchor="start">issues, comments, proposals and web pages reach agents fenced as untrusted, never as instructions</text>
+<rect x="58" y="174" width="1084" height="54" rx="8" fill="#fbefff" stroke="#8250df" stroke-width="1.2"/>
+<text x="78" y="197" font-size="14" fill="#1f2328" font-weight="600" text-anchor="start">2. Secrets in the system keychain</text>
+<text x="78" y="216" font-size="12.5" fill="#57606a" font-weight="400" text-anchor="start">never in YAML or in the repository; provider keys can stay out of reach behind the egress broker</text>
+<rect x="76" y="236" width="1048" height="54" rx="8" fill="#fff1e5" stroke="#bc4c00" stroke-width="1.2"/>
+<text x="96" y="259" font-size="14" fill="#1f2328" font-weight="600" text-anchor="start">3. One Linux user per account</text>
+<text x="96" y="278" font-size="12.5" fill="#57606a" font-weight="400" text-anchor="start">barnraise account add --isolate: no way into the owner&#x27;s home</text>
+<rect x="94" y="298" width="1012" height="54" rx="8" fill="#ffebe9" stroke="#cf222e" stroke-width="1.2"/>
+<text x="114" y="321" font-size="14" fill="#1f2328" font-weight="600" text-anchor="start">4. A blocking hook before every tool call</text>
+<text x="114" y="340" font-size="12.5" fill="#57606a" font-weight="400" text-anchor="start">compiled policy: no writes to workflows, .barnraise/, .env* or locked tests; no push to main, sudo, curl | sh</text>
+<rect x="112" y="360" width="976" height="54" rx="8" fill="#ddf4ff" stroke="#0969da" stroke-width="1.2"/>
+<text x="132" y="383" font-size="14" fill="#1f2328" font-weight="600" text-anchor="start">5. Sandbox or container</text>
+<text x="132" y="402" font-size="12.5" fill="#57606a" font-weight="400" text-anchor="start">Landlock on every session and check · bubblewrap · a container per session · a microVM</text>
+<rect x="130" y="422" width="940" height="54" rx="8" fill="#dafbe1" stroke="#1a7f37" stroke-width="1.2"/>
+<text x="150" y="445" font-size="14" fill="#1f2328" font-weight="600" text-anchor="start">6. Network by allow-list</text>
+<text x="150" y="464" font-size="12.5" fill="#57606a" font-weight="400" text-anchor="start">egress proxy with method and path rules; writes only to the project&#x27;s repository; signed receipts</text>
+<rect x="148" y="484" width="904" height="54" rx="8" fill="#fbefff" stroke="#8250df" stroke-width="1.2"/>
+<text x="168" y="507" font-size="14" fill="#1f2328" font-weight="600" text-anchor="start">7. Scopes in the daemon</text>
+<text x="168" y="526" font-size="12.5" fill="#57606a" font-weight="400" text-anchor="start">each session gets a short-lived token with its role&#x27;s scopes: an implementer cannot approve</text>
+<rect x="166" y="546" width="868" height="54" rx="8" fill="#fff1e5" stroke="#bc4c00" stroke-width="1.2"/>
+<text x="186" y="569" font-size="14" fill="#1f2328" font-weight="600" text-anchor="start">8. Before anything leaves</text>
+<text x="186" y="588" font-size="12.5" fill="#57606a" font-weight="400" text-anchor="start">secret scan (gitleaks and built-in patterns) before every push · chained event log · audit of every owner action</text>
+<rect x="40" y="616" width="1120" height="46" rx="8" fill="#f6f8fa" stroke="#d0d7de" stroke-width="1.2"/>
+<text x="62" y="642" font-size="13" fill="#57606a" font-weight="400" text-anchor="start">Barnraise capabilities says, per machine, which layers are active, what runs instead and the one command that fixes the rest.</text>
+</svg>

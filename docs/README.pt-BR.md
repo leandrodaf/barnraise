@@ -9,7 +9,7 @@ O Barnraise é um binário único em Go que toca um projeto de software com agen
 
 O nome vem de *barn raising*: os vizinhos levantando um celeiro juntos num dia.
 
-> Estado: 0.1.0, ainda não lançado. Veja o [CHANGELOG.md](../CHANGELOG.md). Read in English: [README.md](../README.md).
+> Estado: 0.1.0, o primeiro lançamento. Veja o [CHANGELOG.md](../CHANGELOG.md). Read in English: [README.md](../README.md).
 
 Este arquivo está em português porque a regra é a do próprio Barnraise: o que vai para pessoas sai na língua delas. Código, CLI, chaves do yaml, prompts internos e os diagramas ficam em inglês.
 
@@ -56,6 +56,7 @@ barnraise item add "Tela de login" \
   --area auth
 
 barnraise status               # objetivo, foco, fila, agentes, contas e máquinas de uma vez
+barnraise panel                # o painel web no navegador, já com a sessão iniciada
 ```
 
 | Comando | O que faz |
@@ -67,12 +68,24 @@ barnraise status               # objetivo, foco, fila, agentes, contas e máquin
 | `barnraise events -f` | Acompanha todos os eventos ao vivo |
 | `barnraise pause` / `barnraise resume` | Botão de emergência para todos os agentes de um projeto (`--all`: todos os projetos do daemon) |
 | `barnraise standby on` / `off` | Chave da máquina: o daemon roda, mas não inicia nada nela; vale entre reinícios e pode ser ligada com o daemon parado |
+| `barnraise panel` | Abre o painel web no navegador, já com a sessão iniciada (`--print` escreve o endereço) |
 | `barnraise account add claude` | Põe outra conta de assinatura na rotação |
 | `barnraise account login claude --all` | Entra com uma conta em todas as máquinas conectadas ao mesmo tempo; o painel faz o mesmo em Contas |
+| `barnraise machine agents 5 --machine studio` | Quantos agentes uma máquina roda ao mesmo tempo (`auto`: medido pelos núcleos e pela memória) |
 | `barnraise account add openrouter` | Põe uma conta por chave de API (OpenRouter, ou um provedor em `providers:`) para passos baratos e pesquisa; a chave vai para o chaveiro |
 | `barnraise account add <nome>` | Põe uma conta de qualquer agente que fale o Agent Client Protocol, declarado como `type: acp` em `providers:`; os pedidos de permissão, os arquivos e os terminais dele passam pela política do Barnraise |
 
-Todo comando imprime texto para pessoas por padrão e JSON com `--json`. O painel web é servido pelo daemon em `http://127.0.0.1:7420/`; o app desktop (`make desktop`) abre o mesmo painel e pode iniciar o daemon ou alcançar outra máquina ([ADR-0045](adr/0045-panel-and-desktop-app.md)). No Linux, `make desktop desktop-install` o coloca no menu de aplicativos com o ícone; no macOS, `make desktop` gera `desktop/build/bin/Barnraise.app`, com o barnraise dentro, para arrastar para Aplicativos. Para mexer no painel: `cd web && pnpm dev` (ele fala com o daemon local), e `make desktop-dev` para o app com recarga ao vivo.
+Todo comando imprime texto para pessoas por padrão e JSON com `--json`. O painel web é servido pelo daemon em `http://127.0.0.1:7420/`, e o `barnraise panel` abre com a sessão iniciada (o token do dono fica em `~/.config/barnraise/owner.token`); o app desktop (`make desktop`) abre o mesmo painel e pode iniciar o daemon ou alcançar outra máquina ([ADR-0045](adr/0045-panel-and-desktop-app.md)). No Linux, `make desktop desktop-install` o coloca no menu de aplicativos com o ícone; no macOS, `make desktop` gera `desktop/build/bin/Barnraise.app`, com o barnraise dentro, para arrastar para Aplicativos. Para mexer no painel: `cd web && pnpm dev` (ele fala com o daemon local), e `make desktop-dev` para o app com recarga ao vivo.
+
+## Suas decisões, num lugar só
+
+![O dono decide, o conselheiro ajuda: perguntas, aprovações e propostas chegam ao painel; o dono responde, ou conversa antes com um conselheiro só de leitura no modelo mais forte, que sugere uma resposta; confirmar, editar, perguntar mais, deixar decidir, ou triar todas as propostas de uma vez](img/owner.svg)
+
+- **Tudo o que espera você chega numa tela só**: as perguntas que os agentes não conseguiram responder sozinhos, os planos e as entregas para aprovar, e as propostas. O Início do painel começa por elas; cada parte do repositório diz o que espera, e cada uma pode ser respondida ali mesmo.
+- **Converse antes de responder.** O conselheiro é uma sessão no modelo mais forte do projeto que lê o item, a pergunta, o que os agentes fizeram e o código, e nunca altera nada. Você acompanha ao vivo o que ele lê e busca, e ele termina com uma resposta sugerida: confirme, edite ou pergunte mais.
+- **Ou deixe ele decidir.** *Decidir por mim* faz o conselheiro responder uma pergunta ou decidir uma proposta; a conversa guarda o que ele escolheu e por quê, marcado como delegado.
+- **Propostas de uma vez.** *Triar com o conselheiro* lê todas as propostas abertas e diz aprovar, recusar ou depois para cada uma, com uma frase; nada é aplicado até você manter as que concorda.
+- **Suas palavras seguem junto.** O que você disse enquanto decidia vai, com as suas palavras, para o próximo agente que trabalhar no item.
 
 ## Como um item anda
 
@@ -90,6 +103,8 @@ Fluxos, papéis e verificações são dados no `barnraise.yaml`, por cima de um 
 ## Um repositório, várias partes
 
 Um repositório com backend em Go, web em React e app em React Native é um projeto com três partes. Cada parte leva o seu próprio `barnraise.yaml` na pasta dela; o Barnraise acha esses arquivos sozinho, e o `barnraise init` escreve.
+
+![Só o que a mudança toca é verificado: uma mudança dentro do backend roda só as verificações do backend; go.mod, um Makefile ou um arquivo de nenhuma parte roda tudo; docs não precisam de nenhuma](img/parts.svg)
 
 ```yaml
 # backend/barnraise.yaml                      # mobile/barnraise.yaml
@@ -118,11 +133,20 @@ Toda máquina roda o mesmo binário e puxa o próprio próximo item. Não há co
 - **O Tailscale vem embutido.** Os binários de release trazem o Tailscale: o Barnraise entra na tailnet como um dispositivo próprio, com o nome da máquina e a tag `tag:barnraise`, e a máquina não precisa de mais nada além do `barnraise`. Com uma auth key (`barnraise machine network-key` ou `BARNRAISE_TS_AUTHKEY`), `barnraise machine join 482913` entra na tailnet e no cluster de uma vez. Um `tailscale` instalado é usado no lugar quando existe; `barnraise machine network tsnet --control-url <url>` aponta para um Headscale próprio. Sem Tailscale, o mesmo código pareia pela rede local ou por um endereço direto (`--addr`).
 - **Uma versão só.** A máquina que vê outra com versão mais nova baixa o binário, confere o hash e reinicia quando não há sessão rodando.
 - **As máquinas conhecem a carga umas das outras.** Cada uma informa CPU, memória, temperatura e GPU, como estado ao vivo que nunca é gravado. A máquina carregada passa as verificações para uma ociosa, que limpa o que criou; `barnraise machine history` desenha as leituras recentes.
-- **Cada máquina diz o que roda nela.** `barnraise capabilities --all` lista, por máquina, cada recurso que depende dela (Landlock, bubblewrap, microVM, o broker de egress, mergiraf, rtk, osv-scanner, ast-grep, caches copy-on-write, logins dos provedores…) como ativo, disponível, degradado ou ausente, com o motivo, o fallback e a correção exata; `barnraise tools install mergiraf rtk --all` instala as ferramentas opcionais sem root, em versões fixadas e conferidas pelo sha256. Veja [operations.md](operations.md#what-runs-on-each-machine).
+- **Cada máquina diz quantos agentes roda, e por quê.** Por padrão, 2 núcleos e 4 GB de memória por agente, com 2 GB reservados para o sistema; o painel diz qual dos dois limita cada máquina, e o dono define outro número por máquina com − e + (ou `barnraise machine agents`).
+- **Cada máquina diz o que roda nela.** `barnraise capabilities --all` e a tela de Capacidades começam pelo que precisa do dono, em palavras simples, e pela única coisa a fazer: instalar, entrar na conta ou rodar um comando uma vez. Cada recurso que depende da máquina (Landlock, bubblewrap, microVM, o broker de egress, mergiraf, rtk, osv-scanner, ast-grep, gitleaks, caches copy-on-write, logins dos provedores…) aparece como ativo, disponível, degradado ou ausente, com o motivo e o fallback; opcionais desligados não são problema. `barnraise tools install mergiraf rtk gitleaks --all` instala as ferramentas opcionais sem root, em versões fixadas e conferidas pelo sha256. Veja [operations.md](operations.md#what-runs-on-each-machine).
 
 ![Falha: a máquina A pega um item com uma ref no git e renova; quando A cai, a máquina B toma a ref depois do prazo e continua da última etapa enviada](img/failover.svg)
 
 `barnraise cluster status` mostra cada máquina em verde, amarelo ou vermelho. `barnraise machine leave` devolve os itens desta máquina antes de sair.
+
+## Contas em todas as máquinas
+
+![Uma conta, todas as máquinas, uma tela: o daemon abre o login do próprio provedor em cada máquina, cada uma mostra o link e o código lado a lado, o dono entra uma vez por máquina; só os passos viajam, nunca uma credencial](img/accounts.svg)
+
+Uma conta é um login num provedor (uma assinatura do Claude ou do ChatGPT, uma conta Google, uma chave de API). Várias contas por provedor se revezam pelas janelas reais de 5 horas e da semana, e a menos usada com folga pega o próximo passo.
+
+`barnraise account login claude --all`, ou **Contas → Entrar em todas as máquinas** no painel, abre o login do próprio provedor de uma conta em todas as máquinas ao mesmo tempo. Cada máquina mostra o link e o código numa tela só; você entra uma vez por máquina, em qualquer ordem, sem abrir terminal em nenhuma delas. Cada máquina guarda o próprio login na pasta de dados dela, e só os passos do login passam de uma máquina para outra. A conta então lista as máquinas em que está logada, e só elas a usam. Gemini e contas por chave de API são adicionadas na própria máquina (`barnraise account add`). Veja [operations.md](operations.md#one-account-on-several-machines).
 
 ## GitHub
 
@@ -135,7 +159,7 @@ O daemon é o dono do estado do fluxo. O GitHub é onde as pessoas leem, comenta
 | Item `I-42` | Issue `[I-42] Título`, etiquetas `barnraise`, `area:…`, `kind:…`, `status:…`, prioridade; coluna do Project | O Barnraise cria e atualiza a issue e preserva as etiquetas que as pessoas puseram. Issues novas viram itens: direto quando vêm de autores ou etiquetas em `tracker.trusted`, pelo analista nos outros casos |
 | Branch `br/I-42-titulo` | Pull request em rascunho | Aberto na primeira etapa, atualizado a cada uma, marcado como pronto depois da revisão, que é publicada nele |
 | Verificação com `runs_on: github-actions` | Workflow do Actions | Disparado com as entradas `item`, `commit` e `check`; o resultado volta pela [action de verificação](../action/check) ou pelo webhook. Resultados de verificações locais aparecem como status do commit |
-| Fila de integração | `main` | Rebase, verificação de novo, um commit squash `I-42: Título` com o trailer `Barnraise-Item: I-42` |
+| Fila de integração | `main` | Rebase, verificação de novo, um commit squash no formato Conventional Commits (`feat(auth): entrar com o app do banco`) com o trailer `Barnraise-Item: I-42`, e a linha dele no changelog |
 | Aprovação | Comentário na issue | `/barnraise approve plan I-42` de um autor confiável aprova o plano |
 
 Para ligar:
@@ -163,14 +187,16 @@ Sem token guardado, o Barnraise usa `GITHUB_TOKEN` e depois `gh auth token`. Sem
 
 Os agentes leem texto não confiável, poderiam alcançar dados privados e poderiam mandar dados para fora. O Barnraise quebra os três, em camadas. Detalhes em [security.md](security.md).
 
+![Segurança em camadas: texto não confiável como dado, segredos no chaveiro, um usuário Linux por conta, um hook que bloqueia, sandbox ou container, rede por lista de permissões, escopos por papel no daemon, e varredura de segredos e auditoria antes de qualquer coisa sair](img/security.svg)
+
 1. **Segredos** ficam no chaveiro do sistema, nunca no yaml nem no repositório.
 2. **Um usuário Linux por conta de agente** (`barnraise account add --isolate`), sem acesso à home do dono.
 3. **Um hook que bloqueia** antes de cada chamada de ferramenta, decidido localmente por uma política compilada: nada de escrever em workflows, `.barnraise/`, `.env*` ou testes existentes; nada de push na main, `sudo` ou `curl | sh`. Funciona mesmo quando a CLI roda sem pedir permissão.
-4. **Sandbox ou container**: o sandbox nativo do Claude Code quando o `bwrap` funciona na máquina, o Codex em `workspace-write` e a Gemini CLI só lendo, sem ferramentas de shell ou de escrita; ou, com `container:` no `barnraise.yaml`, cada sessão dentro de um container que só enxerga o worktree do item, com a GPU da máquina repassada por padrão.
-5. **Rede restrita**: proxy com lista de permissões e regras de `nftables` por usuário de agente.
+4. **Sandbox ou container**: o Landlock confina o preparo, as verificações e as sessões onde o kernel tem; o sandbox nativo do Claude Code quando o `bwrap` funciona na máquina, o Codex em `workspace-write` e a Gemini CLI só lendo, sem ferramentas de shell ou de escrita; ou, com `container:` no `barnraise.yaml`, cada sessão dentro de um container que só enxerga o worktree do item, com a GPU da máquina repassada por padrão; ou uma microVM por sessão.
+5. **Rede restrita**: proxy com lista de permissões e regras de método e caminho (escrita só no repositório do projeto), recibos assinados e as chaves dos provedores guardadas atrás de um broker.
 6. **Só as ferramentas que você libera na sessão**: o servidor MCP do Barnraise e os que estiverem em `mcp:` no `barnraise.yaml`, por papel. Os servidores MCP, plugins e configurações pessoais do dono da conta não são carregados.
 7. **Permissão por papel no daemon**: o implementador não tem o escopo `approve` e nem enxerga a ferramenta.
-8. **Varredura de segredos antes de todo push**, tokens de API com escopo, log de auditoria, webhooks assinados.
+8. **Varredura de segredos antes de todo push** (gitleaks e padrões próprios), tokens de API com escopo, log de eventos encadeado, log de auditoria, webhooks assinados.
 
 ## Conceitos
 
@@ -212,7 +238,9 @@ Os ids curtos são os mesmos em todo lugar (rastreador, título do pull request,
 
 O estado é um log de eventos só de acréscimo no SQLite; o estado atual é derivado dos eventos, então há histórico completo e qualquer etapa pode ser refeita. O repositório do projeto guarda só configuração (`barnraise.yaml` e `.barnraise/`), nunca estado e nunca segredos.
 
-O código é hexagonal, e a regra de dependência é conferida pelo linter:
+![Por dentro: os clientes da API à esquerda (CLI, API Connect, servidor MCP, hooks dos provedores, painel web e app desktop), o daemon com os casos de uso, as regras do domínio, o log de eventos e as portas no meio, e os adaptadores à direita (provedores, trackers, git e NATS, rede, máquina)](img/inside.svg)
+
+O código é hexagonal, e a regra de dependência é conferida por testes e pelo linter:
 
 ```
 cmd/barnraise/            composition root: liga adaptadores às portas, um binário
@@ -220,7 +248,9 @@ internal/domain/          regras puras: item, objetivo, foco, fluxo, retrabalho,
 internal/app/             casos de uso: pegar, entregar, revisar, integrar, propor, mudar o foco…
 internal/ports/           interfaces pequenas: Provider, Tracker, CodeHost, Arbiter, EventBus, StateStore…
 internal/adapters/in/     httpapi (Connect), mcp, cli, hooks, panel
-internal/adapters/out/    claude, codex, gemini, github, gitlab, jira, linear, nats, sqlite, git, tailnet, pairing…
+internal/adapters/out/    claude, codex, gemini, acp, github, gitlab, jira, linear, plugin, nats, sqlite, git, tailnet,
+                          pairing, landlock, microvm, egress, toolinstall, providerlogin, capprobe…
+web/ · desktop/           o painel (Svelte) e o app desktop (Wails) que o abre
 proto/ · gen/             o contrato da API (protobuf) e o código gerado
 templates/                padrões base e os modelos de projeto
 docs/adr/                 registros de decisão de arquitetura
@@ -254,6 +284,8 @@ Requisitos: Go 1.27 e `git`; para o contrato, o `buf` com `protoc-gen-go`, `prot
 | `make lint` · `make vuln` | `golangci-lint` (com as regras de arquitetura) · `govulncheck` |
 | `make smoke` | Do `init` a um item integrado num repositório de rascunho (`SMOKE_PROVIDER=claude` usa uma conta de verdade) |
 | `make proto` · `make proto-breaking` | `buf generate` · `buf breaking` contra a main |
+| `make web` · `make desktop` | O painel nos arquivos embutidos do daemon · o app desktop |
+| `python3 scripts/diagrams/build.py` | Desenha os diagramas do README que são gerados (owner, accounts, parts, security, inside) |
 
 Os testes rodam contra git de verdade, NATS embutido e SQLite de verdade, sessões gravadas dos provedores e um provedor falso com roteiro para os testes de ponta a ponta e de cluster. Contribuições: [CONTRIBUTING.md](../CONTRIBUTING.md). Segurança: [SECURITY.md](../SECURITY.md).
 
