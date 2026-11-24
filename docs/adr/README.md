@@ -29,22 +29,22 @@ One short record per decision: context, decision, consequences. A decision that 
 | [ADR-0023](0023-security-by-os-layers.md) | Security by OS layers, not by prompt |
 | [ADR-0024](0024-license-apache-2.md) | License: Apache-2.0 |
 | [ADR-0025](0025-embedded-tailscale-behind-a-build-tag.md) | Embedded Tailscale (tsnet) behind a build tag |
-| [ADR-0033](0033-recorded-resolutions-and-structural-merge.md) | Recorded conflict resolutions, and a structural merge driver when installed |
-| [ADR-0044](0044-generic-acp-provider.md) | A generic provider for agents that speak the Agent Client Protocol |
-| [ADR-0036](0036-output-filters-and-recoverable-compression.md) | Output filters, recoverable compression and short answers |
-| [ADR-0042](0042-stale-read-warning.md) | Warn an agent when main changes what it read |
-| [ADR-0043](0043-lessons-from-rework.md) | Lessons from rework |
-| [ADR-0029](0029-bound-session-tokens-and-chained-event-log.md) | Session tokens bound to their session, and a hash-chained event log |
-| [ADR-0030](0030-provenance-of-hooks-and-instruction-files.md) | Provenance of hooks and instruction files |
 | [ADR-0026](0026-egress-key-broker-and-local-ca.md) | Egress key broker and a local CA |
 | [ADR-0027](0027-egress-inspection-and-signed-receipts.md) | Outbound inspection and signed receipts |
 | [ADR-0028](0028-egress-rules-by-method-host-path.md) | Egress rules by method, host and path |
+| [ADR-0029](0029-bound-session-tokens-and-chained-event-log.md) | Session tokens bound to their session, and a hash-chained event log |
+| [ADR-0030](0030-provenance-of-hooks-and-instruction-files.md) | Provenance of hooks and instruction files |
 | [ADR-0031](0031-landlock-and-sandbox-profiles.md) | Landlock confinement and built-in sandbox profiles |
 | [ADR-0032](0032-opt-in-microvm-isolation.md) | Opt-in microVM isolation through an external runner |
-| [ADR-0040](0040-services-per-item-worktree.md) | Services of their own (compose project, database, ports) for each item worktree |
-| [ADR-0041](0041-build-caches-copy-on-write-and-worktree-hooks.md) | Build caches copy-on-write, and hooks at the phases of a worktree |
+| [ADR-0033](0033-recorded-resolutions-and-structural-merge.md) | Recorded conflict resolutions, and a structural merge driver when installed |
 | [ADR-0034](0034-built-in-dependency-and-structural-checks.md) | Built-in dependencies check against OSV, and ast-grep as a built-in check kind |
 | [ADR-0035](0035-opentelemetry-export-as-a-shipped-hook-plugin.md) | OpenTelemetry export as a hook plugin shipped in the binary |
+| [ADR-0036](0036-output-filters-and-recoverable-compression.md) | Output filters, recoverable compression and short answers |
 | [ADR-0037](0037-symbols-by-syntax-tree.md) | Symbols by syntax tree with ast-grep, and a native tokenizer as the fallback |
 | [ADR-0038](0038-trigram-index.md) | A trigram index for exact substring and regex search, inside the knowledge database |
 | [ADR-0039](0039-repository-map.md) | A repository map in the repository, written by Barnraise at integration |
+| [ADR-0040](0040-services-per-item-worktree.md) | Services of their own (compose project, database, ports) for each item worktree |
+| [ADR-0041](0041-build-caches-copy-on-write-and-worktree-hooks.md) | Build caches copy-on-write, and hooks at the phases of a worktree |
+| [ADR-0042](0042-stale-read-warning.md) | Warn an agent when main changes what it read |
+| [ADR-0043](0043-lessons-from-rework.md) | Lessons from rework |
+| [ADR-0044](0044-generic-acp-provider.md) | A generic provider for agents that speak the Agent Client Protocol |
