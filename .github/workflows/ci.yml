@@ -75,6 +75,10 @@ jobs:
           version: v2.15
       - name: govulncheck
         run: go run golang.org/x/vuln/cmd/govulncheck@latest ./...
+      - name: govulncheck of the desktop app (its own module)
+        run: |
+          mkdir -p desktop/frontend/dist && echo '<!doctype html>' > desktop/frontend/dist/index.html
+          cd desktop && go run golang.org/x/vuln/cmd/govulncheck@latest ./...
       - uses: ./.github/actions/go-cache-save
         with:
           key: ${{ steps.go.outputs.key }}

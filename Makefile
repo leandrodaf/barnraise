@@ -78,8 +78,10 @@ release-cross: ## The four release binaries into dist/, with the release build t
 lint: ## golangci-lint, including the depguard architecture rules
 	golangci-lint run ./...
 
-vuln: ## govulncheck
+vuln: ## govulncheck of barnraise and of the desktop app (its own module)
 	$(GO) run golang.org/x/vuln/cmd/govulncheck@latest ./...
+	@test -e desktop/frontend/dist/index.html || { mkdir -p desktop/frontend/dist && echo '<!doctype html>' > desktop/frontend/dist/index.html; }
+	cd desktop && $(GO) run golang.org/x/vuln/cmd/govulncheck@latest ./...
 
 proto: ## buf lint and buf generate (Go, Connect, OpenAPI into gen/)
 	$(BUF) lint
