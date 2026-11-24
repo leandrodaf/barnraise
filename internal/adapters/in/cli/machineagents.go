@@ -63,7 +63,8 @@ func (e *env) machineShareCmd() *cobra.Command {
 	var all, paused, tokenStdin bool
 	c := &cobra.Command{Use: "share", Short: "Have other machines clone this project's repository and work on it too",
 		Long: "Each machine named clones the project's repository (its origin) into its data folder and registers it,\n" +
-			"so its agents take items of the project. The machine needs read and write access to the repository.",
+			"so its agents take items of the project. The machine needs read and write access to the repository.\n" +
+			"A machine that already has the project brings its checkout to the latest main and reads its configuration again.",
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if all == (len(machines) > 0) {

@@ -177,15 +177,25 @@ func (d *daemon) serveRemoteProject(ctx context.Context) {
 			rp.URL = https
 		}
 		if p, err := d.svc.Project(rp.Name); err == nil {
+			// Already here: bring its checkout to the latest main and read
+			// its configuration again.
+			d.mu.Lock()
+			root := d.roots[p.Name]
+			d.mu.Unlock()
 			if len(gitArgs) > 0 {
-				d.mu.Lock()
-				root := d.roots[p.Name]
-				d.mu.Unlock()
 				if err := setCredentialConfig(ctx, root, gitArgs); err != nil {
 					return nil, err
 				}
 			}
-			return []byte("already here"), nil
+			pull := exec.CommandContext(ctx, "git", "-C", root, "pull", "--ff-only", "--quiet")
+			pull.Env = append(os.Environ(), "GIT_TERMINAL_PROMPT=0", "GIT_SSH_COMMAND=ssh -o BatchMode=yes")
+			if out, err := pull.CombinedOutput(); err != nil {
+				return nil, fmt.Errorf("git pull in %s on %s: %v: %s", root, d.df.Machine, err, strings.TrimSpace(string(out)))
+			}
+			if err := d.reloadRoot(ctx, root); err != nil {
+				return nil, err
+			}
+			return []byte("updated"), nil
 		}
 		cctx, cancel := context.WithTimeout(ctx, peerShareTimeout-time.Minute)
 		defer cancel()
