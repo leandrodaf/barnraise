@@ -517,7 +517,7 @@ func proposeTool() *tool {
 func askOwnerTool() *tool {
 	t := &tool{
 		Name:        "ask_owner",
-		Description: "Ask the owner a decision only a person can take, in the fixed format: context in one sentence, the decision, 2 to 4 options with exactly one recommended, and what happens if nobody answers. Do not wait for the answer: the item waits for the owner and you take other work.",
+		Description: "Ask the owner a decision only a person can take, in the fixed format: context in one sentence, the decision, 2 to 4 options with exactly one recommended, and what happens if nobody answers. Write it in the language your step prompt names for the owner (English when it names none): a person reads it as written. Do not wait for the answer: the item waits for the owner and you take other work.",
 		Schema: object(map[string]any{
 			"item_id":  str("Item the question is about. Defaults to the item of this session."),
 			"context":  str("The situation, in one sentence."),

@@ -263,6 +263,7 @@ func (s *Service) BuildStepPrompt(ctx context.Context, p *Project, it *domain.It
 		sys.WriteString("\n\n# Project constitution\n" + string(c))
 	}
 	sys.WriteString(barnraiseConventions)
+	sys.WriteString(ownerLanguageRule(p.Cfg().Language))
 	var b strings.Builder
 	fmt.Fprintf(&b, "# Item %s: %s\n\nYou are agent %s (role %s), at step `%s` of flow `%s`.\n", it.ID, it.Title, agent, role, st.Name, it.Kind)
 	reviewer := st.Review || st.Type == domain.StepApproval

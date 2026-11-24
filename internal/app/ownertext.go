@@ -68,3 +68,31 @@ func ot(p *Project, key string, args ...any) string {
 func ownerOpt(p *Project, action string, recommended bool, args ...any) domain.Option {
 	return domain.Option{Label: ot(p, "opt."+action, args...), Recommended: recommended, Action: action}
 }
+
+// ownerLanguageNames names the languages the owner may read, for an agent.
+var ownerLanguageNames = map[string]string{"pt": "Brazilian Portuguese", "es": "Spanish", "fr": "French", "de": "German", "it": "Italian"}
+
+// ownerLanguageName names the project's language for an agent; "" for
+// English or a language it does not know.
+func ownerLanguageName(lang string) string {
+	l := strings.ToLower(strings.TrimSpace(lang))
+	if l == "" || strings.HasPrefix(l, "en") {
+		return ""
+	}
+	if n, ok := ownerLanguageNames[strings.SplitN(l, "-", 2)[0]]; ok {
+		return n
+	}
+	return lang
+}
+
+// ownerLanguageRule tells an agent to write what the owner reads in the
+// project's language: the agent's questions reach a person as written.
+func ownerLanguageRule(lang string) string {
+	name := ownerLanguageName(lang)
+	if name == "" {
+		return ""
+	}
+	return "\n- The owner reads " + name + ". Write every question to the owner (`ask_owner`: context, decision, options and if_no_answer) " +
+		"and every note meant for the owner in " + name + ", plainly, without code identifiers unless the decision is about them. " +
+		"Code, commits, `change` and messages to other agents stay in English.\n"
+}

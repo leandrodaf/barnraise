@@ -443,3 +443,22 @@ func TestImplementerPromptCarriesReworkJournalAndMessages(t *testing.T) {
 		}
 	}
 }
+
+// The owner reads the project's language: the agents are told to write their
+// questions in it; an English project adds nothing.
+func TestPromptAsksForTheOwnersLanguage(t *testing.T) {
+	e := newEnv(t, withCfg(func(c *domain.ProjectConfig) { c.Language = "pt-BR" }))
+	it := e.ready("simple", "Cards", "cards")
+	f, _ := e.cfg.FlowFor("simple")
+	st, _ := f.Step("implement")
+	sp, err := e.svc.BuildStepPrompt(e.ctx, e.p, it, st, "implementer", "implementer-m1-1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(sp.System, "The owner reads Brazilian Portuguese") || !strings.Contains(sp.System, "`ask_owner`") {
+		t.Fatalf("no language rule in the prompt:\n%s", sp.System)
+	}
+	if ownerLanguageRule("en") != "" || ownerLanguageRule("") != "" {
+		t.Fatal("an English project needs no rule")
+	}
+}
