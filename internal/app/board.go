@@ -154,5 +154,8 @@ func itemSignal(it *domain.Item, io *ItemOverview, il *domain.ItemLedger) Signal
 	case ActReady:
 		return Signal{Kind: "ready", Arg: strings.Join(io.BlockedBy, ", ")}
 	}
+	if io.Activity == ActIdle && io.idle.Kind != "" {
+		return io.idle
+	}
 	return Signal{Kind: "idle", Arg: io.Machine}
 }

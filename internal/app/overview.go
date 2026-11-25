@@ -136,6 +136,8 @@ type ItemOverview struct {
 	NeedsOwner bool       `json:"needs_owner,omitempty"`
 	Column     string     `json:"column"`
 	Signal     Signal     `json:"signal"`
+	// idle is why an idle item has no session, for its signal.
+	idle Signal
 }
 
 // ProjectOverview is one project across the cluster.
@@ -568,8 +570,8 @@ func itemOverview(p *Project, snap *domain.State, it *domain.Item, now time.Time
 	}
 	io.Activity, io.Detail = itemActivity(snap, it, io, up)
 	if io.Activity == ActIdle && it.Claim != nil {
-		if why := idleWhy(p, snap, it, now); why != "" {
-			io.Detail = why
+		if why := idleWhy(p, snap, it, now); why.Kind != "" {
+			io.Detail, io.idle = idleText(why), why
 		}
 	}
 	boardFacts(p, it, io)
@@ -655,30 +657,65 @@ func itemActivity(snap *domain.State, it *domain.Item, io *ItemOverview, up func
 	return ActIdle, "held by " + it.Claim.Machine + ", nothing runs"
 }
 
-// idleWhy says why an item a machine holds has no session: the agents of
-// its step's role on that machine are all busy, or the step starts at the
-// next pass. "" when the step has no agent role.
-func idleWhy(p *Project, snap *domain.State, it *domain.Item, now time.Time) string {
+// idleWhy says why an item a machine holds has no session: no account can
+// take a step on that machine now, the agents of its step's role there are
+// all busy, or the step starts at the next pass. Its Kind is empty when the
+// step has no agent role.
+func idleWhy(p *Project, snap *domain.State, it *domain.Item, now time.Time) Signal {
 	f, err := p.Cfg().FlowOf(it.Kind, it.Area)
 	if err != nil {
-		return ""
+		return Signal{}
 	}
 	st, ok := f.Step(it.Step)
 	if !ok {
-		return ""
+		return Signal{}
 	}
 	role := stepRole(st)
 	if role == "" {
-		return ""
+		return Signal{}
+	}
+	m := it.Claim.Machine
+	usable, soonest := 0, time.Time{}
+	for _, a := range snap.Accounts {
+		if !a.UsableOn(m) || (len(a.Projects) > 0 && !slices.Contains(a.Projects, p.Name)) {
+			continue
+		}
+		if a.Available(now) {
+			usable++
+			continue
+		}
+		if r := a.Usage.FiveHourResets; r.After(now) && (soonest.IsZero() || r.Before(soonest)) {
+			soonest = r
+		}
+	}
+	if len(snap.Accounts) > 0 && usable == 0 {
+		arg := m
+		if !soonest.IsZero() {
+			arg += " · " + soonest.Local().Format("15:04")
+		}
+		return Signal{Kind: "no_account", Arg: arg}
 	}
 	busy := 0
 	for _, si := range snap.Sessions {
-		if si.Live() && now.Sub(si.At) <= sessionFresh && si.Role == role && si.Machine == it.Claim.Machine {
+		if si.Live() && now.Sub(si.At) <= sessionFresh && si.Role == role && si.Machine == m {
 			busy++
 		}
 	}
 	if n := p.Cfg().Roles[role].Count; n > 0 && busy >= n {
-		return fmt.Sprintf("next for the %s on %s: %d of %d busy", role, it.Claim.Machine, busy, n)
+		return Signal{Kind: "slots_busy", Arg: fmt.Sprintf("%s · %s %d/%d", role, m, busy, n)}
 	}
-	return "the " + role + " on " + it.Claim.Machine + " takes it at the next pass"
+	return Signal{Kind: "next_pass", Arg: role + " · " + m}
+}
+
+// idleText is why an idle item has no session, in a sentence for the CLI.
+func idleText(why Signal) string {
+	switch why.Kind {
+	case "no_account":
+		return "no account can take a step on " + why.Arg + " now"
+	case "slots_busy":
+		return "next in line for the " + why.Arg + " busy"
+	case "next_pass":
+		return "the " + why.Arg + " takes it at the next pass"
+	}
+	return why.Arg
 }

@@ -659,7 +659,7 @@ Object.assign(en, {
   sig_approve: 'Approve the {0}', sig_question: 'Waiting for your answer · {0}', sig_check_failed: '{0} failed', sig_changes_requested: 'Changes requested · {0} findings',
   sig_waits_for: 'Waits for {0}', sig_stalled: 'Machine {0} is out', sig_working: 'Working · {0}', sig_running: '{0} processes, no agent',
   sig_queued: 'In the merge queue', sig_paused: 'Paused', sig_parked: 'Waits for the focus to end', sig_draft: 'Draft · {0} open clarifications',
-  sig_ready: 'Ready · after {0}', sig_idle: 'Nothing runs · {0}', sig_integrated: 'Integrated', sig_closed: 'Closed · {0}',
+  sig_ready: 'Ready · after {0}', sig_idle: 'Nothing runs · {0}', sig_next_pass: 'Starts now · {0}', sig_slots_busy: 'Next in line · {0}', sig_no_account: 'Waits for an account with room · {0}', sig_integrated: 'Integrated', sig_closed: 'Closed · {0}',
 });
 
 Object.assign(pt, {
@@ -668,7 +668,7 @@ Object.assign(pt, {
   sig_approve: 'Aprovar {0}', sig_question: 'Esperando sua resposta · {0}', sig_check_failed: '{0} falhou', sig_changes_requested: 'Mudanças pedidas · {0} apontamentos',
   sig_waits_for: 'Espera {0}', sig_stalled: 'A máquina {0} está fora', sig_working: 'Trabalhando · {0}', sig_running: '{0} processos, sem agente',
   sig_queued: 'Na fila de integração', sig_paused: 'Pausado', sig_parked: 'Espera o foco acabar', sig_draft: 'Rascunho · {0} esclarecimentos abertos',
-  sig_ready: 'Pronto · depois de {0}', sig_idle: 'Nada rodando · {0}', sig_integrated: 'Integrado', sig_closed: 'Fechado · {0}',
+  sig_ready: 'Pronto · depois de {0}', sig_idle: 'Nada rodando · {0}', sig_next_pass: 'Começa agora · {0}', sig_slots_busy: 'Próximo da vez · {0}', sig_no_account: 'Espera uma conta com limite · {0}', sig_integrated: 'Integrado', sig_closed: 'Fechado · {0}',
 });
 
 
@@ -962,3 +962,20 @@ export function tm(map: string, value: unknown): string {
   const k = String(value ?? '');
   return m[k] || (en[map] || {})[k] || k;
 }
+
+Object.assign(en, {
+  viewGraph: 'Dependencies', tabDeps: 'Dependencies',
+  depNone: 'No item waits for another one now.', depNoneItem: 'This item waits for nothing, and nothing waits for it.',
+  depLegendWaits: 'waits: not on main yet', depLegendLanded: 'already on main', depLegendRead: 'An item stands to the right of what it waits for. Hover to see its chain.',
+  depHolds: 'holds {0}', depHoldsTitle: '{0} open items wait for this one', depWaitsN: 'waits for {0} item(s) to land', depOutside: 'landed earlier',
+  depWaitsFor: 'waits for {0}', depWaitsTitle: 'Starts by itself once {0} is on main',
+  depBanner: 'This item waits for', depBannerAfter: 'to land on main. It starts again by itself; nothing to do.',
+});
+Object.assign(pt, {
+  viewGraph: 'Dependências', tabDeps: 'Dependências',
+  depNone: 'Nenhum item espera outro agora.', depNoneItem: 'Este item não espera nada, e nada espera por ele.',
+  depLegendWaits: 'espera: ainda não está no main', depLegendLanded: 'já está no main', depLegendRead: 'Cada item fica à direita do que ele espera. Passe o mouse para ver a cadeia.',
+  depHolds: 'segura {0}', depHoldsTitle: '{0} itens abertos esperam por este', depWaitsN: 'espera {0} item(ns) entrar', depOutside: 'entrou antes',
+  depWaitsFor: 'espera {0}', depWaitsTitle: 'Recomeça sozinho quando {0} estiver no main',
+  depBanner: 'Este item espera', depBannerAfter: 'entrar no main. Ele recomeça sozinho; não há nada a fazer.',
+});

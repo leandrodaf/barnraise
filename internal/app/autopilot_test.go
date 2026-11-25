@@ -417,3 +417,52 @@ func TestChatToItem(t *testing.T) {
 	wantErr(t, func() error { _, err := e.svc.CreateItemFromChat(e.ctx, "demo", owner(), "C-EMPTY1"); return err }(), ErrInvalid)
 	wantErr(t, func() error { _, err := e.svc.CreateItemFromChat(e.ctx, "demo", owner(), "Q-1"); return err }(), ErrInvalid)
 }
+
+// A decision that only waits for criteria and dependencies an agent could
+// not record is the autopilot's: it records them from the item's messages
+// and the item moves on, without the owner.
+func TestAutopilotRecordsWhatAnAgentCouldNot(t *testing.T) {
+	var prompt string
+	e, _ := autopilotEnv(t, func(r AdviceRequest) string {
+		prompt = r.Prompt
+		return suggestion(`EDIT {"criteria":[{"id":"C1","text":"WHEN the horde nears, THE SYSTEM SHALL show the approach marker","check":"main"}],"deps":["I-1"],"clear_clarifications":true}`,
+			"Recorded the analyst's criteria from message 2/4.")
+	})
+	dep := e.ready("simple", "Preparation windows", "arena")
+	it := e.ready("simple", "Approach marker", "arena")
+	if _, err := e.svc.SendMessage(e.ctx, "demo", agent("analyst", it.ID, "refine"), domain.Message{To: "item:" + it.ID, ItemID: it.ID,
+		Text: "REFINE 2/4: C1 WHEN the horde nears, THE SYSTEM SHALL show the approach marker | main"}); err != nil {
+		t.Fatal(err)
+	}
+	q := e.askOwner(it.ID, "How should the criteria reach the item, since the edit command fails?",
+		"OWNER: you record the criteria in the panel", "Go on with the plan against the messages", "Abandon the item")
+	if n := e.svc.runAutopilot(e.ctx, e.p); n != 1 {
+		t.Fatalf("%d decisions applied", n)
+	}
+	if !strings.Contains(prompt, "REFINE 2/4") {
+		t.Fatal("the advisor did not get the item's messages")
+	}
+	got := e.item(it.ID)
+	if len(got.Criteria) != 1 || got.Criteria[0].Check != "main" || len(got.Deps) != 1 || got.Deps[0] != dep.ID || len(got.Clarifications) != 0 {
+		t.Fatalf("recorded %+v deps %v clarifications %v", got.Criteria, got.Deps, got.Clarifications)
+	}
+	if a := e.p.Snapshot().Questions[q.ID].Answer; !strings.HasPrefix(a, "Go on with the plan") {
+		t.Fatalf("answered %q", a)
+	}
+}
+
+func TestEditOption(t *testing.T) {
+	if _, ok, _ := editOption("Retry the step"); ok {
+		t.Fatal("not an edit")
+	}
+	if _, ok, err := editOption(`EDIT {"branch":"x"}`); !ok || err == nil {
+		t.Fatal("a branch is not the advisor's to set")
+	}
+	if _, ok, err := editOption(`EDIT {"colour":"blue"}`); !ok || err == nil {
+		t.Fatal("unknown field")
+	}
+	p, ok, err := editOption(`EDIT {"size":"2h","clear_clarifications":true}`)
+	if !ok || err != nil || *p.Size != "2h" || p.Clarifications == nil || len(*p.Clarifications) != 0 {
+		t.Fatalf("%+v %v %v", p, ok, err)
+	}
+}
