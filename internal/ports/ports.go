@@ -293,6 +293,20 @@ type Tracker interface {
 	Columns(ctx context.Context) ([]string, error)
 }
 
+// RepoLinks are the repository's pages on its host, for the owner to open;
+// each is "" when it cannot tell.
+type RepoLinks interface {
+	Branch(branch string) string
+	Compare(base, branch string) string
+	Commit(sha string) string
+}
+
+// TrackerLinks is what a tracker that can link the owner to an issue does:
+// the issue's web page from its reference, or "" when it cannot tell.
+type TrackerLinks interface {
+	RefURL(ref string) string
+}
+
 // PR is a pull or merge request.
 type PR struct {
 	Number int    `json:"number"`

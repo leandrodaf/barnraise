@@ -392,7 +392,7 @@ func (s *Service) syncTracker(p *Project, id string, create bool) {
 				return
 			}
 			_, _ = s.mutateItem(ctx, p, id, domain.EvItemUpdated, "tracker", func(x *domain.Item) error {
-				x.TrackerRef = ti.Ref
+				x.TrackerRef, x.TrackerURL = ti.Ref, ti.URL
 				return nil
 			}, domain.Payload{Note: fmt.Sprintf("item %s appears as %s in %s", id, ti.Ref, p.Ports().Tracker.Name())})
 			return
@@ -463,7 +463,7 @@ func (s *Service) ImportFromTracker(ctx context.Context, project string, since t
 		}
 		body := domain.Fence("tracker "+ti.Ref, domain.SanitizeExternal(ti.Body))
 		if trusted {
-			_, err := s.CreateItem(ctx, p.Name, System(), NewItem{Title: ti.Title, Body: body + "\n\n[NEEDS CLARIFICATION: analyst rewrites this as a structured item]", Kind: kind, External: true, TrackerRef: ti.Ref, Priority: "P2"})
+			_, err := s.CreateItem(ctx, p.Name, System(), NewItem{Title: ti.Title, Body: body + "\n\n[NEEDS CLARIFICATION: analyst rewrites this as a structured item]", Kind: kind, External: true, TrackerRef: ti.Ref, TrackerURL: ti.URL, Priority: "P2"})
 			if err == nil {
 				n++
 			} else {

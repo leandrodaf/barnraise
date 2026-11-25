@@ -27,6 +27,7 @@
 	import { discussion } from './discussion.svelte';
 	import { act } from './act';
 	import { newItemByHand } from './actions';
+	import { setFocus, setGoal } from './ownerActions';
 	import { openItem } from './open';
 	import PlusIcon from '@lucide/svelte/icons/plus';
 	import Markdown from './Markdown.svelte';
@@ -204,10 +205,14 @@
 			toast.error(t('copyFailed'));
 		}
 	}
-	// A conversation to ask for work (C-…): no decision on top; the item is
-	// written from it when the owner is happy.
-	const chat = $derived(discussion.thread.startsWith('C-'));
-	const SUGGEST = $derived(chat ? ['chatIdea1', 'chatIdea2', 'chatIdea3'] : ['discussWhat', 'discussRisk', 'discussRecommend']);
+	// A conversation to ask for work (C-…) or to shape the goal (CG-…) or
+	// the focus (CF-…): no decision on top; the item is written from it, or
+	// the goal or the focus drafted for the owner to review, when the owner
+	// is happy.
+	const kind = $derived(discussion.thread.startsWith('CG-') ? 'goal' : discussion.thread.startsWith('CF-') ? 'focus' : discussion.thread.startsWith('C-') ? 'item' : '');
+	const chat = $derived(kind !== '');
+	const P = $derived(kind === 'goal' ? 'chatGoal' : kind === 'focus' ? 'chatFocus' : 'chat');
+	const SUGGEST = $derived(chat ? [P + 'Idea1', P + 'Idea2', P + 'Idea3'] : ['discussWhat', 'discussRisk', 'discussRecommend']);
 	let creating = $state(false);
 	const answered = $derived(messages.some((m) => m.role !== 'owner'));
 	async function createItem() {
@@ -226,6 +231,30 @@
 			creating = false;
 		}
 	}
+	// The goal or the focus drafted from the conversation opens in its form:
+	// the owner reviews it there and sets it. The conversation stays kept.
+	async function draft() {
+		creating = true;
+		error = '';
+		try {
+			const r = await api.draftFromChat({ project: discussion.project, thread: discussion.thread });
+			const project = discussion.project;
+			discussion.open = false;
+			if (kind === 'goal') setGoal(project, r.goal);
+			else setFocus(project, r.focus, r.until);
+		} catch (e) {
+			if (!session.failed(e)) error = errorText(e);
+		} finally {
+			creating = false;
+		}
+	}
+	function byHand() {
+		const project = discussion.project;
+		discussion.open = false;
+		if (kind === 'goal') setGoal(project);
+		else if (kind === 'focus') setFocus(project);
+		else newItemByHand();
+	}
 	const stepIcon = (tool: string) => (tool === 'read' ? FileTextIcon : tool === 'search' ? SearchIcon : FolderSearchIcon);
 </script>
 
@@ -237,7 +266,7 @@
 		<header class="flex items-start gap-3 border-b px-4 py-3">
 			<span class="mt-0.5 grid size-8 shrink-0 place-items-center rounded-lg bg-st-review/15 text-st-review"><SparklesIcon class="size-4" /></span>
 			<div class="min-w-0 flex-1">
-				<Sheet.Title class="text-base">{chat ? t('chatTitle') : t('discussTitle')}</Sheet.Title>
+				<Sheet.Title class="text-base">{chat ? t(P + 'Title') : t('discussTitle')}</Sheet.Title>
 				<Sheet.Description class="num truncate text-xs">{discussion.thread} · {discussion.project}</Sheet.Description>
 			</div>
 			<Button size="icon" variant="ghost" class="hidden size-8 sm:inline-flex" onclick={() => (wide = !wide)} aria-label={wide ? t('discussNarrow') : t('discussWiden')} title={wide ? t('discussNarrow') : t('discussWiden')}>
@@ -275,7 +304,7 @@
 			<div class="mx-auto w-full max-w-3xl space-y-6 px-4 py-5 sm:px-6">
 				{#if !messages.length && !busy}
 					<div class="space-y-3 text-sm text-muted-foreground">
-						<p>{chat ? t('chatIntro', discussion.project) : t('discussIntro')}</p>
+						<p>{chat ? t(P + 'Intro', discussion.project) : t('discussIntro')}</p>
 						<div class="flex flex-wrap gap-2">
 							{#each SUGGEST as k (k)}<button class="rounded-full border bg-card px-3 py-1.5 text-xs text-foreground hover:bg-muted" onclick={() => (text = t(k))}>{t(k)}</button>{/each}
 						</div>
@@ -352,13 +381,19 @@
 				<Textarea bind:ref={input} bind:value={text} rows={3} placeholder={t('discussPlaceholder')} onkeydown={keydown} disabled={busy} class="resize-none" />
 				<div class="flex items-center justify-between gap-2">
 					{#if chat}
-						<button type="button" class="text-[11px] text-muted-foreground hover:text-foreground hover:underline" onclick={() => ((discussion.open = false), newItemByHand())}>{t('chatByHand')}</button>
+						<button type="button" class="text-[11px] text-muted-foreground hover:text-foreground hover:underline" onclick={byHand}>{t('chatByHand')}</button>
 					{:else}<p class="text-[11px] text-muted-foreground">{t('discussFooter')}</p>{/if}
 					<div class="flex gap-2">
 						{#if chat}
-							<Button type="button" size="sm" variant="secondary" disabled={busy || creating || !answered || !!session.advisorDown[discussion.project]} title={answered ? t('chatCreateHelp') : t('chatCreateFirst')} onclick={createItem}>
-								{#if creating}<Spinner class="size-3.5" />{:else}<PlusIcon />{/if}{t('chatCreate')}
-							</Button>
+							{#if kind === 'item'}
+								<Button type="button" size="sm" variant="secondary" disabled={busy || creating || !answered || !!session.advisorDown[discussion.project]} title={answered ? t('chatCreateHelp') : t('chatCreateFirst')} onclick={createItem}>
+									{#if creating}<Spinner class="size-3.5" />{:else}<PlusIcon />{/if}{t('chatCreate')}
+								</Button>
+							{:else}
+								<Button type="button" size="sm" variant="secondary" disabled={busy || creating || !answered || !!session.advisorDown[discussion.project]} title={answered ? t('chatDraftHelp') : t('chatDraftFirst')} onclick={draft}>
+									{#if creating}<Spinner class="size-3.5" />{:else}<PencilIcon />{/if}{t(P + 'Draft')}
+								</Button>
+							{/if}
 						{/if}
 						<Button type="submit" size="sm" disabled={busy || !text.trim() || !!session.advisorDown[discussion.project]}><SendIcon />{t('send')}</Button>
 					</div>

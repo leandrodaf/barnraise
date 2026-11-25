@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/leandrodaf/barnraise/internal/domain"
+	"github.com/leandrodaf/barnraise/internal/ports"
 )
 
 // What an item is doing right now, beyond its status.
@@ -57,6 +58,17 @@ type OverviewQuery struct {
 
 // PRView is an item's pull request. State is derived from the item, not
 // asked to the host: draft, ready, merged or closed.
+// ItemLinks are the item's pages outside Barnraise, for the owner to open:
+// its entry in the tracker, its pull request, its branch, its changes
+// against the main branch and, once integrated, its commit.
+type ItemLinks struct {
+	Issue   string `json:"issue,omitempty"`
+	PR      string `json:"pr,omitempty"`
+	Branch  string `json:"branch,omitempty"`
+	Compare string `json:"compare,omitempty"`
+	Commit  string `json:"commit,omitempty"`
+}
+
 type PRView struct {
 	Number int    `json:"number"`
 	URL    string `json:"url,omitempty"`
@@ -136,6 +148,7 @@ type ItemOverview struct {
 	NeedsOwner bool       `json:"needs_owner,omitempty"`
 	Column     string     `json:"column"`
 	Signal     Signal     `json:"signal"`
+	Links      ItemLinks  `json:"links"`
 	// idle is why an idle item has no session, for its signal.
 	idle Signal
 }
@@ -568,6 +581,7 @@ func itemOverview(p *Project, snap *domain.State, it *domain.Item, now time.Time
 		pr := prFromRef(it.PR)
 		io.PR = &PRView{Number: pr.Number, URL: pr.URL, State: prState(p, it)}
 	}
+	io.Links = itemLinks(p, it, io.PR)
 	io.Activity, io.Detail = itemActivity(snap, it, io, up)
 	if io.Activity == ActIdle && it.Claim != nil {
 		if why := idleWhy(p, snap, it, now); why.Kind != "" {
@@ -718,4 +732,27 @@ func idleText(why Signal) string {
 		return "the " + why.Arg + " takes it at the next pass"
 	}
 	return why.Arg
+}
+
+// itemLinks says where the item is outside Barnraise.
+func itemLinks(p *Project, it *domain.Item, pr *PRView) ItemLinks {
+	l := ItemLinks{Issue: it.TrackerURL}
+	web := p.Ports().Web
+	if web != nil && it.MergeCommit != "" {
+		l.Commit = web.Commit(it.MergeCommit)
+	}
+	if l.Issue == "" && it.TrackerRef != "" {
+		if t, ok := p.Ports().Tracker.(ports.TrackerLinks); ok {
+			l.Issue = t.RefURL(it.TrackerRef)
+		}
+	}
+	if pr != nil {
+		l.PR = pr.URL
+	}
+	if web != nil && it.MergeCommit == "" {
+		// A branch is deleted once its item lands: the commit says it then.
+		l.Branch = web.Branch(it.Branch)
+		l.Compare = web.Compare(p.Cfg().MainBranch, it.Branch)
+	}
+	return l
 }

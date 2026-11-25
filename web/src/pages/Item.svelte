@@ -9,6 +9,8 @@
 	import GitBranchIcon from '@lucide/svelte/icons/git-branch';
 	import GitPullRequestIcon from '@lucide/svelte/icons/git-pull-request';
 	import ExternalLinkIcon from '@lucide/svelte/icons/external-link';
+	import TicketIcon from '@lucide/svelte/icons/ticket';
+	import GitCompareIcon from '@lucide/svelte/icons/git-compare';
 	import HandIcon from '@lucide/svelte/icons/hand';
 	import UndoIcon from '@lucide/svelte/icons/undo-2';
 	import MessagesIcon from '@lucide/svelte/icons/messages-square';
@@ -113,6 +115,7 @@
 	{@const { it, entries, est, questions, row } = data.data!}
 	{@const tone = row ? toneOfItem(row) : 'idle'}
 	{@const sub = row ? { text: signalText(row), tone: signalTone(row) } : null}
+	{@const links = row?.links}
 	{@const holder = it.claim && (it.claim.agent || it.claim.machine) ? [it.claim.agent, it.claim.machine].filter(Boolean).join(' @ ') : ''}
 	{(document.title = it.id + ' · ' + it.title, '')}
 
@@ -300,18 +303,30 @@
 					[t('updated'), since(it.updatedAt)]
 				]} />
 			</Section>
-			{#if it.branch || it.pr}
-				<Section title={t('pr')}>
+			{#if it.branch || it.pr || it.trackerRef || links?.issue}
+				<!-- Where the item is outside Barnraise: each link opens the page. -->
+				<Section title={t('itemLinks')}>
 					<div class="num space-y-2 text-xs">
-						{#if it.branch}<p class="flex items-center gap-1.5 break-all"><GitBranchIcon class="size-3.5 shrink-0" />{it.branch}</p>{/if}
+						{#if it.trackerRef || links?.issue}
+							{#if links?.issue}<a href={links.issue} target="_blank" rel="noreferrer" class="flex items-center gap-1.5 hover:underline" title={t('openIssue')}><TicketIcon class="size-3.5 shrink-0" />{t('issueLink', it.trackerRef || links.issue)}<ExternalLinkIcon class="size-3 shrink-0" /></a>
+							{:else}<p class="flex items-center gap-1.5"><TicketIcon class="size-3.5 shrink-0" />{t('issueLink', it.trackerRef)}</p>{/if}
+						{/if}
 						{#if row?.pr?.number}
-							<a href={row.pr.url} target="_blank" rel="noreferrer" class="flex items-center gap-1.5 hover:underline"><GitPullRequestIcon class="size-3.5" />#{row.pr.number} · {row.pr.state}<ExternalLinkIcon class="size-3" /></a>
-						{:else if it.pr}<p class="flex items-center gap-1.5"><GitPullRequestIcon class="size-3.5" />{it.pr}</p>{/if}
+							<a href={row.pr.url || links?.pr} target="_blank" rel="noreferrer" class="flex items-center gap-1.5 hover:underline" title={t('openPr')}><GitPullRequestIcon class="size-3.5 shrink-0" />#{row.pr.number} · {row.pr.state}<ExternalLinkIcon class="size-3 shrink-0" /></a>
+						{:else if it.pr}<p class="flex items-center gap-1.5"><GitPullRequestIcon class="size-3.5 shrink-0" />{it.pr}</p>{/if}
+						{#if it.branch}
+							{#if links?.branch}<a href={links.branch} target="_blank" rel="noreferrer" class="flex items-center gap-1.5 break-all hover:underline" title={t('openBranch')}><GitBranchIcon class="size-3.5 shrink-0" />{it.branch}<ExternalLinkIcon class="size-3 shrink-0" /></a>
+							{:else}<p class="flex items-center gap-1.5 break-all"><GitBranchIcon class="size-3.5 shrink-0" />{it.branch}</p>{/if}
+						{/if}
+						{#if links?.compare && !row?.pr?.number}<a href={links.compare} target="_blank" rel="noreferrer" class="flex items-center gap-1.5 hover:underline"><GitCompareIcon class="size-3.5 shrink-0" />{t('openCompare')}<ExternalLinkIcon class="size-3 shrink-0" /></a>{/if}
 						{#if row?.lastReview}
 							<p class="text-muted-foreground">{t('lastReview', row.lastReview.decision, row.lastReview.reviewer, row.lastReview.findings)}</p>
 							{#if row.lastReview.criteriaVerdict || row.lastReview.codeVerdict}<p class="text-muted-foreground">{t('verdictCriteria', '')} <strong class="text-foreground">{verdict(row.lastReview.criteriaVerdict)}</strong> · {t('verdictCode', '')} <strong class="text-foreground">{verdict(row.lastReview.codeVerdict)}</strong></p>{/if}
 						{/if}
-						{#if it.mergeCommit}<p class="text-muted-foreground">{t('merged', it.mergeCommit)}</p>{/if}
+						{#if it.mergeCommit}
+							{#if links?.commit}<a href={links.commit} target="_blank" rel="noreferrer" class="flex items-center gap-1.5 text-muted-foreground hover:text-foreground hover:underline">{t('merged', it.mergeCommit)}<ExternalLinkIcon class="size-3 shrink-0" /></a>
+							{:else}<p class="text-muted-foreground">{t('merged', it.mergeCommit)}</p>{/if}
+						{/if}
 					</div>
 				</Section>
 			{/if}

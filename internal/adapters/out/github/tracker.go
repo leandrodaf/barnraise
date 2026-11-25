@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/url"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/leandrodaf/barnraise/internal/adapters/out/httpx"
@@ -20,6 +22,18 @@ var _ ports.Tracker = (*Tracker)(nil)
 
 // Name is "github".
 func (t *Tracker) Name() string { return "github" }
+
+// RefURL is the issue's web page: #17 -> https://github.com/owner/name/issues/17.
+func (t *Tracker) RefURL(ref string) string {
+	if strings.HasPrefix(ref, "https://") {
+		return ref
+	}
+	n, err := ParseRef(ref)
+	if err != nil {
+		return ""
+	}
+	return t.c.WebBase() + "/" + t.c.owner + "/" + t.c.repo + "/issues/" + strconv.Itoa(n)
+}
 
 type ghLabel struct {
 	Name string `json:"name"`

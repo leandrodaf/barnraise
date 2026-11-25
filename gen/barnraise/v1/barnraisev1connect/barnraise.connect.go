@@ -141,6 +141,9 @@ const (
 	// BarnraiseServiceSetGoalProcedure is the fully-qualified name of the BarnraiseService's SetGoal
 	// RPC.
 	BarnraiseServiceSetGoalProcedure = "/barnraise.v1.BarnraiseService/SetGoal"
+	// BarnraiseServiceDraftFromChatProcedure is the fully-qualified name of the BarnraiseService's
+	// DraftFromChat RPC.
+	BarnraiseServiceDraftFromChatProcedure = "/barnraise.v1.BarnraiseService/DraftFromChat"
 	// BarnraiseServiceSetFocusProcedure is the fully-qualified name of the BarnraiseService's SetFocus
 	// RPC.
 	BarnraiseServiceSetFocusProcedure = "/barnraise.v1.BarnraiseService/SetFocus"
@@ -322,6 +325,9 @@ type BarnraiseServiceClient interface {
 	// nothing is applied.
 	TriageProposals(context.Context, *connect.Request[v1.ProjectRef]) (*connect.Response[v1.ProposalTriageResponse], error)
 	SetGoal(context.Context, *connect.Request[v1.SetGoalRequest]) (*connect.Response[v1.SetGoalResponse], error)
+	// DraftFromChat drafts a goal (thread CG-…) or a focus (thread CF-…) from
+	// the owner's conversation with the advisor, without setting it.
+	DraftFromChat(context.Context, *connect.Request[v1.DiscussionRef]) (*connect.Response[v1.ChatDraft], error)
 	SetFocus(context.Context, *connect.Request[v1.FocusRequest]) (*connect.Response[v1.FocusResponse], error)
 	ClearFocus(context.Context, *connect.Request[v1.ProjectRef]) (*connect.Response[v1.Empty], error)
 	Pause(context.Context, *connect.Request[v1.PauseRequest]) (*connect.Response[v1.Empty], error)
@@ -611,6 +617,12 @@ func NewBarnraiseServiceClient(httpClient connect.HTTPClient, baseURL string, op
 			httpClient,
 			baseURL+BarnraiseServiceSetGoalProcedure,
 			connect.WithSchema(barnraiseServiceMethods.ByName("SetGoal")),
+			connect.WithClientOptions(opts...),
+		),
+		draftFromChat: connect.NewClient[v1.DiscussionRef, v1.ChatDraft](
+			httpClient,
+			baseURL+BarnraiseServiceDraftFromChatProcedure,
+			connect.WithSchema(barnraiseServiceMethods.ByName("DraftFromChat")),
 			connect.WithClientOptions(opts...),
 		),
 		setFocus: connect.NewClient[v1.FocusRequest, v1.FocusResponse](
@@ -922,6 +934,7 @@ type barnraiseServiceClient struct {
 	setAutopilot       *connect.Client[v1.AutopilotRequest, v1.AutopilotResponse]
 	triageProposals    *connect.Client[v1.ProjectRef, v1.ProposalTriageResponse]
 	setGoal            *connect.Client[v1.SetGoalRequest, v1.SetGoalResponse]
+	draftFromChat      *connect.Client[v1.DiscussionRef, v1.ChatDraft]
 	setFocus           *connect.Client[v1.FocusRequest, v1.FocusResponse]
 	clearFocus         *connect.Client[v1.ProjectRef, v1.Empty]
 	pause              *connect.Client[v1.PauseRequest, v1.Empty]
@@ -1137,6 +1150,11 @@ func (c *barnraiseServiceClient) TriageProposals(ctx context.Context, req *conne
 // SetGoal calls barnraise.v1.BarnraiseService.SetGoal.
 func (c *barnraiseServiceClient) SetGoal(ctx context.Context, req *connect.Request[v1.SetGoalRequest]) (*connect.Response[v1.SetGoalResponse], error) {
 	return c.setGoal.CallUnary(ctx, req)
+}
+
+// DraftFromChat calls barnraise.v1.BarnraiseService.DraftFromChat.
+func (c *barnraiseServiceClient) DraftFromChat(ctx context.Context, req *connect.Request[v1.DiscussionRef]) (*connect.Response[v1.ChatDraft], error) {
+	return c.draftFromChat.CallUnary(ctx, req)
 }
 
 // SetFocus calls barnraise.v1.BarnraiseService.SetFocus.
@@ -1419,6 +1437,9 @@ type BarnraiseServiceHandler interface {
 	// nothing is applied.
 	TriageProposals(context.Context, *connect.Request[v1.ProjectRef]) (*connect.Response[v1.ProposalTriageResponse], error)
 	SetGoal(context.Context, *connect.Request[v1.SetGoalRequest]) (*connect.Response[v1.SetGoalResponse], error)
+	// DraftFromChat drafts a goal (thread CG-…) or a focus (thread CF-…) from
+	// the owner's conversation with the advisor, without setting it.
+	DraftFromChat(context.Context, *connect.Request[v1.DiscussionRef]) (*connect.Response[v1.ChatDraft], error)
 	SetFocus(context.Context, *connect.Request[v1.FocusRequest]) (*connect.Response[v1.FocusResponse], error)
 	ClearFocus(context.Context, *connect.Request[v1.ProjectRef]) (*connect.Response[v1.Empty], error)
 	Pause(context.Context, *connect.Request[v1.PauseRequest]) (*connect.Response[v1.Empty], error)
@@ -1704,6 +1725,12 @@ func NewBarnraiseServiceHandler(svc BarnraiseServiceHandler, opts ...connect.Han
 		BarnraiseServiceSetGoalProcedure,
 		svc.SetGoal,
 		connect.WithSchema(barnraiseServiceMethods.ByName("SetGoal")),
+		connect.WithHandlerOptions(opts...),
+	)
+	barnraiseServiceDraftFromChatHandler := connect.NewUnaryHandler(
+		BarnraiseServiceDraftFromChatProcedure,
+		svc.DraftFromChat,
+		connect.WithSchema(barnraiseServiceMethods.ByName("DraftFromChat")),
 		connect.WithHandlerOptions(opts...),
 	)
 	barnraiseServiceSetFocusHandler := connect.NewUnaryHandler(
@@ -2046,6 +2073,8 @@ func NewBarnraiseServiceHandler(svc BarnraiseServiceHandler, opts ...connect.Han
 			barnraiseServiceTriageProposalsHandler.ServeHTTP(w, r)
 		case BarnraiseServiceSetGoalProcedure:
 			barnraiseServiceSetGoalHandler.ServeHTTP(w, r)
+		case BarnraiseServiceDraftFromChatProcedure:
+			barnraiseServiceDraftFromChatHandler.ServeHTTP(w, r)
 		case BarnraiseServiceSetFocusProcedure:
 			barnraiseServiceSetFocusHandler.ServeHTTP(w, r)
 		case BarnraiseServiceClearFocusProcedure:
@@ -2279,6 +2308,10 @@ func (UnimplementedBarnraiseServiceHandler) TriageProposals(context.Context, *co
 
 func (UnimplementedBarnraiseServiceHandler) SetGoal(context.Context, *connect.Request[v1.SetGoalRequest]) (*connect.Response[v1.SetGoalResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("barnraise.v1.BarnraiseService.SetGoal is not implemented"))
+}
+
+func (UnimplementedBarnraiseServiceHandler) DraftFromChat(context.Context, *connect.Request[v1.DiscussionRef]) (*connect.Response[v1.ChatDraft], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("barnraise.v1.BarnraiseService.DraftFromChat is not implemented"))
 }
 
 func (UnimplementedBarnraiseServiceHandler) SetFocus(context.Context, *connect.Request[v1.FocusRequest]) (*connect.Response[v1.FocusResponse], error) {

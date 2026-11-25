@@ -102,6 +102,16 @@ func (c *Client) Tracker() *Tracker { return &Tracker{c: c} }
 // CodeHost returns the pull request side.
 func (c *Client) CodeHost() *CodeHost { return &CodeHost{c: c} }
 
+// WebBase is the host's web address: https://github.com, or the GitHub
+// Enterprise host whose API is https://host/api/v3.
+func (c *Client) WebBase() string {
+	b := c.opts.BaseURL
+	if b == "https://api.github.com" {
+		return "https://github.com"
+	}
+	return strings.TrimSuffix(strings.TrimSuffix(b, "/v3"), "/api")
+}
+
 // NewTracker is New(opts).Tracker().
 func NewTracker(opts Options) (*Tracker, error) {
 	c, err := New(opts)

@@ -102,6 +102,8 @@ message Item {
   ChangeNote change = 41;
   // Locked files (existing tests, references) this item may change.
   repeated string unlocked = 42;
+  // The entry's web page in the tracker, when the tracker said it.
+  string tracker_url = 43;
 }
 
 message Goal {
@@ -1054,6 +1056,16 @@ message DiscussionRef {
   string thread = 2;
 }
 
+// ChatDraft is the goal or the focus the advisor drafts from the owner's
+// conversation (a thread CG-… or CF-…). Nothing is set: the owner reviews
+// it in the form and sets it.
+message ChatDraft {
+  Goal goal = 1;
+  Focus focus = 2;
+  // until: how long the focus lasts, as the form takes it (3d, 12h), or empty.
+  string until = 3;
+}
+
 message DiscussionResponse {
   repeated DiscussionMessage messages = 1;
 }
@@ -1448,6 +1460,18 @@ message ItemOverview {
   // backlog, working, needs, review, queue, blocked or done.
   string column = 59;
   Signal signal = 60;
+  // The item's pages outside Barnraise, for the owner to open.
+  ItemLinks links = 61;
+}
+
+// ItemLinks are an item's pages outside Barnraise; empty when unknown.
+message ItemLinks {
+  string issue = 1;
+  string pr = 2;
+  string branch = 3;
+  // compare: the branch's changes against the main branch.
+  string compare = 4;
+  string commit = 5;
 }
 
 // ProjectOverview is one project across the cluster.
@@ -1653,6 +1677,9 @@ service BarnraiseService {
   // nothing is applied.
   rpc TriageProposals(ProjectRef) returns (ProposalTriageResponse);
   rpc SetGoal(SetGoalRequest) returns (SetGoalResponse);
+  // DraftFromChat drafts a goal (thread CG-…) or a focus (thread CF-…) from
+  // the owner's conversation with the advisor, without setting it.
+  rpc DraftFromChat(DiscussionRef) returns (ChatDraft);
   rpc SetFocus(FocusRequest) returns (FocusResponse);
   rpc ClearFocus(ProjectRef) returns (Empty);
   rpc Pause(PauseRequest) returns (Empty);

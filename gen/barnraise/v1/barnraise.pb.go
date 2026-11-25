@@ -478,7 +478,9 @@ type Item struct {
 	Attempts        int32                  `protobuf:"varint,40,opt,name=attempts,proto3" json:"attempts,omitempty"`
 	Change          *ChangeNote            `protobuf:"bytes,41,opt,name=change,proto3" json:"change,omitempty"`
 	// Locked files (existing tests, references) this item may change.
-	Unlocked      []string `protobuf:"bytes,42,rep,name=unlocked,proto3" json:"unlocked,omitempty"`
+	Unlocked []string `protobuf:"bytes,42,rep,name=unlocked,proto3" json:"unlocked,omitempty"`
+	// The entry's web page in the tracker, when the tracker said it.
+	TrackerUrl    string `protobuf:"bytes,43,opt,name=tracker_url,json=trackerUrl,proto3" json:"tracker_url,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -805,6 +807,13 @@ func (x *Item) GetUnlocked() []string {
 		return x.Unlocked
 	}
 	return nil
+}
+
+func (x *Item) GetTrackerUrl() string {
+	if x != nil {
+		return x.TrackerUrl
+	}
+	return ""
 }
 
 type Goal struct {
@@ -9103,6 +9112,70 @@ func (x *DiscussionRef) GetThread() string {
 	return ""
 }
 
+// ChatDraft is the goal or the focus the advisor drafts from the owner's
+// conversation (a thread CG-… or CF-…). Nothing is set: the owner reviews
+// it in the form and sets it.
+type ChatDraft struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	Goal  *Goal                  `protobuf:"bytes,1,opt,name=goal,proto3" json:"goal,omitempty"`
+	Focus *Focus                 `protobuf:"bytes,2,opt,name=focus,proto3" json:"focus,omitempty"`
+	// until: how long the focus lasts, as the form takes it (3d, 12h), or empty.
+	Until         string `protobuf:"bytes,3,opt,name=until,proto3" json:"until,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ChatDraft) Reset() {
+	*x = ChatDraft{}
+	mi := &file_barnraise_v1_barnraise_proto_msgTypes[116]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ChatDraft) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ChatDraft) ProtoMessage() {}
+
+func (x *ChatDraft) ProtoReflect() protoreflect.Message {
+	mi := &file_barnraise_v1_barnraise_proto_msgTypes[116]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ChatDraft.ProtoReflect.Descriptor instead.
+func (*ChatDraft) Descriptor() ([]byte, []int) {
+	return file_barnraise_v1_barnraise_proto_rawDescGZIP(), []int{116}
+}
+
+func (x *ChatDraft) GetGoal() *Goal {
+	if x != nil {
+		return x.Goal
+	}
+	return nil
+}
+
+func (x *ChatDraft) GetFocus() *Focus {
+	if x != nil {
+		return x.Focus
+	}
+	return nil
+}
+
+func (x *ChatDraft) GetUntil() string {
+	if x != nil {
+		return x.Until
+	}
+	return ""
+}
+
 type DiscussionResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Messages      []*DiscussionMessage   `protobuf:"bytes,1,rep,name=messages,proto3" json:"messages,omitempty"`
@@ -9112,7 +9185,7 @@ type DiscussionResponse struct {
 
 func (x *DiscussionResponse) Reset() {
 	*x = DiscussionResponse{}
-	mi := &file_barnraise_v1_barnraise_proto_msgTypes[116]
+	mi := &file_barnraise_v1_barnraise_proto_msgTypes[117]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -9124,7 +9197,7 @@ func (x *DiscussionResponse) String() string {
 func (*DiscussionResponse) ProtoMessage() {}
 
 func (x *DiscussionResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_barnraise_v1_barnraise_proto_msgTypes[116]
+	mi := &file_barnraise_v1_barnraise_proto_msgTypes[117]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -9137,7 +9210,7 @@ func (x *DiscussionResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DiscussionResponse.ProtoReflect.Descriptor instead.
 func (*DiscussionResponse) Descriptor() ([]byte, []int) {
-	return file_barnraise_v1_barnraise_proto_rawDescGZIP(), []int{116}
+	return file_barnraise_v1_barnraise_proto_rawDescGZIP(), []int{117}
 }
 
 func (x *DiscussionResponse) GetMessages() []*DiscussionMessage {
@@ -9160,7 +9233,7 @@ type StandbyRequest struct {
 
 func (x *StandbyRequest) Reset() {
 	*x = StandbyRequest{}
-	mi := &file_barnraise_v1_barnraise_proto_msgTypes[117]
+	mi := &file_barnraise_v1_barnraise_proto_msgTypes[118]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -9172,7 +9245,7 @@ func (x *StandbyRequest) String() string {
 func (*StandbyRequest) ProtoMessage() {}
 
 func (x *StandbyRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_barnraise_v1_barnraise_proto_msgTypes[117]
+	mi := &file_barnraise_v1_barnraise_proto_msgTypes[118]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -9185,7 +9258,7 @@ func (x *StandbyRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StandbyRequest.ProtoReflect.Descriptor instead.
 func (*StandbyRequest) Descriptor() ([]byte, []int) {
-	return file_barnraise_v1_barnraise_proto_rawDescGZIP(), []int{117}
+	return file_barnraise_v1_barnraise_proto_rawDescGZIP(), []int{118}
 }
 
 func (x *StandbyRequest) GetOn() bool {
@@ -9222,7 +9295,7 @@ type PeerResult struct {
 
 func (x *PeerResult) Reset() {
 	*x = PeerResult{}
-	mi := &file_barnraise_v1_barnraise_proto_msgTypes[118]
+	mi := &file_barnraise_v1_barnraise_proto_msgTypes[119]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -9234,7 +9307,7 @@ func (x *PeerResult) String() string {
 func (*PeerResult) ProtoMessage() {}
 
 func (x *PeerResult) ProtoReflect() protoreflect.Message {
-	mi := &file_barnraise_v1_barnraise_proto_msgTypes[118]
+	mi := &file_barnraise_v1_barnraise_proto_msgTypes[119]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -9247,7 +9320,7 @@ func (x *PeerResult) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PeerResult.ProtoReflect.Descriptor instead.
 func (*PeerResult) Descriptor() ([]byte, []int) {
-	return file_barnraise_v1_barnraise_proto_rawDescGZIP(), []int{118}
+	return file_barnraise_v1_barnraise_proto_rawDescGZIP(), []int{119}
 }
 
 func (x *PeerResult) GetName() string {
@@ -9292,7 +9365,7 @@ type ShareProjectRequest struct {
 
 func (x *ShareProjectRequest) Reset() {
 	*x = ShareProjectRequest{}
-	mi := &file_barnraise_v1_barnraise_proto_msgTypes[119]
+	mi := &file_barnraise_v1_barnraise_proto_msgTypes[120]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -9304,7 +9377,7 @@ func (x *ShareProjectRequest) String() string {
 func (*ShareProjectRequest) ProtoMessage() {}
 
 func (x *ShareProjectRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_barnraise_v1_barnraise_proto_msgTypes[119]
+	mi := &file_barnraise_v1_barnraise_proto_msgTypes[120]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -9317,7 +9390,7 @@ func (x *ShareProjectRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ShareProjectRequest.ProtoReflect.Descriptor instead.
 func (*ShareProjectRequest) Descriptor() ([]byte, []int) {
-	return file_barnraise_v1_barnraise_proto_rawDescGZIP(), []int{119}
+	return file_barnraise_v1_barnraise_proto_rawDescGZIP(), []int{120}
 }
 
 func (x *ShareProjectRequest) GetProject() string {
@@ -9364,7 +9437,7 @@ type ShareProjectResponse struct {
 
 func (x *ShareProjectResponse) Reset() {
 	*x = ShareProjectResponse{}
-	mi := &file_barnraise_v1_barnraise_proto_msgTypes[120]
+	mi := &file_barnraise_v1_barnraise_proto_msgTypes[121]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -9376,7 +9449,7 @@ func (x *ShareProjectResponse) String() string {
 func (*ShareProjectResponse) ProtoMessage() {}
 
 func (x *ShareProjectResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_barnraise_v1_barnraise_proto_msgTypes[120]
+	mi := &file_barnraise_v1_barnraise_proto_msgTypes[121]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -9389,7 +9462,7 @@ func (x *ShareProjectResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ShareProjectResponse.ProtoReflect.Descriptor instead.
 func (*ShareProjectResponse) Descriptor() ([]byte, []int) {
-	return file_barnraise_v1_barnraise_proto_rawDescGZIP(), []int{120}
+	return file_barnraise_v1_barnraise_proto_rawDescGZIP(), []int{121}
 }
 
 func (x *ShareProjectResponse) GetMachines() []*PeerResult {
@@ -9411,7 +9484,7 @@ type MaxAgentsRequest struct {
 
 func (x *MaxAgentsRequest) Reset() {
 	*x = MaxAgentsRequest{}
-	mi := &file_barnraise_v1_barnraise_proto_msgTypes[121]
+	mi := &file_barnraise_v1_barnraise_proto_msgTypes[122]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -9423,7 +9496,7 @@ func (x *MaxAgentsRequest) String() string {
 func (*MaxAgentsRequest) ProtoMessage() {}
 
 func (x *MaxAgentsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_barnraise_v1_barnraise_proto_msgTypes[121]
+	mi := &file_barnraise_v1_barnraise_proto_msgTypes[122]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -9436,7 +9509,7 @@ func (x *MaxAgentsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MaxAgentsRequest.ProtoReflect.Descriptor instead.
 func (*MaxAgentsRequest) Descriptor() ([]byte, []int) {
-	return file_barnraise_v1_barnraise_proto_rawDescGZIP(), []int{121}
+	return file_barnraise_v1_barnraise_proto_rawDescGZIP(), []int{122}
 }
 
 func (x *MaxAgentsRequest) GetMaxAgents() int32 {
@@ -9462,7 +9535,7 @@ type MaxAgentsResponse struct {
 
 func (x *MaxAgentsResponse) Reset() {
 	*x = MaxAgentsResponse{}
-	mi := &file_barnraise_v1_barnraise_proto_msgTypes[122]
+	mi := &file_barnraise_v1_barnraise_proto_msgTypes[123]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -9474,7 +9547,7 @@ func (x *MaxAgentsResponse) String() string {
 func (*MaxAgentsResponse) ProtoMessage() {}
 
 func (x *MaxAgentsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_barnraise_v1_barnraise_proto_msgTypes[122]
+	mi := &file_barnraise_v1_barnraise_proto_msgTypes[123]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -9487,7 +9560,7 @@ func (x *MaxAgentsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MaxAgentsResponse.ProtoReflect.Descriptor instead.
 func (*MaxAgentsResponse) Descriptor() ([]byte, []int) {
-	return file_barnraise_v1_barnraise_proto_rawDescGZIP(), []int{122}
+	return file_barnraise_v1_barnraise_proto_rawDescGZIP(), []int{123}
 }
 
 func (x *MaxAgentsResponse) GetMachines() []*PeerResult {
@@ -9509,7 +9582,7 @@ type StandbyResponse struct {
 
 func (x *StandbyResponse) Reset() {
 	*x = StandbyResponse{}
-	mi := &file_barnraise_v1_barnraise_proto_msgTypes[123]
+	mi := &file_barnraise_v1_barnraise_proto_msgTypes[124]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -9521,7 +9594,7 @@ func (x *StandbyResponse) String() string {
 func (*StandbyResponse) ProtoMessage() {}
 
 func (x *StandbyResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_barnraise_v1_barnraise_proto_msgTypes[123]
+	mi := &file_barnraise_v1_barnraise_proto_msgTypes[124]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -9534,7 +9607,7 @@ func (x *StandbyResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StandbyResponse.ProtoReflect.Descriptor instead.
 func (*StandbyResponse) Descriptor() ([]byte, []int) {
-	return file_barnraise_v1_barnraise_proto_rawDescGZIP(), []int{123}
+	return file_barnraise_v1_barnraise_proto_rawDescGZIP(), []int{124}
 }
 
 func (x *StandbyResponse) GetOn() bool {
@@ -9571,7 +9644,7 @@ type CreateTokenRequest struct {
 
 func (x *CreateTokenRequest) Reset() {
 	*x = CreateTokenRequest{}
-	mi := &file_barnraise_v1_barnraise_proto_msgTypes[124]
+	mi := &file_barnraise_v1_barnraise_proto_msgTypes[125]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -9583,7 +9656,7 @@ func (x *CreateTokenRequest) String() string {
 func (*CreateTokenRequest) ProtoMessage() {}
 
 func (x *CreateTokenRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_barnraise_v1_barnraise_proto_msgTypes[124]
+	mi := &file_barnraise_v1_barnraise_proto_msgTypes[125]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -9596,7 +9669,7 @@ func (x *CreateTokenRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateTokenRequest.ProtoReflect.Descriptor instead.
 func (*CreateTokenRequest) Descriptor() ([]byte, []int) {
-	return file_barnraise_v1_barnraise_proto_rawDescGZIP(), []int{124}
+	return file_barnraise_v1_barnraise_proto_rawDescGZIP(), []int{125}
 }
 
 func (x *CreateTokenRequest) GetName() string {
@@ -9642,7 +9715,7 @@ type Token struct {
 
 func (x *Token) Reset() {
 	*x = Token{}
-	mi := &file_barnraise_v1_barnraise_proto_msgTypes[125]
+	mi := &file_barnraise_v1_barnraise_proto_msgTypes[126]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -9654,7 +9727,7 @@ func (x *Token) String() string {
 func (*Token) ProtoMessage() {}
 
 func (x *Token) ProtoReflect() protoreflect.Message {
-	mi := &file_barnraise_v1_barnraise_proto_msgTypes[125]
+	mi := &file_barnraise_v1_barnraise_proto_msgTypes[126]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -9667,7 +9740,7 @@ func (x *Token) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Token.ProtoReflect.Descriptor instead.
 func (*Token) Descriptor() ([]byte, []int) {
-	return file_barnraise_v1_barnraise_proto_rawDescGZIP(), []int{125}
+	return file_barnraise_v1_barnraise_proto_rawDescGZIP(), []int{126}
 }
 
 func (x *Token) GetId() string {
@@ -9730,7 +9803,7 @@ type CreateTokenResponse struct {
 
 func (x *CreateTokenResponse) Reset() {
 	*x = CreateTokenResponse{}
-	mi := &file_barnraise_v1_barnraise_proto_msgTypes[126]
+	mi := &file_barnraise_v1_barnraise_proto_msgTypes[127]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -9742,7 +9815,7 @@ func (x *CreateTokenResponse) String() string {
 func (*CreateTokenResponse) ProtoMessage() {}
 
 func (x *CreateTokenResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_barnraise_v1_barnraise_proto_msgTypes[126]
+	mi := &file_barnraise_v1_barnraise_proto_msgTypes[127]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -9755,7 +9828,7 @@ func (x *CreateTokenResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateTokenResponse.ProtoReflect.Descriptor instead.
 func (*CreateTokenResponse) Descriptor() ([]byte, []int) {
-	return file_barnraise_v1_barnraise_proto_rawDescGZIP(), []int{126}
+	return file_barnraise_v1_barnraise_proto_rawDescGZIP(), []int{127}
 }
 
 func (x *CreateTokenResponse) GetToken() *Token {
@@ -9781,7 +9854,7 @@ type TokensResponse struct {
 
 func (x *TokensResponse) Reset() {
 	*x = TokensResponse{}
-	mi := &file_barnraise_v1_barnraise_proto_msgTypes[127]
+	mi := &file_barnraise_v1_barnraise_proto_msgTypes[128]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -9793,7 +9866,7 @@ func (x *TokensResponse) String() string {
 func (*TokensResponse) ProtoMessage() {}
 
 func (x *TokensResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_barnraise_v1_barnraise_proto_msgTypes[127]
+	mi := &file_barnraise_v1_barnraise_proto_msgTypes[128]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -9806,7 +9879,7 @@ func (x *TokensResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TokensResponse.ProtoReflect.Descriptor instead.
 func (*TokensResponse) Descriptor() ([]byte, []int) {
-	return file_barnraise_v1_barnraise_proto_rawDescGZIP(), []int{127}
+	return file_barnraise_v1_barnraise_proto_rawDescGZIP(), []int{128}
 }
 
 func (x *TokensResponse) GetTokens() []*Token {
@@ -9825,7 +9898,7 @@ type RevokeTokenRequest struct {
 
 func (x *RevokeTokenRequest) Reset() {
 	*x = RevokeTokenRequest{}
-	mi := &file_barnraise_v1_barnraise_proto_msgTypes[128]
+	mi := &file_barnraise_v1_barnraise_proto_msgTypes[129]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -9837,7 +9910,7 @@ func (x *RevokeTokenRequest) String() string {
 func (*RevokeTokenRequest) ProtoMessage() {}
 
 func (x *RevokeTokenRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_barnraise_v1_barnraise_proto_msgTypes[128]
+	mi := &file_barnraise_v1_barnraise_proto_msgTypes[129]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -9850,7 +9923,7 @@ func (x *RevokeTokenRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RevokeTokenRequest.ProtoReflect.Descriptor instead.
 func (*RevokeTokenRequest) Descriptor() ([]byte, []int) {
-	return file_barnraise_v1_barnraise_proto_rawDescGZIP(), []int{128}
+	return file_barnraise_v1_barnraise_proto_rawDescGZIP(), []int{129}
 }
 
 func (x *RevokeTokenRequest) GetId() string {
@@ -9870,7 +9943,7 @@ type AuditRequest struct {
 
 func (x *AuditRequest) Reset() {
 	*x = AuditRequest{}
-	mi := &file_barnraise_v1_barnraise_proto_msgTypes[129]
+	mi := &file_barnraise_v1_barnraise_proto_msgTypes[130]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -9882,7 +9955,7 @@ func (x *AuditRequest) String() string {
 func (*AuditRequest) ProtoMessage() {}
 
 func (x *AuditRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_barnraise_v1_barnraise_proto_msgTypes[129]
+	mi := &file_barnraise_v1_barnraise_proto_msgTypes[130]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -9895,7 +9968,7 @@ func (x *AuditRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AuditRequest.ProtoReflect.Descriptor instead.
 func (*AuditRequest) Descriptor() ([]byte, []int) {
-	return file_barnraise_v1_barnraise_proto_rawDescGZIP(), []int{129}
+	return file_barnraise_v1_barnraise_proto_rawDescGZIP(), []int{130}
 }
 
 func (x *AuditRequest) GetProject() string {
@@ -9927,7 +10000,7 @@ type AuditEntry struct {
 
 func (x *AuditEntry) Reset() {
 	*x = AuditEntry{}
-	mi := &file_barnraise_v1_barnraise_proto_msgTypes[130]
+	mi := &file_barnraise_v1_barnraise_proto_msgTypes[131]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -9939,7 +10012,7 @@ func (x *AuditEntry) String() string {
 func (*AuditEntry) ProtoMessage() {}
 
 func (x *AuditEntry) ProtoReflect() protoreflect.Message {
-	mi := &file_barnraise_v1_barnraise_proto_msgTypes[130]
+	mi := &file_barnraise_v1_barnraise_proto_msgTypes[131]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -9952,7 +10025,7 @@ func (x *AuditEntry) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AuditEntry.ProtoReflect.Descriptor instead.
 func (*AuditEntry) Descriptor() ([]byte, []int) {
-	return file_barnraise_v1_barnraise_proto_rawDescGZIP(), []int{130}
+	return file_barnraise_v1_barnraise_proto_rawDescGZIP(), []int{131}
 }
 
 func (x *AuditEntry) GetTime() string {
@@ -10013,7 +10086,7 @@ type AuditResponse struct {
 
 func (x *AuditResponse) Reset() {
 	*x = AuditResponse{}
-	mi := &file_barnraise_v1_barnraise_proto_msgTypes[131]
+	mi := &file_barnraise_v1_barnraise_proto_msgTypes[132]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -10025,7 +10098,7 @@ func (x *AuditResponse) String() string {
 func (*AuditResponse) ProtoMessage() {}
 
 func (x *AuditResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_barnraise_v1_barnraise_proto_msgTypes[131]
+	mi := &file_barnraise_v1_barnraise_proto_msgTypes[132]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -10038,7 +10111,7 @@ func (x *AuditResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AuditResponse.ProtoReflect.Descriptor instead.
 func (*AuditResponse) Descriptor() ([]byte, []int) {
-	return file_barnraise_v1_barnraise_proto_rawDescGZIP(), []int{131}
+	return file_barnraise_v1_barnraise_proto_rawDescGZIP(), []int{132}
 }
 
 func (x *AuditResponse) GetEntries() []*AuditEntry {
@@ -10076,7 +10149,7 @@ type ProjectsResponse struct {
 
 func (x *ProjectsResponse) Reset() {
 	*x = ProjectsResponse{}
-	mi := &file_barnraise_v1_barnraise_proto_msgTypes[132]
+	mi := &file_barnraise_v1_barnraise_proto_msgTypes[133]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -10088,7 +10161,7 @@ func (x *ProjectsResponse) String() string {
 func (*ProjectsResponse) ProtoMessage() {}
 
 func (x *ProjectsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_barnraise_v1_barnraise_proto_msgTypes[132]
+	mi := &file_barnraise_v1_barnraise_proto_msgTypes[133]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -10101,7 +10174,7 @@ func (x *ProjectsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ProjectsResponse.ProtoReflect.Descriptor instead.
 func (*ProjectsResponse) Descriptor() ([]byte, []int) {
-	return file_barnraise_v1_barnraise_proto_rawDescGZIP(), []int{132}
+	return file_barnraise_v1_barnraise_proto_rawDescGZIP(), []int{133}
 }
 
 func (x *ProjectsResponse) GetProjects() []string {
@@ -10209,7 +10282,7 @@ type AutopilotRequest struct {
 
 func (x *AutopilotRequest) Reset() {
 	*x = AutopilotRequest{}
-	mi := &file_barnraise_v1_barnraise_proto_msgTypes[133]
+	mi := &file_barnraise_v1_barnraise_proto_msgTypes[134]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -10221,7 +10294,7 @@ func (x *AutopilotRequest) String() string {
 func (*AutopilotRequest) ProtoMessage() {}
 
 func (x *AutopilotRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_barnraise_v1_barnraise_proto_msgTypes[133]
+	mi := &file_barnraise_v1_barnraise_proto_msgTypes[134]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -10234,7 +10307,7 @@ func (x *AutopilotRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AutopilotRequest.ProtoReflect.Descriptor instead.
 func (*AutopilotRequest) Descriptor() ([]byte, []int) {
-	return file_barnraise_v1_barnraise_proto_rawDescGZIP(), []int{133}
+	return file_barnraise_v1_barnraise_proto_rawDescGZIP(), []int{134}
 }
 
 func (x *AutopilotRequest) GetProject() string {
@@ -10269,7 +10342,7 @@ type ProjectAutopilot struct {
 
 func (x *ProjectAutopilot) Reset() {
 	*x = ProjectAutopilot{}
-	mi := &file_barnraise_v1_barnraise_proto_msgTypes[134]
+	mi := &file_barnraise_v1_barnraise_proto_msgTypes[135]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -10281,7 +10354,7 @@ func (x *ProjectAutopilot) String() string {
 func (*ProjectAutopilot) ProtoMessage() {}
 
 func (x *ProjectAutopilot) ProtoReflect() protoreflect.Message {
-	mi := &file_barnraise_v1_barnraise_proto_msgTypes[134]
+	mi := &file_barnraise_v1_barnraise_proto_msgTypes[135]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -10294,7 +10367,7 @@ func (x *ProjectAutopilot) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ProjectAutopilot.ProtoReflect.Descriptor instead.
 func (*ProjectAutopilot) Descriptor() ([]byte, []int) {
-	return file_barnraise_v1_barnraise_proto_rawDescGZIP(), []int{134}
+	return file_barnraise_v1_barnraise_proto_rawDescGZIP(), []int{135}
 }
 
 func (x *ProjectAutopilot) GetProject() string {
@@ -10327,7 +10400,7 @@ type AutopilotResponse struct {
 
 func (x *AutopilotResponse) Reset() {
 	*x = AutopilotResponse{}
-	mi := &file_barnraise_v1_barnraise_proto_msgTypes[135]
+	mi := &file_barnraise_v1_barnraise_proto_msgTypes[136]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -10339,7 +10412,7 @@ func (x *AutopilotResponse) String() string {
 func (*AutopilotResponse) ProtoMessage() {}
 
 func (x *AutopilotResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_barnraise_v1_barnraise_proto_msgTypes[135]
+	mi := &file_barnraise_v1_barnraise_proto_msgTypes[136]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -10352,7 +10425,7 @@ func (x *AutopilotResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AutopilotResponse.ProtoReflect.Descriptor instead.
 func (*AutopilotResponse) Descriptor() ([]byte, []int) {
-	return file_barnraise_v1_barnraise_proto_rawDescGZIP(), []int{135}
+	return file_barnraise_v1_barnraise_proto_rawDescGZIP(), []int{136}
 }
 
 func (x *AutopilotResponse) GetProjects() []*ProjectAutopilot {
@@ -10377,7 +10450,7 @@ type PolicyViolationRequest struct {
 
 func (x *PolicyViolationRequest) Reset() {
 	*x = PolicyViolationRequest{}
-	mi := &file_barnraise_v1_barnraise_proto_msgTypes[136]
+	mi := &file_barnraise_v1_barnraise_proto_msgTypes[137]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -10389,7 +10462,7 @@ func (x *PolicyViolationRequest) String() string {
 func (*PolicyViolationRequest) ProtoMessage() {}
 
 func (x *PolicyViolationRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_barnraise_v1_barnraise_proto_msgTypes[136]
+	mi := &file_barnraise_v1_barnraise_proto_msgTypes[137]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -10402,7 +10475,7 @@ func (x *PolicyViolationRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PolicyViolationRequest.ProtoReflect.Descriptor instead.
 func (*PolicyViolationRequest) Descriptor() ([]byte, []int) {
-	return file_barnraise_v1_barnraise_proto_rawDescGZIP(), []int{136}
+	return file_barnraise_v1_barnraise_proto_rawDescGZIP(), []int{137}
 }
 
 func (x *PolicyViolationRequest) GetProject() string {
@@ -10467,7 +10540,7 @@ type EventsRequest struct {
 
 func (x *EventsRequest) Reset() {
 	*x = EventsRequest{}
-	mi := &file_barnraise_v1_barnraise_proto_msgTypes[137]
+	mi := &file_barnraise_v1_barnraise_proto_msgTypes[138]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -10479,7 +10552,7 @@ func (x *EventsRequest) String() string {
 func (*EventsRequest) ProtoMessage() {}
 
 func (x *EventsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_barnraise_v1_barnraise_proto_msgTypes[137]
+	mi := &file_barnraise_v1_barnraise_proto_msgTypes[138]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -10492,7 +10565,7 @@ func (x *EventsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use EventsRequest.ProtoReflect.Descriptor instead.
 func (*EventsRequest) Descriptor() ([]byte, []int) {
-	return file_barnraise_v1_barnraise_proto_rawDescGZIP(), []int{137}
+	return file_barnraise_v1_barnraise_proto_rawDescGZIP(), []int{138}
 }
 
 func (x *EventsRequest) GetProject() string {
@@ -10539,7 +10612,7 @@ type EventsResponse struct {
 
 func (x *EventsResponse) Reset() {
 	*x = EventsResponse{}
-	mi := &file_barnraise_v1_barnraise_proto_msgTypes[138]
+	mi := &file_barnraise_v1_barnraise_proto_msgTypes[139]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -10551,7 +10624,7 @@ func (x *EventsResponse) String() string {
 func (*EventsResponse) ProtoMessage() {}
 
 func (x *EventsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_barnraise_v1_barnraise_proto_msgTypes[138]
+	mi := &file_barnraise_v1_barnraise_proto_msgTypes[139]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -10564,7 +10637,7 @@ func (x *EventsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use EventsResponse.ProtoReflect.Descriptor instead.
 func (*EventsResponse) Descriptor() ([]byte, []int) {
-	return file_barnraise_v1_barnraise_proto_rawDescGZIP(), []int{138}
+	return file_barnraise_v1_barnraise_proto_rawDescGZIP(), []int{139}
 }
 
 func (x *EventsResponse) GetEvents() []*Event {
@@ -10588,7 +10661,7 @@ type RegisterProjectRequest struct {
 
 func (x *RegisterProjectRequest) Reset() {
 	*x = RegisterProjectRequest{}
-	mi := &file_barnraise_v1_barnraise_proto_msgTypes[139]
+	mi := &file_barnraise_v1_barnraise_proto_msgTypes[140]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -10600,7 +10673,7 @@ func (x *RegisterProjectRequest) String() string {
 func (*RegisterProjectRequest) ProtoMessage() {}
 
 func (x *RegisterProjectRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_barnraise_v1_barnraise_proto_msgTypes[139]
+	mi := &file_barnraise_v1_barnraise_proto_msgTypes[140]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -10613,7 +10686,7 @@ func (x *RegisterProjectRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RegisterProjectRequest.ProtoReflect.Descriptor instead.
 func (*RegisterProjectRequest) Descriptor() ([]byte, []int) {
-	return file_barnraise_v1_barnraise_proto_rawDescGZIP(), []int{139}
+	return file_barnraise_v1_barnraise_proto_rawDescGZIP(), []int{140}
 }
 
 func (x *RegisterProjectRequest) GetRoot() string {
@@ -10654,7 +10727,7 @@ type UsageTotals struct {
 
 func (x *UsageTotals) Reset() {
 	*x = UsageTotals{}
-	mi := &file_barnraise_v1_barnraise_proto_msgTypes[140]
+	mi := &file_barnraise_v1_barnraise_proto_msgTypes[141]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -10666,7 +10739,7 @@ func (x *UsageTotals) String() string {
 func (*UsageTotals) ProtoMessage() {}
 
 func (x *UsageTotals) ProtoReflect() protoreflect.Message {
-	mi := &file_barnraise_v1_barnraise_proto_msgTypes[140]
+	mi := &file_barnraise_v1_barnraise_proto_msgTypes[141]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -10679,7 +10752,7 @@ func (x *UsageTotals) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UsageTotals.ProtoReflect.Descriptor instead.
 func (*UsageTotals) Descriptor() ([]byte, []int) {
-	return file_barnraise_v1_barnraise_proto_rawDescGZIP(), []int{140}
+	return file_barnraise_v1_barnraise_proto_rawDescGZIP(), []int{141}
 }
 
 func (x *UsageTotals) GetInput() int64 {
@@ -10779,7 +10852,7 @@ type ProcInfo struct {
 
 func (x *ProcInfo) Reset() {
 	*x = ProcInfo{}
-	mi := &file_barnraise_v1_barnraise_proto_msgTypes[141]
+	mi := &file_barnraise_v1_barnraise_proto_msgTypes[142]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -10791,7 +10864,7 @@ func (x *ProcInfo) String() string {
 func (*ProcInfo) ProtoMessage() {}
 
 func (x *ProcInfo) ProtoReflect() protoreflect.Message {
-	mi := &file_barnraise_v1_barnraise_proto_msgTypes[141]
+	mi := &file_barnraise_v1_barnraise_proto_msgTypes[142]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -10804,7 +10877,7 @@ func (x *ProcInfo) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ProcInfo.ProtoReflect.Descriptor instead.
 func (*ProcInfo) Descriptor() ([]byte, []int) {
-	return file_barnraise_v1_barnraise_proto_rawDescGZIP(), []int{141}
+	return file_barnraise_v1_barnraise_proto_rawDescGZIP(), []int{142}
 }
 
 func (x *ProcInfo) GetPid() int32 {
@@ -10881,7 +10954,7 @@ type ProcSummary struct {
 
 func (x *ProcSummary) Reset() {
 	*x = ProcSummary{}
-	mi := &file_barnraise_v1_barnraise_proto_msgTypes[142]
+	mi := &file_barnraise_v1_barnraise_proto_msgTypes[143]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -10893,7 +10966,7 @@ func (x *ProcSummary) String() string {
 func (*ProcSummary) ProtoMessage() {}
 
 func (x *ProcSummary) ProtoReflect() protoreflect.Message {
-	mi := &file_barnraise_v1_barnraise_proto_msgTypes[142]
+	mi := &file_barnraise_v1_barnraise_proto_msgTypes[143]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -10906,7 +10979,7 @@ func (x *ProcSummary) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ProcSummary.ProtoReflect.Descriptor instead.
 func (*ProcSummary) Descriptor() ([]byte, []int) {
-	return file_barnraise_v1_barnraise_proto_rawDescGZIP(), []int{142}
+	return file_barnraise_v1_barnraise_proto_rawDescGZIP(), []int{143}
 }
 
 func (x *ProcSummary) GetCount() int32 {
@@ -10987,7 +11060,7 @@ type WorktreeInfo struct {
 
 func (x *WorktreeInfo) Reset() {
 	*x = WorktreeInfo{}
-	mi := &file_barnraise_v1_barnraise_proto_msgTypes[143]
+	mi := &file_barnraise_v1_barnraise_proto_msgTypes[144]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -10999,7 +11072,7 @@ func (x *WorktreeInfo) String() string {
 func (*WorktreeInfo) ProtoMessage() {}
 
 func (x *WorktreeInfo) ProtoReflect() protoreflect.Message {
-	mi := &file_barnraise_v1_barnraise_proto_msgTypes[143]
+	mi := &file_barnraise_v1_barnraise_proto_msgTypes[144]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -11012,7 +11085,7 @@ func (x *WorktreeInfo) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WorktreeInfo.ProtoReflect.Descriptor instead.
 func (*WorktreeInfo) Descriptor() ([]byte, []int) {
-	return file_barnraise_v1_barnraise_proto_rawDescGZIP(), []int{143}
+	return file_barnraise_v1_barnraise_proto_rawDescGZIP(), []int{144}
 }
 
 func (x *WorktreeInfo) GetMachine() string {
@@ -11137,7 +11210,7 @@ type CheckMark struct {
 
 func (x *CheckMark) Reset() {
 	*x = CheckMark{}
-	mi := &file_barnraise_v1_barnraise_proto_msgTypes[144]
+	mi := &file_barnraise_v1_barnraise_proto_msgTypes[145]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -11149,7 +11222,7 @@ func (x *CheckMark) String() string {
 func (*CheckMark) ProtoMessage() {}
 
 func (x *CheckMark) ProtoReflect() protoreflect.Message {
-	mi := &file_barnraise_v1_barnraise_proto_msgTypes[144]
+	mi := &file_barnraise_v1_barnraise_proto_msgTypes[145]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -11162,7 +11235,7 @@ func (x *CheckMark) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CheckMark.ProtoReflect.Descriptor instead.
 func (*CheckMark) Descriptor() ([]byte, []int) {
-	return file_barnraise_v1_barnraise_proto_rawDescGZIP(), []int{144}
+	return file_barnraise_v1_barnraise_proto_rawDescGZIP(), []int{145}
 }
 
 func (x *CheckMark) GetCheck() string {
@@ -11243,7 +11316,7 @@ type ReviewMark struct {
 
 func (x *ReviewMark) Reset() {
 	*x = ReviewMark{}
-	mi := &file_barnraise_v1_barnraise_proto_msgTypes[145]
+	mi := &file_barnraise_v1_barnraise_proto_msgTypes[146]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -11255,7 +11328,7 @@ func (x *ReviewMark) String() string {
 func (*ReviewMark) ProtoMessage() {}
 
 func (x *ReviewMark) ProtoReflect() protoreflect.Message {
-	mi := &file_barnraise_v1_barnraise_proto_msgTypes[145]
+	mi := &file_barnraise_v1_barnraise_proto_msgTypes[146]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -11268,7 +11341,7 @@ func (x *ReviewMark) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ReviewMark.ProtoReflect.Descriptor instead.
 func (*ReviewMark) Descriptor() ([]byte, []int) {
-	return file_barnraise_v1_barnraise_proto_rawDescGZIP(), []int{145}
+	return file_barnraise_v1_barnraise_proto_rawDescGZIP(), []int{146}
 }
 
 func (x *ReviewMark) GetStep() string {
@@ -11333,7 +11406,7 @@ type DeliveryMark struct {
 
 func (x *DeliveryMark) Reset() {
 	*x = DeliveryMark{}
-	mi := &file_barnraise_v1_barnraise_proto_msgTypes[146]
+	mi := &file_barnraise_v1_barnraise_proto_msgTypes[147]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -11345,7 +11418,7 @@ func (x *DeliveryMark) String() string {
 func (*DeliveryMark) ProtoMessage() {}
 
 func (x *DeliveryMark) ProtoReflect() protoreflect.Message {
-	mi := &file_barnraise_v1_barnraise_proto_msgTypes[146]
+	mi := &file_barnraise_v1_barnraise_proto_msgTypes[147]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -11358,7 +11431,7 @@ func (x *DeliveryMark) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeliveryMark.ProtoReflect.Descriptor instead.
 func (*DeliveryMark) Descriptor() ([]byte, []int) {
-	return file_barnraise_v1_barnraise_proto_rawDescGZIP(), []int{146}
+	return file_barnraise_v1_barnraise_proto_rawDescGZIP(), []int{147}
 }
 
 func (x *DeliveryMark) GetStep() string {
@@ -11408,7 +11481,7 @@ type Activity struct {
 
 func (x *Activity) Reset() {
 	*x = Activity{}
-	mi := &file_barnraise_v1_barnraise_proto_msgTypes[147]
+	mi := &file_barnraise_v1_barnraise_proto_msgTypes[148]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -11420,7 +11493,7 @@ func (x *Activity) String() string {
 func (*Activity) ProtoMessage() {}
 
 func (x *Activity) ProtoReflect() protoreflect.Message {
-	mi := &file_barnraise_v1_barnraise_proto_msgTypes[147]
+	mi := &file_barnraise_v1_barnraise_proto_msgTypes[148]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -11433,7 +11506,7 @@ func (x *Activity) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Activity.ProtoReflect.Descriptor instead.
 func (*Activity) Descriptor() ([]byte, []int) {
-	return file_barnraise_v1_barnraise_proto_rawDescGZIP(), []int{147}
+	return file_barnraise_v1_barnraise_proto_rawDescGZIP(), []int{148}
 }
 
 func (x *Activity) GetType() string {
@@ -11478,7 +11551,7 @@ type PullRequestView struct {
 
 func (x *PullRequestView) Reset() {
 	*x = PullRequestView{}
-	mi := &file_barnraise_v1_barnraise_proto_msgTypes[148]
+	mi := &file_barnraise_v1_barnraise_proto_msgTypes[149]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -11490,7 +11563,7 @@ func (x *PullRequestView) String() string {
 func (*PullRequestView) ProtoMessage() {}
 
 func (x *PullRequestView) ProtoReflect() protoreflect.Message {
-	mi := &file_barnraise_v1_barnraise_proto_msgTypes[148]
+	mi := &file_barnraise_v1_barnraise_proto_msgTypes[149]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -11503,7 +11576,7 @@ func (x *PullRequestView) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PullRequestView.ProtoReflect.Descriptor instead.
 func (*PullRequestView) Descriptor() ([]byte, []int) {
-	return file_barnraise_v1_barnraise_proto_rawDescGZIP(), []int{148}
+	return file_barnraise_v1_barnraise_proto_rawDescGZIP(), []int{149}
 }
 
 func (x *PullRequestView) GetNumber() int32 {
@@ -11542,7 +11615,7 @@ type FlowStep struct {
 
 func (x *FlowStep) Reset() {
 	*x = FlowStep{}
-	mi := &file_barnraise_v1_barnraise_proto_msgTypes[149]
+	mi := &file_barnraise_v1_barnraise_proto_msgTypes[150]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -11554,7 +11627,7 @@ func (x *FlowStep) String() string {
 func (*FlowStep) ProtoMessage() {}
 
 func (x *FlowStep) ProtoReflect() protoreflect.Message {
-	mi := &file_barnraise_v1_barnraise_proto_msgTypes[149]
+	mi := &file_barnraise_v1_barnraise_proto_msgTypes[150]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -11567,7 +11640,7 @@ func (x *FlowStep) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use FlowStep.ProtoReflect.Descriptor instead.
 func (*FlowStep) Descriptor() ([]byte, []int) {
-	return file_barnraise_v1_barnraise_proto_rawDescGZIP(), []int{149}
+	return file_barnraise_v1_barnraise_proto_rawDescGZIP(), []int{150}
 }
 
 func (x *FlowStep) GetName() string {
@@ -11606,7 +11679,7 @@ type Signal struct {
 
 func (x *Signal) Reset() {
 	*x = Signal{}
-	mi := &file_barnraise_v1_barnraise_proto_msgTypes[150]
+	mi := &file_barnraise_v1_barnraise_proto_msgTypes[151]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -11618,7 +11691,7 @@ func (x *Signal) String() string {
 func (*Signal) ProtoMessage() {}
 
 func (x *Signal) ProtoReflect() protoreflect.Message {
-	mi := &file_barnraise_v1_barnraise_proto_msgTypes[150]
+	mi := &file_barnraise_v1_barnraise_proto_msgTypes[151]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -11631,7 +11704,7 @@ func (x *Signal) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Signal.ProtoReflect.Descriptor instead.
 func (*Signal) Descriptor() ([]byte, []int) {
-	return file_barnraise_v1_barnraise_proto_rawDescGZIP(), []int{150}
+	return file_barnraise_v1_barnraise_proto_rawDescGZIP(), []int{151}
 }
 
 func (x *Signal) GetKind() string {
@@ -11718,15 +11791,17 @@ type ItemOverview struct {
 	Awaits     string      `protobuf:"bytes,57,opt,name=awaits,proto3" json:"awaits,omitempty"`
 	NeedsOwner bool        `protobuf:"varint,58,opt,name=needs_owner,json=needsOwner,proto3" json:"needs_owner,omitempty"`
 	// backlog, working, needs, review, queue, blocked or done.
-	Column        string  `protobuf:"bytes,59,opt,name=column,proto3" json:"column,omitempty"`
-	Signal        *Signal `protobuf:"bytes,60,opt,name=signal,proto3" json:"signal,omitempty"`
+	Column string  `protobuf:"bytes,59,opt,name=column,proto3" json:"column,omitempty"`
+	Signal *Signal `protobuf:"bytes,60,opt,name=signal,proto3" json:"signal,omitempty"`
+	// The item's pages outside Barnraise, for the owner to open.
+	Links         *ItemLinks `protobuf:"bytes,61,opt,name=links,proto3" json:"links,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *ItemOverview) Reset() {
 	*x = ItemOverview{}
-	mi := &file_barnraise_v1_barnraise_proto_msgTypes[151]
+	mi := &file_barnraise_v1_barnraise_proto_msgTypes[152]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -11738,7 +11813,7 @@ func (x *ItemOverview) String() string {
 func (*ItemOverview) ProtoMessage() {}
 
 func (x *ItemOverview) ProtoReflect() protoreflect.Message {
-	mi := &file_barnraise_v1_barnraise_proto_msgTypes[151]
+	mi := &file_barnraise_v1_barnraise_proto_msgTypes[152]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -11751,7 +11826,7 @@ func (x *ItemOverview) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ItemOverview.ProtoReflect.Descriptor instead.
 func (*ItemOverview) Descriptor() ([]byte, []int) {
-	return file_barnraise_v1_barnraise_proto_rawDescGZIP(), []int{151}
+	return file_barnraise_v1_barnraise_proto_rawDescGZIP(), []int{152}
 }
 
 func (x *ItemOverview) GetId() string {
@@ -12174,6 +12249,91 @@ func (x *ItemOverview) GetSignal() *Signal {
 	return nil
 }
 
+func (x *ItemOverview) GetLinks() *ItemLinks {
+	if x != nil {
+		return x.Links
+	}
+	return nil
+}
+
+// ItemLinks are an item's pages outside Barnraise; empty when unknown.
+type ItemLinks struct {
+	state  protoimpl.MessageState `protogen:"open.v1"`
+	Issue  string                 `protobuf:"bytes,1,opt,name=issue,proto3" json:"issue,omitempty"`
+	Pr     string                 `protobuf:"bytes,2,opt,name=pr,proto3" json:"pr,omitempty"`
+	Branch string                 `protobuf:"bytes,3,opt,name=branch,proto3" json:"branch,omitempty"`
+	// compare: the branch's changes against the main branch.
+	Compare       string `protobuf:"bytes,4,opt,name=compare,proto3" json:"compare,omitempty"`
+	Commit        string `protobuf:"bytes,5,opt,name=commit,proto3" json:"commit,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ItemLinks) Reset() {
+	*x = ItemLinks{}
+	mi := &file_barnraise_v1_barnraise_proto_msgTypes[153]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ItemLinks) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ItemLinks) ProtoMessage() {}
+
+func (x *ItemLinks) ProtoReflect() protoreflect.Message {
+	mi := &file_barnraise_v1_barnraise_proto_msgTypes[153]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ItemLinks.ProtoReflect.Descriptor instead.
+func (*ItemLinks) Descriptor() ([]byte, []int) {
+	return file_barnraise_v1_barnraise_proto_rawDescGZIP(), []int{153}
+}
+
+func (x *ItemLinks) GetIssue() string {
+	if x != nil {
+		return x.Issue
+	}
+	return ""
+}
+
+func (x *ItemLinks) GetPr() string {
+	if x != nil {
+		return x.Pr
+	}
+	return ""
+}
+
+func (x *ItemLinks) GetBranch() string {
+	if x != nil {
+		return x.Branch
+	}
+	return ""
+}
+
+func (x *ItemLinks) GetCompare() string {
+	if x != nil {
+		return x.Compare
+	}
+	return ""
+}
+
+func (x *ItemLinks) GetCommit() string {
+	if x != nil {
+		return x.Commit
+	}
+	return ""
+}
+
 // ProjectOverview is one project across the cluster.
 type ProjectOverview struct {
 	state     protoimpl.MessageState `protogen:"open.v1"`
@@ -12208,7 +12368,7 @@ type ProjectOverview struct {
 
 func (x *ProjectOverview) Reset() {
 	*x = ProjectOverview{}
-	mi := &file_barnraise_v1_barnraise_proto_msgTypes[152]
+	mi := &file_barnraise_v1_barnraise_proto_msgTypes[154]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -12220,7 +12380,7 @@ func (x *ProjectOverview) String() string {
 func (*ProjectOverview) ProtoMessage() {}
 
 func (x *ProjectOverview) ProtoReflect() protoreflect.Message {
-	mi := &file_barnraise_v1_barnraise_proto_msgTypes[152]
+	mi := &file_barnraise_v1_barnraise_proto_msgTypes[154]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -12233,7 +12393,7 @@ func (x *ProjectOverview) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ProjectOverview.ProtoReflect.Descriptor instead.
 func (*ProjectOverview) Descriptor() ([]byte, []int) {
-	return file_barnraise_v1_barnraise_proto_rawDescGZIP(), []int{152}
+	return file_barnraise_v1_barnraise_proto_rawDescGZIP(), []int{154}
 }
 
 func (x *ProjectOverview) GetProject() string {
@@ -12414,7 +12574,7 @@ type MachineOverview struct {
 
 func (x *MachineOverview) Reset() {
 	*x = MachineOverview{}
-	mi := &file_barnraise_v1_barnraise_proto_msgTypes[153]
+	mi := &file_barnraise_v1_barnraise_proto_msgTypes[155]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -12426,7 +12586,7 @@ func (x *MachineOverview) String() string {
 func (*MachineOverview) ProtoMessage() {}
 
 func (x *MachineOverview) ProtoReflect() protoreflect.Message {
-	mi := &file_barnraise_v1_barnraise_proto_msgTypes[153]
+	mi := &file_barnraise_v1_barnraise_proto_msgTypes[155]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -12439,7 +12599,7 @@ func (x *MachineOverview) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MachineOverview.ProtoReflect.Descriptor instead.
 func (*MachineOverview) Descriptor() ([]byte, []int) {
-	return file_barnraise_v1_barnraise_proto_rawDescGZIP(), []int{153}
+	return file_barnraise_v1_barnraise_proto_rawDescGZIP(), []int{155}
 }
 
 func (x *MachineOverview) GetMachine() *Machine {
@@ -12551,7 +12711,7 @@ type OverviewRequest struct {
 
 func (x *OverviewRequest) Reset() {
 	*x = OverviewRequest{}
-	mi := &file_barnraise_v1_barnraise_proto_msgTypes[154]
+	mi := &file_barnraise_v1_barnraise_proto_msgTypes[156]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -12563,7 +12723,7 @@ func (x *OverviewRequest) String() string {
 func (*OverviewRequest) ProtoMessage() {}
 
 func (x *OverviewRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_barnraise_v1_barnraise_proto_msgTypes[154]
+	mi := &file_barnraise_v1_barnraise_proto_msgTypes[156]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -12576,7 +12736,7 @@ func (x *OverviewRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use OverviewRequest.ProtoReflect.Descriptor instead.
 func (*OverviewRequest) Descriptor() ([]byte, []int) {
-	return file_barnraise_v1_barnraise_proto_rawDescGZIP(), []int{154}
+	return file_barnraise_v1_barnraise_proto_rawDescGZIP(), []int{156}
 }
 
 func (x *OverviewRequest) GetProject() string {
@@ -12663,7 +12823,7 @@ type OverviewResponse struct {
 
 func (x *OverviewResponse) Reset() {
 	*x = OverviewResponse{}
-	mi := &file_barnraise_v1_barnraise_proto_msgTypes[155]
+	mi := &file_barnraise_v1_barnraise_proto_msgTypes[157]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -12675,7 +12835,7 @@ func (x *OverviewResponse) String() string {
 func (*OverviewResponse) ProtoMessage() {}
 
 func (x *OverviewResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_barnraise_v1_barnraise_proto_msgTypes[155]
+	mi := &file_barnraise_v1_barnraise_proto_msgTypes[157]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -12688,7 +12848,7 @@ func (x *OverviewResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use OverviewResponse.ProtoReflect.Descriptor instead.
 func (*OverviewResponse) Descriptor() ([]byte, []int) {
-	return file_barnraise_v1_barnraise_proto_rawDescGZIP(), []int{155}
+	return file_barnraise_v1_barnraise_proto_rawDescGZIP(), []int{157}
 }
 
 func (x *OverviewResponse) GetGeneratedAt() string {
@@ -12780,7 +12940,7 @@ type CapabilitiesRequest struct {
 
 func (x *CapabilitiesRequest) Reset() {
 	*x = CapabilitiesRequest{}
-	mi := &file_barnraise_v1_barnraise_proto_msgTypes[156]
+	mi := &file_barnraise_v1_barnraise_proto_msgTypes[158]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -12792,7 +12952,7 @@ func (x *CapabilitiesRequest) String() string {
 func (*CapabilitiesRequest) ProtoMessage() {}
 
 func (x *CapabilitiesRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_barnraise_v1_barnraise_proto_msgTypes[156]
+	mi := &file_barnraise_v1_barnraise_proto_msgTypes[158]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -12805,7 +12965,7 @@ func (x *CapabilitiesRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CapabilitiesRequest.ProtoReflect.Descriptor instead.
 func (*CapabilitiesRequest) Descriptor() ([]byte, []int) {
-	return file_barnraise_v1_barnraise_proto_rawDescGZIP(), []int{156}
+	return file_barnraise_v1_barnraise_proto_rawDescGZIP(), []int{158}
 }
 
 func (x *CapabilitiesRequest) GetMachines() []string {
@@ -12856,7 +13016,7 @@ type CapabilityItem struct {
 
 func (x *CapabilityItem) Reset() {
 	*x = CapabilityItem{}
-	mi := &file_barnraise_v1_barnraise_proto_msgTypes[157]
+	mi := &file_barnraise_v1_barnraise_proto_msgTypes[159]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -12868,7 +13028,7 @@ func (x *CapabilityItem) String() string {
 func (*CapabilityItem) ProtoMessage() {}
 
 func (x *CapabilityItem) ProtoReflect() protoreflect.Message {
-	mi := &file_barnraise_v1_barnraise_proto_msgTypes[157]
+	mi := &file_barnraise_v1_barnraise_proto_msgTypes[159]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -12881,7 +13041,7 @@ func (x *CapabilityItem) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CapabilityItem.ProtoReflect.Descriptor instead.
 func (*CapabilityItem) Descriptor() ([]byte, []int) {
-	return file_barnraise_v1_barnraise_proto_rawDescGZIP(), []int{157}
+	return file_barnraise_v1_barnraise_proto_rawDescGZIP(), []int{159}
 }
 
 func (x *CapabilityItem) GetId() string {
@@ -12983,7 +13143,7 @@ type CapabilityTool struct {
 
 func (x *CapabilityTool) Reset() {
 	*x = CapabilityTool{}
-	mi := &file_barnraise_v1_barnraise_proto_msgTypes[158]
+	mi := &file_barnraise_v1_barnraise_proto_msgTypes[160]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -12995,7 +13155,7 @@ func (x *CapabilityTool) String() string {
 func (*CapabilityTool) ProtoMessage() {}
 
 func (x *CapabilityTool) ProtoReflect() protoreflect.Message {
-	mi := &file_barnraise_v1_barnraise_proto_msgTypes[158]
+	mi := &file_barnraise_v1_barnraise_proto_msgTypes[160]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -13008,7 +13168,7 @@ func (x *CapabilityTool) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CapabilityTool.ProtoReflect.Descriptor instead.
 func (*CapabilityTool) Descriptor() ([]byte, []int) {
-	return file_barnraise_v1_barnraise_proto_rawDescGZIP(), []int{158}
+	return file_barnraise_v1_barnraise_proto_rawDescGZIP(), []int{160}
 }
 
 func (x *CapabilityTool) GetId() string {
@@ -13075,7 +13235,7 @@ type MachineCapabilities struct {
 
 func (x *MachineCapabilities) Reset() {
 	*x = MachineCapabilities{}
-	mi := &file_barnraise_v1_barnraise_proto_msgTypes[159]
+	mi := &file_barnraise_v1_barnraise_proto_msgTypes[161]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -13087,7 +13247,7 @@ func (x *MachineCapabilities) String() string {
 func (*MachineCapabilities) ProtoMessage() {}
 
 func (x *MachineCapabilities) ProtoReflect() protoreflect.Message {
-	mi := &file_barnraise_v1_barnraise_proto_msgTypes[159]
+	mi := &file_barnraise_v1_barnraise_proto_msgTypes[161]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -13100,7 +13260,7 @@ func (x *MachineCapabilities) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MachineCapabilities.ProtoReflect.Descriptor instead.
 func (*MachineCapabilities) Descriptor() ([]byte, []int) {
-	return file_barnraise_v1_barnraise_proto_rawDescGZIP(), []int{159}
+	return file_barnraise_v1_barnraise_proto_rawDescGZIP(), []int{161}
 }
 
 func (x *MachineCapabilities) GetMachine() string {
@@ -13161,7 +13321,7 @@ type CapabilitiesResponse struct {
 
 func (x *CapabilitiesResponse) Reset() {
 	*x = CapabilitiesResponse{}
-	mi := &file_barnraise_v1_barnraise_proto_msgTypes[160]
+	mi := &file_barnraise_v1_barnraise_proto_msgTypes[162]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -13173,7 +13333,7 @@ func (x *CapabilitiesResponse) String() string {
 func (*CapabilitiesResponse) ProtoMessage() {}
 
 func (x *CapabilitiesResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_barnraise_v1_barnraise_proto_msgTypes[160]
+	mi := &file_barnraise_v1_barnraise_proto_msgTypes[162]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -13186,7 +13346,7 @@ func (x *CapabilitiesResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CapabilitiesResponse.ProtoReflect.Descriptor instead.
 func (*CapabilitiesResponse) Descriptor() ([]byte, []int) {
-	return file_barnraise_v1_barnraise_proto_rawDescGZIP(), []int{160}
+	return file_barnraise_v1_barnraise_proto_rawDescGZIP(), []int{162}
 }
 
 func (x *CapabilitiesResponse) GetMachines() []*MachineCapabilities {
@@ -13208,7 +13368,7 @@ type InstallToolsRequest struct {
 
 func (x *InstallToolsRequest) Reset() {
 	*x = InstallToolsRequest{}
-	mi := &file_barnraise_v1_barnraise_proto_msgTypes[161]
+	mi := &file_barnraise_v1_barnraise_proto_msgTypes[163]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -13220,7 +13380,7 @@ func (x *InstallToolsRequest) String() string {
 func (*InstallToolsRequest) ProtoMessage() {}
 
 func (x *InstallToolsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_barnraise_v1_barnraise_proto_msgTypes[161]
+	mi := &file_barnraise_v1_barnraise_proto_msgTypes[163]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -13233,7 +13393,7 @@ func (x *InstallToolsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use InstallToolsRequest.ProtoReflect.Descriptor instead.
 func (*InstallToolsRequest) Descriptor() ([]byte, []int) {
-	return file_barnraise_v1_barnraise_proto_rawDescGZIP(), []int{161}
+	return file_barnraise_v1_barnraise_proto_rawDescGZIP(), []int{163}
 }
 
 func (x *InstallToolsRequest) GetTools() []string {
@@ -13278,7 +13438,7 @@ type ToolInstallResult struct {
 
 func (x *ToolInstallResult) Reset() {
 	*x = ToolInstallResult{}
-	mi := &file_barnraise_v1_barnraise_proto_msgTypes[162]
+	mi := &file_barnraise_v1_barnraise_proto_msgTypes[164]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -13290,7 +13450,7 @@ func (x *ToolInstallResult) String() string {
 func (*ToolInstallResult) ProtoMessage() {}
 
 func (x *ToolInstallResult) ProtoReflect() protoreflect.Message {
-	mi := &file_barnraise_v1_barnraise_proto_msgTypes[162]
+	mi := &file_barnraise_v1_barnraise_proto_msgTypes[164]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -13303,7 +13463,7 @@ func (x *ToolInstallResult) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ToolInstallResult.ProtoReflect.Descriptor instead.
 func (*ToolInstallResult) Descriptor() ([]byte, []int) {
-	return file_barnraise_v1_barnraise_proto_rawDescGZIP(), []int{162}
+	return file_barnraise_v1_barnraise_proto_rawDescGZIP(), []int{164}
 }
 
 func (x *ToolInstallResult) GetMachine() string {
@@ -13357,7 +13517,7 @@ type InstallToolsResponse struct {
 
 func (x *InstallToolsResponse) Reset() {
 	*x = InstallToolsResponse{}
-	mi := &file_barnraise_v1_barnraise_proto_msgTypes[163]
+	mi := &file_barnraise_v1_barnraise_proto_msgTypes[165]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -13369,7 +13529,7 @@ func (x *InstallToolsResponse) String() string {
 func (*InstallToolsResponse) ProtoMessage() {}
 
 func (x *InstallToolsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_barnraise_v1_barnraise_proto_msgTypes[163]
+	mi := &file_barnraise_v1_barnraise_proto_msgTypes[165]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -13382,7 +13542,7 @@ func (x *InstallToolsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use InstallToolsResponse.ProtoReflect.Descriptor instead.
 func (*InstallToolsResponse) Descriptor() ([]byte, []int) {
-	return file_barnraise_v1_barnraise_proto_rawDescGZIP(), []int{163}
+	return file_barnraise_v1_barnraise_proto_rawDescGZIP(), []int{165}
 }
 
 func (x *InstallToolsResponse) GetResults() []*ToolInstallResult {
@@ -13429,7 +13589,7 @@ const file_barnraise_v1_barnraise_proto_rawDesc = "" +
 	"\aaccount\x18\x02 \x01(\tR\aaccount\x12\x1a\n" +
 	"\bprovider\x18\x03 \x01(\tR\bprovider\x12\x14\n" +
 	"\x05model\x18\x04 \x01(\tR\x05model\x12\x16\n" +
-	"\x06family\x18\x05 \x01(\tR\x06family\"\xce\n" +
+	"\x06family\x18\x05 \x01(\tR\x06family\"\xef\n" +
 	"\n" +
 	"\x04Item\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x18\n" +
@@ -13477,7 +13637,9 @@ const file_barnraise_v1_barnraise_proto_rawDesc = "" +
 	"\x04runs\x18' \x03(\v2\x1c.barnraise.v1.Item.RunsEntryR\x04runs\x12\x1a\n" +
 	"\battempts\x18( \x01(\x05R\battempts\x120\n" +
 	"\x06change\x18) \x01(\v2\x18.barnraise.v1.ChangeNoteR\x06change\x12\x1a\n" +
-	"\bunlocked\x18* \x03(\tR\bunlocked\x1aN\n" +
+	"\bunlocked\x18* \x03(\tR\bunlocked\x12\x1f\n" +
+	"\vtracker_url\x18+ \x01(\tR\n" +
+	"trackerUrl\x1aN\n" +
 	"\tRunsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12+\n" +
 	"\x05value\x18\x02 \x01(\v2\x15.barnraise.v1.StepRunR\x05value:\x028\x01\"\xdc\x01\n" +
@@ -14221,7 +14383,11 @@ const file_barnraise_v1_barnraise_proto_rawDesc = "" +
 	"\x04text\x18\x03 \x01(\tR\x04text\"A\n" +
 	"\rDiscussionRef\x12\x18\n" +
 	"\aproject\x18\x01 \x01(\tR\aproject\x12\x16\n" +
-	"\x06thread\x18\x02 \x01(\tR\x06thread\"Q\n" +
+	"\x06thread\x18\x02 \x01(\tR\x06thread\"t\n" +
+	"\tChatDraft\x12&\n" +
+	"\x04goal\x18\x01 \x01(\v2\x12.barnraise.v1.GoalR\x04goal\x12)\n" +
+	"\x05focus\x18\x02 \x01(\v2\x13.barnraise.v1.FocusR\x05focus\x12\x14\n" +
+	"\x05until\x18\x03 \x01(\tR\x05until\"Q\n" +
 	"\x12DiscussionResponse\x12;\n" +
 	"\bmessages\x18\x01 \x03(\v2\x1f.barnraise.v1.DiscussionMessageR\bmessages\"H\n" +
 	"\x0eStandbyRequest\x12\x0e\n" +
@@ -14434,7 +14600,7 @@ const file_barnraise_v1_barnraise_proto_rawDesc = "" +
 	"\x05state\x18\x03 \x01(\tR\x05state\".\n" +
 	"\x06Signal\x12\x12\n" +
 	"\x04kind\x18\x01 \x01(\tR\x04kind\x12\x10\n" +
-	"\x03arg\x18\x02 \x01(\tR\x03arg\"\x80\x15\n" +
+	"\x03arg\x18\x02 \x01(\tR\x03arg\"\xaf\x15\n" +
 	"\fItemOverview\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n" +
 	"\x05title\x18\x02 \x01(\tR\x05title\x12\x12\n" +
@@ -14504,7 +14670,8 @@ const file_barnraise_v1_barnraise_proto_rawDesc = "" +
 	"\vneeds_owner\x18: \x01(\bR\n" +
 	"needsOwner\x12\x16\n" +
 	"\x06column\x18; \x01(\tR\x06column\x12,\n" +
-	"\x06signal\x18< \x01(\v2\x14.barnraise.v1.SignalR\x06signal\x1aY\n" +
+	"\x06signal\x18< \x01(\v2\x14.barnraise.v1.SignalR\x06signal\x12-\n" +
+	"\x05links\x18= \x01(\v2\x17.barnraise.v1.ItemLinksR\x05links\x1aY\n" +
 	"\x10UsageByStepEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12/\n" +
 	"\x05value\x18\x02 \x01(\v2\x19.barnraise.v1.UsageTotalsR\x05value:\x028\x01\x1aZ\n" +
@@ -14519,7 +14686,13 @@ const file_barnraise_v1_barnraise_proto_rawDesc = "" +
 	"\x05value\x18\x02 \x01(\v2\x19.barnraise.v1.UsageTotalsR\x05value:\x028\x01\x1aN\n" +
 	"\tRunsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12+\n" +
-	"\x05value\x18\x02 \x01(\v2\x15.barnraise.v1.StepRunR\x05value:\x028\x01\"\xef\x0e\n" +
+	"\x05value\x18\x02 \x01(\v2\x15.barnraise.v1.StepRunR\x05value:\x028\x01\"{\n" +
+	"\tItemLinks\x12\x14\n" +
+	"\x05issue\x18\x01 \x01(\tR\x05issue\x12\x0e\n" +
+	"\x02pr\x18\x02 \x01(\tR\x02pr\x12\x16\n" +
+	"\x06branch\x18\x03 \x01(\tR\x06branch\x12\x18\n" +
+	"\acompare\x18\x04 \x01(\tR\acompare\x12\x16\n" +
+	"\x06commit\x18\x05 \x01(\tR\x06commit\"\xef\x0e\n" +
 	"\x0fProjectOverview\x12\x18\n" +
 	"\aproject\x18\x01 \x01(\tR\aproject\x12\x16\n" +
 	"\x06paused\x18\x02 \x01(\bR\x06paused\x12\x1d\n" +
@@ -14683,7 +14856,7 @@ const file_barnraise_v1_barnraise_proto_rawDesc = "" +
 	"\x05error\x18\x05 \x01(\tR\x05error\x12\x18\n" +
 	"\achanged\x18\x06 \x01(\bR\achanged\"Q\n" +
 	"\x14InstallToolsResponse\x129\n" +
-	"\aresults\x18\x01 \x03(\v2\x1f.barnraise.v1.ToolInstallResultR\aresults2\x83.\n" +
+	"\aresults\x18\x01 \x03(\v2\x1f.barnraise.v1.ToolInstallResultR\aresults2\xca.\n" +
 	"\x10BarnraiseService\x12C\n" +
 	"\fListProjects\x12\x13.barnraise.v1.Empty\x1a\x1e.barnraise.v1.ProjectsResponse\x12W\n" +
 	"\x0fRegisterProject\x12$.barnraise.v1.RegisterProjectRequest\x1a\x1e.barnraise.v1.ProjectsResponse\x12I\n" +
@@ -14720,7 +14893,8 @@ const file_barnraise_v1_barnraise_proto_rawDesc = "" +
 	"\bDelegate\x12\x1b.barnraise.v1.DiscussionRef\x1a .barnraise.v1.DiscussionResponse\x12O\n" +
 	"\fSetAutopilot\x12\x1e.barnraise.v1.AutopilotRequest\x1a\x1f.barnraise.v1.AutopilotResponse\x12Q\n" +
 	"\x0fTriageProposals\x12\x18.barnraise.v1.ProjectRef\x1a$.barnraise.v1.ProposalTriageResponse\x12F\n" +
-	"\aSetGoal\x12\x1c.barnraise.v1.SetGoalRequest\x1a\x1d.barnraise.v1.SetGoalResponse\x12C\n" +
+	"\aSetGoal\x12\x1c.barnraise.v1.SetGoalRequest\x1a\x1d.barnraise.v1.SetGoalResponse\x12E\n" +
+	"\rDraftFromChat\x12\x1b.barnraise.v1.DiscussionRef\x1a\x17.barnraise.v1.ChatDraft\x12C\n" +
 	"\bSetFocus\x12\x1a.barnraise.v1.FocusRequest\x1a\x1b.barnraise.v1.FocusResponse\x12;\n" +
 	"\n" +
 	"ClearFocus\x12\x18.barnraise.v1.ProjectRef\x1a\x13.barnraise.v1.Empty\x128\n" +
@@ -14784,7 +14958,7 @@ func file_barnraise_v1_barnraise_proto_rawDescGZIP() []byte {
 	return file_barnraise_v1_barnraise_proto_rawDescData
 }
 
-var file_barnraise_v1_barnraise_proto_msgTypes = make([]protoimpl.MessageInfo, 200)
+var file_barnraise_v1_barnraise_proto_msgTypes = make([]protoimpl.MessageInfo, 202)
 var file_barnraise_v1_barnraise_proto_goTypes = []any{
 	(*Criterion)(nil),              // 0: barnraise.v1.Criterion
 	(*Anchors)(nil),                // 1: barnraise.v1.Anchors
@@ -14902,98 +15076,100 @@ var file_barnraise_v1_barnraise_proto_goTypes = []any{
 	(*ProposalTriageResponse)(nil), // 113: barnraise.v1.ProposalTriageResponse
 	(*DiscussRequest)(nil),         // 114: barnraise.v1.DiscussRequest
 	(*DiscussionRef)(nil),          // 115: barnraise.v1.DiscussionRef
-	(*DiscussionResponse)(nil),     // 116: barnraise.v1.DiscussionResponse
-	(*StandbyRequest)(nil),         // 117: barnraise.v1.StandbyRequest
-	(*PeerResult)(nil),             // 118: barnraise.v1.PeerResult
-	(*ShareProjectRequest)(nil),    // 119: barnraise.v1.ShareProjectRequest
-	(*ShareProjectResponse)(nil),   // 120: barnraise.v1.ShareProjectResponse
-	(*MaxAgentsRequest)(nil),       // 121: barnraise.v1.MaxAgentsRequest
-	(*MaxAgentsResponse)(nil),      // 122: barnraise.v1.MaxAgentsResponse
-	(*StandbyResponse)(nil),        // 123: barnraise.v1.StandbyResponse
-	(*CreateTokenRequest)(nil),     // 124: barnraise.v1.CreateTokenRequest
-	(*Token)(nil),                  // 125: barnraise.v1.Token
-	(*CreateTokenResponse)(nil),    // 126: barnraise.v1.CreateTokenResponse
-	(*TokensResponse)(nil),         // 127: barnraise.v1.TokensResponse
-	(*RevokeTokenRequest)(nil),     // 128: barnraise.v1.RevokeTokenRequest
-	(*AuditRequest)(nil),           // 129: barnraise.v1.AuditRequest
-	(*AuditEntry)(nil),             // 130: barnraise.v1.AuditEntry
-	(*AuditResponse)(nil),          // 131: barnraise.v1.AuditResponse
-	(*ProjectsResponse)(nil),       // 132: barnraise.v1.ProjectsResponse
-	(*AutopilotRequest)(nil),       // 133: barnraise.v1.AutopilotRequest
-	(*ProjectAutopilot)(nil),       // 134: barnraise.v1.ProjectAutopilot
-	(*AutopilotResponse)(nil),      // 135: barnraise.v1.AutopilotResponse
-	(*PolicyViolationRequest)(nil), // 136: barnraise.v1.PolicyViolationRequest
-	(*EventsRequest)(nil),          // 137: barnraise.v1.EventsRequest
-	(*EventsResponse)(nil),         // 138: barnraise.v1.EventsResponse
-	(*RegisterProjectRequest)(nil), // 139: barnraise.v1.RegisterProjectRequest
-	(*UsageTotals)(nil),            // 140: barnraise.v1.UsageTotals
-	(*ProcInfo)(nil),               // 141: barnraise.v1.ProcInfo
-	(*ProcSummary)(nil),            // 142: barnraise.v1.ProcSummary
-	(*WorktreeInfo)(nil),           // 143: barnraise.v1.WorktreeInfo
-	(*CheckMark)(nil),              // 144: barnraise.v1.CheckMark
-	(*ReviewMark)(nil),             // 145: barnraise.v1.ReviewMark
-	(*DeliveryMark)(nil),           // 146: barnraise.v1.DeliveryMark
-	(*Activity)(nil),               // 147: barnraise.v1.Activity
-	(*PullRequestView)(nil),        // 148: barnraise.v1.PullRequestView
-	(*FlowStep)(nil),               // 149: barnraise.v1.FlowStep
-	(*Signal)(nil),                 // 150: barnraise.v1.Signal
-	(*ItemOverview)(nil),           // 151: barnraise.v1.ItemOverview
-	(*ProjectOverview)(nil),        // 152: barnraise.v1.ProjectOverview
-	(*MachineOverview)(nil),        // 153: barnraise.v1.MachineOverview
-	(*OverviewRequest)(nil),        // 154: barnraise.v1.OverviewRequest
-	(*OverviewResponse)(nil),       // 155: barnraise.v1.OverviewResponse
-	(*CapabilitiesRequest)(nil),    // 156: barnraise.v1.CapabilitiesRequest
-	(*CapabilityItem)(nil),         // 157: barnraise.v1.CapabilityItem
-	(*CapabilityTool)(nil),         // 158: barnraise.v1.CapabilityTool
-	(*MachineCapabilities)(nil),    // 159: barnraise.v1.MachineCapabilities
-	(*CapabilitiesResponse)(nil),   // 160: barnraise.v1.CapabilitiesResponse
-	(*InstallToolsRequest)(nil),    // 161: barnraise.v1.InstallToolsRequest
-	(*ToolInstallResult)(nil),      // 162: barnraise.v1.ToolInstallResult
-	(*InstallToolsResponse)(nil),   // 163: barnraise.v1.InstallToolsResponse
-	nil,                            // 164: barnraise.v1.Item.RunsEntry
-	nil,                            // 165: barnraise.v1.Machine.CapabilityCountsEntry
-	nil,                            // 166: barnraise.v1.StatusResponse.CountsEntry
-	nil,                            // 167: barnraise.v1.MetricsResponse.IntegratedByKindEntry
-	nil,                            // 168: barnraise.v1.MetricsResponse.ReworkCausesEntry
-	nil,                            // 169: barnraise.v1.MetricsResponse.TokensByModelEntry
-	nil,                            // 170: barnraise.v1.MetricsResponse.TokensByRoleEntry
-	nil,                            // 171: barnraise.v1.MetricsResponse.TokensByItemEntry
-	nil,                            // 172: barnraise.v1.MetricsResponse.StepSecondsEntry
-	nil,                            // 173: barnraise.v1.MetricsResponse.ExploreReadsByAreaEntry
-	nil,                            // 174: barnraise.v1.MetricsResponse.FixedCostRatioByAreaEntry
-	nil,                            // 175: barnraise.v1.Part.FlowsEntry
-	nil,                            // 176: barnraise.v1.Part.FlowStepsEntry
-	nil,                            // 177: barnraise.v1.Part.ColumnsEntry
-	nil,                            // 178: barnraise.v1.ProjectsResponse.AdvisorDownEntry
-	nil,                            // 179: barnraise.v1.ProcSummary.ByKindEntry
-	nil,                            // 180: barnraise.v1.ItemOverview.UsageByStepEntry
-	nil,                            // 181: barnraise.v1.ItemOverview.UsageByModelEntry
-	nil,                            // 182: barnraise.v1.ItemOverview.UsageByMachineEntry
-	nil,                            // 183: barnraise.v1.ItemOverview.UsageByRoleEntry
-	nil,                            // 184: barnraise.v1.ItemOverview.RunsEntry
-	nil,                            // 185: barnraise.v1.ProjectOverview.StatusEntry
-	nil,                            // 186: barnraise.v1.ProjectOverview.ActivityEntry
-	nil,                            // 187: barnraise.v1.ProjectOverview.UsageByModelEntry
-	nil,                            // 188: barnraise.v1.ProjectOverview.UsageByRoleEntry
-	nil,                            // 189: barnraise.v1.ProjectOverview.UsageByAccountEntry
-	nil,                            // 190: barnraise.v1.ProjectOverview.UsageByMachineEntry
-	nil,                            // 191: barnraise.v1.ProjectOverview.UsageByAgentEntry
-	nil,                            // 192: barnraise.v1.ProjectOverview.UsageByDayEntry
-	nil,                            // 193: barnraise.v1.OverviewResponse.ActivityEntry
-	nil,                            // 194: barnraise.v1.OverviewResponse.UsageByModelEntry
-	nil,                            // 195: barnraise.v1.OverviewResponse.UsageByRoleEntry
-	nil,                            // 196: barnraise.v1.OverviewResponse.UsageByAccountEntry
-	nil,                            // 197: barnraise.v1.OverviewResponse.UsageByMachineEntry
-	nil,                            // 198: barnraise.v1.OverviewResponse.UsageByDayEntry
-	nil,                            // 199: barnraise.v1.MachineCapabilities.CountsEntry
-	(*structpb.Struct)(nil),        // 200: google.protobuf.Struct
+	(*ChatDraft)(nil),              // 116: barnraise.v1.ChatDraft
+	(*DiscussionResponse)(nil),     // 117: barnraise.v1.DiscussionResponse
+	(*StandbyRequest)(nil),         // 118: barnraise.v1.StandbyRequest
+	(*PeerResult)(nil),             // 119: barnraise.v1.PeerResult
+	(*ShareProjectRequest)(nil),    // 120: barnraise.v1.ShareProjectRequest
+	(*ShareProjectResponse)(nil),   // 121: barnraise.v1.ShareProjectResponse
+	(*MaxAgentsRequest)(nil),       // 122: barnraise.v1.MaxAgentsRequest
+	(*MaxAgentsResponse)(nil),      // 123: barnraise.v1.MaxAgentsResponse
+	(*StandbyResponse)(nil),        // 124: barnraise.v1.StandbyResponse
+	(*CreateTokenRequest)(nil),     // 125: barnraise.v1.CreateTokenRequest
+	(*Token)(nil),                  // 126: barnraise.v1.Token
+	(*CreateTokenResponse)(nil),    // 127: barnraise.v1.CreateTokenResponse
+	(*TokensResponse)(nil),         // 128: barnraise.v1.TokensResponse
+	(*RevokeTokenRequest)(nil),     // 129: barnraise.v1.RevokeTokenRequest
+	(*AuditRequest)(nil),           // 130: barnraise.v1.AuditRequest
+	(*AuditEntry)(nil),             // 131: barnraise.v1.AuditEntry
+	(*AuditResponse)(nil),          // 132: barnraise.v1.AuditResponse
+	(*ProjectsResponse)(nil),       // 133: barnraise.v1.ProjectsResponse
+	(*AutopilotRequest)(nil),       // 134: barnraise.v1.AutopilotRequest
+	(*ProjectAutopilot)(nil),       // 135: barnraise.v1.ProjectAutopilot
+	(*AutopilotResponse)(nil),      // 136: barnraise.v1.AutopilotResponse
+	(*PolicyViolationRequest)(nil), // 137: barnraise.v1.PolicyViolationRequest
+	(*EventsRequest)(nil),          // 138: barnraise.v1.EventsRequest
+	(*EventsResponse)(nil),         // 139: barnraise.v1.EventsResponse
+	(*RegisterProjectRequest)(nil), // 140: barnraise.v1.RegisterProjectRequest
+	(*UsageTotals)(nil),            // 141: barnraise.v1.UsageTotals
+	(*ProcInfo)(nil),               // 142: barnraise.v1.ProcInfo
+	(*ProcSummary)(nil),            // 143: barnraise.v1.ProcSummary
+	(*WorktreeInfo)(nil),           // 144: barnraise.v1.WorktreeInfo
+	(*CheckMark)(nil),              // 145: barnraise.v1.CheckMark
+	(*ReviewMark)(nil),             // 146: barnraise.v1.ReviewMark
+	(*DeliveryMark)(nil),           // 147: barnraise.v1.DeliveryMark
+	(*Activity)(nil),               // 148: barnraise.v1.Activity
+	(*PullRequestView)(nil),        // 149: barnraise.v1.PullRequestView
+	(*FlowStep)(nil),               // 150: barnraise.v1.FlowStep
+	(*Signal)(nil),                 // 151: barnraise.v1.Signal
+	(*ItemOverview)(nil),           // 152: barnraise.v1.ItemOverview
+	(*ItemLinks)(nil),              // 153: barnraise.v1.ItemLinks
+	(*ProjectOverview)(nil),        // 154: barnraise.v1.ProjectOverview
+	(*MachineOverview)(nil),        // 155: barnraise.v1.MachineOverview
+	(*OverviewRequest)(nil),        // 156: barnraise.v1.OverviewRequest
+	(*OverviewResponse)(nil),       // 157: barnraise.v1.OverviewResponse
+	(*CapabilitiesRequest)(nil),    // 158: barnraise.v1.CapabilitiesRequest
+	(*CapabilityItem)(nil),         // 159: barnraise.v1.CapabilityItem
+	(*CapabilityTool)(nil),         // 160: barnraise.v1.CapabilityTool
+	(*MachineCapabilities)(nil),    // 161: barnraise.v1.MachineCapabilities
+	(*CapabilitiesResponse)(nil),   // 162: barnraise.v1.CapabilitiesResponse
+	(*InstallToolsRequest)(nil),    // 163: barnraise.v1.InstallToolsRequest
+	(*ToolInstallResult)(nil),      // 164: barnraise.v1.ToolInstallResult
+	(*InstallToolsResponse)(nil),   // 165: barnraise.v1.InstallToolsResponse
+	nil,                            // 166: barnraise.v1.Item.RunsEntry
+	nil,                            // 167: barnraise.v1.Machine.CapabilityCountsEntry
+	nil,                            // 168: barnraise.v1.StatusResponse.CountsEntry
+	nil,                            // 169: barnraise.v1.MetricsResponse.IntegratedByKindEntry
+	nil,                            // 170: barnraise.v1.MetricsResponse.ReworkCausesEntry
+	nil,                            // 171: barnraise.v1.MetricsResponse.TokensByModelEntry
+	nil,                            // 172: barnraise.v1.MetricsResponse.TokensByRoleEntry
+	nil,                            // 173: barnraise.v1.MetricsResponse.TokensByItemEntry
+	nil,                            // 174: barnraise.v1.MetricsResponse.StepSecondsEntry
+	nil,                            // 175: barnraise.v1.MetricsResponse.ExploreReadsByAreaEntry
+	nil,                            // 176: barnraise.v1.MetricsResponse.FixedCostRatioByAreaEntry
+	nil,                            // 177: barnraise.v1.Part.FlowsEntry
+	nil,                            // 178: barnraise.v1.Part.FlowStepsEntry
+	nil,                            // 179: barnraise.v1.Part.ColumnsEntry
+	nil,                            // 180: barnraise.v1.ProjectsResponse.AdvisorDownEntry
+	nil,                            // 181: barnraise.v1.ProcSummary.ByKindEntry
+	nil,                            // 182: barnraise.v1.ItemOverview.UsageByStepEntry
+	nil,                            // 183: barnraise.v1.ItemOverview.UsageByModelEntry
+	nil,                            // 184: barnraise.v1.ItemOverview.UsageByMachineEntry
+	nil,                            // 185: barnraise.v1.ItemOverview.UsageByRoleEntry
+	nil,                            // 186: barnraise.v1.ItemOverview.RunsEntry
+	nil,                            // 187: barnraise.v1.ProjectOverview.StatusEntry
+	nil,                            // 188: barnraise.v1.ProjectOverview.ActivityEntry
+	nil,                            // 189: barnraise.v1.ProjectOverview.UsageByModelEntry
+	nil,                            // 190: barnraise.v1.ProjectOverview.UsageByRoleEntry
+	nil,                            // 191: barnraise.v1.ProjectOverview.UsageByAccountEntry
+	nil,                            // 192: barnraise.v1.ProjectOverview.UsageByMachineEntry
+	nil,                            // 193: barnraise.v1.ProjectOverview.UsageByAgentEntry
+	nil,                            // 194: barnraise.v1.ProjectOverview.UsageByDayEntry
+	nil,                            // 195: barnraise.v1.OverviewResponse.ActivityEntry
+	nil,                            // 196: barnraise.v1.OverviewResponse.UsageByModelEntry
+	nil,                            // 197: barnraise.v1.OverviewResponse.UsageByRoleEntry
+	nil,                            // 198: barnraise.v1.OverviewResponse.UsageByAccountEntry
+	nil,                            // 199: barnraise.v1.OverviewResponse.UsageByMachineEntry
+	nil,                            // 200: barnraise.v1.OverviewResponse.UsageByDayEntry
+	nil,                            // 201: barnraise.v1.MachineCapabilities.CountsEntry
+	(*structpb.Struct)(nil),        // 202: google.protobuf.Struct
 }
 var file_barnraise_v1_barnraise_proto_depIdxs = []int32{
 	0,   // 0: barnraise.v1.Item.criteria:type_name -> barnraise.v1.Criterion
 	1,   // 1: barnraise.v1.Item.anchors:type_name -> barnraise.v1.Anchors
 	2,   // 2: barnraise.v1.Item.rework:type_name -> barnraise.v1.ReworkRecord
 	3,   // 3: barnraise.v1.Item.claim:type_name -> barnraise.v1.Claim
-	164, // 4: barnraise.v1.Item.runs:type_name -> barnraise.v1.Item.RunsEntry
+	166, // 4: barnraise.v1.Item.runs:type_name -> barnraise.v1.Item.RunsEntry
 	18,  // 5: barnraise.v1.Item.change:type_name -> barnraise.v1.ChangeNote
 	10,  // 6: barnraise.v1.ProposalGroup.proposals:type_name -> barnraise.v1.Proposal
 	13,  // 7: barnraise.v1.Question.options:type_name -> barnraise.v1.Option
@@ -15006,17 +15182,17 @@ var file_barnraise_v1_barnraise_proto_depIdxs = []int32{
 	22,  // 14: barnraise.v1.Account.usage:type_name -> barnraise.v1.Usage
 	24,  // 15: barnraise.v1.Account.outlook:type_name -> barnraise.v1.AccountOutlook
 	27,  // 16: barnraise.v1.Machine.gpus:type_name -> barnraise.v1.GpuStat
-	165, // 17: barnraise.v1.Machine.capability_counts:type_name -> barnraise.v1.Machine.CapabilityCountsEntry
-	200, // 18: barnraise.v1.Event.data:type_name -> google.protobuf.Struct
+	167, // 17: barnraise.v1.Machine.capability_counts:type_name -> barnraise.v1.Machine.CapabilityCountsEntry
+	202, // 18: barnraise.v1.Event.data:type_name -> google.protobuf.Struct
 	5,   // 19: barnraise.v1.ItemResponse.item:type_name -> barnraise.v1.Item
 	5,   // 20: barnraise.v1.ItemsResponse.items:type_name -> barnraise.v1.Item
 	0,   // 21: barnraise.v1.CreateItemRequest.criteria:type_name -> barnraise.v1.Criterion
 	1,   // 22: barnraise.v1.CreateItemRequest.anchors:type_name -> barnraise.v1.Anchors
 	5,   // 23: barnraise.v1.CreateItemResponse.item:type_name -> barnraise.v1.Item
 	10,  // 24: barnraise.v1.CreateItemResponse.proposal:type_name -> barnraise.v1.Proposal
-	200, // 25: barnraise.v1.UpdateItemRequest.patch:type_name -> google.protobuf.Struct
+	202, // 25: barnraise.v1.UpdateItemRequest.patch:type_name -> google.protobuf.Struct
 	5,   // 26: barnraise.v1.Assignment.item:type_name -> barnraise.v1.Item
-	200, // 27: barnraise.v1.Assignment.step:type_name -> google.protobuf.Struct
+	202, // 27: barnraise.v1.Assignment.step:type_name -> google.protobuf.Struct
 	17,  // 28: barnraise.v1.DeliverRequest.delivery:type_name -> barnraise.v1.Delivery
 	20,  // 29: barnraise.v1.ReviewRequest.review:type_name -> barnraise.v1.Review
 	21,  // 30: barnraise.v1.ReportCheckRequest.result:type_name -> barnraise.v1.CheckResult
@@ -15038,21 +15214,21 @@ var file_barnraise_v1_barnraise_proto_depIdxs = []int32{
 	6,   // 46: barnraise.v1.StatusResponse.goal:type_name -> barnraise.v1.Goal
 	7,   // 47: barnraise.v1.StatusResponse.progress:type_name -> barnraise.v1.GoalProgress
 	8,   // 48: barnraise.v1.StatusResponse.focus:type_name -> barnraise.v1.Focus
-	166, // 49: barnraise.v1.StatusResponse.counts:type_name -> barnraise.v1.StatusResponse.CountsEntry
+	168, // 49: barnraise.v1.StatusResponse.counts:type_name -> barnraise.v1.StatusResponse.CountsEntry
 	5,   // 50: barnraise.v1.StatusResponse.queue:type_name -> barnraise.v1.Item
 	14,  // 51: barnraise.v1.StatusResponse.waiting_owner:type_name -> barnraise.v1.Question
 	28,  // 52: barnraise.v1.StatusResponse.agents:type_name -> barnraise.v1.SessionInfo
 	25,  // 53: barnraise.v1.StatusResponse.accounts:type_name -> barnraise.v1.Account
 	26,  // 54: barnraise.v1.StatusResponse.machines:type_name -> barnraise.v1.Machine
-	167, // 55: barnraise.v1.MetricsResponse.integrated_by_kind:type_name -> barnraise.v1.MetricsResponse.IntegratedByKindEntry
-	168, // 56: barnraise.v1.MetricsResponse.rework_causes:type_name -> barnraise.v1.MetricsResponse.ReworkCausesEntry
-	169, // 57: barnraise.v1.MetricsResponse.tokens_by_model:type_name -> barnraise.v1.MetricsResponse.TokensByModelEntry
-	170, // 58: barnraise.v1.MetricsResponse.tokens_by_role:type_name -> barnraise.v1.MetricsResponse.TokensByRoleEntry
-	171, // 59: barnraise.v1.MetricsResponse.tokens_by_item:type_name -> barnraise.v1.MetricsResponse.TokensByItemEntry
-	172, // 60: barnraise.v1.MetricsResponse.step_seconds:type_name -> barnraise.v1.MetricsResponse.StepSecondsEntry
-	173, // 61: barnraise.v1.MetricsResponse.explore_reads_by_area:type_name -> barnraise.v1.MetricsResponse.ExploreReadsByAreaEntry
-	174, // 62: barnraise.v1.MetricsResponse.fixed_cost_ratio_by_area:type_name -> barnraise.v1.MetricsResponse.FixedCostRatioByAreaEntry
-	200, // 63: barnraise.v1.TimelineEntry.payload:type_name -> google.protobuf.Struct
+	169, // 55: barnraise.v1.MetricsResponse.integrated_by_kind:type_name -> barnraise.v1.MetricsResponse.IntegratedByKindEntry
+	170, // 56: barnraise.v1.MetricsResponse.rework_causes:type_name -> barnraise.v1.MetricsResponse.ReworkCausesEntry
+	171, // 57: barnraise.v1.MetricsResponse.tokens_by_model:type_name -> barnraise.v1.MetricsResponse.TokensByModelEntry
+	172, // 58: barnraise.v1.MetricsResponse.tokens_by_role:type_name -> barnraise.v1.MetricsResponse.TokensByRoleEntry
+	173, // 59: barnraise.v1.MetricsResponse.tokens_by_item:type_name -> barnraise.v1.MetricsResponse.TokensByItemEntry
+	174, // 60: barnraise.v1.MetricsResponse.step_seconds:type_name -> barnraise.v1.MetricsResponse.StepSecondsEntry
+	175, // 61: barnraise.v1.MetricsResponse.explore_reads_by_area:type_name -> barnraise.v1.MetricsResponse.ExploreReadsByAreaEntry
+	176, // 62: barnraise.v1.MetricsResponse.fixed_cost_ratio_by_area:type_name -> barnraise.v1.MetricsResponse.FixedCostRatioByAreaEntry
+	202, // 63: barnraise.v1.TimelineEntry.payload:type_name -> google.protobuf.Struct
 	67,  // 64: barnraise.v1.TimelineResponse.entries:type_name -> barnraise.v1.TimelineEntry
 	11,  // 65: barnraise.v1.DigestResponse.proposals:type_name -> barnraise.v1.ProposalGroup
 	15,  // 66: barnraise.v1.SendMessageRequest.message:type_name -> barnraise.v1.Message
@@ -15060,9 +15236,9 @@ var file_barnraise_v1_barnraise_proto_depIdxs = []int32{
 	15,  // 68: barnraise.v1.InboxResponse.messages:type_name -> barnraise.v1.Message
 	77,  // 69: barnraise.v1.ContextResponse.parts:type_name -> barnraise.v1.ContextPart
 	80,  // 70: barnraise.v1.FindResponse.hits:type_name -> barnraise.v1.SearchHit
-	200, // 71: barnraise.v1.KnowledgeResponse.result:type_name -> google.protobuf.Struct
-	200, // 72: barnraise.v1.RevalidateRequest.change:type_name -> google.protobuf.Struct
-	200, // 73: barnraise.v1.RevalidateResponse.result:type_name -> google.protobuf.Struct
+	202, // 71: barnraise.v1.KnowledgeResponse.result:type_name -> google.protobuf.Struct
+	202, // 72: barnraise.v1.RevalidateRequest.change:type_name -> google.protobuf.Struct
+	202, // 73: barnraise.v1.RevalidateResponse.result:type_name -> google.protobuf.Struct
 	5,   // 74: barnraise.v1.QueueResponse.items:type_name -> barnraise.v1.Item
 	5,   // 75: barnraise.v1.TakeoverResponse.item:type_name -> barnraise.v1.Item
 	25,  // 76: barnraise.v1.AccountRequest.account:type_name -> barnraise.v1.Account
@@ -15071,261 +15247,266 @@ var file_barnraise_v1_barnraise_proto_depIdxs = []int32{
 	93,  // 79: barnraise.v1.AccountLoginResponse.logins:type_name -> barnraise.v1.AccountLogin
 	22,  // 80: barnraise.v1.ReportUsageRequest.usage:type_name -> barnraise.v1.Usage
 	26,  // 81: barnraise.v1.MachinesResponse.machines:type_name -> barnraise.v1.Machine
-	200, // 82: barnraise.v1.MachinesResponse.sessions:type_name -> google.protobuf.Struct
+	202, // 82: barnraise.v1.MachinesResponse.sessions:type_name -> google.protobuf.Struct
 	99,  // 83: barnraise.v1.MachineSeries.samples:type_name -> barnraise.v1.MachineSample
 	100, // 84: barnraise.v1.MachineHistoryResponse.series:type_name -> barnraise.v1.MachineSeries
 	103, // 85: barnraise.v1.PeersResponse.peers:type_name -> barnraise.v1.Peer
 	106, // 86: barnraise.v1.StopPeersResponse.results:type_name -> barnraise.v1.PeerStop
-	175, // 87: barnraise.v1.Part.flows:type_name -> barnraise.v1.Part.FlowsEntry
-	176, // 88: barnraise.v1.Part.flow_steps:type_name -> barnraise.v1.Part.FlowStepsEntry
-	177, // 89: barnraise.v1.Part.columns:type_name -> barnraise.v1.Part.ColumnsEntry
-	140, // 90: barnraise.v1.Part.usage:type_name -> barnraise.v1.UsageTotals
+	177, // 87: barnraise.v1.Part.flows:type_name -> barnraise.v1.Part.FlowsEntry
+	178, // 88: barnraise.v1.Part.flow_steps:type_name -> barnraise.v1.Part.FlowStepsEntry
+	179, // 89: barnraise.v1.Part.columns:type_name -> barnraise.v1.Part.ColumnsEntry
+	141, // 90: barnraise.v1.Part.usage:type_name -> barnraise.v1.UsageTotals
 	108, // 91: barnraise.v1.PartsResponse.parts:type_name -> barnraise.v1.Part
 	112, // 92: barnraise.v1.ProposalTriageResponse.verdicts:type_name -> barnraise.v1.ProposalVerdict
-	111, // 93: barnraise.v1.DiscussionResponse.messages:type_name -> barnraise.v1.DiscussionMessage
-	118, // 94: barnraise.v1.ShareProjectResponse.machines:type_name -> barnraise.v1.PeerResult
-	118, // 95: barnraise.v1.MaxAgentsResponse.machines:type_name -> barnraise.v1.PeerResult
-	118, // 96: barnraise.v1.StandbyResponse.peers:type_name -> barnraise.v1.PeerResult
-	125, // 97: barnraise.v1.CreateTokenResponse.token:type_name -> barnraise.v1.Token
-	125, // 98: barnraise.v1.TokensResponse.tokens:type_name -> barnraise.v1.Token
-	130, // 99: barnraise.v1.AuditResponse.entries:type_name -> barnraise.v1.AuditEntry
-	178, // 100: barnraise.v1.ProjectsResponse.advisor_down:type_name -> barnraise.v1.ProjectsResponse.AdvisorDownEntry
-	134, // 101: barnraise.v1.AutopilotResponse.projects:type_name -> barnraise.v1.ProjectAutopilot
-	29,  // 102: barnraise.v1.EventsResponse.events:type_name -> barnraise.v1.Event
-	179, // 103: barnraise.v1.ProcSummary.by_kind:type_name -> barnraise.v1.ProcSummary.ByKindEntry
-	141, // 104: barnraise.v1.ProcSummary.top:type_name -> barnraise.v1.ProcInfo
-	142, // 105: barnraise.v1.WorktreeInfo.procs:type_name -> barnraise.v1.ProcSummary
-	3,   // 106: barnraise.v1.ItemOverview.claim:type_name -> barnraise.v1.Claim
-	148, // 107: barnraise.v1.ItemOverview.pr:type_name -> barnraise.v1.PullRequestView
-	28,  // 108: barnraise.v1.ItemOverview.sessions:type_name -> barnraise.v1.SessionInfo
-	143, // 109: barnraise.v1.ItemOverview.worktrees:type_name -> barnraise.v1.WorktreeInfo
-	142, // 110: barnraise.v1.ItemOverview.procs:type_name -> barnraise.v1.ProcSummary
-	140, // 111: barnraise.v1.ItemOverview.usage:type_name -> barnraise.v1.UsageTotals
-	180, // 112: barnraise.v1.ItemOverview.usage_by_step:type_name -> barnraise.v1.ItemOverview.UsageByStepEntry
-	181, // 113: barnraise.v1.ItemOverview.usage_by_model:type_name -> barnraise.v1.ItemOverview.UsageByModelEntry
-	182, // 114: barnraise.v1.ItemOverview.usage_by_machine:type_name -> barnraise.v1.ItemOverview.UsageByMachineEntry
-	183, // 115: barnraise.v1.ItemOverview.usage_by_role:type_name -> barnraise.v1.ItemOverview.UsageByRoleEntry
-	184, // 116: barnraise.v1.ItemOverview.runs:type_name -> barnraise.v1.ItemOverview.RunsEntry
-	144, // 117: barnraise.v1.ItemOverview.checks:type_name -> barnraise.v1.CheckMark
-	145, // 118: barnraise.v1.ItemOverview.last_review:type_name -> barnraise.v1.ReviewMark
-	146, // 119: barnraise.v1.ItemOverview.last_delivery:type_name -> barnraise.v1.DeliveryMark
-	147, // 120: barnraise.v1.ItemOverview.last_activity:type_name -> barnraise.v1.Activity
-	149, // 121: barnraise.v1.ItemOverview.flow:type_name -> barnraise.v1.FlowStep
-	150, // 122: barnraise.v1.ItemOverview.signal:type_name -> barnraise.v1.Signal
-	6,   // 123: barnraise.v1.ProjectOverview.goal:type_name -> barnraise.v1.Goal
-	7,   // 124: barnraise.v1.ProjectOverview.progress:type_name -> barnraise.v1.GoalProgress
-	8,   // 125: barnraise.v1.ProjectOverview.focus:type_name -> barnraise.v1.Focus
-	185, // 126: barnraise.v1.ProjectOverview.status:type_name -> barnraise.v1.ProjectOverview.StatusEntry
-	186, // 127: barnraise.v1.ProjectOverview.activity:type_name -> barnraise.v1.ProjectOverview.ActivityEntry
-	151, // 128: barnraise.v1.ProjectOverview.items:type_name -> barnraise.v1.ItemOverview
-	140, // 129: barnraise.v1.ProjectOverview.usage:type_name -> barnraise.v1.UsageTotals
-	187, // 130: barnraise.v1.ProjectOverview.usage_by_model:type_name -> barnraise.v1.ProjectOverview.UsageByModelEntry
-	188, // 131: barnraise.v1.ProjectOverview.usage_by_role:type_name -> barnraise.v1.ProjectOverview.UsageByRoleEntry
-	189, // 132: barnraise.v1.ProjectOverview.usage_by_account:type_name -> barnraise.v1.ProjectOverview.UsageByAccountEntry
-	190, // 133: barnraise.v1.ProjectOverview.usage_by_machine:type_name -> barnraise.v1.ProjectOverview.UsageByMachineEntry
-	191, // 134: barnraise.v1.ProjectOverview.usage_by_agent:type_name -> barnraise.v1.ProjectOverview.UsageByAgentEntry
-	192, // 135: barnraise.v1.ProjectOverview.usage_by_day:type_name -> barnraise.v1.ProjectOverview.UsageByDayEntry
-	25,  // 136: barnraise.v1.ProjectOverview.accounts:type_name -> barnraise.v1.Account
-	26,  // 137: barnraise.v1.MachineOverview.machine:type_name -> barnraise.v1.Machine
-	28,  // 138: barnraise.v1.MachineOverview.sessions:type_name -> barnraise.v1.SessionInfo
-	143, // 139: barnraise.v1.MachineOverview.worktrees:type_name -> barnraise.v1.WorktreeInfo
-	142, // 140: barnraise.v1.MachineOverview.procs:type_name -> barnraise.v1.ProcSummary
-	140, // 141: barnraise.v1.MachineOverview.usage:type_name -> barnraise.v1.UsageTotals
-	152, // 142: barnraise.v1.OverviewResponse.projects:type_name -> barnraise.v1.ProjectOverview
-	153, // 143: barnraise.v1.OverviewResponse.machines:type_name -> barnraise.v1.MachineOverview
-	193, // 144: barnraise.v1.OverviewResponse.activity:type_name -> barnraise.v1.OverviewResponse.ActivityEntry
-	140, // 145: barnraise.v1.OverviewResponse.usage:type_name -> barnraise.v1.UsageTotals
-	194, // 146: barnraise.v1.OverviewResponse.usage_by_model:type_name -> barnraise.v1.OverviewResponse.UsageByModelEntry
-	195, // 147: barnraise.v1.OverviewResponse.usage_by_role:type_name -> barnraise.v1.OverviewResponse.UsageByRoleEntry
-	196, // 148: barnraise.v1.OverviewResponse.usage_by_account:type_name -> barnraise.v1.OverviewResponse.UsageByAccountEntry
-	197, // 149: barnraise.v1.OverviewResponse.usage_by_machine:type_name -> barnraise.v1.OverviewResponse.UsageByMachineEntry
-	198, // 150: barnraise.v1.OverviewResponse.usage_by_day:type_name -> barnraise.v1.OverviewResponse.UsageByDayEntry
-	157, // 151: barnraise.v1.MachineCapabilities.items:type_name -> barnraise.v1.CapabilityItem
-	158, // 152: barnraise.v1.MachineCapabilities.tools:type_name -> barnraise.v1.CapabilityTool
-	199, // 153: barnraise.v1.MachineCapabilities.counts:type_name -> barnraise.v1.MachineCapabilities.CountsEntry
-	159, // 154: barnraise.v1.CapabilitiesResponse.machines:type_name -> barnraise.v1.MachineCapabilities
-	162, // 155: barnraise.v1.InstallToolsResponse.results:type_name -> barnraise.v1.ToolInstallResult
-	4,   // 156: barnraise.v1.Item.RunsEntry.value:type_name -> barnraise.v1.StepRun
-	109, // 157: barnraise.v1.Part.FlowStepsEntry.value:type_name -> barnraise.v1.FlowSteps
-	140, // 158: barnraise.v1.ItemOverview.UsageByStepEntry.value:type_name -> barnraise.v1.UsageTotals
-	140, // 159: barnraise.v1.ItemOverview.UsageByModelEntry.value:type_name -> barnraise.v1.UsageTotals
-	140, // 160: barnraise.v1.ItemOverview.UsageByMachineEntry.value:type_name -> barnraise.v1.UsageTotals
-	140, // 161: barnraise.v1.ItemOverview.UsageByRoleEntry.value:type_name -> barnraise.v1.UsageTotals
-	4,   // 162: barnraise.v1.ItemOverview.RunsEntry.value:type_name -> barnraise.v1.StepRun
-	140, // 163: barnraise.v1.ProjectOverview.UsageByModelEntry.value:type_name -> barnraise.v1.UsageTotals
-	140, // 164: barnraise.v1.ProjectOverview.UsageByRoleEntry.value:type_name -> barnraise.v1.UsageTotals
-	140, // 165: barnraise.v1.ProjectOverview.UsageByAccountEntry.value:type_name -> barnraise.v1.UsageTotals
-	140, // 166: barnraise.v1.ProjectOverview.UsageByMachineEntry.value:type_name -> barnraise.v1.UsageTotals
-	140, // 167: barnraise.v1.ProjectOverview.UsageByAgentEntry.value:type_name -> barnraise.v1.UsageTotals
-	140, // 168: barnraise.v1.ProjectOverview.UsageByDayEntry.value:type_name -> barnraise.v1.UsageTotals
-	140, // 169: barnraise.v1.OverviewResponse.UsageByModelEntry.value:type_name -> barnraise.v1.UsageTotals
-	140, // 170: barnraise.v1.OverviewResponse.UsageByRoleEntry.value:type_name -> barnraise.v1.UsageTotals
-	140, // 171: barnraise.v1.OverviewResponse.UsageByAccountEntry.value:type_name -> barnraise.v1.UsageTotals
-	140, // 172: barnraise.v1.OverviewResponse.UsageByMachineEntry.value:type_name -> barnraise.v1.UsageTotals
-	140, // 173: barnraise.v1.OverviewResponse.UsageByDayEntry.value:type_name -> barnraise.v1.UsageTotals
-	58,  // 174: barnraise.v1.BarnraiseService.ListProjects:input_type -> barnraise.v1.Empty
-	139, // 175: barnraise.v1.BarnraiseService.RegisterProject:input_type -> barnraise.v1.RegisterProjectRequest
-	30,  // 176: barnraise.v1.BarnraiseService.ReloadProject:input_type -> barnraise.v1.ProjectRef
-	35,  // 177: barnraise.v1.BarnraiseService.CreateItem:input_type -> barnraise.v1.CreateItemRequest
-	115, // 178: barnraise.v1.BarnraiseService.CreateItemFromChat:input_type -> barnraise.v1.DiscussionRef
-	31,  // 179: barnraise.v1.BarnraiseService.GetItem:input_type -> barnraise.v1.ItemRef
-	37,  // 180: barnraise.v1.BarnraiseService.ListItems:input_type -> barnraise.v1.ListItemsRequest
-	38,  // 181: barnraise.v1.BarnraiseService.UpdateItem:input_type -> barnraise.v1.UpdateItemRequest
-	32,  // 182: barnraise.v1.BarnraiseService.UnlockFiles:input_type -> barnraise.v1.UnlockFilesRequest
-	39,  // 183: barnraise.v1.BarnraiseService.CloseItem:input_type -> barnraise.v1.CloseItemRequest
-	40,  // 184: barnraise.v1.BarnraiseService.NextItem:input_type -> barnraise.v1.NextItemRequest
-	42,  // 185: barnraise.v1.BarnraiseService.Deliver:input_type -> barnraise.v1.DeliverRequest
-	43,  // 186: barnraise.v1.BarnraiseService.SubmitReview:input_type -> barnraise.v1.ReviewRequest
-	44,  // 187: barnraise.v1.BarnraiseService.ReportCheck:input_type -> barnraise.v1.ReportCheckRequest
-	31,  // 188: barnraise.v1.BarnraiseService.Timeline:input_type -> barnraise.v1.ItemRef
-	31,  // 189: barnraise.v1.BarnraiseService.Estimate:input_type -> barnraise.v1.ItemRef
-	31,  // 190: barnraise.v1.BarnraiseService.Takeover:input_type -> barnraise.v1.ItemRef
-	88,  // 191: barnraise.v1.BarnraiseService.Handback:input_type -> barnraise.v1.HandbackRequest
-	89,  // 192: barnraise.v1.BarnraiseService.Redo:input_type -> barnraise.v1.RedoRequest
-	45,  // 193: barnraise.v1.BarnraiseService.Propose:input_type -> barnraise.v1.ProposeRequest
-	47,  // 194: barnraise.v1.BarnraiseService.ListProposals:input_type -> barnraise.v1.ListProposalsRequest
-	49,  // 195: barnraise.v1.BarnraiseService.DecideProposal:input_type -> barnraise.v1.DecideProposalRequest
-	51,  // 196: barnraise.v1.BarnraiseService.AddTweak:input_type -> barnraise.v1.AddTweakRequest
-	53,  // 197: barnraise.v1.BarnraiseService.AskOwner:input_type -> barnraise.v1.AskOwnerRequest
-	30,  // 198: barnraise.v1.BarnraiseService.ListQuestions:input_type -> barnraise.v1.ProjectRef
-	56,  // 199: barnraise.v1.BarnraiseService.Answer:input_type -> barnraise.v1.AnswerRequest
-	57,  // 200: barnraise.v1.BarnraiseService.Approve:input_type -> barnraise.v1.ApproveRequest
-	114, // 201: barnraise.v1.BarnraiseService.Discuss:input_type -> barnraise.v1.DiscussRequest
-	30,  // 202: barnraise.v1.BarnraiseService.ListParts:input_type -> barnraise.v1.ProjectRef
-	115, // 203: barnraise.v1.BarnraiseService.GetDiscussion:input_type -> barnraise.v1.DiscussionRef
-	115, // 204: barnraise.v1.BarnraiseService.Delegate:input_type -> barnraise.v1.DiscussionRef
-	133, // 205: barnraise.v1.BarnraiseService.SetAutopilot:input_type -> barnraise.v1.AutopilotRequest
-	30,  // 206: barnraise.v1.BarnraiseService.TriageProposals:input_type -> barnraise.v1.ProjectRef
-	59,  // 207: barnraise.v1.BarnraiseService.SetGoal:input_type -> barnraise.v1.SetGoalRequest
-	61,  // 208: barnraise.v1.BarnraiseService.SetFocus:input_type -> barnraise.v1.FocusRequest
-	30,  // 209: barnraise.v1.BarnraiseService.ClearFocus:input_type -> barnraise.v1.ProjectRef
-	63,  // 210: barnraise.v1.BarnraiseService.Pause:input_type -> barnraise.v1.PauseRequest
-	30,  // 211: barnraise.v1.BarnraiseService.Resume:input_type -> barnraise.v1.ProjectRef
-	30,  // 212: barnraise.v1.BarnraiseService.Status:input_type -> barnraise.v1.ProjectRef
-	154, // 213: barnraise.v1.BarnraiseService.Overview:input_type -> barnraise.v1.OverviewRequest
-	65,  // 214: barnraise.v1.BarnraiseService.Metrics:input_type -> barnraise.v1.MetricsRequest
-	30,  // 215: barnraise.v1.BarnraiseService.Digest:input_type -> barnraise.v1.ProjectRef
-	30,  // 216: barnraise.v1.BarnraiseService.Queue:input_type -> barnraise.v1.ProjectRef
-	30,  // 217: barnraise.v1.BarnraiseService.ProcessQueue:input_type -> barnraise.v1.ProjectRef
-	137, // 218: barnraise.v1.BarnraiseService.ListEvents:input_type -> barnraise.v1.EventsRequest
-	71,  // 219: barnraise.v1.BarnraiseService.SendMessage:input_type -> barnraise.v1.SendMessageRequest
-	73,  // 220: barnraise.v1.BarnraiseService.Inbox:input_type -> barnraise.v1.InboxRequest
-	75,  // 221: barnraise.v1.BarnraiseService.Journal:input_type -> barnraise.v1.JournalRequest
-	136, // 222: barnraise.v1.BarnraiseService.ReportViolation:input_type -> barnraise.v1.PolicyViolationRequest
-	76,  // 223: barnraise.v1.BarnraiseService.Context:input_type -> barnraise.v1.ContextRequest
-	79,  // 224: barnraise.v1.BarnraiseService.Find:input_type -> barnraise.v1.FindRequest
-	82,  // 225: barnraise.v1.BarnraiseService.Get:input_type -> barnraise.v1.KnowledgeRequest
-	82,  // 226: barnraise.v1.BarnraiseService.Related:input_type -> barnraise.v1.KnowledgeRequest
-	82,  // 227: barnraise.v1.BarnraiseService.Why:input_type -> barnraise.v1.KnowledgeRequest
-	82,  // 228: barnraise.v1.BarnraiseService.History:input_type -> barnraise.v1.KnowledgeRequest
-	82,  // 229: barnraise.v1.BarnraiseService.Rules:input_type -> barnraise.v1.KnowledgeRequest
-	84,  // 230: barnraise.v1.BarnraiseService.Revalidate:input_type -> barnraise.v1.RevalidateRequest
-	30,  // 231: barnraise.v1.BarnraiseService.Sweep:input_type -> barnraise.v1.ProjectRef
-	90,  // 232: barnraise.v1.BarnraiseService.UpsertAccount:input_type -> barnraise.v1.AccountRequest
-	30,  // 233: barnraise.v1.BarnraiseService.ListAccounts:input_type -> barnraise.v1.ProjectRef
-	94,  // 234: barnraise.v1.BarnraiseService.StartAccountLogin:input_type -> barnraise.v1.AccountLoginRequest
-	94,  // 235: barnraise.v1.BarnraiseService.GetAccountLogin:input_type -> barnraise.v1.AccountLoginRequest
-	94,  // 236: barnraise.v1.BarnraiseService.AnswerAccountLogin:input_type -> barnraise.v1.AccountLoginRequest
-	94,  // 237: barnraise.v1.BarnraiseService.CancelAccountLogin:input_type -> barnraise.v1.AccountLoginRequest
-	96,  // 238: barnraise.v1.BarnraiseService.ReportUsage:input_type -> barnraise.v1.ReportUsageRequest
-	30,  // 239: barnraise.v1.BarnraiseService.ListMachines:input_type -> barnraise.v1.ProjectRef
-	98,  // 240: barnraise.v1.BarnraiseService.MachineHistory:input_type -> barnraise.v1.MachineHistoryRequest
-	30,  // 241: barnraise.v1.BarnraiseService.LeaveMachine:input_type -> barnraise.v1.ProjectRef
-	58,  // 242: barnraise.v1.BarnraiseService.ListPeers:input_type -> barnraise.v1.Empty
-	105, // 243: barnraise.v1.BarnraiseService.StopPeers:input_type -> barnraise.v1.StopPeersRequest
-	117, // 244: barnraise.v1.BarnraiseService.SetStandby:input_type -> barnraise.v1.StandbyRequest
-	121, // 245: barnraise.v1.BarnraiseService.SetMaxAgents:input_type -> barnraise.v1.MaxAgentsRequest
-	119, // 246: barnraise.v1.BarnraiseService.ShareProject:input_type -> barnraise.v1.ShareProjectRequest
-	156, // 247: barnraise.v1.BarnraiseService.Capabilities:input_type -> barnraise.v1.CapabilitiesRequest
-	161, // 248: barnraise.v1.BarnraiseService.InstallTools:input_type -> barnraise.v1.InstallToolsRequest
-	124, // 249: barnraise.v1.BarnraiseService.CreateToken:input_type -> barnraise.v1.CreateTokenRequest
-	58,  // 250: barnraise.v1.BarnraiseService.ListTokens:input_type -> barnraise.v1.Empty
-	128, // 251: barnraise.v1.BarnraiseService.RevokeToken:input_type -> barnraise.v1.RevokeTokenRequest
-	129, // 252: barnraise.v1.BarnraiseService.ListAudit:input_type -> barnraise.v1.AuditRequest
-	132, // 253: barnraise.v1.BarnraiseService.ListProjects:output_type -> barnraise.v1.ProjectsResponse
-	132, // 254: barnraise.v1.BarnraiseService.RegisterProject:output_type -> barnraise.v1.ProjectsResponse
-	132, // 255: barnraise.v1.BarnraiseService.ReloadProject:output_type -> barnraise.v1.ProjectsResponse
-	36,  // 256: barnraise.v1.BarnraiseService.CreateItem:output_type -> barnraise.v1.CreateItemResponse
-	36,  // 257: barnraise.v1.BarnraiseService.CreateItemFromChat:output_type -> barnraise.v1.CreateItemResponse
-	33,  // 258: barnraise.v1.BarnraiseService.GetItem:output_type -> barnraise.v1.ItemResponse
-	34,  // 259: barnraise.v1.BarnraiseService.ListItems:output_type -> barnraise.v1.ItemsResponse
-	33,  // 260: barnraise.v1.BarnraiseService.UpdateItem:output_type -> barnraise.v1.ItemResponse
-	33,  // 261: barnraise.v1.BarnraiseService.UnlockFiles:output_type -> barnraise.v1.ItemResponse
-	33,  // 262: barnraise.v1.BarnraiseService.CloseItem:output_type -> barnraise.v1.ItemResponse
-	41,  // 263: barnraise.v1.BarnraiseService.NextItem:output_type -> barnraise.v1.Assignment
-	33,  // 264: barnraise.v1.BarnraiseService.Deliver:output_type -> barnraise.v1.ItemResponse
-	33,  // 265: barnraise.v1.BarnraiseService.SubmitReview:output_type -> barnraise.v1.ItemResponse
-	33,  // 266: barnraise.v1.BarnraiseService.ReportCheck:output_type -> barnraise.v1.ItemResponse
-	68,  // 267: barnraise.v1.BarnraiseService.Timeline:output_type -> barnraise.v1.TimelineResponse
-	69,  // 268: barnraise.v1.BarnraiseService.Estimate:output_type -> barnraise.v1.EstimateResponse
-	87,  // 269: barnraise.v1.BarnraiseService.Takeover:output_type -> barnraise.v1.TakeoverResponse
-	33,  // 270: barnraise.v1.BarnraiseService.Handback:output_type -> barnraise.v1.ItemResponse
-	33,  // 271: barnraise.v1.BarnraiseService.Redo:output_type -> barnraise.v1.ItemResponse
-	46,  // 272: barnraise.v1.BarnraiseService.Propose:output_type -> barnraise.v1.ProposeResponse
-	48,  // 273: barnraise.v1.BarnraiseService.ListProposals:output_type -> barnraise.v1.ListProposalsResponse
-	50,  // 274: barnraise.v1.BarnraiseService.DecideProposal:output_type -> barnraise.v1.ProposalResponse
-	52,  // 275: barnraise.v1.BarnraiseService.AddTweak:output_type -> barnraise.v1.AddTweakResponse
-	54,  // 276: barnraise.v1.BarnraiseService.AskOwner:output_type -> barnraise.v1.QuestionResponse
-	55,  // 277: barnraise.v1.BarnraiseService.ListQuestions:output_type -> barnraise.v1.QuestionsResponse
-	54,  // 278: barnraise.v1.BarnraiseService.Answer:output_type -> barnraise.v1.QuestionResponse
-	58,  // 279: barnraise.v1.BarnraiseService.Approve:output_type -> barnraise.v1.Empty
-	116, // 280: barnraise.v1.BarnraiseService.Discuss:output_type -> barnraise.v1.DiscussionResponse
-	110, // 281: barnraise.v1.BarnraiseService.ListParts:output_type -> barnraise.v1.PartsResponse
-	116, // 282: barnraise.v1.BarnraiseService.GetDiscussion:output_type -> barnraise.v1.DiscussionResponse
-	116, // 283: barnraise.v1.BarnraiseService.Delegate:output_type -> barnraise.v1.DiscussionResponse
-	135, // 284: barnraise.v1.BarnraiseService.SetAutopilot:output_type -> barnraise.v1.AutopilotResponse
-	113, // 285: barnraise.v1.BarnraiseService.TriageProposals:output_type -> barnraise.v1.ProposalTriageResponse
-	60,  // 286: barnraise.v1.BarnraiseService.SetGoal:output_type -> barnraise.v1.SetGoalResponse
-	62,  // 287: barnraise.v1.BarnraiseService.SetFocus:output_type -> barnraise.v1.FocusResponse
-	58,  // 288: barnraise.v1.BarnraiseService.ClearFocus:output_type -> barnraise.v1.Empty
-	58,  // 289: barnraise.v1.BarnraiseService.Pause:output_type -> barnraise.v1.Empty
-	58,  // 290: barnraise.v1.BarnraiseService.Resume:output_type -> barnraise.v1.Empty
-	64,  // 291: barnraise.v1.BarnraiseService.Status:output_type -> barnraise.v1.StatusResponse
-	155, // 292: barnraise.v1.BarnraiseService.Overview:output_type -> barnraise.v1.OverviewResponse
-	66,  // 293: barnraise.v1.BarnraiseService.Metrics:output_type -> barnraise.v1.MetricsResponse
-	70,  // 294: barnraise.v1.BarnraiseService.Digest:output_type -> barnraise.v1.DigestResponse
-	86,  // 295: barnraise.v1.BarnraiseService.Queue:output_type -> barnraise.v1.QueueResponse
-	86,  // 296: barnraise.v1.BarnraiseService.ProcessQueue:output_type -> barnraise.v1.QueueResponse
-	138, // 297: barnraise.v1.BarnraiseService.ListEvents:output_type -> barnraise.v1.EventsResponse
-	72,  // 298: barnraise.v1.BarnraiseService.SendMessage:output_type -> barnraise.v1.MessageResponse
-	74,  // 299: barnraise.v1.BarnraiseService.Inbox:output_type -> barnraise.v1.InboxResponse
-	58,  // 300: barnraise.v1.BarnraiseService.Journal:output_type -> barnraise.v1.Empty
-	58,  // 301: barnraise.v1.BarnraiseService.ReportViolation:output_type -> barnraise.v1.Empty
-	78,  // 302: barnraise.v1.BarnraiseService.Context:output_type -> barnraise.v1.ContextResponse
-	81,  // 303: barnraise.v1.BarnraiseService.Find:output_type -> barnraise.v1.FindResponse
-	83,  // 304: barnraise.v1.BarnraiseService.Get:output_type -> barnraise.v1.KnowledgeResponse
-	83,  // 305: barnraise.v1.BarnraiseService.Related:output_type -> barnraise.v1.KnowledgeResponse
-	83,  // 306: barnraise.v1.BarnraiseService.Why:output_type -> barnraise.v1.KnowledgeResponse
-	83,  // 307: barnraise.v1.BarnraiseService.History:output_type -> barnraise.v1.KnowledgeResponse
-	83,  // 308: barnraise.v1.BarnraiseService.Rules:output_type -> barnraise.v1.KnowledgeResponse
-	85,  // 309: barnraise.v1.BarnraiseService.Revalidate:output_type -> barnraise.v1.RevalidateResponse
-	85,  // 310: barnraise.v1.BarnraiseService.Sweep:output_type -> barnraise.v1.RevalidateResponse
-	91,  // 311: barnraise.v1.BarnraiseService.UpsertAccount:output_type -> barnraise.v1.AccountResponse
-	92,  // 312: barnraise.v1.BarnraiseService.ListAccounts:output_type -> barnraise.v1.AccountsResponse
-	95,  // 313: barnraise.v1.BarnraiseService.StartAccountLogin:output_type -> barnraise.v1.AccountLoginResponse
-	95,  // 314: barnraise.v1.BarnraiseService.GetAccountLogin:output_type -> barnraise.v1.AccountLoginResponse
-	95,  // 315: barnraise.v1.BarnraiseService.AnswerAccountLogin:output_type -> barnraise.v1.AccountLoginResponse
-	95,  // 316: barnraise.v1.BarnraiseService.CancelAccountLogin:output_type -> barnraise.v1.AccountLoginResponse
-	58,  // 317: barnraise.v1.BarnraiseService.ReportUsage:output_type -> barnraise.v1.Empty
-	97,  // 318: barnraise.v1.BarnraiseService.ListMachines:output_type -> barnraise.v1.MachinesResponse
-	101, // 319: barnraise.v1.BarnraiseService.MachineHistory:output_type -> barnraise.v1.MachineHistoryResponse
-	102, // 320: barnraise.v1.BarnraiseService.LeaveMachine:output_type -> barnraise.v1.LeaveResponse
-	104, // 321: barnraise.v1.BarnraiseService.ListPeers:output_type -> barnraise.v1.PeersResponse
-	107, // 322: barnraise.v1.BarnraiseService.StopPeers:output_type -> barnraise.v1.StopPeersResponse
-	123, // 323: barnraise.v1.BarnraiseService.SetStandby:output_type -> barnraise.v1.StandbyResponse
-	122, // 324: barnraise.v1.BarnraiseService.SetMaxAgents:output_type -> barnraise.v1.MaxAgentsResponse
-	120, // 325: barnraise.v1.BarnraiseService.ShareProject:output_type -> barnraise.v1.ShareProjectResponse
-	160, // 326: barnraise.v1.BarnraiseService.Capabilities:output_type -> barnraise.v1.CapabilitiesResponse
-	163, // 327: barnraise.v1.BarnraiseService.InstallTools:output_type -> barnraise.v1.InstallToolsResponse
-	126, // 328: barnraise.v1.BarnraiseService.CreateToken:output_type -> barnraise.v1.CreateTokenResponse
-	127, // 329: barnraise.v1.BarnraiseService.ListTokens:output_type -> barnraise.v1.TokensResponse
-	58,  // 330: barnraise.v1.BarnraiseService.RevokeToken:output_type -> barnraise.v1.Empty
-	131, // 331: barnraise.v1.BarnraiseService.ListAudit:output_type -> barnraise.v1.AuditResponse
-	253, // [253:332] is the sub-list for method output_type
-	174, // [174:253] is the sub-list for method input_type
-	174, // [174:174] is the sub-list for extension type_name
-	174, // [174:174] is the sub-list for extension extendee
-	0,   // [0:174] is the sub-list for field type_name
+	6,   // 93: barnraise.v1.ChatDraft.goal:type_name -> barnraise.v1.Goal
+	8,   // 94: barnraise.v1.ChatDraft.focus:type_name -> barnraise.v1.Focus
+	111, // 95: barnraise.v1.DiscussionResponse.messages:type_name -> barnraise.v1.DiscussionMessage
+	119, // 96: barnraise.v1.ShareProjectResponse.machines:type_name -> barnraise.v1.PeerResult
+	119, // 97: barnraise.v1.MaxAgentsResponse.machines:type_name -> barnraise.v1.PeerResult
+	119, // 98: barnraise.v1.StandbyResponse.peers:type_name -> barnraise.v1.PeerResult
+	126, // 99: barnraise.v1.CreateTokenResponse.token:type_name -> barnraise.v1.Token
+	126, // 100: barnraise.v1.TokensResponse.tokens:type_name -> barnraise.v1.Token
+	131, // 101: barnraise.v1.AuditResponse.entries:type_name -> barnraise.v1.AuditEntry
+	180, // 102: barnraise.v1.ProjectsResponse.advisor_down:type_name -> barnraise.v1.ProjectsResponse.AdvisorDownEntry
+	135, // 103: barnraise.v1.AutopilotResponse.projects:type_name -> barnraise.v1.ProjectAutopilot
+	29,  // 104: barnraise.v1.EventsResponse.events:type_name -> barnraise.v1.Event
+	181, // 105: barnraise.v1.ProcSummary.by_kind:type_name -> barnraise.v1.ProcSummary.ByKindEntry
+	142, // 106: barnraise.v1.ProcSummary.top:type_name -> barnraise.v1.ProcInfo
+	143, // 107: barnraise.v1.WorktreeInfo.procs:type_name -> barnraise.v1.ProcSummary
+	3,   // 108: barnraise.v1.ItemOverview.claim:type_name -> barnraise.v1.Claim
+	149, // 109: barnraise.v1.ItemOverview.pr:type_name -> barnraise.v1.PullRequestView
+	28,  // 110: barnraise.v1.ItemOverview.sessions:type_name -> barnraise.v1.SessionInfo
+	144, // 111: barnraise.v1.ItemOverview.worktrees:type_name -> barnraise.v1.WorktreeInfo
+	143, // 112: barnraise.v1.ItemOverview.procs:type_name -> barnraise.v1.ProcSummary
+	141, // 113: barnraise.v1.ItemOverview.usage:type_name -> barnraise.v1.UsageTotals
+	182, // 114: barnraise.v1.ItemOverview.usage_by_step:type_name -> barnraise.v1.ItemOverview.UsageByStepEntry
+	183, // 115: barnraise.v1.ItemOverview.usage_by_model:type_name -> barnraise.v1.ItemOverview.UsageByModelEntry
+	184, // 116: barnraise.v1.ItemOverview.usage_by_machine:type_name -> barnraise.v1.ItemOverview.UsageByMachineEntry
+	185, // 117: barnraise.v1.ItemOverview.usage_by_role:type_name -> barnraise.v1.ItemOverview.UsageByRoleEntry
+	186, // 118: barnraise.v1.ItemOverview.runs:type_name -> barnraise.v1.ItemOverview.RunsEntry
+	145, // 119: barnraise.v1.ItemOverview.checks:type_name -> barnraise.v1.CheckMark
+	146, // 120: barnraise.v1.ItemOverview.last_review:type_name -> barnraise.v1.ReviewMark
+	147, // 121: barnraise.v1.ItemOverview.last_delivery:type_name -> barnraise.v1.DeliveryMark
+	148, // 122: barnraise.v1.ItemOverview.last_activity:type_name -> barnraise.v1.Activity
+	150, // 123: barnraise.v1.ItemOverview.flow:type_name -> barnraise.v1.FlowStep
+	151, // 124: barnraise.v1.ItemOverview.signal:type_name -> barnraise.v1.Signal
+	153, // 125: barnraise.v1.ItemOverview.links:type_name -> barnraise.v1.ItemLinks
+	6,   // 126: barnraise.v1.ProjectOverview.goal:type_name -> barnraise.v1.Goal
+	7,   // 127: barnraise.v1.ProjectOverview.progress:type_name -> barnraise.v1.GoalProgress
+	8,   // 128: barnraise.v1.ProjectOverview.focus:type_name -> barnraise.v1.Focus
+	187, // 129: barnraise.v1.ProjectOverview.status:type_name -> barnraise.v1.ProjectOverview.StatusEntry
+	188, // 130: barnraise.v1.ProjectOverview.activity:type_name -> barnraise.v1.ProjectOverview.ActivityEntry
+	152, // 131: barnraise.v1.ProjectOverview.items:type_name -> barnraise.v1.ItemOverview
+	141, // 132: barnraise.v1.ProjectOverview.usage:type_name -> barnraise.v1.UsageTotals
+	189, // 133: barnraise.v1.ProjectOverview.usage_by_model:type_name -> barnraise.v1.ProjectOverview.UsageByModelEntry
+	190, // 134: barnraise.v1.ProjectOverview.usage_by_role:type_name -> barnraise.v1.ProjectOverview.UsageByRoleEntry
+	191, // 135: barnraise.v1.ProjectOverview.usage_by_account:type_name -> barnraise.v1.ProjectOverview.UsageByAccountEntry
+	192, // 136: barnraise.v1.ProjectOverview.usage_by_machine:type_name -> barnraise.v1.ProjectOverview.UsageByMachineEntry
+	193, // 137: barnraise.v1.ProjectOverview.usage_by_agent:type_name -> barnraise.v1.ProjectOverview.UsageByAgentEntry
+	194, // 138: barnraise.v1.ProjectOverview.usage_by_day:type_name -> barnraise.v1.ProjectOverview.UsageByDayEntry
+	25,  // 139: barnraise.v1.ProjectOverview.accounts:type_name -> barnraise.v1.Account
+	26,  // 140: barnraise.v1.MachineOverview.machine:type_name -> barnraise.v1.Machine
+	28,  // 141: barnraise.v1.MachineOverview.sessions:type_name -> barnraise.v1.SessionInfo
+	144, // 142: barnraise.v1.MachineOverview.worktrees:type_name -> barnraise.v1.WorktreeInfo
+	143, // 143: barnraise.v1.MachineOverview.procs:type_name -> barnraise.v1.ProcSummary
+	141, // 144: barnraise.v1.MachineOverview.usage:type_name -> barnraise.v1.UsageTotals
+	154, // 145: barnraise.v1.OverviewResponse.projects:type_name -> barnraise.v1.ProjectOverview
+	155, // 146: barnraise.v1.OverviewResponse.machines:type_name -> barnraise.v1.MachineOverview
+	195, // 147: barnraise.v1.OverviewResponse.activity:type_name -> barnraise.v1.OverviewResponse.ActivityEntry
+	141, // 148: barnraise.v1.OverviewResponse.usage:type_name -> barnraise.v1.UsageTotals
+	196, // 149: barnraise.v1.OverviewResponse.usage_by_model:type_name -> barnraise.v1.OverviewResponse.UsageByModelEntry
+	197, // 150: barnraise.v1.OverviewResponse.usage_by_role:type_name -> barnraise.v1.OverviewResponse.UsageByRoleEntry
+	198, // 151: barnraise.v1.OverviewResponse.usage_by_account:type_name -> barnraise.v1.OverviewResponse.UsageByAccountEntry
+	199, // 152: barnraise.v1.OverviewResponse.usage_by_machine:type_name -> barnraise.v1.OverviewResponse.UsageByMachineEntry
+	200, // 153: barnraise.v1.OverviewResponse.usage_by_day:type_name -> barnraise.v1.OverviewResponse.UsageByDayEntry
+	159, // 154: barnraise.v1.MachineCapabilities.items:type_name -> barnraise.v1.CapabilityItem
+	160, // 155: barnraise.v1.MachineCapabilities.tools:type_name -> barnraise.v1.CapabilityTool
+	201, // 156: barnraise.v1.MachineCapabilities.counts:type_name -> barnraise.v1.MachineCapabilities.CountsEntry
+	161, // 157: barnraise.v1.CapabilitiesResponse.machines:type_name -> barnraise.v1.MachineCapabilities
+	164, // 158: barnraise.v1.InstallToolsResponse.results:type_name -> barnraise.v1.ToolInstallResult
+	4,   // 159: barnraise.v1.Item.RunsEntry.value:type_name -> barnraise.v1.StepRun
+	109, // 160: barnraise.v1.Part.FlowStepsEntry.value:type_name -> barnraise.v1.FlowSteps
+	141, // 161: barnraise.v1.ItemOverview.UsageByStepEntry.value:type_name -> barnraise.v1.UsageTotals
+	141, // 162: barnraise.v1.ItemOverview.UsageByModelEntry.value:type_name -> barnraise.v1.UsageTotals
+	141, // 163: barnraise.v1.ItemOverview.UsageByMachineEntry.value:type_name -> barnraise.v1.UsageTotals
+	141, // 164: barnraise.v1.ItemOverview.UsageByRoleEntry.value:type_name -> barnraise.v1.UsageTotals
+	4,   // 165: barnraise.v1.ItemOverview.RunsEntry.value:type_name -> barnraise.v1.StepRun
+	141, // 166: barnraise.v1.ProjectOverview.UsageByModelEntry.value:type_name -> barnraise.v1.UsageTotals
+	141, // 167: barnraise.v1.ProjectOverview.UsageByRoleEntry.value:type_name -> barnraise.v1.UsageTotals
+	141, // 168: barnraise.v1.ProjectOverview.UsageByAccountEntry.value:type_name -> barnraise.v1.UsageTotals
+	141, // 169: barnraise.v1.ProjectOverview.UsageByMachineEntry.value:type_name -> barnraise.v1.UsageTotals
+	141, // 170: barnraise.v1.ProjectOverview.UsageByAgentEntry.value:type_name -> barnraise.v1.UsageTotals
+	141, // 171: barnraise.v1.ProjectOverview.UsageByDayEntry.value:type_name -> barnraise.v1.UsageTotals
+	141, // 172: barnraise.v1.OverviewResponse.UsageByModelEntry.value:type_name -> barnraise.v1.UsageTotals
+	141, // 173: barnraise.v1.OverviewResponse.UsageByRoleEntry.value:type_name -> barnraise.v1.UsageTotals
+	141, // 174: barnraise.v1.OverviewResponse.UsageByAccountEntry.value:type_name -> barnraise.v1.UsageTotals
+	141, // 175: barnraise.v1.OverviewResponse.UsageByMachineEntry.value:type_name -> barnraise.v1.UsageTotals
+	141, // 176: barnraise.v1.OverviewResponse.UsageByDayEntry.value:type_name -> barnraise.v1.UsageTotals
+	58,  // 177: barnraise.v1.BarnraiseService.ListProjects:input_type -> barnraise.v1.Empty
+	140, // 178: barnraise.v1.BarnraiseService.RegisterProject:input_type -> barnraise.v1.RegisterProjectRequest
+	30,  // 179: barnraise.v1.BarnraiseService.ReloadProject:input_type -> barnraise.v1.ProjectRef
+	35,  // 180: barnraise.v1.BarnraiseService.CreateItem:input_type -> barnraise.v1.CreateItemRequest
+	115, // 181: barnraise.v1.BarnraiseService.CreateItemFromChat:input_type -> barnraise.v1.DiscussionRef
+	31,  // 182: barnraise.v1.BarnraiseService.GetItem:input_type -> barnraise.v1.ItemRef
+	37,  // 183: barnraise.v1.BarnraiseService.ListItems:input_type -> barnraise.v1.ListItemsRequest
+	38,  // 184: barnraise.v1.BarnraiseService.UpdateItem:input_type -> barnraise.v1.UpdateItemRequest
+	32,  // 185: barnraise.v1.BarnraiseService.UnlockFiles:input_type -> barnraise.v1.UnlockFilesRequest
+	39,  // 186: barnraise.v1.BarnraiseService.CloseItem:input_type -> barnraise.v1.CloseItemRequest
+	40,  // 187: barnraise.v1.BarnraiseService.NextItem:input_type -> barnraise.v1.NextItemRequest
+	42,  // 188: barnraise.v1.BarnraiseService.Deliver:input_type -> barnraise.v1.DeliverRequest
+	43,  // 189: barnraise.v1.BarnraiseService.SubmitReview:input_type -> barnraise.v1.ReviewRequest
+	44,  // 190: barnraise.v1.BarnraiseService.ReportCheck:input_type -> barnraise.v1.ReportCheckRequest
+	31,  // 191: barnraise.v1.BarnraiseService.Timeline:input_type -> barnraise.v1.ItemRef
+	31,  // 192: barnraise.v1.BarnraiseService.Estimate:input_type -> barnraise.v1.ItemRef
+	31,  // 193: barnraise.v1.BarnraiseService.Takeover:input_type -> barnraise.v1.ItemRef
+	88,  // 194: barnraise.v1.BarnraiseService.Handback:input_type -> barnraise.v1.HandbackRequest
+	89,  // 195: barnraise.v1.BarnraiseService.Redo:input_type -> barnraise.v1.RedoRequest
+	45,  // 196: barnraise.v1.BarnraiseService.Propose:input_type -> barnraise.v1.ProposeRequest
+	47,  // 197: barnraise.v1.BarnraiseService.ListProposals:input_type -> barnraise.v1.ListProposalsRequest
+	49,  // 198: barnraise.v1.BarnraiseService.DecideProposal:input_type -> barnraise.v1.DecideProposalRequest
+	51,  // 199: barnraise.v1.BarnraiseService.AddTweak:input_type -> barnraise.v1.AddTweakRequest
+	53,  // 200: barnraise.v1.BarnraiseService.AskOwner:input_type -> barnraise.v1.AskOwnerRequest
+	30,  // 201: barnraise.v1.BarnraiseService.ListQuestions:input_type -> barnraise.v1.ProjectRef
+	56,  // 202: barnraise.v1.BarnraiseService.Answer:input_type -> barnraise.v1.AnswerRequest
+	57,  // 203: barnraise.v1.BarnraiseService.Approve:input_type -> barnraise.v1.ApproveRequest
+	114, // 204: barnraise.v1.BarnraiseService.Discuss:input_type -> barnraise.v1.DiscussRequest
+	30,  // 205: barnraise.v1.BarnraiseService.ListParts:input_type -> barnraise.v1.ProjectRef
+	115, // 206: barnraise.v1.BarnraiseService.GetDiscussion:input_type -> barnraise.v1.DiscussionRef
+	115, // 207: barnraise.v1.BarnraiseService.Delegate:input_type -> barnraise.v1.DiscussionRef
+	134, // 208: barnraise.v1.BarnraiseService.SetAutopilot:input_type -> barnraise.v1.AutopilotRequest
+	30,  // 209: barnraise.v1.BarnraiseService.TriageProposals:input_type -> barnraise.v1.ProjectRef
+	59,  // 210: barnraise.v1.BarnraiseService.SetGoal:input_type -> barnraise.v1.SetGoalRequest
+	115, // 211: barnraise.v1.BarnraiseService.DraftFromChat:input_type -> barnraise.v1.DiscussionRef
+	61,  // 212: barnraise.v1.BarnraiseService.SetFocus:input_type -> barnraise.v1.FocusRequest
+	30,  // 213: barnraise.v1.BarnraiseService.ClearFocus:input_type -> barnraise.v1.ProjectRef
+	63,  // 214: barnraise.v1.BarnraiseService.Pause:input_type -> barnraise.v1.PauseRequest
+	30,  // 215: barnraise.v1.BarnraiseService.Resume:input_type -> barnraise.v1.ProjectRef
+	30,  // 216: barnraise.v1.BarnraiseService.Status:input_type -> barnraise.v1.ProjectRef
+	156, // 217: barnraise.v1.BarnraiseService.Overview:input_type -> barnraise.v1.OverviewRequest
+	65,  // 218: barnraise.v1.BarnraiseService.Metrics:input_type -> barnraise.v1.MetricsRequest
+	30,  // 219: barnraise.v1.BarnraiseService.Digest:input_type -> barnraise.v1.ProjectRef
+	30,  // 220: barnraise.v1.BarnraiseService.Queue:input_type -> barnraise.v1.ProjectRef
+	30,  // 221: barnraise.v1.BarnraiseService.ProcessQueue:input_type -> barnraise.v1.ProjectRef
+	138, // 222: barnraise.v1.BarnraiseService.ListEvents:input_type -> barnraise.v1.EventsRequest
+	71,  // 223: barnraise.v1.BarnraiseService.SendMessage:input_type -> barnraise.v1.SendMessageRequest
+	73,  // 224: barnraise.v1.BarnraiseService.Inbox:input_type -> barnraise.v1.InboxRequest
+	75,  // 225: barnraise.v1.BarnraiseService.Journal:input_type -> barnraise.v1.JournalRequest
+	137, // 226: barnraise.v1.BarnraiseService.ReportViolation:input_type -> barnraise.v1.PolicyViolationRequest
+	76,  // 227: barnraise.v1.BarnraiseService.Context:input_type -> barnraise.v1.ContextRequest
+	79,  // 228: barnraise.v1.BarnraiseService.Find:input_type -> barnraise.v1.FindRequest
+	82,  // 229: barnraise.v1.BarnraiseService.Get:input_type -> barnraise.v1.KnowledgeRequest
+	82,  // 230: barnraise.v1.BarnraiseService.Related:input_type -> barnraise.v1.KnowledgeRequest
+	82,  // 231: barnraise.v1.BarnraiseService.Why:input_type -> barnraise.v1.KnowledgeRequest
+	82,  // 232: barnraise.v1.BarnraiseService.History:input_type -> barnraise.v1.KnowledgeRequest
+	82,  // 233: barnraise.v1.BarnraiseService.Rules:input_type -> barnraise.v1.KnowledgeRequest
+	84,  // 234: barnraise.v1.BarnraiseService.Revalidate:input_type -> barnraise.v1.RevalidateRequest
+	30,  // 235: barnraise.v1.BarnraiseService.Sweep:input_type -> barnraise.v1.ProjectRef
+	90,  // 236: barnraise.v1.BarnraiseService.UpsertAccount:input_type -> barnraise.v1.AccountRequest
+	30,  // 237: barnraise.v1.BarnraiseService.ListAccounts:input_type -> barnraise.v1.ProjectRef
+	94,  // 238: barnraise.v1.BarnraiseService.StartAccountLogin:input_type -> barnraise.v1.AccountLoginRequest
+	94,  // 239: barnraise.v1.BarnraiseService.GetAccountLogin:input_type -> barnraise.v1.AccountLoginRequest
+	94,  // 240: barnraise.v1.BarnraiseService.AnswerAccountLogin:input_type -> barnraise.v1.AccountLoginRequest
+	94,  // 241: barnraise.v1.BarnraiseService.CancelAccountLogin:input_type -> barnraise.v1.AccountLoginRequest
+	96,  // 242: barnraise.v1.BarnraiseService.ReportUsage:input_type -> barnraise.v1.ReportUsageRequest
+	30,  // 243: barnraise.v1.BarnraiseService.ListMachines:input_type -> barnraise.v1.ProjectRef
+	98,  // 244: barnraise.v1.BarnraiseService.MachineHistory:input_type -> barnraise.v1.MachineHistoryRequest
+	30,  // 245: barnraise.v1.BarnraiseService.LeaveMachine:input_type -> barnraise.v1.ProjectRef
+	58,  // 246: barnraise.v1.BarnraiseService.ListPeers:input_type -> barnraise.v1.Empty
+	105, // 247: barnraise.v1.BarnraiseService.StopPeers:input_type -> barnraise.v1.StopPeersRequest
+	118, // 248: barnraise.v1.BarnraiseService.SetStandby:input_type -> barnraise.v1.StandbyRequest
+	122, // 249: barnraise.v1.BarnraiseService.SetMaxAgents:input_type -> barnraise.v1.MaxAgentsRequest
+	120, // 250: barnraise.v1.BarnraiseService.ShareProject:input_type -> barnraise.v1.ShareProjectRequest
+	158, // 251: barnraise.v1.BarnraiseService.Capabilities:input_type -> barnraise.v1.CapabilitiesRequest
+	163, // 252: barnraise.v1.BarnraiseService.InstallTools:input_type -> barnraise.v1.InstallToolsRequest
+	125, // 253: barnraise.v1.BarnraiseService.CreateToken:input_type -> barnraise.v1.CreateTokenRequest
+	58,  // 254: barnraise.v1.BarnraiseService.ListTokens:input_type -> barnraise.v1.Empty
+	129, // 255: barnraise.v1.BarnraiseService.RevokeToken:input_type -> barnraise.v1.RevokeTokenRequest
+	130, // 256: barnraise.v1.BarnraiseService.ListAudit:input_type -> barnraise.v1.AuditRequest
+	133, // 257: barnraise.v1.BarnraiseService.ListProjects:output_type -> barnraise.v1.ProjectsResponse
+	133, // 258: barnraise.v1.BarnraiseService.RegisterProject:output_type -> barnraise.v1.ProjectsResponse
+	133, // 259: barnraise.v1.BarnraiseService.ReloadProject:output_type -> barnraise.v1.ProjectsResponse
+	36,  // 260: barnraise.v1.BarnraiseService.CreateItem:output_type -> barnraise.v1.CreateItemResponse
+	36,  // 261: barnraise.v1.BarnraiseService.CreateItemFromChat:output_type -> barnraise.v1.CreateItemResponse
+	33,  // 262: barnraise.v1.BarnraiseService.GetItem:output_type -> barnraise.v1.ItemResponse
+	34,  // 263: barnraise.v1.BarnraiseService.ListItems:output_type -> barnraise.v1.ItemsResponse
+	33,  // 264: barnraise.v1.BarnraiseService.UpdateItem:output_type -> barnraise.v1.ItemResponse
+	33,  // 265: barnraise.v1.BarnraiseService.UnlockFiles:output_type -> barnraise.v1.ItemResponse
+	33,  // 266: barnraise.v1.BarnraiseService.CloseItem:output_type -> barnraise.v1.ItemResponse
+	41,  // 267: barnraise.v1.BarnraiseService.NextItem:output_type -> barnraise.v1.Assignment
+	33,  // 268: barnraise.v1.BarnraiseService.Deliver:output_type -> barnraise.v1.ItemResponse
+	33,  // 269: barnraise.v1.BarnraiseService.SubmitReview:output_type -> barnraise.v1.ItemResponse
+	33,  // 270: barnraise.v1.BarnraiseService.ReportCheck:output_type -> barnraise.v1.ItemResponse
+	68,  // 271: barnraise.v1.BarnraiseService.Timeline:output_type -> barnraise.v1.TimelineResponse
+	69,  // 272: barnraise.v1.BarnraiseService.Estimate:output_type -> barnraise.v1.EstimateResponse
+	87,  // 273: barnraise.v1.BarnraiseService.Takeover:output_type -> barnraise.v1.TakeoverResponse
+	33,  // 274: barnraise.v1.BarnraiseService.Handback:output_type -> barnraise.v1.ItemResponse
+	33,  // 275: barnraise.v1.BarnraiseService.Redo:output_type -> barnraise.v1.ItemResponse
+	46,  // 276: barnraise.v1.BarnraiseService.Propose:output_type -> barnraise.v1.ProposeResponse
+	48,  // 277: barnraise.v1.BarnraiseService.ListProposals:output_type -> barnraise.v1.ListProposalsResponse
+	50,  // 278: barnraise.v1.BarnraiseService.DecideProposal:output_type -> barnraise.v1.ProposalResponse
+	52,  // 279: barnraise.v1.BarnraiseService.AddTweak:output_type -> barnraise.v1.AddTweakResponse
+	54,  // 280: barnraise.v1.BarnraiseService.AskOwner:output_type -> barnraise.v1.QuestionResponse
+	55,  // 281: barnraise.v1.BarnraiseService.ListQuestions:output_type -> barnraise.v1.QuestionsResponse
+	54,  // 282: barnraise.v1.BarnraiseService.Answer:output_type -> barnraise.v1.QuestionResponse
+	58,  // 283: barnraise.v1.BarnraiseService.Approve:output_type -> barnraise.v1.Empty
+	117, // 284: barnraise.v1.BarnraiseService.Discuss:output_type -> barnraise.v1.DiscussionResponse
+	110, // 285: barnraise.v1.BarnraiseService.ListParts:output_type -> barnraise.v1.PartsResponse
+	117, // 286: barnraise.v1.BarnraiseService.GetDiscussion:output_type -> barnraise.v1.DiscussionResponse
+	117, // 287: barnraise.v1.BarnraiseService.Delegate:output_type -> barnraise.v1.DiscussionResponse
+	136, // 288: barnraise.v1.BarnraiseService.SetAutopilot:output_type -> barnraise.v1.AutopilotResponse
+	113, // 289: barnraise.v1.BarnraiseService.TriageProposals:output_type -> barnraise.v1.ProposalTriageResponse
+	60,  // 290: barnraise.v1.BarnraiseService.SetGoal:output_type -> barnraise.v1.SetGoalResponse
+	116, // 291: barnraise.v1.BarnraiseService.DraftFromChat:output_type -> barnraise.v1.ChatDraft
+	62,  // 292: barnraise.v1.BarnraiseService.SetFocus:output_type -> barnraise.v1.FocusResponse
+	58,  // 293: barnraise.v1.BarnraiseService.ClearFocus:output_type -> barnraise.v1.Empty
+	58,  // 294: barnraise.v1.BarnraiseService.Pause:output_type -> barnraise.v1.Empty
+	58,  // 295: barnraise.v1.BarnraiseService.Resume:output_type -> barnraise.v1.Empty
+	64,  // 296: barnraise.v1.BarnraiseService.Status:output_type -> barnraise.v1.StatusResponse
+	157, // 297: barnraise.v1.BarnraiseService.Overview:output_type -> barnraise.v1.OverviewResponse
+	66,  // 298: barnraise.v1.BarnraiseService.Metrics:output_type -> barnraise.v1.MetricsResponse
+	70,  // 299: barnraise.v1.BarnraiseService.Digest:output_type -> barnraise.v1.DigestResponse
+	86,  // 300: barnraise.v1.BarnraiseService.Queue:output_type -> barnraise.v1.QueueResponse
+	86,  // 301: barnraise.v1.BarnraiseService.ProcessQueue:output_type -> barnraise.v1.QueueResponse
+	139, // 302: barnraise.v1.BarnraiseService.ListEvents:output_type -> barnraise.v1.EventsResponse
+	72,  // 303: barnraise.v1.BarnraiseService.SendMessage:output_type -> barnraise.v1.MessageResponse
+	74,  // 304: barnraise.v1.BarnraiseService.Inbox:output_type -> barnraise.v1.InboxResponse
+	58,  // 305: barnraise.v1.BarnraiseService.Journal:output_type -> barnraise.v1.Empty
+	58,  // 306: barnraise.v1.BarnraiseService.ReportViolation:output_type -> barnraise.v1.Empty
+	78,  // 307: barnraise.v1.BarnraiseService.Context:output_type -> barnraise.v1.ContextResponse
+	81,  // 308: barnraise.v1.BarnraiseService.Find:output_type -> barnraise.v1.FindResponse
+	83,  // 309: barnraise.v1.BarnraiseService.Get:output_type -> barnraise.v1.KnowledgeResponse
+	83,  // 310: barnraise.v1.BarnraiseService.Related:output_type -> barnraise.v1.KnowledgeResponse
+	83,  // 311: barnraise.v1.BarnraiseService.Why:output_type -> barnraise.v1.KnowledgeResponse
+	83,  // 312: barnraise.v1.BarnraiseService.History:output_type -> barnraise.v1.KnowledgeResponse
+	83,  // 313: barnraise.v1.BarnraiseService.Rules:output_type -> barnraise.v1.KnowledgeResponse
+	85,  // 314: barnraise.v1.BarnraiseService.Revalidate:output_type -> barnraise.v1.RevalidateResponse
+	85,  // 315: barnraise.v1.BarnraiseService.Sweep:output_type -> barnraise.v1.RevalidateResponse
+	91,  // 316: barnraise.v1.BarnraiseService.UpsertAccount:output_type -> barnraise.v1.AccountResponse
+	92,  // 317: barnraise.v1.BarnraiseService.ListAccounts:output_type -> barnraise.v1.AccountsResponse
+	95,  // 318: barnraise.v1.BarnraiseService.StartAccountLogin:output_type -> barnraise.v1.AccountLoginResponse
+	95,  // 319: barnraise.v1.BarnraiseService.GetAccountLogin:output_type -> barnraise.v1.AccountLoginResponse
+	95,  // 320: barnraise.v1.BarnraiseService.AnswerAccountLogin:output_type -> barnraise.v1.AccountLoginResponse
+	95,  // 321: barnraise.v1.BarnraiseService.CancelAccountLogin:output_type -> barnraise.v1.AccountLoginResponse
+	58,  // 322: barnraise.v1.BarnraiseService.ReportUsage:output_type -> barnraise.v1.Empty
+	97,  // 323: barnraise.v1.BarnraiseService.ListMachines:output_type -> barnraise.v1.MachinesResponse
+	101, // 324: barnraise.v1.BarnraiseService.MachineHistory:output_type -> barnraise.v1.MachineHistoryResponse
+	102, // 325: barnraise.v1.BarnraiseService.LeaveMachine:output_type -> barnraise.v1.LeaveResponse
+	104, // 326: barnraise.v1.BarnraiseService.ListPeers:output_type -> barnraise.v1.PeersResponse
+	107, // 327: barnraise.v1.BarnraiseService.StopPeers:output_type -> barnraise.v1.StopPeersResponse
+	124, // 328: barnraise.v1.BarnraiseService.SetStandby:output_type -> barnraise.v1.StandbyResponse
+	123, // 329: barnraise.v1.BarnraiseService.SetMaxAgents:output_type -> barnraise.v1.MaxAgentsResponse
+	121, // 330: barnraise.v1.BarnraiseService.ShareProject:output_type -> barnraise.v1.ShareProjectResponse
+	162, // 331: barnraise.v1.BarnraiseService.Capabilities:output_type -> barnraise.v1.CapabilitiesResponse
+	165, // 332: barnraise.v1.BarnraiseService.InstallTools:output_type -> barnraise.v1.InstallToolsResponse
+	127, // 333: barnraise.v1.BarnraiseService.CreateToken:output_type -> barnraise.v1.CreateTokenResponse
+	128, // 334: barnraise.v1.BarnraiseService.ListTokens:output_type -> barnraise.v1.TokensResponse
+	58,  // 335: barnraise.v1.BarnraiseService.RevokeToken:output_type -> barnraise.v1.Empty
+	132, // 336: barnraise.v1.BarnraiseService.ListAudit:output_type -> barnraise.v1.AuditResponse
+	257, // [257:337] is the sub-list for method output_type
+	177, // [177:257] is the sub-list for method input_type
+	177, // [177:177] is the sub-list for extension type_name
+	177, // [177:177] is the sub-list for extension extendee
+	0,   // [0:177] is the sub-list for field type_name
 }
 
 func init() { file_barnraise_v1_barnraise_proto_init() }
@@ -15339,7 +15520,7 @@ func file_barnraise_v1_barnraise_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_barnraise_v1_barnraise_proto_rawDesc), len(file_barnraise_v1_barnraise_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   200,
+			NumMessages:   202,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

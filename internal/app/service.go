@@ -86,6 +86,9 @@ type ProjectPorts struct {
 	CodeHost ports.CodeHost // optional
 	Triage   ports.Triage   // optional
 	Advisor  Advisor        // optional: answers the owner about a decision
+	// Web is the repository's page on its host, for the panel's links;
+	// empty when the host is unknown.
+	Web ports.RepoLinks // optional
 }
 
 // Project is a repository the daemon drives.

@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 	"time"
 
@@ -19,6 +20,20 @@ var _ ports.Tracker = (*Tracker)(nil)
 
 // Name is "gitlab".
 func (t *Tracker) Name() string { return "gitlab" }
+
+// RefURL is the issue's web page: #17 -> https://gitlab.com/group/name/-/issues/17.
+// A project given by its numeric id has no path to link.
+func (t *Tracker) RefURL(ref string) string {
+	if strings.HasPrefix(ref, "https://") {
+		return ref
+	}
+	n, err := ParseRef(ref)
+	p := strings.Trim(t.c.opts.Project, "/")
+	if err != nil || !strings.Contains(p, "/") {
+		return ""
+	}
+	return strings.TrimSuffix(strings.TrimRight(t.c.opts.BaseURL, "/"), "/api/v4") + "/" + p + "/-/issues/" + strconv.Itoa(n)
+}
 
 type glUser struct {
 	Username string `json:"username"`

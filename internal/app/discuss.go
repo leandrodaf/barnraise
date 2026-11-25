@@ -131,7 +131,7 @@ func (s *Service) Discuss(ctx context.Context, project string, a Actor, thread, 
 	actx, cancel := context.WithTimeout(ctx, adviceTimeout)
 	defer cancel()
 	ans, err := adv.Advise(actx, AdviceRequest{
-		System:  map[bool]string{true: advisorChatSystem(p), false: advisorSystem(p, workdir == p.Cfg().Root)}[IsChat(thread)],
+		System:  map[bool]string{true: advisorChatSystem(p, ChatKind(thread)), false: advisorSystem(p, workdir == p.Cfg().Root)}[IsChat(thread)],
 		Prompt:  advisorPrompt(qq, prop, it, timeline, msgs, append(history, mine)),
 		Workdir: workdir,
 		Progress: func(tool, target string) {

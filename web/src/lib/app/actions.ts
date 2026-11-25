@@ -11,9 +11,15 @@ import { dialog } from './dialog.svelte';
 // newItem opens a conversation with the advisor to ask for work: it reads
 // the code, answers, and writes the item when the owner is happy with it.
 export function newItem() {
-	const id = 'C-' + Array.from(crypto.getRandomValues(new Uint8Array(5)), (b) => 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'[b % 32]).join('');
-	discussion.show(session.project, id, t('chatTitle'));
+	discussion.show(session.project, chatId('C'), t('chatTitle'));
 }
+
+// talkGoal and talkFocus open a conversation to shape the goal (CG-…) or the
+// focus (CF-…): the advisor drafts it, and the owner reviews it in the form.
+export const talkGoal = (project = session.project) => discussion.show(project, chatId('CG'), t('chatGoalTitle'));
+export const talkFocus = (project = session.project) => discussion.show(project, chatId('CF'), t('chatFocusTitle'));
+
+const chatId = (kind: string) => kind + '-' + Array.from(crypto.getRandomValues(new Uint8Array(5)), (b) => 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'[b % 32]).join('');
 
 // newItemByHand is the form, for who already knows the item to the letter.
 export function newItemByHand() {

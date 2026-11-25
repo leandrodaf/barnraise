@@ -27,7 +27,8 @@
 	import ItemRow from '$lib/app/ItemRow.svelte';
 	import Empty from '$lib/app/Empty.svelte';
 	import XIcon from '@lucide/svelte/icons/x';
-	import { setGoal, setFocus, clearFocus } from '$lib/app/ownerActions';
+	import { clearFocus } from '$lib/app/ownerActions';
+	import { talkGoal, talkFocus } from '$lib/app/actions';
 
 	// The questions, approvals, goals and alerts of the projects in scope.
 	const st = loader((projects) => Promise.all(projects.map((project) => api.status({ project }).then((s) => ({ project, s })))));
@@ -86,8 +87,8 @@
 			<Section title={t('goal')}>
 				{#snippet right()}
 					<div class="flex gap-1">
-						<button class="inline-flex items-center gap-1 rounded-md border px-2 py-1 text-[11px] hover:bg-muted" onclick={() => setGoal()} title={t('goalSetTitle', session.project)}><TargetIcon class="size-3" />{t('goalSet')}</button>
-						<button class="inline-flex items-center gap-1 rounded-md border px-2 py-1 text-[11px] hover:bg-muted" onclick={() => setFocus()} title={t('focusSetTitle', session.project)}><CrosshairIcon class="size-3" />{t('focusSet')}</button>
+						<button class="inline-flex items-center gap-1 rounded-md border px-2 py-1 text-[11px] hover:bg-muted" onclick={() => talkGoal()} title={t('chatGoalTitle')}><TargetIcon class="size-3" />{t('goalSet')}</button>
+						<button class="inline-flex items-center gap-1 rounded-md border px-2 py-1 text-[11px] hover:bg-muted" onclick={() => talkFocus()} title={t('chatFocusTitle')}><CrosshairIcon class="size-3" />{t('focusSet')}</button>
 					</div>
 				{/snippet}
 				{#if !goals.length && !focuses.length}<Empty text={t('goalNone', session.project)} />{/if}

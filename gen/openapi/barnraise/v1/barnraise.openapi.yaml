@@ -711,6 +711,47 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/barnraise.v1.DiscussionResponse'
+  /barnraise.v1.BarnraiseService/DraftFromChat:
+    post:
+      tags:
+        - barnraise.v1.BarnraiseService
+      summary: DraftFromChat
+      description: |-
+        DraftFromChat drafts a goal (thread CG-…) or a focus (thread CF-…) from
+         the owner's conversation with the advisor, without setting it.
+      operationId: barnraise.v1.BarnraiseService.DraftFromChat
+      parameters:
+        - name: Connect-Protocol-Version
+          in: header
+          description: Define the version of the Connect protocol
+          schema:
+            $ref: '#/components/schemas/connect-protocol-version'
+          example: 1
+        - name: Connect-Timeout-Ms
+          in: header
+          description: Define the timeout, in ms
+          schema:
+            $ref: '#/components/schemas/connect-timeout-header'
+          example: 1000
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/barnraise.v1.DiscussionRef'
+        required: true
+      responses:
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.error'
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/barnraise.v1.ChatDraft'
   /barnraise.v1.BarnraiseService/Estimate:
     post:
       tags:
@@ -3645,6 +3686,25 @@ components:
       description: |-
         ChangeNote describes a change in the form of Conventional Commits. It
          becomes the header of the commit that lands and a line of the changelog.
+    barnraise.v1.ChatDraft:
+      type: object
+      properties:
+        goal:
+          title: goal
+          $ref: '#/components/schemas/barnraise.v1.Goal'
+        focus:
+          title: focus
+          $ref: '#/components/schemas/barnraise.v1.Focus'
+        until:
+          type: string
+          title: until
+          description: 'until: how long the focus lasts, as the form takes it (3d, 12h), or empty.'
+      title: ChatDraft
+      additionalProperties: false
+      description: |-
+        ChatDraft is the goal or the focus the advisor drafts from the owner's
+         conversation (a thread CG-… or CF-…). Nothing is set: the owner reviews
+         it in the form and sets it.
     barnraise.v1.CheckMark:
       type: object
       properties:
@@ -4846,8 +4906,34 @@ components:
             type: string
           title: unlocked
           description: Locked files (existing tests, references) this item may change.
+        trackerUrl:
+          type: string
+          title: tracker_url
+          description: The entry's web page in the tracker, when the tracker said it.
       title: Item
       additionalProperties: false
+    barnraise.v1.ItemLinks:
+      type: object
+      properties:
+        issue:
+          type: string
+          title: issue
+        pr:
+          type: string
+          title: pr
+        branch:
+          type: string
+          title: branch
+        compare:
+          type: string
+          title: compare
+          description: 'compare: the branch''s changes against the main branch.'
+        commit:
+          type: string
+          title: commit
+      title: ItemLinks
+      additionalProperties: false
+      description: ItemLinks are an item's pages outside Barnraise; empty when unknown.
     barnraise.v1.ItemOverview:
       type: object
       properties:
@@ -5099,6 +5185,10 @@ components:
         signal:
           title: signal
           $ref: '#/components/schemas/barnraise.v1.Signal'
+        links:
+          title: links
+          description: The item's pages outside Barnraise, for the owner to open.
+          $ref: '#/components/schemas/barnraise.v1.ItemLinks'
       title: ItemOverview
       additionalProperties: false
     barnraise.v1.ItemRef:

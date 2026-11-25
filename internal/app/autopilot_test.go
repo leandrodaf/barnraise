@@ -466,3 +466,89 @@ func TestEditOption(t *testing.T) {
 		t.Fatalf("%+v %v %v", p, ok, err)
 	}
 }
+
+// The owner talks the goal and the focus over in a chat; the advisor drafts
+// them from it, and what the project does not have is left out.
+func TestChatToGoalAndFocus(t *testing.T) {
+	e, adv := autopilotEnv(t, func(r AdviceRequest) string {
+		switch {
+		case strings.Contains(r.Prompt, "Draft the goal"):
+			return `{"name":"Primeira versão jogável","done_when":"uma partida vai do início ao fim sem travar","inventory":"uma lista","budget_pct":40}`
+		case strings.Contains(r.Prompt, "Draft the focus"):
+			return `{"name":"Arena","area":"arena","items":["i-1","I-99","I-1"],"share":70,"until":"3d"}`
+		}
+		return "Hoje o jogo tem a arena e o menu."
+	})
+	it := e.ready("simple", "Approach marker", "arena")
+	if ChatKind("CG-AB12CD") != ChatGoal || ChatKind("cf-ab12cd") != ChatFocus || ChatKind("C-AB12CD") != ChatItem || ChatKind("CX-AB12CD") != "" || ChatKind("G-1") != "" {
+		t.Fatal("chat kinds")
+	}
+	if _, err := e.svc.Discuss(e.ctx, "demo", owner(), "CG-AB12CD", "Quero um objetivo para a primeira versão."); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(adv.got[0].System, "choosing the project's goal") {
+		t.Fatal("the goal chat runs with the item chat's instructions")
+	}
+	d, err := e.svc.DraftFromChat(e.ctx, "demo", owner(), "CG-AB12CD")
+	if err != nil || d.Goal == nil || d.Focus != nil {
+		t.Fatalf("%+v %v", d, err)
+	}
+	if d.Goal.Name != "Primeira versão jogável" || d.Goal.Inventory != "" || d.Goal.BudgetPct != 40 || d.Goal.Active {
+		t.Fatalf("goal %+v", d.Goal)
+	}
+	if e.p.Snapshot().ActiveGoal() != nil {
+		t.Fatal("a draft sets the goal")
+	}
+	if _, err := e.svc.Discuss(e.ctx, "demo", owner(), "CF-AB12CD", "Quero focar na arena."); err != nil {
+		t.Fatal(err)
+	}
+	if sys := adv.got[len(adv.got)-1].System; !strings.Contains(sys, "choosing a focus") || !strings.Contains(sys, it.ID) {
+		t.Fatalf("the focus chat does not see the items: %s", sys)
+	}
+	d, err = e.svc.DraftFromChat(e.ctx, "demo", owner(), "CF-AB12CD")
+	if err != nil || d.Focus == nil {
+		t.Fatalf("%+v %v", d, err)
+	}
+	if f := d.Focus; f.Area != "arena" || len(f.Items) != 1 || f.Items[0] != it.ID || f.Share != 70 || d.Until != "3d" {
+		t.Fatalf("focus %+v until %q", f, d.Until)
+	}
+	if e.p.Snapshot().Focus != nil {
+		t.Fatal("a draft sets the focus")
+	}
+	wantErr(t, func() error { _, err := e.svc.DraftFromChat(e.ctx, "demo", owner(), "CG-EMPTY1"); return err }(), ErrInvalid)
+	wantErr(t, func() error { _, err := e.svc.DraftFromChat(e.ctx, "demo", owner(), "C-AB12CD"); return err }(), ErrInvalid)
+	wantErr(t, func() error { _, err := e.svc.CreateItemFromChat(e.ctx, "demo", owner(), "CG-AB12CD"); return err }(), ErrInvalid)
+}
+
+type linkTracker struct{ ports.Tracker }
+
+type fakeRepoLinks struct{}
+
+func (fakeRepoLinks) Branch(b string) string { return "https://github.com/o/r/tree/" + b }
+func (fakeRepoLinks) Compare(a, b string) string {
+	return "https://github.com/o/r/compare/" + a + "..." + b
+}
+func (fakeRepoLinks) Commit(s string) string { return "https://github.com/o/r/commit/" + s }
+
+func (linkTracker) RefURL(ref string) string { return "https://tracker.example/" + ref }
+
+// The item says where it is outside Barnraise: its issue, its branch and
+// its changes while it works, its commit once it lands.
+func TestItemLinks(t *testing.T) {
+	e := newEnv(t)
+	pp := *e.p.Ports()
+	pp.Web = fakeRepoLinks{}
+	pp.Tracker = linkTracker{}
+	e.p.portsV.Store(&pp)
+	it := &domain.Item{ID: "I-7", Branch: "br/I-7-bell", TrackerRef: "#3"}
+	l := itemLinks(e.p, it, &PRView{Number: 9, URL: "https://github.com/o/r/pull/9"})
+	if l.Issue != "https://tracker.example/#3" || l.PR != "https://github.com/o/r/pull/9" || l.Branch != "https://github.com/o/r/tree/br/I-7-bell" ||
+		!strings.HasSuffix(l.Compare, "/compare/"+e.p.Cfg().MainBranch+"...br/I-7-bell") || l.Commit != "" {
+		t.Fatalf("%+v", l)
+	}
+	it.TrackerURL, it.MergeCommit = "https://github.com/o/r/issues/3", "abc123"
+	l = itemLinks(e.p, it, nil)
+	if l.Issue != it.TrackerURL || l.Commit != "https://github.com/o/r/commit/abc123" || l.Branch != "" || l.Compare != "" || l.PR != "" {
+		t.Fatalf("%+v", l)
+	}
+}

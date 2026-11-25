@@ -26,6 +26,7 @@ type NewItem struct {
 	Risky      bool               `json:"risky,omitempty"`
 	External   bool               `json:"external,omitempty"` // came from a tracker or webhook: sanitize and fence
 	TrackerRef string             `json:"tracker_ref,omitempty"`
+	TrackerURL string             `json:"tracker_url,omitempty"`
 	Lane       string             `json:"lane,omitempty"`
 }
 
@@ -129,7 +130,7 @@ func (s *Service) CreateItem(ctx context.Context, project string, a Actor, in Ne
 	it := &domain.Item{
 		ID: domain.FormatID(domain.KindItem, num), Version: 1, Title: in.Title, Body: in.Body, Kind: in.Kind, Priority: prio, Lane: lane,
 		Area: area, GoalID: goalID, Size: in.Size, Class: in.Class, Status: domain.StatusDraft, Criteria: in.Criteria, Preserve: in.Preserve,
-		Deps: in.Deps, Anchors: in.Anchors, Checklist: in.Checklist, Risky: in.Risky, TrackerRef: in.TrackerRef, Adopted: in.External && in.TrackerRef != "",
+		Deps: in.Deps, Anchors: in.Anchors, Checklist: in.Checklist, Risky: in.Risky, TrackerRef: in.TrackerRef, TrackerURL: in.TrackerURL, Adopted: in.External && in.TrackerRef != "",
 		CreatedAt: now, UpdatedAt: now, ValidatedAt: now,
 	}
 	it.Clarifications = domain.FindClarifications(in.Body)

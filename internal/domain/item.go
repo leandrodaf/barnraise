@@ -147,6 +147,8 @@ type Item struct {
 	Branch     string         `json:"branch,omitempty"`
 	PR         string         `json:"pr,omitempty"`
 	TrackerRef string         `json:"tracker_ref,omitempty"`
+	// TrackerURL is the entry's web page, when the tracker said it.
+	TrackerURL string `json:"tracker_url,omitempty"`
 	// Adopted marks an item that came from an entry people wrote in the
 	// tracker. Barnraise keeps its state and labels current there, and never
 	// rewrites its title or text: they are the author's.

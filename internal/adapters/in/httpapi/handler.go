@@ -391,6 +391,15 @@ func (h *Handler) SetGoal(ctx context.Context, r *connect.Request[pb.SetGoalRequ
 	return respond[pb.SetGoalResponse](map[string]any{"goal": goal, "inventory": inv}, err)
 }
 
+// DraftFromChat drafts a goal or a focus from a conversation with the advisor.
+func (h *Handler) DraftFromChat(ctx context.Context, r *connect.Request[pb.DiscussionRef]) (*connect.Response[pb.ChatDraft], error) {
+	d, err := h.svc().DraftFromChat(ctx, r.Msg.Project, actorFrom(ctx), r.Msg.Thread)
+	if errors.Is(err, app.ErrNoAdvisor) {
+		return nil, connect.NewError(connect.CodeUnavailable, err)
+	}
+	return respond[pb.ChatDraft](d, err)
+}
+
 func (h *Handler) SetFocus(ctx context.Context, r *connect.Request[pb.FocusRequest]) (*connect.Response[pb.FocusResponse], error) {
 	var f domain.Focus
 	if r.Msg.Focus != nil {

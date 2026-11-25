@@ -7,10 +7,13 @@ All notable changes to Barnraise are recorded here. The format follows [Keep a C
 ### Added
 
 - **owner:** *New item* opens a conversation with the advisor: it reads the code, answers and asks what is unclear, and *Create the item* writes the item from the conversation, with criteria tied to checks (`CreateItemFromChat`). The form stays behind *Write it by hand*.
+- **owner:** *Set goal* and *Set focus* open a conversation with the advisor (threads `CG-…` and `CF-…`): it reads the code and the items not done, pushes back on a goal with no end you can check, and *Review the goal* / *Review the focus* drafts it (`DraftFromChat`) into the form, filled in for the owner to set. Nothing is set without the owner; the forms stay behind *Write it by hand* and in the command palette.
+- **panel:** The item's *Links* open its pages outside Barnraise: the issue in the tracker (GitHub, GitLab, Jira; Linear through the link the tracker gives), the pull request, the branch, its changes against the main branch and, once integrated, its commit. The links come from the repository's remote (`ItemLinks`); a remote's credentials never reach them.
 - **panel:** The autopilot shows what it decides right now: on the question, on the item waiting for approval, on the proposals while it triages them, and on Home.
 
 ### Fixed
 
+- **panel:** The goal form's *What it needs* says the forms the daemon takes (`screens <folder>`, `files <path>`, `lines <file>`) instead of "one per line", which always failed.
 - **cli:** `barnraise item edit -c` writes the criteria again; it failed with "proto: invalid type", so analysts could not record a refinement.
 - **providers:** Claude Code's current limit messages ("You've hit your 5-hour limit · resets 1am · out of usage credits", "…weekly limit", "…Fable limit") are recognized: the account (or only the model, when the limit is the model's own) waits, and the work goes to another account or to the next model of its class.
 - **owner:** The advisor goes down the ladder (fable, opus, sonnet, haiku) over every account with room before it gives up, never takes a limit message for an answer, and the panel disables *Talk it over*, *Decide for me* and *Triage* with the reason and the time it comes back. *Decide for me* on a decision only the owner can take leaves it to the owner with what to do instead of failing.

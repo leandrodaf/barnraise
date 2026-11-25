@@ -19,7 +19,7 @@
 	import { NAV } from './nav';
 	import { clusterItems } from './items';
 	import { openItem } from './open';
-	import { newItem, pauseProject, resumeProject, standby } from './actions';
+	import { newItem, pauseProject, resumeProject, standby, talkGoal, talkFocus } from './actions';
 	import { setGoal, setFocus, propose, addTweak, upsertAccount } from './ownerActions';
 	import TargetIcon from '@lucide/svelte/icons/target';
 	import CrosshairIcon from '@lucide/svelte/icons/crosshair';
@@ -44,8 +44,10 @@
 			<Command.Item onSelect={run(newItem)}><PlusIcon />{t('newItem')}<Command.Shortcut>{session.project}</Command.Shortcut></Command.Item>
 			{#if paused}<Command.Item onSelect={run(() => resumeProject())}><PlayIcon />{t('resumeAll')}<Command.Shortcut>{session.project}</Command.Shortcut></Command.Item>
 			{:else}<Command.Item onSelect={run(() => pauseProject())}><PauseIcon />{t('pauseAll')}<Command.Shortcut>{session.project}</Command.Shortcut></Command.Item>{/if}
-			<Command.Item onSelect={run(() => setGoal())}><TargetIcon />{t('goalSet')}<Command.Shortcut>{session.project}</Command.Shortcut></Command.Item>
-			<Command.Item onSelect={run(() => setFocus())}><CrosshairIcon />{t('focusSet')}<Command.Shortcut>{session.project}</Command.Shortcut></Command.Item>
+			<Command.Item onSelect={run(() => talkGoal())}><TargetIcon />{t('goalSet')}<Command.Shortcut>{session.project}</Command.Shortcut></Command.Item>
+			<Command.Item onSelect={run(() => setGoal())}><TargetIcon />{t('goalSetByHand')}<Command.Shortcut>{session.project}</Command.Shortcut></Command.Item>
+			<Command.Item onSelect={run(() => talkFocus())}><CrosshairIcon />{t('focusSet')}<Command.Shortcut>{session.project}</Command.Shortcut></Command.Item>
+			<Command.Item onSelect={run(() => setFocus())}><CrosshairIcon />{t('focusSetByHand')}<Command.Shortcut>{session.project}</Command.Shortcut></Command.Item>
 			<Command.Item onSelect={run(() => propose())}><LightbulbIcon />{t('proposeShort')}<Command.Shortcut>{session.project}</Command.Shortcut></Command.Item>
 			<Command.Item onSelect={run(() => addTweak())}><WandIcon />{t('tweakTitle')}<Command.Shortcut>{session.project}</Command.Shortcut></Command.Item>
 			<Command.Item onSelect={run(() => upsertAccount())}><UserPlusIcon />{t('accAdd')}</Command.Item>

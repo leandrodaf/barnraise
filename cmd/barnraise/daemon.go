@@ -695,9 +695,9 @@ func (d *daemon) reloadRoot(ctx context.Context, root string) error {
 
 // projectPorts resolves git, the arbiter, the tracker and the code host.
 func (d *daemon) projectPorts(cfg *domain.ProjectConfig) (app.ProjectPorts, error) {
-	remote := ""
+	remote, remoteURL := "", ""
 	if out, err := exec.Command("git", "-C", cfg.Root, "remote", "get-url", cfg.CodeHost.Remote).Output(); err == nil && len(strings.TrimSpace(string(out))) > 0 {
-		remote = cfg.CodeHost.Remote
+		remote, remoteURL = cfg.CodeHost.Remote, strings.TrimSpace(string(out))
 	}
 	if _, err := os.Stat(filepath.Join(cfg.Root, ".git")); err != nil {
 		return app.ProjectPorts{}, fmt.Errorf("%s is not a git repository: run `git init` (Barnraise works on branches and a main)", cfg.Root)
@@ -766,6 +766,15 @@ func (d *daemon) projectPorts(cfg *domain.ProjectConfig) (app.ProjectPorts, erro
 	}
 	if err != nil {
 		return pp, fmt.Errorf("tracker %s: %w", cfg.Tracker.Type, err)
+	}
+	// The repository's web page, for the panel's links: the code host's
+	// type when there is one, else the tracker's, else the host's name.
+	hostKind := cfg.CodeHost.Type
+	if hostKind == "" {
+		hostKind = cfg.Tracker.Type
+	}
+	if web := gitx.ParseRepoWeb(remoteURL, hostKind); web.Base != "" {
+		pp.Web = web
 	}
 	if remote != "" {
 		switch cfg.CodeHost.Type {

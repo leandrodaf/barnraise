@@ -84,6 +84,14 @@ func New(opts Options) (*Tracker, error) {
 // Name is "jira".
 func (t *Tracker) Name() string { return "jira" }
 
+// RefURL is the issue's web page: PROJ-12 -> https://site.atlassian.net/browse/PROJ-12.
+func (t *Tracker) RefURL(ref string) string {
+	if ref = strings.TrimSpace(ref); ref == "" || strings.ContainsAny(ref, "/ ?#") {
+		return ""
+	}
+	return t.opts.BaseURL + "/browse/" + ref
+}
+
 func (t *Tracker) do(ctx context.Context, method, path string, in, out any) error {
 	if _, err := t.http.Do(ctx, method, path, in, out); err != nil {
 		return fmt.Errorf("jira: %w", err)

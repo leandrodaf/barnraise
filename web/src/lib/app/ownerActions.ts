@@ -2,7 +2,7 @@
 // unlock an item, a tweak, a message to whoever works on an item, the goal,
 // the focus, a proposal and an account.
 import type { JsonObject } from '@bufbuild/protobuf';
-import type { Criterion, Item } from '$lib/gen/barnraise/v1/barnraise_pb';
+import type { Criterion, Focus, Goal, Item } from '$lib/gen/barnraise/v1/barnraise_pb';
 import { api } from '$lib/api';
 import { t } from '$lib/i18n';
 import { session } from '$lib/session.svelte';
@@ -127,15 +127,16 @@ export function messageAgent(project: string, id: string) {
 	});
 }
 
-export function setGoal(project = session.project) {
+// setGoal is the goal's form; a draft from a conversation fills it in.
+export function setGoal(project = session.project, draft?: Goal) {
 	dialog.open({
 		title: t('goalSetTitle', project),
 		description: t('goalSetHelp'),
 		fields: [
-			{ name: 'name', label: t('goalName'), required: true },
-			{ name: 'doneWhen', label: t('goalDoneWhen'), type: 'textarea', required: true },
-			{ name: 'inventory', label: t('goalInventory'), type: 'textarea', help: t('goalInventoryHelp') },
-			{ name: 'budget', label: t('goalBudget'), help: t('goalBudgetHelp'), placeholder: '60' }
+			{ name: 'name', label: t('goalName'), required: true, value: draft?.name },
+			{ name: 'doneWhen', label: t('goalDoneWhen'), type: 'textarea', required: true, value: draft?.doneWhen },
+			{ name: 'inventory', label: t('goalInventory'), help: t('goalInventoryHelp'), placeholder: 'screens docs/prototype', value: draft?.inventory },
+			{ name: 'budget', label: t('goalBudget'), help: t('goalBudgetHelp'), placeholder: '60', value: draft?.budgetPct ? String(draft.budgetPct) : '' }
 		],
 		submit: t('goalSet'),
 		onSubmit: async (v) => {
@@ -145,16 +146,17 @@ export function setGoal(project = session.project) {
 	});
 }
 
-export function setFocus(project = session.project) {
+// setFocus is the focus's form; a draft from a conversation fills it in.
+export function setFocus(project = session.project, draft?: Focus, until = '') {
 	dialog.open({
 		title: t('focusSetTitle', project),
 		description: t('focusSetHelp'),
 		fields: [
-			{ name: 'name', label: t('focusName'), required: true },
-			{ name: 'area', label: t('area') },
-			{ name: 'items', label: t('focusItemsLabel'), placeholder: 'I-12, I-14' },
-			{ name: 'share', label: t('focusShare'), help: t('focusShareHelp'), placeholder: '70' },
-			{ name: 'until', label: t('focusUntil'), placeholder: '3d' }
+			{ name: 'name', label: t('focusName'), required: true, value: draft?.name },
+			{ name: 'area', label: t('area'), value: draft?.area },
+			{ name: 'items', label: t('focusItemsLabel'), placeholder: 'I-12, I-14', value: draft?.items.join(', ') },
+			{ name: 'share', label: t('focusShare'), help: t('focusShareHelp'), placeholder: '70', value: draft?.share ? String(draft.share) : '' },
+			{ name: 'until', label: t('focusUntil'), placeholder: '3d', value: until }
 		],
 		submit: t('focusSet'),
 		onSubmit: async (v) => {
