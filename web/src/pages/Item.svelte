@@ -50,6 +50,7 @@
 	import { onDestroy } from 'svelte';
 	import HourglassIcon from '@lucide/svelte/icons/hourglass';
 	import DepGraph from '$lib/app/DepGraph.svelte';
+	import Related from '$lib/app/Related.svelte';
 	import { cluster } from '$lib/cluster.svelte';
 	import { clusterItems } from '$lib/app/items';
 	import { openItem } from '$lib/app/open';
@@ -78,9 +79,9 @@
 	}, 5_000);
 	onDestroy(() => clearInterval(timer));
 	// The knowledge base's links of the item (decisions, files, other items), read when its tab opens.
-	let related = $state<{ text: string } | null>(null);
+	let related = $state<{ data?: Record<string, any>; error?: string } | null>(null);
 	$effect(() => {
-		if (tab === 'related' && !related) api.related({ project, target: id }).then((r) => (related = { text: r.text || '```json\n' + JSON.stringify(r.result || {}, null, 2) + '\n```' })).catch((e) => (related = { text: String(e) }));
+		if (tab === 'related' && !related) api.related({ project, target: id }).then((r) => (related = { data: (r.result as Record<string, any>) || {} })).catch((e) => (related = { error: String(e) }));
 	});
 	const finished = (s: string) => s === 'integrated' || s === 'closed';
 	// The cluster's items, with this one as the item page knows it, for its dependency chain.
@@ -277,7 +278,7 @@
 			<Tabs.Content value="documents" class="mt-3">{#if tab === 'documents'}<ItemDocuments {project} id={it.id} />{/if}</Tabs.Content>
 			<Tabs.Content value="related" class="mt-3">
 				<Section title={t('tabRelated')} sub={t('relatedHelp')}>
-					{#if !related}<p class="flex items-center gap-2 text-sm text-muted-foreground"><Spinner class="size-3.5" />{t('loading')}</p>{:else}<Markdown text={related.text} />{/if}
+					{#if !related}<p class="flex items-center gap-2 text-sm text-muted-foreground"><Spinner class="size-3.5" />{t('loading')}</p>{:else if related.error}<p class="text-sm text-destructive">{related.error}</p>{:else}<Related data={related.data || {}} {project} {id} />{/if}
 				</Section>
 			</Tabs.Content>
 		</Tabs.Root>
