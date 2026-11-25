@@ -150,6 +150,14 @@ func (r ModelRouter) Route(req RouteRequest) ([]ModelChoice, error) {
 	}
 	out := append(preferred, fallback...)
 	if len(out) == 0 {
+		if sameModel && req.Tier > 0 {
+			// Escalation moved every model of the class to the top of its
+			// ladder, the one that did the work: a different model one
+			// level lower still reviews it with other eyes.
+			lower := req
+			lower.Tier--
+			return r.Route(lower)
+		}
 		if sameModel {
 			// Waiting does not help: the only usable model is the one that
 			// did the work under review.

@@ -27,6 +27,24 @@ func TestRouteSaysWhenOnlyTheReviewedModelIsLeft(t *testing.T) {
 	}
 }
 
+// Escalation moves every model of a class to the top of its ladder. When
+// that leaves only the model that did the work under review, the review
+// runs one level lower on another model instead of never starting.
+func TestRouteStepsDownWhenEscalationLeavesOnlyTheReviewedModel(t *testing.T) {
+	r := ModelRouter{
+		Classes:  map[string][]ModelChoice{"normal": {{Provider: "claude", Model: "sonnet"}, {Provider: "claude", Model: "opus"}}},
+		Ladders:  map[string][]string{"claude": {"haiku", "sonnet", "opus", "fable"}},
+		Families: map[string]string{"claude": "anthropic"},
+	}
+	got, err := r.Route(RouteRequest{Class: "normal", Tier: 2, AvoidFamily: "anthropic", AvoidModel: "fable"})
+	if err != nil || len(got) == 0 || got[0].Model == "fable" {
+		t.Fatalf("got %v %v, want another model than fable", got, err)
+	}
+	if got[0].Model != "opus" {
+		t.Fatalf("got %v, want the strongest other model (opus, one level lower)", got)
+	}
+}
+
 func TestMCPServersAreAllowedPerRole(t *testing.T) {
 	c := &ProjectConfig{Roles: map[string]RoleDef{"implementer": {}, "reviewer": {}}, MCP: map[string]MCPServerDef{
 		"all":  {Command: "a"},
