@@ -26,6 +26,7 @@
 		{ key: 'sbNeeds', rows: g.needs, tone: 'needs' as Tone, age: (r: Row) => since(r.updatedAt) },
 		{ key: 'sbWorking', rows: g.working, tone: 'work' as Tone, age: (r: Row) => since(r.stepStartedAt) },
 		{ key: 'sbBlocked', rows: g.blocked, tone: 'fail' as Tone, age: (r: Row) => since(r.updatedAt) },
+		{ key: 'sbUpNext', rows: g.upNext, tone: 'idle' as Tone, age: (r: Row) => since(r.updatedAt) },
 		{ key: 'sbRecent', rows: g.recent.slice(0, 5), tone: 'done' as Tone, age: (r: Row) => since(r.integratedAt) }
 	].filter((s) => s.rows.length));
 	// Live counts next to the screens, all from the daemon's answers.

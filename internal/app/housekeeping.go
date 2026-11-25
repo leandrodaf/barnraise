@@ -69,6 +69,15 @@ func (r *Runtime) housekeeping(ctx context.Context, p *Project, m domain.Machine
 		s.releaseLease(ctx, p, TrackerKey)
 		return
 	}
+	// A machine whose sessions are all refused (its root or binary changed
+	// outside Barnraise) gives its items and the duties that start sessions
+	// to a machine that can run them. The tracker repair starts none: it
+	// stays where it is.
+	if probs := s.machineDistrust(ctx, p); len(probs) > 0 {
+		s.standDown(ctx, p, r.busyItems(p.Name), scopeName(probs[0].Scope)+" changed outside Barnraise")
+		r.repairTracker(ctx, p, now)
+		return
+	}
 	// The autopilot is a duty of its own: a machine whose advisor fails
 	// gives it up and another one takes it.
 	if s.autopilotDue(p, now) {

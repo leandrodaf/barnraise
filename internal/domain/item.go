@@ -206,6 +206,36 @@ var (
 // ClarificationMarker marks an open question in item text.
 const ClarificationMarker = "[NEEDS CLARIFICATION"
 
+// ResolveClarifications marks every open [NEEDS CLARIFICATION: …] in text
+// answered: it becomes "(clarified: …)", so the question stays readable but
+// no longer holds the item in draft. An unclosed marker runs to the end of
+// the text, as FindClarifications reads it.
+func ResolveClarifications(text string) string {
+	var b strings.Builder
+	for {
+		i := strings.Index(text, ClarificationMarker)
+		if i < 0 {
+			b.WriteString(text)
+			return b.String()
+		}
+		b.WriteString(text[:i])
+		rest := text[i+len(ClarificationMarker):]
+		end := strings.IndexByte(rest, ']')
+		q := rest
+		if end >= 0 {
+			q, text = rest[:end], rest[end+1:]
+		} else {
+			text = ""
+		}
+		q = strings.TrimSpace(strings.TrimPrefix(strings.TrimSpace(q), ":"))
+		if q == "" {
+			b.WriteString("(clarified)")
+		} else {
+			b.WriteString("(clarified: " + q + ")")
+		}
+	}
+}
+
 // FindClarifications returns the open [NEEDS CLARIFICATION: …] markers in text.
 func FindClarifications(text string) []string {
 	var out []string

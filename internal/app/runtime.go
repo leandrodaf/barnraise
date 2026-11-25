@@ -313,6 +313,12 @@ func (r *Runtime) fillSlots(ctx context.Context, p *Project, m domain.Machine) {
 		return
 	}
 	r.newStartErr(p.Name+"/machine", "")
+	// Every session here would be refused: claiming an item only to fail to
+	// start it would hold it away from the machines that can. Housekeeping
+	// gives back what this machine already holds.
+	if len(r.s.machineDistrust(ctx, p)) > 0 {
+		return
+	}
 	// Items already tried in this pass, started or not: a session that ends
 	// at once (or a start that fails) is not tried again by the next free
 	// slot of the same pass. The next pass decides again.

@@ -84,6 +84,11 @@
 					<div class="divide-y">{#each g.working.slice(0, 8) as r (r.project + r.id)}<ItemRow {r}>{#snippet meta()}<span>{r.step}</span><span>{r.machine}</span><span>{since(r.stepStartedAt)}</span>{/snippet}</ItemRow>{/each}</div>
 				{/if}
 			</Section>
+			<Section title={t('sbUpNext')} count={g.upNext.length} sub={t('sbUpNextHint')} pad={false}>
+				{#if !g.upNext.length}<div class="p-4"><Empty /></div>{:else}
+					<div class="divide-y">{#each g.upNext.slice(0, 8) as r (r.project + r.id)}<ItemRow {r}>{#snippet meta()}{#if r.step}<span>{r.step}</span>{/if}{#if r.machine}<span>{r.machine}</span>{/if}<span>{since(r.updatedAt)}</span>{/snippet}</ItemRow>{/each}</div>
+				{/if}
+			</Section>
 			<Section title={t('goal')}>
 				{#snippet right()}
 					<div class="flex gap-1">

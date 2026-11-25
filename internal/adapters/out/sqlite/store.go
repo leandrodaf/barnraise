@@ -201,6 +201,10 @@ func (s *Store) Query(ctx context.Context, q ports.EventQuery) ([]domain.Event, 
 		where = append(where, "subject = ?")
 		args = append(args, q.Subject)
 	}
+	if q.Machine != "" {
+		where = append(where, "machine = ?")
+		args = append(args, q.Machine)
+	}
 	if len(q.Types) > 0 {
 		where = append(where, "type IN (?"+strings.Repeat(",?", len(q.Types)-1)+")")
 		for _, t := range q.Types {

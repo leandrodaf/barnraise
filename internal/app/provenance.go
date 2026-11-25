@@ -173,9 +173,19 @@ func walkFiles(dir string, fn func(rel, abs string) error, enter func(rel string
 	return err
 }
 
-// recordedRoot returns the last recorded root manifest of a project.
+// recordedRoot returns the last root manifest this machine recorded. Each
+// machine has its own checkout of the root, so a record is this machine's:
+// another machine trusting its own files (a newer barnraise.yaml it pulled,
+// or a local edit) says nothing about the files here, and taking it would
+// refuse every session here until the owner re-trusted, machine by machine,
+// each time any of them did. A machine that has none of its own yet (it
+// recorded before records were per machine) falls back to the cluster's
+// last record, as before.
 func (s *Service) recordedRoot(ctx context.Context, p *Project) (domain.Manifest, bool, error) {
-	evs, err := s.d.Store.Query(ctx, ports.EventQuery{Project: p.Name, Types: []string{domain.EvTrustRecorded}, Limit: 1})
+	evs, err := s.d.Store.Query(ctx, ports.EventQuery{Project: p.Name, Machine: s.d.Machine, Types: []string{domain.EvTrustRecorded}, Limit: 1})
+	if err == nil && len(evs) == 0 {
+		evs, err = s.d.Store.Query(ctx, ports.EventQuery{Project: p.Name, Types: []string{domain.EvTrustRecorded}, Limit: 1})
+	}
 	if err != nil || len(evs) == 0 {
 		return nil, false, err
 	}
@@ -385,7 +395,7 @@ func (s *Service) provenanceProblems(ctx context.Context, p *Project, itemID str
 		if err != nil {
 			return nil, err
 		}
-		if ch := rec.Diff(cur); len(ch) > 0 {
+		if ch := s.rootOffMain(ctx, p, rec.Diff(cur)); len(ch) > 0 {
 			out = append(out, TrustProblem{Scope: "root", Changes: ch, Fix: rootFix(p.Name)})
 		}
 	}
@@ -399,6 +409,44 @@ func (s *Service) provenanceProblems(ctx context.Context, p *Project, itemID str
 		}
 	}
 	return out, nil
+}
+
+// rootOffMain drops the root changes whose file is now main's: the content
+// the main branch holds, or the one of the commit the root has checked out
+// when that commit is on main. Agents cannot change barnraise.yaml or
+// .barnraise/ (the hooks block it), so main's version came through the
+// owner, the same rule worktreeChanges applies to the worktrees' files. A
+// root that pulled main (or has not pulled it yet) is not refused for that;
+// a file edited by hand, or committed on a branch main does not hold, is.
+func (s *Service) rootOffMain(ctx context.Context, p *Project, ch []domain.TrustChange) []domain.TrustChange {
+	g := p.Ports().Git
+	if g == nil || len(ch) == 0 {
+		return ch
+	}
+	main, err := g.MainHead(ctx)
+	if err != nil || main == "" {
+		return ch
+	}
+	revs := []string{main}
+	if head, err := g.Head(ctx, p.Cfg().Root); err == nil && head != "" && head != main {
+		if b, err := g.MergeBase(ctx, head, main); err == nil && b == head {
+			revs = append(revs, head) // the root is behind main: its commit is main's
+		}
+	}
+	var out []domain.TrustChange
+	for _, c := range ch {
+		onMain := false
+		for _, rev := range revs {
+			if c.Got == s.trust.mainFile(ctx, g, rev, c.Path) {
+				onMain = true
+				break
+			}
+		}
+		if !onMain {
+			out = append(out, c)
+		}
+	}
+	return out
 }
 
 // worktreeChanges lists the instruction files of dir that are neither the

@@ -576,7 +576,7 @@ Object.assign(pt, {
 Object.assign(en, {
   search: 'Search…', palette: 'Command palette', paletteHelp: 'Go to a screen, an item or run an action.', paletteSearch: 'Type a command, an item or a screen…',
   paletteActions: 'Actions', shortcuts: 'Keyboard shortcuts', more: '{0} more', all: 'All',
-  sbNeeds: 'Needs you', sbWorking: 'Working', sbBlocked: 'Blocked', sbRecent: 'Recent results',
+  sbNeeds: 'Needs you', sbWorking: 'Working', sbBlocked: 'Blocked', sbUpNext: 'Up next', sbUpNextHint: 'Drafts, ready items and items between steps', sbRecent: 'Recent results',
   sbDaemon: 'Daemon {0} on {1}', sbTight: 'Tightest account: {0} {1}',
   pausedBanner: '{0} is paused.', newItemHelp: 'In project {0}.',
   homeSummary: '{0} decisions wait for you. {1} items are being worked on, {2} are blocked.',
@@ -605,7 +605,7 @@ Object.assign(en, {
 Object.assign(pt, {
   search: 'Buscar…', palette: 'Paleta de comandos', paletteHelp: 'Vá para uma tela, um item ou rode uma ação.', paletteSearch: 'Digite um comando, um item ou uma tela…',
   paletteActions: 'Ações', shortcuts: 'Atalhos de teclado', more: 'mais {0}', all: 'Todos',
-  sbNeeds: 'Precisa de você', sbWorking: 'Trabalhando', sbBlocked: 'Bloqueados', sbRecent: 'Resultados recentes',
+  sbNeeds: 'Precisa de você', sbWorking: 'Trabalhando', sbBlocked: 'Bloqueados', sbUpNext: 'A começar', sbUpNextHint: 'Rascunhos, itens prontos e itens entre passos', sbRecent: 'Resultados recentes',
   sbDaemon: 'Daemon {0} em {1}', sbTight: 'Conta mais apertada: {0} {1}',
   pausedBanner: '{0} está pausado.', newItemHelp: 'No projeto {0}.',
   homeSummary: '{0} decisões esperam por você. {1} itens estão em andamento, {2} bloqueados.',
@@ -657,7 +657,7 @@ Object.assign(en, {
   flowLabel: 'Steps of the flow',
   stepKind_plan: 'plan', stepKind_work: 'work', stepKind_approval: 'approval', stepKind_review: 'review', stepKind_check: 'check', stepKind_merge: 'merge queue',
   sig_approve: 'Approve the {0}', sig_question: 'Waiting for your answer · {0}', sig_check_failed: '{0} failed', sig_changes_requested: 'Changes requested · {0} findings',
-  sig_waits_for: 'Waits for {0}', sig_stalled: 'Machine {0} is out', sig_working: 'Working · {0}', sig_running: '{0} processes, no agent',
+  sig_waits_for: 'Waits for {0}', sig_stalled: 'Machine {0} is out', sig_cannot_start: 'The agent cannot start on {0}', sig_working: 'Working · {0}', sig_running: '{0} processes, no agent',
   sig_queued: 'In the merge queue', sig_paused: 'Paused', sig_parked: 'Waits for the focus to end', sig_draft: 'Draft · {0} open clarifications',
   sig_ready: 'Ready · after {0}', sig_idle: 'Nothing runs · {0}', sig_next_pass: 'Starts now · {0}', sig_slots_busy: 'Next in line · {0}', sig_no_account: 'Waits for an account with room · {0}', sig_integrated: 'Integrated', sig_closed: 'Closed · {0}',
 });
@@ -666,7 +666,7 @@ Object.assign(pt, {
   flowLabel: 'Passos do fluxo',
   stepKind_plan: 'plano', stepKind_work: 'trabalho', stepKind_approval: 'aprovação', stepKind_review: 'revisão', stepKind_check: 'verificação', stepKind_merge: 'fila de integração',
   sig_approve: 'Aprovar {0}', sig_question: 'Esperando sua resposta · {0}', sig_check_failed: '{0} falhou', sig_changes_requested: 'Mudanças pedidas · {0} apontamentos',
-  sig_waits_for: 'Espera {0}', sig_stalled: 'A máquina {0} está fora', sig_working: 'Trabalhando · {0}', sig_running: '{0} processos, sem agente',
+  sig_waits_for: 'Espera {0}', sig_stalled: 'A máquina {0} está fora', sig_cannot_start: 'O agente não consegue iniciar em {0}', sig_working: 'Trabalhando · {0}', sig_running: '{0} processos, sem agente',
   sig_queued: 'Na fila de integração', sig_paused: 'Pausado', sig_parked: 'Espera o foco acabar', sig_draft: 'Rascunho · {0} esclarecimentos abertos',
   sig_ready: 'Pronto · depois de {0}', sig_idle: 'Nada rodando · {0}', sig_next_pass: 'Começa agora · {0}', sig_slots_busy: 'Próximo da vez · {0}', sig_no_account: 'Espera uma conta com limite · {0}', sig_integrated: 'Integrado', sig_closed: 'Fechado · {0}',
 });

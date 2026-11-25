@@ -129,6 +129,9 @@ func itemSignal(it *domain.Item, io *ItemOverview, il *domain.ItemLedger) Signal
 	case ActBlocked:
 		return Signal{Kind: "waits_for", Arg: strings.Join(io.BlockedBy, ", ")}
 	case ActStalled:
+		if io.idle.Kind != "" {
+			return io.idle // its agent cannot start, the machine is up
+		}
 		return Signal{Kind: "stalled", Arg: io.Machine}
 	case ActWorking, ActRefining:
 		if len(io.Sessions) > 0 {

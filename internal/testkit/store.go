@@ -124,6 +124,9 @@ func (s *Store) Query(_ context.Context, q ports.EventQuery) ([]domain.Event, er
 		if q.Subject != "" && e.Subject != q.Subject {
 			continue
 		}
+		if q.Machine != "" && e.Machine != q.Machine {
+			continue
+		}
 		if len(q.Types) > 0 && !types[e.Type] {
 			continue
 		}

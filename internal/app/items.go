@@ -311,6 +311,16 @@ func (s *Service) UpdateItem(ctx context.Context, project string, a Actor, id st
 		}
 		if patch.Clarifications != nil {
 			it.Clarifications = *patch.Clarifications
+			if len(it.Clarifications) == 0 {
+				// Answered: the markers in the text are answered too, or
+				// the readiness check, which reads the body and the
+				// criteria, kept the item in draft after the owner or the
+				// analyst cleared them.
+				it.Body = domain.ResolveClarifications(it.Body)
+				for i := range it.Criteria {
+					it.Criteria[i].Text = domain.ResolveClarifications(it.Criteria[i].Text)
+				}
+			}
 		}
 		if patch.Checklist != nil {
 			it.Checklist = *patch.Checklist

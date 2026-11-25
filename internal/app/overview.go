@@ -19,7 +19,7 @@ const (
 	ActRefining     = "refining"      // the analyst is refining the draft
 	ActRunning      = "running"       // no agent, but processes run for it (a check, a build)
 	ActIdle         = "idle"          // held by a machine, nothing runs (between steps, no capacity)
-	ActStalled      = "stalled"       // the machine that holds it is out
+	ActStalled      = "stalled"       // the machine that holds it is out, or its agent cannot start
 	ActWaitingOwner = "waiting_owner" // a person has to decide
 	ActBlocked      = "blocked"       // waits for another item
 	ActPaused       = "paused"        // the item or the whole project is paused
@@ -583,6 +583,11 @@ func itemOverview(p *Project, snap *domain.State, it *domain.Item, now time.Time
 	}
 	io.Links = itemLinks(p, it, io.PR)
 	io.Activity, io.Detail = itemActivity(snap, it, io, up)
+	if io.Activity == ActStalled {
+		if si := failedSession(snap, it, stepOf(it)); si != nil {
+			io.idle = Signal{Kind: "cannot_start", Arg: si.Machine}
+		}
+	}
 	if io.Activity == ActIdle && it.Claim != nil {
 		if why := idleWhy(p, snap, it, now); why.Kind != "" {
 			io.Detail, io.idle = idleText(why), why
@@ -644,6 +649,9 @@ func itemActivity(snap *domain.State, it *domain.Item, io *ItemOverview, up func
 		if len(io.Sessions) > 0 {
 			return ActRefining, io.Sessions[0].Agent
 		}
+		if why, ok := startFailure(snap, it, RefineStep); ok {
+			return ActStalled, why
+		}
 		if len(it.Clarifications) > 0 {
 			return ActDraft, strconv.Itoa(len(it.Clarifications)) + " open clarifications"
 		}
@@ -663,12 +671,65 @@ func itemActivity(snap *domain.State, it *domain.Item, io *ItemOverview, up func
 		return ActBlocked, "waits for " + strings.Join(io.BlockedBy, ", ")
 	case it.Claim != nil && !up(it.Claim.Machine):
 		return ActStalled, "machine " + it.Claim.Machine + " is out"
+	}
+	if why, ok := startFailure(snap, it, it.Step); ok {
+		return ActStalled, why
+	}
+	switch {
 	case running:
 		return ActRunning, strconv.Itoa(io.Procs.Count) + " processes, no agent"
 	case it.Claim == nil:
 		return ActIdle, "no machine holds it"
 	}
 	return ActIdle, "held by " + it.Claim.Machine + ", nothing runs"
+}
+
+// startFailure says why the agent that should take the item's step could
+// not start it: the session recorded for the item at that step failed after
+// the item last changed (a claim, an edit, a step). Without it an item whose
+// machine refused every session read as idle, "takes it at the next pass",
+// for as long as nobody looked at the agents.
+func startFailure(snap *domain.State, it *domain.Item, step string) (string, bool) {
+	last := failedSession(snap, it, step)
+	if last == nil {
+		return "", false
+	}
+	why := last.Agent
+	if last.Machine != "" {
+		why += " on " + last.Machine
+	}
+	why += " cannot start"
+	if last.Detail != "" {
+		why += ": " + truncate(last.Detail, 200)
+	}
+	return why, true
+}
+
+// failedSession is the item's last session at step when it failed after the
+// item last changed, nil otherwise.
+func failedSession(snap *domain.State, it *domain.Item, step string) *domain.SessionInfo {
+	var last *domain.SessionInfo
+	for _, si := range snap.Sessions {
+		if si.ItemID != it.ID || si.Step != step || si.At.Before(it.UpdatedAt) {
+			continue
+		}
+		if last == nil || si.At.After(last.At) {
+			last = si
+		}
+	}
+	if last == nil || last.State != "failed" {
+		return nil
+	}
+	return last
+}
+
+// stepOf is the step an item's next session is for: a draft's is the
+// analyst's refinement.
+func stepOf(it *domain.Item) string {
+	if it.Status == domain.StatusDraft {
+		return RefineStep
+	}
+	return it.Step
 }
 
 // idleWhy says why an item a machine holds has no session: no account can

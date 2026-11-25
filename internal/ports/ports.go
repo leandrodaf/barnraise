@@ -35,6 +35,8 @@ type EventStore interface {
 type EventQuery struct {
 	Project string
 	Subject string
+	// Machine keeps only the events recorded by that machine.
+	Machine string
 	Types   []string
 	Since   time.Time
 	Limit   int
