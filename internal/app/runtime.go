@@ -539,8 +539,8 @@ func (r *Runtime) start(ctx context.Context, p *Project, slot Slot, a *Assignmen
 	if err != nil {
 		return err
 	}
-	// A map left stale by an earlier session is put back before it is judged.
-	s.restoreRepoMap(ctx, p, a.Item.ID, dir)
+	// A .barnraise/ file left stale by an earlier session is put back before it is judged.
+	s.restoreBarnraiseFiles(ctx, p, a.Item.ID, dir)
 	if err := s.checkProvenance(ctx, p, a.Item.ID, dir); err != nil {
 		return err
 	}

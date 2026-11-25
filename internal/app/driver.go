@@ -279,8 +279,8 @@ func (s *Service) commitIn(ctx context.Context, p *Project, itemID, dir, branch,
 	if _, err := os.Stat(dir); err != nil {
 		return "", nil
 	}
-	// A stale copy of the map never rides with the step's commit.
-	s.restoreRepoMap(ctx, p, itemID, dir)
+	// A stale copy of a .barnraise/ file never rides with the step's commit.
+	s.restoreBarnraiseFiles(ctx, p, itemID, dir)
 	p.mu.Lock()
 	if it := p.state.Items[itemID]; it != nil {
 		_ = s.writeCriteria(dir, it)

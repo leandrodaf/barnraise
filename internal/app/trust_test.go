@@ -439,7 +439,7 @@ func TestStaleRepositoryMapIsRestored(t *testing.T) {
 	if err := e.svc.checkProvenance(e.ctx, e.p, it.ID, dir); err == nil {
 		t.Fatal("a map that is neither main's nor the base's")
 	}
-	e.svc.restoreRepoMap(e.ctx, e.p, it.ID, dir)
+	e.svc.restoreBarnraiseFiles(e.ctx, e.p, it.ID, dir)
 	if b, _ := os.ReadFile(file); string(b) != now {
 		t.Fatalf("restored map %q", b)
 	}
@@ -454,9 +454,66 @@ func TestStaleRepositoryMapIsRestored(t *testing.T) {
 	if _, err := e.svc.Trust(e.ctx, "demo", owner(), it.ID); err != nil {
 		t.Fatal(err)
 	}
-	e.svc.restoreRepoMap(e.ctx, e.p, it.ID, dir)
+	e.svc.restoreBarnraiseFiles(e.ctx, e.p, it.ID, dir)
 	if b, _ := os.ReadFile(file); string(b) != "a.go: by the owner\n" {
 		t.Fatalf("an accepted map was replaced: %q", b)
+	}
+}
+
+// The same holds for every file under .barnraise/, not only the map: an
+// INDEX.md the sandbox kept from the old main never reverts main's one in
+// the step's commit, and one a step already committed is put right.
+func TestStaleBarnraiseFileIsRestored(t *testing.T) {
+	const index = ".barnraise/INDEX.md"
+	const old, now = "# Index\n", "# Index\nFor Lodge changes, read the research.\n"
+	e := newEnv(t, withGit(), withFiles(map[string]string{"CLAUDE.md": "# rules\n", index: old}))
+	e.account("fake-1")
+	release := e.holdSessions()
+	it := e.ready("simple", "rebased onto a main that changed the index", "x")
+	e.fill()
+	eventually(t, "a session", func() bool { return len(e.prov.Specs()) == 1 })
+	release()
+	e.idle()
+	dir := e.svc.WorktreeDir("demo", it.ID)
+	file := filepath.Join(dir, filepath.FromSlash(index))
+	e.repo.PushToMain(t, "chore: the owner changed the index", map[string]string{index: now})
+	if err := e.repo.Git.Fetch(e.ctx); err != nil {
+		t.Fatal(err)
+	}
+	main, err := e.repo.Git.MainHead(e.ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := e.svc.commitStep(e.ctx, e.p, it.ID, "chore: before the rebase"); err != nil {
+		t.Fatal(err)
+	}
+	if err := e.repo.Git.Rebase(e.ctx, dir, main); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(file, []byte(old), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	sha, err := e.svc.commitStep(e.ctx, e.p, it.ID, "chore: step")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if b, _ := e.repo.Git.Show(e.ctx, sha, index); string(b) != now {
+		t.Fatalf("the stale index was committed: %q", b)
+	}
+
+	// A branch that already carries the stale index from an earlier step.
+	if err := os.WriteFile(file, []byte(old), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := e.repo.Git.CommitAll(e.ctx, dir, "chore: a step that committed the stale index"); err != nil {
+		t.Fatal(err)
+	}
+	sha, err = e.svc.commitStep(e.ctx, e.p, it.ID, "chore: next step")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if b, _ := e.repo.Git.Show(e.ctx, sha, index); string(b) != now {
+		t.Fatalf("the branch still reverts main's index: %q", b)
 	}
 }
 

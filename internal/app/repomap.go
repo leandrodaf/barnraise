@@ -75,22 +75,31 @@ func (s *Service) writeRepoMap(ctx context.Context, p *Project, dir string, it *
 	}
 }
 
-// restoreRepoMap puts the repository map of an item's worktree back to the
-// one at the branch's base when it is neither that one nor main's now. The
-// map is Barnraise's own output and agents cannot write .barnraise/; when a
-// session's sandbox enforces that on the commands too, a git rebase the
-// agent runs cannot update the file main changed and leaves the old copy
-// behind, as a change of the worktree. Committed with the step, that copy
-// would refuse every later session of the item as an instruction file
-// changed outside Barnraise. What the owner accepted for the item stays.
-func (s *Service) restoreRepoMap(ctx context.Context, p *Project, itemID, dir string) {
+// restoreBarnraiseFiles puts every file under .barnraise/ of an item's
+// worktree (the repository map, INDEX.md, the documents...) back to the one
+// at the branch's base when it is neither that one nor main's now. Agents
+// cannot write .barnraise/; when a session's sandbox enforces that on the
+// commands too, a git rebase or reset the agent runs cannot update a file
+// main changed and leaves the old copy behind, as a change of the worktree.
+// Committed with the step, that copy would revert main's file in the item's
+// pull request and refuse every later session of the item as an instruction
+// file changed outside Barnraise. What the owner accepted for the item stays.
+func (s *Service) restoreBarnraiseFiles(ctx context.Context, p *Project, itemID, dir string) {
 	g := p.Ports().Git
 	if g == nil || dir == "" || filepath.Clean(dir) == filepath.Clean(p.Cfg().Root) {
 		return
 	}
-	file := filepath.Join(dir, filepath.FromSlash(domain.RepoMapFile))
-	cur, err := os.ReadFile(file)
-	if err != nil {
+	var files []string
+	_ = filepath.WalkDir(filepath.Join(dir, ".barnraise"), func(path string, d os.DirEntry, err error) error {
+		if err != nil || d.IsDir() || !d.Type().IsRegular() {
+			return nil
+		}
+		if rel, err := filepath.Rel(dir, path); err == nil {
+			files = append(files, filepath.ToSlash(rel))
+		}
+		return nil
+	})
+	if len(files) == 0 {
 		return
 	}
 	main, err := g.MainHead(ctx)
@@ -103,23 +112,36 @@ func (s *Service) restoreRepoMap(ctx context.Context, p *Project, itemID, dir st
 			base = b
 		}
 	}
-	want, err := g.Show(ctx, base, domain.RepoMapFile)
-	if err != nil || bytes.Equal(cur, want) {
-		return // no map at the base, or the worktree has it
-	}
-	if base != main {
-		if now, err := g.Show(ctx, main, domain.RepoMapFile); err == nil && bytes.Equal(cur, now) {
-			return
+	var acc map[string]bool
+	for _, rel := range files {
+		file := filepath.Join(dir, filepath.FromSlash(rel))
+		cur, err := os.ReadFile(file)
+		if err != nil {
+			continue
 		}
+		want, err := g.Show(ctx, base, rel)
+		if err != nil || bytes.Equal(cur, want) {
+			continue // not at the base (untracked or new), or the worktree has it
+		}
+		if base != main {
+			if now, err := g.Show(ctx, main, rel); err == nil && bytes.Equal(cur, now) {
+				continue
+			}
+		}
+		if acc == nil {
+			if acc, err = s.accepted(ctx, p, itemID); err != nil {
+				return
+			}
+		}
+		if acc[rel+"\x00"+bytesSHA(cur)] {
+			continue
+		}
+		if err := os.WriteFile(file, want, 0o644); err != nil {
+			s.d.Log.Warn("barnraise files: restore", "item", itemID, "file", rel, "err", err)
+			continue
+		}
+		s.d.Log.Info("barnraise file restored to the branch's base", "item", itemID, "file", rel, "base", short(base))
 	}
-	if acc, err := s.accepted(ctx, p, itemID); err != nil || acc[domain.RepoMapFile+"\x00"+bytesSHA(cur)] {
-		return
-	}
-	if err := os.WriteFile(file, want, 0o644); err != nil {
-		s.d.Log.Warn("repository map: restore", "item", itemID, "err", err)
-		return
-	}
-	s.d.Log.Info("repository map restored to the branch's base", "item", itemID, "base", short(base))
 }
 
 // repoMapPart is the repository map as a part of the context pack: all of
