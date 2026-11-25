@@ -42,9 +42,9 @@ type Runtime struct {
 	// MaxSessions caps concurrent sessions on this machine (0 = machine slots).
 	MaxSessions int
 	// draining holds new sessions while a newer binary waits for the running ones.
-	draining atomic.Bool
-	lastHK      map[string]time.Time
-	lastRenew   map[string]time.Time
+	draining  atomic.Bool
+	lastHK    map[string]time.Time
+	lastRenew map[string]time.Time
 	// queues counts the merge-queue passes started by Tick, which fetch and
 	// push: StopAll waits for them as it waits for sessions.
 	queues     sync.WaitGroup
