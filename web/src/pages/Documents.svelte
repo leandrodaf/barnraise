@@ -40,6 +40,12 @@
 
 	const project = $derived(session.project);
 	const docs = loader(() => documents.list(project));
+	let firstRead = true;
+	$effect(() => {
+		void project;
+		if (firstRead) return void (firstRead = false);
+		docs.reload();
+	});
 	let name = $state(router.current.args[0] || 'pr');
 	let variant = $state('');
 	let text = $state('');

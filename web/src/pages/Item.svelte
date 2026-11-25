@@ -47,7 +47,8 @@
 	import ProcTable from '$lib/app/ProcTable.svelte';
 	import WorktreeList from '$lib/app/WorktreeList.svelte';
 	import type { ProcRow } from '$lib/procs.svelte';
-	import type { UsageTotals } from '$lib/gen/barnraise/v1/barnraise_pb';
+	import type { TimelineEntry, UsageTotals } from '$lib/gen/barnraise/v1/barnraise_pb';
+	import type { Change } from '$lib/session.svelte';
 	import { editItem, closeItem, unlockFiles, addTweak, messageAgent } from '$lib/app/ownerActions';
 	import { onDestroy } from 'svelte';
 	import HourglassIcon from '@lucide/svelte/icons/hourglass';
@@ -58,11 +59,21 @@
 	import { openItem } from '$lib/app/open';
 
 	let { id, project }: { id: string; project: string } = $props();
+	// Events about other items, the agents' heartbeats, accounts and machines
+	// change nothing on this page: it reads again for its own item, for what
+	// can unblock it (another item's step) and for the owner's questions.
+	// What its machines run is read every few seconds below, while it runs.
+	const QUIET = /^(agent\.|account\.|machine\.|message\.|journal\.|policy\.|secret\.|owner\.discussion|autopilot\.)/;
+	const relevant = (changes: Change[]) => changes.some((c) => c.project === project && (c.subject === id || !QUIET.test(c.type)));
+	let lastEntries: TimelineEntry[] = [];
 	const data = loader(async () => {
+		const finishedNow = (s?: string) => s === 'integrated' || s === 'closed';
+		const item = api.getItem({ project, id });
 		const [ir, tl, est, qs, ov] = await Promise.all([
-			api.getItem({ project, id }),
+			item,
 			api.timeline({ project, id }).catch(() => null),
-			api.estimate({ project, id }).catch(() => null),
+			// The estimate is shown only before the item is done.
+			item.then((r) => (finishedNow(r.item?.status) ? null : api.estimate({ project, id }))).catch(() => null),
 			api.listQuestions({ project }).catch(() => null),
 			api.overview({ project, item: id, all: true }).catch(() => null)
 		]);
@@ -70,8 +81,12 @@
 		const questions = (qs?.questions || []).filter((q) => q.itemId === id && !q.answer);
 		// The board's facts of this item (flow, what it awaits, signal, checks), from the daemon.
 		const row = ov?.projects[0]?.items.find((r) => r.id === id);
-		return { it: ir.item!, entries: tl?.entries || [], est, questions, row: row ? ({ ...row, project } as Row) : undefined };
-	});
+		// The same timeline again keeps its entries, so nothing of it is drawn again.
+		let entries = tl?.entries || [];
+		if (entries.length === lastEntries.length && entries.at(-1)?.seq === lastEntries.at(-1)?.seq) entries = lastEntries;
+		lastEntries = entries;
+		return { it: ir.item!, entries, est, questions, row: row ? ({ ...row, project } as Row) : undefined };
+	}, { relevant });
 	let tab = $state('summary');
 	// What the item's machines run changes in seconds: while something runs
 	// for it, read it again every few seconds.
@@ -206,9 +221,9 @@
 				{/if}
 				{#if !it.body && !it.rework.length}<Empty />{/if}
 			</Tabs.Content>
-			<Tabs.Content value="deps" class="mt-3"><Section title={t('tabDeps')}><DepGraph rows={depRows} focus={project + '/' + id} compact /></Section></Tabs.Content>
-			<Tabs.Content value="timeline" class="mt-3"><Section title={t('timeline')} count={entries.length}><Timeline item={it} {entries} {project} /></Section></Tabs.Content>
-			<Tabs.Content value="criteria" class="mt-3">
+			<Tabs.Content value="deps" class="mt-3">{#if tab === 'deps'}<Section title={t('tabDeps')}><DepGraph rows={depRows} focus={project + '/' + id} compact /></Section>{/if}</Tabs.Content>
+			<Tabs.Content value="timeline" class="mt-3">{#if tab === 'timeline'}<Section title={t('timeline')} count={entries.length}><Timeline item={it} {entries} {project} /></Section>{/if}</Tabs.Content>
+			<Tabs.Content value="criteria" class="mt-3">{#if tab === 'criteria'}
 				<Section title={t('criteria')} count={it.criteria.filter((c) => c.met).length + '/' + it.criteria.length} pad={false}>
 					{#if !it.criteria.length}<div class="p-4"><Empty /></div>{:else}
 						<ul class="divide-y">
@@ -225,9 +240,9 @@
 						</ul>
 					{/if}
 				</Section>
-			</Tabs.Content>
+			{/if}</Tabs.Content>
 			{#if row?.checks.length}
-				<Tabs.Content value="checks" class="mt-3">
+				<Tabs.Content value="checks" class="mt-3">{#if tab === 'checks'}
 					<Section title={t('tabChecks')} pad={false}>
 						<ul class="divide-y">
 							{#each row.checks as c (c.check + c.at)}
@@ -243,9 +258,9 @@
 							{/each}
 						</ul>
 					</Section>
-				</Tabs.Content>
+				{/if}</Tabs.Content>
 			{/if}
-			<Tabs.Content value="resources" class="mt-3 space-y-4">
+			<Tabs.Content value="resources" class="mt-3 space-y-4">{#if tab === 'resources'}
 				<Section title={t('procTitle')} sub={t('procItemHelp')}>
 					<ProcSummary p={row?.procs} />
 				</Section>
@@ -256,10 +271,10 @@
 					</Section>
 				{/if}
 				<Section title={t('ovWorktrees')} count={row?.worktrees.length || 0} pad={false}><WorktreeList list={row?.worktrees || []} /></Section>
-			</Tabs.Content>
+			{/if}</Tabs.Content>
 			{#if row?.usage}
 				{@const u = row.usage}
-				<Tabs.Content value="cost" class="mt-3 space-y-4">
+				<Tabs.Content value="cost" class="mt-3 space-y-4">{#if tab === 'cost'}
 					<div class="num grid grid-cols-2 gap-2 text-xs sm:grid-cols-4">
 						{#each [[t('ovCost'), money(u.costUsd)], [t('tokens'), compact(u.tokens)], [t('ovSessions'), u.sessions], [t('ovAgentTime'), dur(u.seconds)], [t('procCpuTime'), u.cpuSeconds ? dur(u.cpuSeconds) : '—'], [t('procPeakLabel'), Number(u.peakRssBytes) ? bytes(u.peakRssBytes) : '—'], [t('reviewsN'), row.reviews], [t('deliveriesN'), row.deliveries]] as [k, v] (k)}
 							<div class="rounded-lg border bg-card p-3"><p class="text-muted-foreground">{k}</p><p class="mt-1 text-lg font-semibold">{v}</p></div>
@@ -276,14 +291,14 @@
 							<ul class="divide-y">{#each Object.entries(row.runs) as [step, r] (step)}<li class="num flex flex-wrap gap-x-3 px-4 py-2 text-xs"><span class="w-28 font-medium">{step}</span><span>{r.agent}</span><span class="text-muted-foreground">{r.provider} · {r.model}{r.family ? ' · ' + r.family : ''}</span><span class="ml-auto text-muted-foreground">{r.account}</span></li>{/each}</ul>
 						</Section>
 					{/if}
-				</Tabs.Content>
+				{/if}</Tabs.Content>
 			{/if}
 			<Tabs.Content value="documents" class="mt-3">{#if tab === 'documents'}<ItemDocuments {project} id={it.id} />{/if}</Tabs.Content>
-			<Tabs.Content value="related" class="mt-3">
+			<Tabs.Content value="related" class="mt-3">{#if tab === 'related'}
 				<Section title={t('tabRelated')} sub={t('relatedHelp')}>
 					{#if !related}<p class="flex items-center gap-2 text-sm text-muted-foreground"><Spinner class="size-3.5" />{t('loading')}</p>{:else if related.error}<p class="text-sm text-destructive">{related.error}</p>{:else}<Related data={related.data || {}} {project} {id} />{/if}
 				</Section>
-			</Tabs.Content>
+			{/if}</Tabs.Content>
 		</Tabs.Root>
 
 		<aside class="space-y-4">

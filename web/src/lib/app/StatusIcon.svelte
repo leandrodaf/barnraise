@@ -3,13 +3,15 @@
 	import { TEXT } from '$lib/status';
 	// The shape says the state without color: ring idle, half working,
 	// diamond needs you, check done, cross failed, slashed blocked, stack queue.
+	// Working turns a few times and rests: an endless turn costs CPU for as
+	// long as the page is open (see --animate-ping in app.css).
 	let { tone, size = 14, spin = false, class: cls = '' }: { tone: Tone; size?: number; spin?: boolean; class?: string } = $props();
 </script>
 
 <svg width={size} height={size} viewBox="0 0 16 16" class="shrink-0 {TEXT[tone]} {cls}" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6">
 	{#if tone === 'work' || tone === 'review'}
 		<circle cx="8" cy="8" r="6" />
-		<path d="M8 2a6 6 0 0 1 0 12z" fill="currentColor" stroke="none" style={spin ? 'transform-origin:8px 8px;animation:spin-slow 2.4s linear infinite' : ''} />
+		<path d="M8 2a6 6 0 0 1 0 12z" fill="currentColor" stroke="none" style={spin ? 'transform-origin:8px 8px;animation:spin-slow 2.4s linear 3' : ''} />
 	{:else if tone === 'needs'}
 		<path d="M8 1.8 14.2 8 8 14.2 1.8 8z" fill="currentColor" fill-opacity=".2" stroke-linejoin="round" />
 		<path d="M8 5v3.4M8 10.6v.2" stroke-linecap="round" />

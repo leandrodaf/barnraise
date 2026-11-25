@@ -186,6 +186,10 @@
 	--font-mono: 'Geist Mono Variable', ui-monospace, monospace;
 	--animate-fade-in: fade-in 160ms ease-out;
 	--animate-pulse-once: pulse-once 600ms ease-out;
+	/* A few beats, not forever: an endless animation keeps the desktop app's
+	   web view (WebKitGTK) drawing every frame, ~3% CPU per pinging dot or
+	   turning icon, while the panel sits open for hours. */
+	--animate-ping: ping 1s cubic-bezier(0, 0, 0.2, 1) 3;
 }
 @keyframes fade-in { from { opacity: 0; transform: translateY(2px); } to { opacity: 1; transform: none; } }
 @keyframes pulse-once { 0% { transform: scale(1); } 40% { transform: scale(1.8); } 100% { transform: scale(1); } }

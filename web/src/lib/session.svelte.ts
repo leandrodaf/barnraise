@@ -6,6 +6,11 @@ import type { SessionInfo } from './gen/barnraise/v1/barnraise_pb';
 
 export type LiveMode = 'wait' | 'on' | 'off';
 
+// Change is one event that made the screens read again.
+export type Change = { project: string; type: string; subject: string };
+
+const same = (a: string[], b: string[]) => a.length === b.length && a.every((x, i) => x === b[i]);
+
 // Every event type the daemon streams; the stream names them without the
 // dev.barnraise. prefix.
 const EVENT_TYPES = [
@@ -55,6 +60,10 @@ class Session {
 	retryIn = $state(0);
 	// tick changes when something happened: screens read again on it.
 	tick = $state(0);
+	// changes are the events behind the last tick (null: anything may have
+	// changed, as after an action or a reconnect). A screen that shows one
+	// item reads again only for the events that can change it.
+	changes: Change[] | null = null;
 	pulse = $state(0);
 	agents = $state(new Map<string, SessionInfo>());
 	// What the advisor is doing, live (owner.discussion.step), the latest last.
@@ -66,6 +75,8 @@ class Session {
 	#timer = 0;
 	#countdown = 0;
 	#refresh = 0;
+	#pending: Change[] | null = [];
+	#pendingSince = 0;
 
 	async start() {
 		const fromURL = takeTokenFromURL();
@@ -101,7 +112,8 @@ class Session {
 
 	async readProjects() {
 		const r = await api.listProjects({});
-		this.projects = r.projects;
+		// The same list again changes nothing: every screen reads again on a new one.
+		if (!same(this.projects, r.projects)) this.projects = r.projects;
 		this.machine = r.machine;
 		this.version = r.version;
 		if (!this.loadedVersion) this.loadedVersion = r.version;
@@ -114,8 +126,8 @@ class Session {
 		this.selfUpdate = r.selfUpdate;
 		this.standby = r.standby;
 		this.standbyWhy = r.standbyWhy;
-		this.autopilot = r.autopilot;
-		this.advisorDown = r.advisorDown;
+		if (!same(this.autopilot, r.autopilot)) this.autopilot = r.autopilot;
+		if (JSON.stringify(this.advisorDown) !== JSON.stringify(r.advisorDown)) this.advisorDown = r.advisorDown;
 		const saved = store.get('project');
 		if (this.scope && !this.projects.includes(this.scope)) this.scope = '';
 		if (this.scope) this.project = this.scope;
@@ -165,12 +177,22 @@ class Session {
 	}
 
 	// bump asks the screens to read again, a moment later so that a burst of
-	// events makes one read.
-	bump(ms = 300) {
+	// events makes one read; a steady stream still reads every two seconds.
+	// The events of the burst go with it (none given: anything may have changed).
+	bump(ms = 300, change?: Change) {
+		if (!change) this.#pending = null;
+		else if (this.#pending && this.#pending.length < 200) this.#pending.push(change);
+		else this.#pending = null; // too many to sort through: read everything
+		const now = Date.now();
+		if (!this.#refresh) this.#pendingSince = now;
 		clearTimeout(this.#refresh);
+		const wait = Math.max(0, Math.min(ms, this.#pendingSince + 2000 - now));
 		this.#refresh = window.setTimeout(() => {
+			this.#refresh = 0;
+			this.changes = this.#pending;
+			this.#pending = [];
 			this.tick++;
-		}, ms);
+		}, wait);
 	}
 
 	connect() {
@@ -227,7 +249,7 @@ class Session {
 				}
 				if (replaying) return; // the backlog only fills state; the screen is already fresh
 				this.pulse++;
-				this.bump();
+				this.bump(300, { project, type, subject: String(ce?.subject || '') });
 			};
 			es.onmessage = onEvent;
 			for (const typ of EVENT_TYPES) es.addEventListener(typ, onEvent as EventListener);
