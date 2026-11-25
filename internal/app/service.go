@@ -126,6 +126,10 @@ type Service struct {
 	telemetry telemetry
 	// trackerMu serializes the tracker updates of each item (project/item -> *sync.Mutex).
 	trackerMu sync.Map
+	// trackerHealth is this machine's last word with each project's tracker (project -> *trackerHealth).
+	trackerHealth sync.Map
+	// chatChecks holds the projects whose checks run now for a conversation (project -> thread).
+	chatChecks sync.Map
 	// wtLocks serializes setup and stripping of each worktree (dir -> *sync.Mutex).
 	wtLocks sync.Map
 	// local is what only this machine sees: its worktrees and their processes.

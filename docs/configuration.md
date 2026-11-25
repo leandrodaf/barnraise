@@ -104,6 +104,9 @@ Where people see items. The daemon owns the flow state; the tracker is the windo
 | `columns` | none | Barnraise status (`draft`, `ready`, `in_progress`, `waiting_owner`, `blocked`, `queued`, `integrated`, `closed`, `paused`) to tracker column, e.g. `{ready: Todo, integrated: Done}` |
 | `trusted` | none | Authors or labels whose issues become items directly; everything else goes through the analyst |
 | `token` | see below | secret reference; `barnraise tracker connect <type>` stores it as `keychain:…` |
+| `reconcile` | `false` | Repair the tracker every 2 minutes: an item without an issue gets one (or is linked back to the `[I-n]` issue with the `barnraise` label already there), and an issue showing a stale state or status is updated. One machine does it at a time (`lease/tracker`); a machine that cannot write gives the duty up for 15 minutes so another takes it. Finished items older than 7 days are not backfilled |
+
+Each machine writes to the tracker with its own token. A machine whose writes fail shows it in `barnraise status` (`machine X cannot write to the tracker`), as do items left without an issue.
 
 Without `token`, Barnraise reads `GITHUB_TOKEN` (then `gh auth token`), `GITLAB_TOKEN`, `JIRA_TOKEN` (with `JIRA_EMAIL` when `project` has no email) or `LINEAR_API_KEY`.
 

@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/leandrodaf/barnraise/internal/domain"
@@ -375,10 +374,7 @@ func (s *Service) syncTracker(p *Project, id string, create bool) {
 	go func() {
 		ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
 		defer cancel()
-		// One writer per item at a time: two updates sent together make the
-		// tracker refuse one of them, and the last state must be the one that stays.
-		muAny, _ := s.trackerMu.LoadOrStore(p.Name+"/"+id, &sync.Mutex{})
-		mu := muAny.(*sync.Mutex)
+		mu := s.trackerLock(p, id)
 		mu.Lock()
 		defer mu.Unlock()
 		it := p.Snapshot().Items[id]
@@ -389,8 +385,10 @@ func (s *Service) syncTracker(p *Project, id string, create bool) {
 			ti, err := p.Ports().Tracker.Create(s.issueCtx(ctx, p, it), it, p.Cfg().Language)
 			if err != nil {
 				s.d.Log.Warn("tracker create", "item", id, "err", err)
+				s.noteTracker(p.Name, err)
 				return
 			}
+			s.noteTracker(p.Name, nil)
 			_, _ = s.mutateItem(ctx, p, id, domain.EvItemUpdated, "tracker", func(x *domain.Item) error {
 				x.TrackerRef, x.TrackerURL = ti.Ref, ti.URL
 				return nil
@@ -411,6 +409,7 @@ func (s *Service) syncTracker(p *Project, id string, create bool) {
 		if err != nil {
 			s.d.Log.Warn("tracker update", "item", id, "err", err)
 		}
+		s.noteTracker(p.Name, err)
 	}()
 }
 

@@ -144,6 +144,9 @@ const (
 	// BarnraiseServiceDraftFromChatProcedure is the fully-qualified name of the BarnraiseService's
 	// DraftFromChat RPC.
 	BarnraiseServiceDraftFromChatProcedure = "/barnraise.v1.BarnraiseService/DraftFromChat"
+	// BarnraiseServiceRunChecksInChatProcedure is the fully-qualified name of the BarnraiseService's
+	// RunChecksInChat RPC.
+	BarnraiseServiceRunChecksInChatProcedure = "/barnraise.v1.BarnraiseService/RunChecksInChat"
 	// BarnraiseServiceSetFocusProcedure is the fully-qualified name of the BarnraiseService's SetFocus
 	// RPC.
 	BarnraiseServiceSetFocusProcedure = "/barnraise.v1.BarnraiseService/SetFocus"
@@ -328,6 +331,10 @@ type BarnraiseServiceClient interface {
 	// DraftFromChat drafts a goal (thread CG-…) or a focus (thread CF-…) from
 	// the owner's conversation with the advisor, without setting it.
 	DraftFromChat(context.Context, *connect.Request[v1.DiscussionRef]) (*connect.Response[v1.ChatDraft], error)
+	// RunChecksInChat runs the project's checks on main (the commands of
+	// barnraise.yaml, sandboxed, never the advisor) and posts their result
+	// into the conversation; it returns once they started.
+	RunChecksInChat(context.Context, *connect.Request[v1.DiscussionRef]) (*connect.Response[v1.Empty], error)
 	SetFocus(context.Context, *connect.Request[v1.FocusRequest]) (*connect.Response[v1.FocusResponse], error)
 	ClearFocus(context.Context, *connect.Request[v1.ProjectRef]) (*connect.Response[v1.Empty], error)
 	Pause(context.Context, *connect.Request[v1.PauseRequest]) (*connect.Response[v1.Empty], error)
@@ -623,6 +630,12 @@ func NewBarnraiseServiceClient(httpClient connect.HTTPClient, baseURL string, op
 			httpClient,
 			baseURL+BarnraiseServiceDraftFromChatProcedure,
 			connect.WithSchema(barnraiseServiceMethods.ByName("DraftFromChat")),
+			connect.WithClientOptions(opts...),
+		),
+		runChecksInChat: connect.NewClient[v1.DiscussionRef, v1.Empty](
+			httpClient,
+			baseURL+BarnraiseServiceRunChecksInChatProcedure,
+			connect.WithSchema(barnraiseServiceMethods.ByName("RunChecksInChat")),
 			connect.WithClientOptions(opts...),
 		),
 		setFocus: connect.NewClient[v1.FocusRequest, v1.FocusResponse](
@@ -935,6 +948,7 @@ type barnraiseServiceClient struct {
 	triageProposals    *connect.Client[v1.ProjectRef, v1.ProposalTriageResponse]
 	setGoal            *connect.Client[v1.SetGoalRequest, v1.SetGoalResponse]
 	draftFromChat      *connect.Client[v1.DiscussionRef, v1.ChatDraft]
+	runChecksInChat    *connect.Client[v1.DiscussionRef, v1.Empty]
 	setFocus           *connect.Client[v1.FocusRequest, v1.FocusResponse]
 	clearFocus         *connect.Client[v1.ProjectRef, v1.Empty]
 	pause              *connect.Client[v1.PauseRequest, v1.Empty]
@@ -1155,6 +1169,11 @@ func (c *barnraiseServiceClient) SetGoal(ctx context.Context, req *connect.Reque
 // DraftFromChat calls barnraise.v1.BarnraiseService.DraftFromChat.
 func (c *barnraiseServiceClient) DraftFromChat(ctx context.Context, req *connect.Request[v1.DiscussionRef]) (*connect.Response[v1.ChatDraft], error) {
 	return c.draftFromChat.CallUnary(ctx, req)
+}
+
+// RunChecksInChat calls barnraise.v1.BarnraiseService.RunChecksInChat.
+func (c *barnraiseServiceClient) RunChecksInChat(ctx context.Context, req *connect.Request[v1.DiscussionRef]) (*connect.Response[v1.Empty], error) {
+	return c.runChecksInChat.CallUnary(ctx, req)
 }
 
 // SetFocus calls barnraise.v1.BarnraiseService.SetFocus.
@@ -1440,6 +1459,10 @@ type BarnraiseServiceHandler interface {
 	// DraftFromChat drafts a goal (thread CG-…) or a focus (thread CF-…) from
 	// the owner's conversation with the advisor, without setting it.
 	DraftFromChat(context.Context, *connect.Request[v1.DiscussionRef]) (*connect.Response[v1.ChatDraft], error)
+	// RunChecksInChat runs the project's checks on main (the commands of
+	// barnraise.yaml, sandboxed, never the advisor) and posts their result
+	// into the conversation; it returns once they started.
+	RunChecksInChat(context.Context, *connect.Request[v1.DiscussionRef]) (*connect.Response[v1.Empty], error)
 	SetFocus(context.Context, *connect.Request[v1.FocusRequest]) (*connect.Response[v1.FocusResponse], error)
 	ClearFocus(context.Context, *connect.Request[v1.ProjectRef]) (*connect.Response[v1.Empty], error)
 	Pause(context.Context, *connect.Request[v1.PauseRequest]) (*connect.Response[v1.Empty], error)
@@ -1731,6 +1754,12 @@ func NewBarnraiseServiceHandler(svc BarnraiseServiceHandler, opts ...connect.Han
 		BarnraiseServiceDraftFromChatProcedure,
 		svc.DraftFromChat,
 		connect.WithSchema(barnraiseServiceMethods.ByName("DraftFromChat")),
+		connect.WithHandlerOptions(opts...),
+	)
+	barnraiseServiceRunChecksInChatHandler := connect.NewUnaryHandler(
+		BarnraiseServiceRunChecksInChatProcedure,
+		svc.RunChecksInChat,
+		connect.WithSchema(barnraiseServiceMethods.ByName("RunChecksInChat")),
 		connect.WithHandlerOptions(opts...),
 	)
 	barnraiseServiceSetFocusHandler := connect.NewUnaryHandler(
@@ -2075,6 +2104,8 @@ func NewBarnraiseServiceHandler(svc BarnraiseServiceHandler, opts ...connect.Han
 			barnraiseServiceSetGoalHandler.ServeHTTP(w, r)
 		case BarnraiseServiceDraftFromChatProcedure:
 			barnraiseServiceDraftFromChatHandler.ServeHTTP(w, r)
+		case BarnraiseServiceRunChecksInChatProcedure:
+			barnraiseServiceRunChecksInChatHandler.ServeHTTP(w, r)
 		case BarnraiseServiceSetFocusProcedure:
 			barnraiseServiceSetFocusHandler.ServeHTTP(w, r)
 		case BarnraiseServiceClearFocusProcedure:
@@ -2312,6 +2343,10 @@ func (UnimplementedBarnraiseServiceHandler) SetGoal(context.Context, *connect.Re
 
 func (UnimplementedBarnraiseServiceHandler) DraftFromChat(context.Context, *connect.Request[v1.DiscussionRef]) (*connect.Response[v1.ChatDraft], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("barnraise.v1.BarnraiseService.DraftFromChat is not implemented"))
+}
+
+func (UnimplementedBarnraiseServiceHandler) RunChecksInChat(context.Context, *connect.Request[v1.DiscussionRef]) (*connect.Response[v1.Empty], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("barnraise.v1.BarnraiseService.RunChecksInChat is not implemented"))
 }
 
 func (UnimplementedBarnraiseServiceHandler) SetFocus(context.Context, *connect.Request[v1.FocusRequest]) (*connect.Response[v1.FocusResponse], error) {

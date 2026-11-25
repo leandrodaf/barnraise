@@ -34,6 +34,7 @@ func (r *Runtime) housekeeping(ctx context.Context, p *Project, m domain.Machine
 	m.Busy = len(r.running)
 	m.Standby = r.standby
 	r.mu.Unlock()
+	m.TrackerErr = s.TrackerErr(p.Name)
 	m.Accounts = nil
 	for _, a := range p.Snapshot().AccountList() {
 		if a.UsableOn(s.d.Machine) {
@@ -65,6 +66,7 @@ func (r *Runtime) housekeeping(ctx context.Context, p *Project, m domain.Machine
 		// (items of dead machines, imports, digests) goes to one that works.
 		s.releaseLease(ctx, p, HousekeepingKey)
 		s.releaseLease(ctx, p, AutopilotKey)
+		s.releaseLease(ctx, p, TrackerKey)
 		return
 	}
 	// The autopilot is a duty of its own: a machine whose advisor fails
@@ -76,6 +78,9 @@ func (r *Runtime) housekeeping(ctx context.Context, p *Project, m domain.Machine
 			s.autopilotState(p.Name).running.Store(false)
 		}
 	}
+	// The tracker repair is a duty of its own: a machine that cannot write
+	// to the tracker gives it up and another one takes it.
+	r.repairTracker(ctx, p, now)
 	if !s.holdHousekeeping(ctx, p) {
 		return
 	}

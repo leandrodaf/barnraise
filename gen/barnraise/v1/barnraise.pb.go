@@ -14856,7 +14856,7 @@ const file_barnraise_v1_barnraise_proto_rawDesc = "" +
 	"\x05error\x18\x05 \x01(\tR\x05error\x12\x18\n" +
 	"\achanged\x18\x06 \x01(\bR\achanged\"Q\n" +
 	"\x14InstallToolsResponse\x129\n" +
-	"\aresults\x18\x01 \x03(\v2\x1f.barnraise.v1.ToolInstallResultR\aresults2\xca.\n" +
+	"\aresults\x18\x01 \x03(\v2\x1f.barnraise.v1.ToolInstallResultR\aresults2\x8f/\n" +
 	"\x10BarnraiseService\x12C\n" +
 	"\fListProjects\x12\x13.barnraise.v1.Empty\x1a\x1e.barnraise.v1.ProjectsResponse\x12W\n" +
 	"\x0fRegisterProject\x12$.barnraise.v1.RegisterProjectRequest\x1a\x1e.barnraise.v1.ProjectsResponse\x12I\n" +
@@ -14895,6 +14895,7 @@ const file_barnraise_v1_barnraise_proto_rawDesc = "" +
 	"\x0fTriageProposals\x12\x18.barnraise.v1.ProjectRef\x1a$.barnraise.v1.ProposalTriageResponse\x12F\n" +
 	"\aSetGoal\x12\x1c.barnraise.v1.SetGoalRequest\x1a\x1d.barnraise.v1.SetGoalResponse\x12E\n" +
 	"\rDraftFromChat\x12\x1b.barnraise.v1.DiscussionRef\x1a\x17.barnraise.v1.ChatDraft\x12C\n" +
+	"\x0fRunChecksInChat\x12\x1b.barnraise.v1.DiscussionRef\x1a\x13.barnraise.v1.Empty\x12C\n" +
 	"\bSetFocus\x12\x1a.barnraise.v1.FocusRequest\x1a\x1b.barnraise.v1.FocusResponse\x12;\n" +
 	"\n" +
 	"ClearFocus\x12\x18.barnraise.v1.ProjectRef\x1a\x13.barnraise.v1.Empty\x128\n" +
@@ -15377,133 +15378,135 @@ var file_barnraise_v1_barnraise_proto_depIdxs = []int32{
 	30,  // 209: barnraise.v1.BarnraiseService.TriageProposals:input_type -> barnraise.v1.ProjectRef
 	59,  // 210: barnraise.v1.BarnraiseService.SetGoal:input_type -> barnraise.v1.SetGoalRequest
 	115, // 211: barnraise.v1.BarnraiseService.DraftFromChat:input_type -> barnraise.v1.DiscussionRef
-	61,  // 212: barnraise.v1.BarnraiseService.SetFocus:input_type -> barnraise.v1.FocusRequest
-	30,  // 213: barnraise.v1.BarnraiseService.ClearFocus:input_type -> barnraise.v1.ProjectRef
-	63,  // 214: barnraise.v1.BarnraiseService.Pause:input_type -> barnraise.v1.PauseRequest
-	30,  // 215: barnraise.v1.BarnraiseService.Resume:input_type -> barnraise.v1.ProjectRef
-	30,  // 216: barnraise.v1.BarnraiseService.Status:input_type -> barnraise.v1.ProjectRef
-	156, // 217: barnraise.v1.BarnraiseService.Overview:input_type -> barnraise.v1.OverviewRequest
-	65,  // 218: barnraise.v1.BarnraiseService.Metrics:input_type -> barnraise.v1.MetricsRequest
-	30,  // 219: barnraise.v1.BarnraiseService.Digest:input_type -> barnraise.v1.ProjectRef
-	30,  // 220: barnraise.v1.BarnraiseService.Queue:input_type -> barnraise.v1.ProjectRef
-	30,  // 221: barnraise.v1.BarnraiseService.ProcessQueue:input_type -> barnraise.v1.ProjectRef
-	138, // 222: barnraise.v1.BarnraiseService.ListEvents:input_type -> barnraise.v1.EventsRequest
-	71,  // 223: barnraise.v1.BarnraiseService.SendMessage:input_type -> barnraise.v1.SendMessageRequest
-	73,  // 224: barnraise.v1.BarnraiseService.Inbox:input_type -> barnraise.v1.InboxRequest
-	75,  // 225: barnraise.v1.BarnraiseService.Journal:input_type -> barnraise.v1.JournalRequest
-	137, // 226: barnraise.v1.BarnraiseService.ReportViolation:input_type -> barnraise.v1.PolicyViolationRequest
-	76,  // 227: barnraise.v1.BarnraiseService.Context:input_type -> barnraise.v1.ContextRequest
-	79,  // 228: barnraise.v1.BarnraiseService.Find:input_type -> barnraise.v1.FindRequest
-	82,  // 229: barnraise.v1.BarnraiseService.Get:input_type -> barnraise.v1.KnowledgeRequest
-	82,  // 230: barnraise.v1.BarnraiseService.Related:input_type -> barnraise.v1.KnowledgeRequest
-	82,  // 231: barnraise.v1.BarnraiseService.Why:input_type -> barnraise.v1.KnowledgeRequest
-	82,  // 232: barnraise.v1.BarnraiseService.History:input_type -> barnraise.v1.KnowledgeRequest
-	82,  // 233: barnraise.v1.BarnraiseService.Rules:input_type -> barnraise.v1.KnowledgeRequest
-	84,  // 234: barnraise.v1.BarnraiseService.Revalidate:input_type -> barnraise.v1.RevalidateRequest
-	30,  // 235: barnraise.v1.BarnraiseService.Sweep:input_type -> barnraise.v1.ProjectRef
-	90,  // 236: barnraise.v1.BarnraiseService.UpsertAccount:input_type -> barnraise.v1.AccountRequest
-	30,  // 237: barnraise.v1.BarnraiseService.ListAccounts:input_type -> barnraise.v1.ProjectRef
-	94,  // 238: barnraise.v1.BarnraiseService.StartAccountLogin:input_type -> barnraise.v1.AccountLoginRequest
-	94,  // 239: barnraise.v1.BarnraiseService.GetAccountLogin:input_type -> barnraise.v1.AccountLoginRequest
-	94,  // 240: barnraise.v1.BarnraiseService.AnswerAccountLogin:input_type -> barnraise.v1.AccountLoginRequest
-	94,  // 241: barnraise.v1.BarnraiseService.CancelAccountLogin:input_type -> barnraise.v1.AccountLoginRequest
-	96,  // 242: barnraise.v1.BarnraiseService.ReportUsage:input_type -> barnraise.v1.ReportUsageRequest
-	30,  // 243: barnraise.v1.BarnraiseService.ListMachines:input_type -> barnraise.v1.ProjectRef
-	98,  // 244: barnraise.v1.BarnraiseService.MachineHistory:input_type -> barnraise.v1.MachineHistoryRequest
-	30,  // 245: barnraise.v1.BarnraiseService.LeaveMachine:input_type -> barnraise.v1.ProjectRef
-	58,  // 246: barnraise.v1.BarnraiseService.ListPeers:input_type -> barnraise.v1.Empty
-	105, // 247: barnraise.v1.BarnraiseService.StopPeers:input_type -> barnraise.v1.StopPeersRequest
-	118, // 248: barnraise.v1.BarnraiseService.SetStandby:input_type -> barnraise.v1.StandbyRequest
-	122, // 249: barnraise.v1.BarnraiseService.SetMaxAgents:input_type -> barnraise.v1.MaxAgentsRequest
-	120, // 250: barnraise.v1.BarnraiseService.ShareProject:input_type -> barnraise.v1.ShareProjectRequest
-	158, // 251: barnraise.v1.BarnraiseService.Capabilities:input_type -> barnraise.v1.CapabilitiesRequest
-	163, // 252: barnraise.v1.BarnraiseService.InstallTools:input_type -> barnraise.v1.InstallToolsRequest
-	125, // 253: barnraise.v1.BarnraiseService.CreateToken:input_type -> barnraise.v1.CreateTokenRequest
-	58,  // 254: barnraise.v1.BarnraiseService.ListTokens:input_type -> barnraise.v1.Empty
-	129, // 255: barnraise.v1.BarnraiseService.RevokeToken:input_type -> barnraise.v1.RevokeTokenRequest
-	130, // 256: barnraise.v1.BarnraiseService.ListAudit:input_type -> barnraise.v1.AuditRequest
-	133, // 257: barnraise.v1.BarnraiseService.ListProjects:output_type -> barnraise.v1.ProjectsResponse
-	133, // 258: barnraise.v1.BarnraiseService.RegisterProject:output_type -> barnraise.v1.ProjectsResponse
-	133, // 259: barnraise.v1.BarnraiseService.ReloadProject:output_type -> barnraise.v1.ProjectsResponse
-	36,  // 260: barnraise.v1.BarnraiseService.CreateItem:output_type -> barnraise.v1.CreateItemResponse
-	36,  // 261: barnraise.v1.BarnraiseService.CreateItemFromChat:output_type -> barnraise.v1.CreateItemResponse
-	33,  // 262: barnraise.v1.BarnraiseService.GetItem:output_type -> barnraise.v1.ItemResponse
-	34,  // 263: barnraise.v1.BarnraiseService.ListItems:output_type -> barnraise.v1.ItemsResponse
-	33,  // 264: barnraise.v1.BarnraiseService.UpdateItem:output_type -> barnraise.v1.ItemResponse
-	33,  // 265: barnraise.v1.BarnraiseService.UnlockFiles:output_type -> barnraise.v1.ItemResponse
-	33,  // 266: barnraise.v1.BarnraiseService.CloseItem:output_type -> barnraise.v1.ItemResponse
-	41,  // 267: barnraise.v1.BarnraiseService.NextItem:output_type -> barnraise.v1.Assignment
-	33,  // 268: barnraise.v1.BarnraiseService.Deliver:output_type -> barnraise.v1.ItemResponse
-	33,  // 269: barnraise.v1.BarnraiseService.SubmitReview:output_type -> barnraise.v1.ItemResponse
-	33,  // 270: barnraise.v1.BarnraiseService.ReportCheck:output_type -> barnraise.v1.ItemResponse
-	68,  // 271: barnraise.v1.BarnraiseService.Timeline:output_type -> barnraise.v1.TimelineResponse
-	69,  // 272: barnraise.v1.BarnraiseService.Estimate:output_type -> barnraise.v1.EstimateResponse
-	87,  // 273: barnraise.v1.BarnraiseService.Takeover:output_type -> barnraise.v1.TakeoverResponse
-	33,  // 274: barnraise.v1.BarnraiseService.Handback:output_type -> barnraise.v1.ItemResponse
-	33,  // 275: barnraise.v1.BarnraiseService.Redo:output_type -> barnraise.v1.ItemResponse
-	46,  // 276: barnraise.v1.BarnraiseService.Propose:output_type -> barnraise.v1.ProposeResponse
-	48,  // 277: barnraise.v1.BarnraiseService.ListProposals:output_type -> barnraise.v1.ListProposalsResponse
-	50,  // 278: barnraise.v1.BarnraiseService.DecideProposal:output_type -> barnraise.v1.ProposalResponse
-	52,  // 279: barnraise.v1.BarnraiseService.AddTweak:output_type -> barnraise.v1.AddTweakResponse
-	54,  // 280: barnraise.v1.BarnraiseService.AskOwner:output_type -> barnraise.v1.QuestionResponse
-	55,  // 281: barnraise.v1.BarnraiseService.ListQuestions:output_type -> barnraise.v1.QuestionsResponse
-	54,  // 282: barnraise.v1.BarnraiseService.Answer:output_type -> barnraise.v1.QuestionResponse
-	58,  // 283: barnraise.v1.BarnraiseService.Approve:output_type -> barnraise.v1.Empty
-	117, // 284: barnraise.v1.BarnraiseService.Discuss:output_type -> barnraise.v1.DiscussionResponse
-	110, // 285: barnraise.v1.BarnraiseService.ListParts:output_type -> barnraise.v1.PartsResponse
-	117, // 286: barnraise.v1.BarnraiseService.GetDiscussion:output_type -> barnraise.v1.DiscussionResponse
-	117, // 287: barnraise.v1.BarnraiseService.Delegate:output_type -> barnraise.v1.DiscussionResponse
-	136, // 288: barnraise.v1.BarnraiseService.SetAutopilot:output_type -> barnraise.v1.AutopilotResponse
-	113, // 289: barnraise.v1.BarnraiseService.TriageProposals:output_type -> barnraise.v1.ProposalTriageResponse
-	60,  // 290: barnraise.v1.BarnraiseService.SetGoal:output_type -> barnraise.v1.SetGoalResponse
-	116, // 291: barnraise.v1.BarnraiseService.DraftFromChat:output_type -> barnraise.v1.ChatDraft
-	62,  // 292: barnraise.v1.BarnraiseService.SetFocus:output_type -> barnraise.v1.FocusResponse
-	58,  // 293: barnraise.v1.BarnraiseService.ClearFocus:output_type -> barnraise.v1.Empty
-	58,  // 294: barnraise.v1.BarnraiseService.Pause:output_type -> barnraise.v1.Empty
-	58,  // 295: barnraise.v1.BarnraiseService.Resume:output_type -> barnraise.v1.Empty
-	64,  // 296: barnraise.v1.BarnraiseService.Status:output_type -> barnraise.v1.StatusResponse
-	157, // 297: barnraise.v1.BarnraiseService.Overview:output_type -> barnraise.v1.OverviewResponse
-	66,  // 298: barnraise.v1.BarnraiseService.Metrics:output_type -> barnraise.v1.MetricsResponse
-	70,  // 299: barnraise.v1.BarnraiseService.Digest:output_type -> barnraise.v1.DigestResponse
-	86,  // 300: barnraise.v1.BarnraiseService.Queue:output_type -> barnraise.v1.QueueResponse
-	86,  // 301: barnraise.v1.BarnraiseService.ProcessQueue:output_type -> barnraise.v1.QueueResponse
-	139, // 302: barnraise.v1.BarnraiseService.ListEvents:output_type -> barnraise.v1.EventsResponse
-	72,  // 303: barnraise.v1.BarnraiseService.SendMessage:output_type -> barnraise.v1.MessageResponse
-	74,  // 304: barnraise.v1.BarnraiseService.Inbox:output_type -> barnraise.v1.InboxResponse
-	58,  // 305: barnraise.v1.BarnraiseService.Journal:output_type -> barnraise.v1.Empty
-	58,  // 306: barnraise.v1.BarnraiseService.ReportViolation:output_type -> barnraise.v1.Empty
-	78,  // 307: barnraise.v1.BarnraiseService.Context:output_type -> barnraise.v1.ContextResponse
-	81,  // 308: barnraise.v1.BarnraiseService.Find:output_type -> barnraise.v1.FindResponse
-	83,  // 309: barnraise.v1.BarnraiseService.Get:output_type -> barnraise.v1.KnowledgeResponse
-	83,  // 310: barnraise.v1.BarnraiseService.Related:output_type -> barnraise.v1.KnowledgeResponse
-	83,  // 311: barnraise.v1.BarnraiseService.Why:output_type -> barnraise.v1.KnowledgeResponse
-	83,  // 312: barnraise.v1.BarnraiseService.History:output_type -> barnraise.v1.KnowledgeResponse
-	83,  // 313: barnraise.v1.BarnraiseService.Rules:output_type -> barnraise.v1.KnowledgeResponse
-	85,  // 314: barnraise.v1.BarnraiseService.Revalidate:output_type -> barnraise.v1.RevalidateResponse
-	85,  // 315: barnraise.v1.BarnraiseService.Sweep:output_type -> barnraise.v1.RevalidateResponse
-	91,  // 316: barnraise.v1.BarnraiseService.UpsertAccount:output_type -> barnraise.v1.AccountResponse
-	92,  // 317: barnraise.v1.BarnraiseService.ListAccounts:output_type -> barnraise.v1.AccountsResponse
-	95,  // 318: barnraise.v1.BarnraiseService.StartAccountLogin:output_type -> barnraise.v1.AccountLoginResponse
-	95,  // 319: barnraise.v1.BarnraiseService.GetAccountLogin:output_type -> barnraise.v1.AccountLoginResponse
-	95,  // 320: barnraise.v1.BarnraiseService.AnswerAccountLogin:output_type -> barnraise.v1.AccountLoginResponse
-	95,  // 321: barnraise.v1.BarnraiseService.CancelAccountLogin:output_type -> barnraise.v1.AccountLoginResponse
-	58,  // 322: barnraise.v1.BarnraiseService.ReportUsage:output_type -> barnraise.v1.Empty
-	97,  // 323: barnraise.v1.BarnraiseService.ListMachines:output_type -> barnraise.v1.MachinesResponse
-	101, // 324: barnraise.v1.BarnraiseService.MachineHistory:output_type -> barnraise.v1.MachineHistoryResponse
-	102, // 325: barnraise.v1.BarnraiseService.LeaveMachine:output_type -> barnraise.v1.LeaveResponse
-	104, // 326: barnraise.v1.BarnraiseService.ListPeers:output_type -> barnraise.v1.PeersResponse
-	107, // 327: barnraise.v1.BarnraiseService.StopPeers:output_type -> barnraise.v1.StopPeersResponse
-	124, // 328: barnraise.v1.BarnraiseService.SetStandby:output_type -> barnraise.v1.StandbyResponse
-	123, // 329: barnraise.v1.BarnraiseService.SetMaxAgents:output_type -> barnraise.v1.MaxAgentsResponse
-	121, // 330: barnraise.v1.BarnraiseService.ShareProject:output_type -> barnraise.v1.ShareProjectResponse
-	162, // 331: barnraise.v1.BarnraiseService.Capabilities:output_type -> barnraise.v1.CapabilitiesResponse
-	165, // 332: barnraise.v1.BarnraiseService.InstallTools:output_type -> barnraise.v1.InstallToolsResponse
-	127, // 333: barnraise.v1.BarnraiseService.CreateToken:output_type -> barnraise.v1.CreateTokenResponse
-	128, // 334: barnraise.v1.BarnraiseService.ListTokens:output_type -> barnraise.v1.TokensResponse
-	58,  // 335: barnraise.v1.BarnraiseService.RevokeToken:output_type -> barnraise.v1.Empty
-	132, // 336: barnraise.v1.BarnraiseService.ListAudit:output_type -> barnraise.v1.AuditResponse
-	257, // [257:337] is the sub-list for method output_type
-	177, // [177:257] is the sub-list for method input_type
+	115, // 212: barnraise.v1.BarnraiseService.RunChecksInChat:input_type -> barnraise.v1.DiscussionRef
+	61,  // 213: barnraise.v1.BarnraiseService.SetFocus:input_type -> barnraise.v1.FocusRequest
+	30,  // 214: barnraise.v1.BarnraiseService.ClearFocus:input_type -> barnraise.v1.ProjectRef
+	63,  // 215: barnraise.v1.BarnraiseService.Pause:input_type -> barnraise.v1.PauseRequest
+	30,  // 216: barnraise.v1.BarnraiseService.Resume:input_type -> barnraise.v1.ProjectRef
+	30,  // 217: barnraise.v1.BarnraiseService.Status:input_type -> barnraise.v1.ProjectRef
+	156, // 218: barnraise.v1.BarnraiseService.Overview:input_type -> barnraise.v1.OverviewRequest
+	65,  // 219: barnraise.v1.BarnraiseService.Metrics:input_type -> barnraise.v1.MetricsRequest
+	30,  // 220: barnraise.v1.BarnraiseService.Digest:input_type -> barnraise.v1.ProjectRef
+	30,  // 221: barnraise.v1.BarnraiseService.Queue:input_type -> barnraise.v1.ProjectRef
+	30,  // 222: barnraise.v1.BarnraiseService.ProcessQueue:input_type -> barnraise.v1.ProjectRef
+	138, // 223: barnraise.v1.BarnraiseService.ListEvents:input_type -> barnraise.v1.EventsRequest
+	71,  // 224: barnraise.v1.BarnraiseService.SendMessage:input_type -> barnraise.v1.SendMessageRequest
+	73,  // 225: barnraise.v1.BarnraiseService.Inbox:input_type -> barnraise.v1.InboxRequest
+	75,  // 226: barnraise.v1.BarnraiseService.Journal:input_type -> barnraise.v1.JournalRequest
+	137, // 227: barnraise.v1.BarnraiseService.ReportViolation:input_type -> barnraise.v1.PolicyViolationRequest
+	76,  // 228: barnraise.v1.BarnraiseService.Context:input_type -> barnraise.v1.ContextRequest
+	79,  // 229: barnraise.v1.BarnraiseService.Find:input_type -> barnraise.v1.FindRequest
+	82,  // 230: barnraise.v1.BarnraiseService.Get:input_type -> barnraise.v1.KnowledgeRequest
+	82,  // 231: barnraise.v1.BarnraiseService.Related:input_type -> barnraise.v1.KnowledgeRequest
+	82,  // 232: barnraise.v1.BarnraiseService.Why:input_type -> barnraise.v1.KnowledgeRequest
+	82,  // 233: barnraise.v1.BarnraiseService.History:input_type -> barnraise.v1.KnowledgeRequest
+	82,  // 234: barnraise.v1.BarnraiseService.Rules:input_type -> barnraise.v1.KnowledgeRequest
+	84,  // 235: barnraise.v1.BarnraiseService.Revalidate:input_type -> barnraise.v1.RevalidateRequest
+	30,  // 236: barnraise.v1.BarnraiseService.Sweep:input_type -> barnraise.v1.ProjectRef
+	90,  // 237: barnraise.v1.BarnraiseService.UpsertAccount:input_type -> barnraise.v1.AccountRequest
+	30,  // 238: barnraise.v1.BarnraiseService.ListAccounts:input_type -> barnraise.v1.ProjectRef
+	94,  // 239: barnraise.v1.BarnraiseService.StartAccountLogin:input_type -> barnraise.v1.AccountLoginRequest
+	94,  // 240: barnraise.v1.BarnraiseService.GetAccountLogin:input_type -> barnraise.v1.AccountLoginRequest
+	94,  // 241: barnraise.v1.BarnraiseService.AnswerAccountLogin:input_type -> barnraise.v1.AccountLoginRequest
+	94,  // 242: barnraise.v1.BarnraiseService.CancelAccountLogin:input_type -> barnraise.v1.AccountLoginRequest
+	96,  // 243: barnraise.v1.BarnraiseService.ReportUsage:input_type -> barnraise.v1.ReportUsageRequest
+	30,  // 244: barnraise.v1.BarnraiseService.ListMachines:input_type -> barnraise.v1.ProjectRef
+	98,  // 245: barnraise.v1.BarnraiseService.MachineHistory:input_type -> barnraise.v1.MachineHistoryRequest
+	30,  // 246: barnraise.v1.BarnraiseService.LeaveMachine:input_type -> barnraise.v1.ProjectRef
+	58,  // 247: barnraise.v1.BarnraiseService.ListPeers:input_type -> barnraise.v1.Empty
+	105, // 248: barnraise.v1.BarnraiseService.StopPeers:input_type -> barnraise.v1.StopPeersRequest
+	118, // 249: barnraise.v1.BarnraiseService.SetStandby:input_type -> barnraise.v1.StandbyRequest
+	122, // 250: barnraise.v1.BarnraiseService.SetMaxAgents:input_type -> barnraise.v1.MaxAgentsRequest
+	120, // 251: barnraise.v1.BarnraiseService.ShareProject:input_type -> barnraise.v1.ShareProjectRequest
+	158, // 252: barnraise.v1.BarnraiseService.Capabilities:input_type -> barnraise.v1.CapabilitiesRequest
+	163, // 253: barnraise.v1.BarnraiseService.InstallTools:input_type -> barnraise.v1.InstallToolsRequest
+	125, // 254: barnraise.v1.BarnraiseService.CreateToken:input_type -> barnraise.v1.CreateTokenRequest
+	58,  // 255: barnraise.v1.BarnraiseService.ListTokens:input_type -> barnraise.v1.Empty
+	129, // 256: barnraise.v1.BarnraiseService.RevokeToken:input_type -> barnraise.v1.RevokeTokenRequest
+	130, // 257: barnraise.v1.BarnraiseService.ListAudit:input_type -> barnraise.v1.AuditRequest
+	133, // 258: barnraise.v1.BarnraiseService.ListProjects:output_type -> barnraise.v1.ProjectsResponse
+	133, // 259: barnraise.v1.BarnraiseService.RegisterProject:output_type -> barnraise.v1.ProjectsResponse
+	133, // 260: barnraise.v1.BarnraiseService.ReloadProject:output_type -> barnraise.v1.ProjectsResponse
+	36,  // 261: barnraise.v1.BarnraiseService.CreateItem:output_type -> barnraise.v1.CreateItemResponse
+	36,  // 262: barnraise.v1.BarnraiseService.CreateItemFromChat:output_type -> barnraise.v1.CreateItemResponse
+	33,  // 263: barnraise.v1.BarnraiseService.GetItem:output_type -> barnraise.v1.ItemResponse
+	34,  // 264: barnraise.v1.BarnraiseService.ListItems:output_type -> barnraise.v1.ItemsResponse
+	33,  // 265: barnraise.v1.BarnraiseService.UpdateItem:output_type -> barnraise.v1.ItemResponse
+	33,  // 266: barnraise.v1.BarnraiseService.UnlockFiles:output_type -> barnraise.v1.ItemResponse
+	33,  // 267: barnraise.v1.BarnraiseService.CloseItem:output_type -> barnraise.v1.ItemResponse
+	41,  // 268: barnraise.v1.BarnraiseService.NextItem:output_type -> barnraise.v1.Assignment
+	33,  // 269: barnraise.v1.BarnraiseService.Deliver:output_type -> barnraise.v1.ItemResponse
+	33,  // 270: barnraise.v1.BarnraiseService.SubmitReview:output_type -> barnraise.v1.ItemResponse
+	33,  // 271: barnraise.v1.BarnraiseService.ReportCheck:output_type -> barnraise.v1.ItemResponse
+	68,  // 272: barnraise.v1.BarnraiseService.Timeline:output_type -> barnraise.v1.TimelineResponse
+	69,  // 273: barnraise.v1.BarnraiseService.Estimate:output_type -> barnraise.v1.EstimateResponse
+	87,  // 274: barnraise.v1.BarnraiseService.Takeover:output_type -> barnraise.v1.TakeoverResponse
+	33,  // 275: barnraise.v1.BarnraiseService.Handback:output_type -> barnraise.v1.ItemResponse
+	33,  // 276: barnraise.v1.BarnraiseService.Redo:output_type -> barnraise.v1.ItemResponse
+	46,  // 277: barnraise.v1.BarnraiseService.Propose:output_type -> barnraise.v1.ProposeResponse
+	48,  // 278: barnraise.v1.BarnraiseService.ListProposals:output_type -> barnraise.v1.ListProposalsResponse
+	50,  // 279: barnraise.v1.BarnraiseService.DecideProposal:output_type -> barnraise.v1.ProposalResponse
+	52,  // 280: barnraise.v1.BarnraiseService.AddTweak:output_type -> barnraise.v1.AddTweakResponse
+	54,  // 281: barnraise.v1.BarnraiseService.AskOwner:output_type -> barnraise.v1.QuestionResponse
+	55,  // 282: barnraise.v1.BarnraiseService.ListQuestions:output_type -> barnraise.v1.QuestionsResponse
+	54,  // 283: barnraise.v1.BarnraiseService.Answer:output_type -> barnraise.v1.QuestionResponse
+	58,  // 284: barnraise.v1.BarnraiseService.Approve:output_type -> barnraise.v1.Empty
+	117, // 285: barnraise.v1.BarnraiseService.Discuss:output_type -> barnraise.v1.DiscussionResponse
+	110, // 286: barnraise.v1.BarnraiseService.ListParts:output_type -> barnraise.v1.PartsResponse
+	117, // 287: barnraise.v1.BarnraiseService.GetDiscussion:output_type -> barnraise.v1.DiscussionResponse
+	117, // 288: barnraise.v1.BarnraiseService.Delegate:output_type -> barnraise.v1.DiscussionResponse
+	136, // 289: barnraise.v1.BarnraiseService.SetAutopilot:output_type -> barnraise.v1.AutopilotResponse
+	113, // 290: barnraise.v1.BarnraiseService.TriageProposals:output_type -> barnraise.v1.ProposalTriageResponse
+	60,  // 291: barnraise.v1.BarnraiseService.SetGoal:output_type -> barnraise.v1.SetGoalResponse
+	116, // 292: barnraise.v1.BarnraiseService.DraftFromChat:output_type -> barnraise.v1.ChatDraft
+	58,  // 293: barnraise.v1.BarnraiseService.RunChecksInChat:output_type -> barnraise.v1.Empty
+	62,  // 294: barnraise.v1.BarnraiseService.SetFocus:output_type -> barnraise.v1.FocusResponse
+	58,  // 295: barnraise.v1.BarnraiseService.ClearFocus:output_type -> barnraise.v1.Empty
+	58,  // 296: barnraise.v1.BarnraiseService.Pause:output_type -> barnraise.v1.Empty
+	58,  // 297: barnraise.v1.BarnraiseService.Resume:output_type -> barnraise.v1.Empty
+	64,  // 298: barnraise.v1.BarnraiseService.Status:output_type -> barnraise.v1.StatusResponse
+	157, // 299: barnraise.v1.BarnraiseService.Overview:output_type -> barnraise.v1.OverviewResponse
+	66,  // 300: barnraise.v1.BarnraiseService.Metrics:output_type -> barnraise.v1.MetricsResponse
+	70,  // 301: barnraise.v1.BarnraiseService.Digest:output_type -> barnraise.v1.DigestResponse
+	86,  // 302: barnraise.v1.BarnraiseService.Queue:output_type -> barnraise.v1.QueueResponse
+	86,  // 303: barnraise.v1.BarnraiseService.ProcessQueue:output_type -> barnraise.v1.QueueResponse
+	139, // 304: barnraise.v1.BarnraiseService.ListEvents:output_type -> barnraise.v1.EventsResponse
+	72,  // 305: barnraise.v1.BarnraiseService.SendMessage:output_type -> barnraise.v1.MessageResponse
+	74,  // 306: barnraise.v1.BarnraiseService.Inbox:output_type -> barnraise.v1.InboxResponse
+	58,  // 307: barnraise.v1.BarnraiseService.Journal:output_type -> barnraise.v1.Empty
+	58,  // 308: barnraise.v1.BarnraiseService.ReportViolation:output_type -> barnraise.v1.Empty
+	78,  // 309: barnraise.v1.BarnraiseService.Context:output_type -> barnraise.v1.ContextResponse
+	81,  // 310: barnraise.v1.BarnraiseService.Find:output_type -> barnraise.v1.FindResponse
+	83,  // 311: barnraise.v1.BarnraiseService.Get:output_type -> barnraise.v1.KnowledgeResponse
+	83,  // 312: barnraise.v1.BarnraiseService.Related:output_type -> barnraise.v1.KnowledgeResponse
+	83,  // 313: barnraise.v1.BarnraiseService.Why:output_type -> barnraise.v1.KnowledgeResponse
+	83,  // 314: barnraise.v1.BarnraiseService.History:output_type -> barnraise.v1.KnowledgeResponse
+	83,  // 315: barnraise.v1.BarnraiseService.Rules:output_type -> barnraise.v1.KnowledgeResponse
+	85,  // 316: barnraise.v1.BarnraiseService.Revalidate:output_type -> barnraise.v1.RevalidateResponse
+	85,  // 317: barnraise.v1.BarnraiseService.Sweep:output_type -> barnraise.v1.RevalidateResponse
+	91,  // 318: barnraise.v1.BarnraiseService.UpsertAccount:output_type -> barnraise.v1.AccountResponse
+	92,  // 319: barnraise.v1.BarnraiseService.ListAccounts:output_type -> barnraise.v1.AccountsResponse
+	95,  // 320: barnraise.v1.BarnraiseService.StartAccountLogin:output_type -> barnraise.v1.AccountLoginResponse
+	95,  // 321: barnraise.v1.BarnraiseService.GetAccountLogin:output_type -> barnraise.v1.AccountLoginResponse
+	95,  // 322: barnraise.v1.BarnraiseService.AnswerAccountLogin:output_type -> barnraise.v1.AccountLoginResponse
+	95,  // 323: barnraise.v1.BarnraiseService.CancelAccountLogin:output_type -> barnraise.v1.AccountLoginResponse
+	58,  // 324: barnraise.v1.BarnraiseService.ReportUsage:output_type -> barnraise.v1.Empty
+	97,  // 325: barnraise.v1.BarnraiseService.ListMachines:output_type -> barnraise.v1.MachinesResponse
+	101, // 326: barnraise.v1.BarnraiseService.MachineHistory:output_type -> barnraise.v1.MachineHistoryResponse
+	102, // 327: barnraise.v1.BarnraiseService.LeaveMachine:output_type -> barnraise.v1.LeaveResponse
+	104, // 328: barnraise.v1.BarnraiseService.ListPeers:output_type -> barnraise.v1.PeersResponse
+	107, // 329: barnraise.v1.BarnraiseService.StopPeers:output_type -> barnraise.v1.StopPeersResponse
+	124, // 330: barnraise.v1.BarnraiseService.SetStandby:output_type -> barnraise.v1.StandbyResponse
+	123, // 331: barnraise.v1.BarnraiseService.SetMaxAgents:output_type -> barnraise.v1.MaxAgentsResponse
+	121, // 332: barnraise.v1.BarnraiseService.ShareProject:output_type -> barnraise.v1.ShareProjectResponse
+	162, // 333: barnraise.v1.BarnraiseService.Capabilities:output_type -> barnraise.v1.CapabilitiesResponse
+	165, // 334: barnraise.v1.BarnraiseService.InstallTools:output_type -> barnraise.v1.InstallToolsResponse
+	127, // 335: barnraise.v1.BarnraiseService.CreateToken:output_type -> barnraise.v1.CreateTokenResponse
+	128, // 336: barnraise.v1.BarnraiseService.ListTokens:output_type -> barnraise.v1.TokensResponse
+	58,  // 337: barnraise.v1.BarnraiseService.RevokeToken:output_type -> barnraise.v1.Empty
+	132, // 338: barnraise.v1.BarnraiseService.ListAudit:output_type -> barnraise.v1.AuditResponse
+	258, // [258:339] is the sub-list for method output_type
+	177, // [177:258] is the sub-list for method input_type
 	177, // [177:177] is the sub-list for extension type_name
 	177, // [177:177] is the sub-list for extension extendee
 	0,   // [0:177] is the sub-list for field type_name

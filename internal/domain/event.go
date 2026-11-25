@@ -211,6 +211,10 @@ type Machine struct {
 	Left     bool   `json:"left,omitempty"`
 	// CapabilityCounts are the machine's capability statuses -> count (ADR-0046).
 	CapabilityCounts map[string]int `json:"capability_counts,omitempty"`
+	// TrackerErr is why this machine cannot write to the project's tracker
+	// right now ("" when it can or does not try): its changes reach the
+	// tracker only through another machine's repair.
+	TrackerErr string `json:"tracker_err,omitempty"`
 }
 
 // Health returns green, yellow or red by heartbeat age.

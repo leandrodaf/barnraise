@@ -18,6 +18,7 @@
 	import WandIcon from '@lucide/svelte/icons/wand-sparkles';
 	import PencilIcon from '@lucide/svelte/icons/pencil';
 	import MessageIcon from '@lucide/svelte/icons/message-circle-question';
+	import FlaskIcon from '@lucide/svelte/icons/flask-conical';
 	import type { DiscussionMessage, Proposal, Question } from '$lib/gen/barnraise/v1/barnraise_pb';
 	import { toast } from 'svelte-sonner';
 	import { api, errorText, store } from '$lib/api';
@@ -214,7 +215,24 @@
 	const P = $derived(kind === 'goal' ? 'chatGoal' : kind === 'focus' ? 'chatFocus' : 'chat');
 	const SUGGEST = $derived(chat ? [P + 'Idea1', P + 'Idea2', P + 'Idea3'] : ['discussWhat', 'discussRisk', 'discussRecommend']);
 	let creating = $state(false);
-	const answered = $derived(messages.some((m) => m.role !== 'owner'));
+	const answered = $derived(messages.some((m) => m.role === 'advisor'));
+	// The project's checks, run by Barnraise on main at the owner's request
+	// (never by the advisor): the result comes in as a message.
+	const lastChecks = $derived(messages.findLast((m) => m.role === 'checks'));
+	const checksRunning = $derived(!!lastChecks && lastChecks.text.startsWith('Running the checks'));
+	let starting = $state(false);
+	async function runChecks() {
+		starting = true;
+		error = '';
+		try {
+			await api.runChecksInChat({ project: discussion.project, thread: discussion.thread });
+			await load();
+		} catch (e) {
+			if (!session.failed(e)) error = errorText(e);
+		} finally {
+			starting = false;
+		}
+	}
 	async function createItem() {
 		creating = true;
 		error = '';
@@ -315,6 +333,14 @@
 						<div class="flex justify-end">
 							<div class="max-w-[85%] rounded-2xl rounded-br-md bg-muted px-4 py-2.5 text-sm whitespace-pre-wrap [overflow-wrap:anywhere]">{m.text}</div>
 						</div>
+					{:else if m.role === 'checks'}
+						<article class="space-y-2 rounded-xl border bg-card/60 p-3">
+							<header class="flex items-center gap-2 text-xs text-muted-foreground">
+								<FlaskIcon class="size-3.5" /><span class="font-medium text-foreground">{t('chatChecksBy')}</span><span class="num">{ago(m.at)}</span>
+								{#if checksRunning && m === lastChecks}<Spinner class="size-3.5" />{/if}
+							</header>
+							<div class="text-sm [&_code]:[overflow-wrap:anywhere] [&_pre]:max-h-72 [&_pre]:overflow-auto"><Markdown text={m.text} /></div>
+						</article>
 					{:else}
 						<article class="group space-y-2">
 							<header class="flex items-center gap-2 text-xs text-muted-foreground">
@@ -331,6 +357,15 @@
 						</article>
 					{/if}
 				{/each}
+				{#if (kind === 'goal' || kind === 'focus') && answered && !busy}
+					<!-- The goal or the focus is drafted by a button, never by the advisor: say so where the eye is. -->
+					<section class="flex flex-wrap items-center gap-3 rounded-xl border border-st-review/40 bg-st-review/[0.06] p-4">
+						<p class="min-w-0 flex-1 text-sm text-muted-foreground">{t(P + 'Ready')}</p>
+						<Button size="sm" disabled={creating || !!session.advisorDown[discussion.project]} onclick={draft}>
+							{#if creating}<Spinner class="size-3.5" />{:else}<PencilIcon />{/if}{t(P + 'Draft')}
+						</Button>
+					</section>
+				{/if}
 				{#if suggestion}
 					<!-- The answer the advisor suggests: confirm it, change it, or ask more. -->
 					<section class="space-y-3 rounded-xl border border-st-review/40 bg-st-review/[0.06] p-4" aria-label={t('suggestTitle')}>
@@ -383,14 +418,17 @@
 					{#if chat}
 						<button type="button" class="text-[11px] text-muted-foreground hover:text-foreground hover:underline" onclick={byHand}>{t('chatByHand')}</button>
 					{:else}<p class="text-[11px] text-muted-foreground">{t('discussFooter')}</p>{/if}
-					<div class="flex gap-2">
+					<div class="flex flex-wrap justify-end gap-2">
+						<Button type="button" size="sm" variant="outline" disabled={starting || checksRunning} title={t('chatChecksHelp')} onclick={runChecks}>
+							{#if starting || checksRunning}<Spinner class="size-3.5" />{:else}<FlaskIcon />{/if}{checksRunning ? t('chatChecksRunning') : t('chatChecksRun')}
+						</Button>
 						{#if chat}
 							{#if kind === 'item'}
 								<Button type="button" size="sm" variant="secondary" disabled={busy || creating || !answered || !!session.advisorDown[discussion.project]} title={answered ? t('chatCreateHelp') : t('chatCreateFirst')} onclick={createItem}>
 									{#if creating}<Spinner class="size-3.5" />{:else}<PlusIcon />{/if}{t('chatCreate')}
 								</Button>
 							{:else}
-								<Button type="button" size="sm" variant="secondary" disabled={busy || creating || !answered || !!session.advisorDown[discussion.project]} title={answered ? t('chatDraftHelp') : t('chatDraftFirst')} onclick={draft}>
+								<Button type="button" size="sm" variant={answered ? 'default' : 'secondary'} disabled={busy || creating || !answered || !!session.advisorDown[discussion.project]} title={answered ? t('chatDraftHelp') : t('chatDraftFirst')} onclick={draft}>
 									{#if creating}<Spinner class="size-3.5" />{:else}<PencilIcon />{/if}{t(P + 'Draft')}
 								</Button>
 							{/if}

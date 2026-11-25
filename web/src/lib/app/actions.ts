@@ -22,8 +22,22 @@ export function newItem() {
 
 // talkGoal and talkFocus open a conversation to shape the goal (CG-…) or the
 // focus (CF-…): the advisor drafts it, and the owner reviews it in the form.
-export const talkGoal = (project = session.project) => discussion.show(project, chatId('CG'), t('chatGoalTitle'));
-export const talkFocus = (project = session.project) => discussion.show(project, chatId('CF'), t('chatFocusTitle'));
+// With every project on screen, it first asks which project: the goal of
+// one is never shaped in another's conversation.
+export const talkGoal = (project?: string) => talk('CG', 'chatGoalTitle', 'goalPickProject', project);
+export const talkFocus = (project?: string) => talk('CF', 'chatFocusTitle', 'focusPickProject', project);
+
+function talk(kind: string, title: string, ask: string, project?: string) {
+	const open = (p: string) => discussion.show(p, chatId(kind), t(title));
+	if (project || session.scope || session.projects.length <= 1) return open(project || session.project);
+	dialog.open({
+		title: t(title),
+		description: t(ask),
+		fields: [{ name: 'project', label: t('project'), type: 'select', value: session.project, options: session.projects.map((p) => [p, p] as [string, string]) }],
+		submit: t('pickProject'),
+		onSubmit: async (v) => open(v.project)
+	});
+}
 
 const chatId = (kind: string) => kind + '-' + Array.from(crypto.getRandomValues(new Uint8Array(5)), (b) => 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'[b % 32]).join('');
 

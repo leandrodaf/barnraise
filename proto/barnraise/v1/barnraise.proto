@@ -1680,6 +1680,10 @@ service BarnraiseService {
   // DraftFromChat drafts a goal (thread CG-…) or a focus (thread CF-…) from
   // the owner's conversation with the advisor, without setting it.
   rpc DraftFromChat(DiscussionRef) returns (ChatDraft);
+  // RunChecksInChat runs the project's checks on main (the commands of
+  // barnraise.yaml, sandboxed, never the advisor) and posts their result
+  // into the conversation; it returns once they started.
+  rpc RunChecksInChat(DiscussionRef) returns (Empty);
   rpc SetFocus(FocusRequest) returns (FocusResponse);
   rpc ClearFocus(ProjectRef) returns (Empty);
   rpc Pause(PauseRequest) returns (Empty);

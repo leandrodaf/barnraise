@@ -391,6 +391,11 @@ func (h *Handler) SetGoal(ctx context.Context, r *connect.Request[pb.SetGoalRequ
 	return respond[pb.SetGoalResponse](map[string]any{"goal": goal, "inventory": inv}, err)
 }
 
+// RunChecksInChat runs the project's checks on main for a conversation.
+func (h *Handler) RunChecksInChat(ctx context.Context, r *connect.Request[pb.DiscussionRef]) (*connect.Response[pb.Empty], error) {
+	return empty(h.svc().RunChecksInChat(ctx, r.Msg.Project, actorFrom(ctx), r.Msg.Thread))
+}
+
 // DraftFromChat drafts a goal or a focus from a conversation with the advisor.
 func (h *Handler) DraftFromChat(ctx context.Context, r *connect.Request[pb.DiscussionRef]) (*connect.Response[pb.ChatDraft], error) {
 	d, err := h.svc().DraftFromChat(ctx, r.Msg.Project, actorFrom(ctx), r.Msg.Thread)

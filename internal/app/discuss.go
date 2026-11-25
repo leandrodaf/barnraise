@@ -231,7 +231,7 @@ func advisorSystem(p *Project, onMain bool) string {
 		"(a question an agent asked, or an approval) and talks it over with you before answering.\n" +
 		"- Answer in " + lang + ", plainly and briefly, for a person who knows the product, not necessarily the code.\n" +
 		"- You only read: look at the files to ground what you say, quote paths and lines when they matter. You never change files, " +
-		"run commands or answer the question in the owner's place. " + where + "\n" +
+		"run commands or answer the question in the owner's place. " + where + "\n" + checksAdvice +
 		"- Explain what each option means in practice, what it costs and what it risks, and say which one you recommend and why.\n" +
 		"- When the decision only waits because an agent may not change an existing locked file (a test, a reference or a check " +
 		"script) and that change is the right one, recommend option: UNLOCK <path>, <path> (paths from the repository root): " +
@@ -285,8 +285,11 @@ func advisorPrompt(q *domain.Question, prop *domain.Proposal, it *domain.Item, t
 	b.WriteString("\n# The conversation so far\n")
 	for _, m := range conv {
 		who := "Owner"
-		if m.Role == domain.DiscussAdvisor {
+		switch m.Role {
+		case domain.DiscussAdvisor:
 			who = "You"
+		case domain.DiscussChecks:
+			who = "Barnraise (checks run on main)"
 		}
 		fmt.Fprintf(&b, "\n**%s:** %s\n", who, m.Text)
 	}

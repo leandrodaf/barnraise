@@ -368,6 +368,10 @@ type TrackerDef struct {
 	Columns map[string]string `json:"columns,omitempty"` // barnraise status -> tracker column
 	Trusted []string          `json:"trusted,omitempty"` // authors or labels that create items directly
 	Token   string            `json:"token,omitempty"`   // keychain reference
+	// Reconcile turns on the periodic repair of the tracker: every live item
+	// gets its issue and every issue shows its item's status, whichever
+	// machine made the change and whether its own update reached the tracker.
+	Reconcile bool `json:"reconcile,omitempty"`
 }
 
 // CodeHostDef configures the git server.

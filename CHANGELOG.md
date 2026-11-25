@@ -6,6 +6,8 @@ All notable changes to Barnraise are recorded here. The format follows [Keep a C
 
 ### Added
 
+- **tracker:** `tracker.reconcile: true` repairs the tracker every 2 minutes: an item without an issue gets one (or is linked back to the `[I-n]` issue with the `barnraise` label already there, never a duplicate), and an issue that shows a stale state or status is updated. One machine does it at a time (`lease/tracker`); a machine that cannot write gives the duty up for 15 minutes so another one takes it.
+- **owner:** *Run the checks* in a conversation with the advisor: Barnraise runs the project's checks (the commands of `barnraise.yaml`) on a clean checkout of main, in the same sandbox as an item's checks, and posts the result into the conversation for the advisor to read (`RunChecksInChat`). The advisor still never runs a command; it asks the owner to press the button instead of saying it cannot confirm.
 - **owner:** *New item* opens a conversation with the advisor: it reads the code, answers and asks what is unclear, and *Create the item* writes the item from the conversation, with criteria tied to checks (`CreateItemFromChat`). The form stays behind *Write it by hand*.
 - **owner:** *Set goal* and *Set focus* open a conversation with the advisor (threads `CG-…` and `CF-…`): it reads the code and the items not done, pushes back on a goal with no end you can check, and *Review the goal* / *Review the focus* drafts it (`DraftFromChat`) into the form, filled in for the owner to set. Nothing is set without the owner; the forms stay behind *Write it by hand* and in the command palette.
 - **panel:** The item's *Links* open its pages outside Barnraise: the issue in the tracker (GitHub, GitLab, Jira; Linear through the link the tracker gives), the pull request, the branch, its changes against the main branch and, once integrated, its commit. The links come from the repository's remote (`ItemLinks`); a remote's credentials never reach them.
@@ -13,6 +15,9 @@ All notable changes to Barnraise are recorded here. The format follows [Keep a C
 
 ### Fixed
 
+- **tracker:** A machine whose token cannot write to the tracker no longer leaves items in limbo silently: its heartbeat carries the error and `barnraise status` says *machine X cannot write to the tracker*, and items left without an issue are listed. Before, an update that failed twice was only a warning in that machine's log, and its issues kept a stale status for good.
+- **panel:** Once the advisor answered, a conversation about the goal or the focus shows *Review the goal* / *Review the focus* where the eye is, under the last answer, as the main button; it was a small grey button by *Send* that owners did not find.
+- **panel:** *Set goal* and *Set focus* with every project on screen ask which project first; they opened the conversation in whichever project was the default.
 - **panel:** The goal form's *What it needs* says the forms the daemon takes (`screens <folder>`, `files <path>`, `lines <file>`) instead of "one per line", which always failed.
 - **cli:** `barnraise item edit -c` writes the criteria again; it failed with "proto: invalid type", so analysts could not record a refinement.
 - **providers:** Claude Code's current limit messages ("You've hit your 5-hour limit · resets 1am · out of usage credits", "…weekly limit", "…Fable limit") are recognized: the account (or only the model, when the limit is the model's own) waits, and the work goes to another account or to the next model of its class.

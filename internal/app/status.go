@@ -97,6 +97,7 @@ func (s *Service) GetStatus(ctx context.Context, project string, a Actor) (Statu
 		st.Alerts = append(st.Alerts, "paused: "+st.PausedWhy)
 	}
 	st.Alerts = append(st.Alerts, s.sandboxAlerts(p)...)
+	st.Alerts = append(st.Alerts, s.trackerAlerts(p, snap, st.Machines)...)
 	for _, m := range st.Machines {
 		if m.Health == "red" {
 			st.Alerts = append(st.Alerts, fmt.Sprintf("machine %s is out since %s", m.Name, m.LastSeen.Format("15:04")))

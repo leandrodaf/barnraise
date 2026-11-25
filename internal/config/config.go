@@ -224,13 +224,14 @@ type rawConfig struct {
 	MainBranch string            `yaml:"main_branch"`
 	Tracker    domain.TrackerDef `yaml:"-"`
 	TrackerRaw struct {
-		Type    string            `yaml:"type"`
-		Repo    string            `yaml:"repo"`
-		Project yaml.Node         `yaml:"project"`
-		URL     string            `yaml:"url"`
-		Columns map[string]string `yaml:"columns"`
-		Trusted []string          `yaml:"trusted"`
-		Token   string            `yaml:"token"`
+		Type      string            `yaml:"type"`
+		Repo      string            `yaml:"repo"`
+		Project   yaml.Node         `yaml:"project"`
+		URL       string            `yaml:"url"`
+		Columns   map[string]string `yaml:"columns"`
+		Trusted   []string          `yaml:"trusted"`
+		Token     string            `yaml:"token"`
+		Reconcile bool              `yaml:"reconcile"`
 	} `yaml:"tracker"`
 	CodeHost struct {
 		Type   string `yaml:"type"`
@@ -471,7 +472,7 @@ func (r *rawConfig) compile(root, tmpl string) (*domain.ProjectConfig, error) {
 		c.Goal.BudgetPct = p
 	}
 	tr := r.TrackerRaw
-	c.Tracker = domain.TrackerDef{Type: def(tr.Type, "local"), Repo: tr.Repo, URL: tr.URL, Columns: tr.Columns, Trusted: tr.Trusted, Token: tr.Token}
+	c.Tracker = domain.TrackerDef{Type: def(tr.Type, "local"), Repo: tr.Repo, URL: tr.URL, Columns: tr.Columns, Trusted: tr.Trusted, Token: tr.Token, Reconcile: tr.Reconcile}
 	if tr.Project.Kind == yaml.ScalarNode {
 		c.Tracker.Project = tr.Project.Value
 	}

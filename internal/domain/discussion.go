@@ -11,7 +11,7 @@ const EvDiscussion = "owner.discussion"
 type DiscussionMessage struct {
 	Thread string    `json:"thread"`
 	ItemID string    `json:"item_id,omitempty"`
-	Role   string    `json:"role"` // owner or advisor
+	Role   string    `json:"role"` // owner, advisor or checks
 	Text   string    `json:"text"`
 	By     string    `json:"by,omitempty"`    // who wrote it (the owner's name, the advisor's model)
 	Model  string    `json:"model,omitempty"` // the advisor's model
@@ -46,6 +46,9 @@ type DiscussionStep struct {
 const (
 	DiscussOwner   = "owner"
 	DiscussAdvisor = "advisor"
+	// DiscussChecks is Barnraise reporting the checks it ran on main at the
+	// owner's request, for the advisor to read.
+	DiscussChecks = "checks"
 )
 
 // discussionWindow keeps the last messages of each conversation.
