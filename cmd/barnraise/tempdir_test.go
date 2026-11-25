@@ -5,6 +5,7 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"strconv"
 	"testing"
 	"time"
 )
@@ -41,16 +42,25 @@ func TestTrimTemp(t *testing.T) {
 
 func TestUseDataTemp(t *testing.T) {
 	t.Setenv("TMPDIR", "/tmp")
-	data := t.TempDir()
+	data, sys := t.TempDir(), t.TempDir()
+	old := varTmp
+	varTmp = sys
+	t.Cleanup(func() { varTmp = old })
+	want := filepath.Join(sys, "barnraise-"+strconv.Itoa(os.Getuid()))
 	before, restore := useDataTemp(data)
-	if before != "/tmp" || os.TempDir() != filepath.Join(data, "tmp") {
+	if before != "/tmp" || os.TempDir() != want {
 		t.Fatalf("before %q, now %q", before, os.TempDir())
 	}
 	restore()
 	if os.TempDir() != "/tmp" {
 		t.Fatalf("not put back: %q", os.TempDir())
 	}
-	if fi, err := os.Stat(filepath.Join(data, "tmp")); err != nil || fi.Mode().Perm() != 0o700 {
+	if fi, err := os.Stat(want); err != nil || fi.Mode().Perm() != 0o700 {
 		t.Fatalf("%v %v", fi, err)
+	}
+	// Without the system's folder, the data folder.
+	varTmp = filepath.Join(sys, "missing")
+	if got := tempHome(data); got != filepath.Join(data, "tmp") {
+		t.Fatalf("fallback %q", got)
 	}
 }

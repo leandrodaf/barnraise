@@ -10,11 +10,14 @@ import (
 	"time"
 )
 
-// The daemon's temporary folder lives in its data folder: what sessions,
+// The daemon's temporary folder is /var/tmp/barnraise-<uid>: what sessions,
 // the advisor and checks write there (Claude Code keeps its tool outputs in
-// $TMPDIR/claude-<uid>) lands on the data disk, not on a small /tmp that,
-// once full, breaks every command of every session. The sandboxes give
-// back $TMPDIR read-write, so nothing else changes.
+// $TMPDIR/claude-<uid>) lands on the system disk, not on a small /tmp (often
+// a RAM disk) that, once full, breaks every command of every session. The
+// sandboxes open /var/tmp read-write, and every folder above it can be
+// searched (Claude Code refuses a temporary folder it cannot reach, as one
+// inside the data folder the sandbox hides). Without /var/tmp it is
+// <data dir>/tmp.
 
 // tempKeep is how long a temporary leftover is kept after its last change.
 const tempKeep = 24 * time.Hour
@@ -32,12 +35,24 @@ func useDataTemp(dataDir string) (before string, restore func()) {
 			_ = os.Unsetenv("TMPDIR")
 		}
 	}
-	dir := filepath.Join(dataDir, "tmp")
+	dir := tempHome(dataDir)
 	if err := os.MkdirAll(dir, 0o700); err != nil {
 		return before, func() {}
 	}
+	_ = os.Chmod(dir, 0o700)
 	_ = os.Setenv("TMPDIR", dir)
 	return before, restore
+}
+
+// varTmp is the system's temporary folder kept across reboots.
+var varTmp = "/var/tmp"
+
+// tempHome is the daemon's temporary folder.
+func tempHome(dataDir string) string {
+	if fi, err := os.Stat(varTmp); err == nil && fi.IsDir() {
+		return filepath.Join(varTmp, "barnraise-"+strconv.Itoa(os.Getuid()))
+	}
+	return filepath.Join(dataDir, "tmp")
 }
 
 // trimTemp removes, from each folder, the entries nothing changed in for
