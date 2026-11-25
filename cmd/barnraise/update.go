@@ -93,6 +93,7 @@ func (d *daemon) watchVersions(ctx context.Context, self string) {
 			d.svc.Runtime().SetDraining(false)
 			draining = time.Time{}
 			d.log.Warn("self-update", "from", target.Name, "version", target.Version, "err", err)
+			d.svc.NoteUpdateFailed(ctx, target.Name, target.Version, err)
 			continue
 		}
 		return

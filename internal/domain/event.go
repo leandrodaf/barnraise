@@ -76,6 +76,9 @@ const (
 	EvMachineToolInstalled = "machine.tool.installed"
 	EvMachineToolRemoved   = "machine.tool.removed"
 	EvMachineToolFailed    = "machine.tool.failed"
+	// EvMachineUpdateFailed: a machine saw a newer version on the cluster
+	// and could not take it, so it goes on running the old one.
+	EvMachineUpdateFailed = "machine.update.failed"
 )
 
 // Event is one entry of the append-only log. The current state is derived
