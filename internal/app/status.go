@@ -327,6 +327,10 @@ func (s *Service) Timeline(ctx context.Context, project string, a Actor, id stri
 		if pl.Item != nil {
 			te.Step = pl.Item.Step
 			te.Summary = fmt.Sprintf("%s at step %s", pl.Item.Status, pl.Item.Step)
+			// The item as it was at each event (body, criteria, anchors) is
+			// most of a timeline's bytes and nothing reads it there: the step
+			// and the summary carry what the event says about the item.
+			te.Payload.Item = nil
 		}
 		switch {
 		case pl.Delivery != nil:
@@ -352,6 +356,36 @@ func (s *Service) Timeline(ctx context.Context, project string, a Actor, id stri
 		out = append(out, te)
 	}
 	return out, nil
+}
+
+// tokenTotals is what an estimate needs of the usage of a window: tokens by
+// item and by provider/model.
+type tokenTotals struct {
+	TokensByItem  map[string]int64
+	TokensByModel map[string]int64
+}
+
+// usageTokens adds up the usage events of the window. It reads only those
+// events (the type index), not the whole log as Metrics does: the item page
+// asks for an estimate on every refresh.
+func (s *Service) usageTokens(ctx context.Context, project string, window time.Duration) (tokenTotals, error) {
+	evs, err := s.d.Store.Query(ctx, ports.EventQuery{Project: project, Types: []string{domain.EvAgentUsage}, Since: s.d.Clock.Now().Add(-window)})
+	if err != nil {
+		return tokenTotals{}, err
+	}
+	m := tokenTotals{TokensByItem: map[string]int64{}, TokensByModel: map[string]int64{}}
+	for _, e := range evs {
+		pl, err := e.DecodePayload()
+		if err != nil || pl.Usage == nil {
+			continue
+		}
+		u := pl.Usage
+		m.TokensByModel[u.Provider+"/"+u.Model] += u.Total()
+		if u.ItemID != "" {
+			m.TokensByItem[u.ItemID] += u.Total()
+		}
+	}
+	return m, nil
 }
 
 // Estimate is the forecast before starting: time and share of the account week.
@@ -382,7 +416,7 @@ func (s *Service) EstimateItem(ctx context.Context, project string, a Actor, id 
 	if it == nil {
 		return Estimate{}, fmt.Errorf("%w: item %s", ErrNotFound, id)
 	}
-	m, err := s.Metrics(ctx, p.Name, a, 30*24*time.Hour)
+	m, err := s.usageTokens(ctx, p.Name, 30*24*time.Hour)
 	if err != nil {
 		return Estimate{}, err
 	}

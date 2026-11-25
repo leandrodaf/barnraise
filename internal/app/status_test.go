@@ -1,6 +1,7 @@
 package app
 
 import (
+	"maps"
 	"strings"
 	"testing"
 	"time"
@@ -163,6 +164,14 @@ func TestStatusTimelineDigestEstimate(t *testing.T) {
 		sums = append(sums, te.Type+": "+te.Summary)
 	}
 	joined := strings.Join(sums, "\n")
+	for _, te := range tl {
+		if te.Payload.Item != nil {
+			t.Fatalf("%s carries the whole item: the timeline sends only what the event says", te.Type)
+		}
+		if strings.HasPrefix(te.Type, "item.") && te.Summary == "" {
+			t.Fatalf("%s lost its summary", te.Type)
+		}
+	}
 	for _, w := range []string{"item.created: ready at step", "delivered DONE: built the list", "check main passed=false", "rework check → implement", "retrying the list", "used 10 tokens on fake/m"} {
 		if !strings.Contains(joined, w) {
 			t.Errorf("timeline lacks %q:\n%s", w, joined)
@@ -253,6 +262,20 @@ func TestEstimateWeekShare(t *testing.T) {
 	if err != nil || est.Account != "claude-2" || est.WeekPct != 25 {
 		t.Fatalf("estimate %+v %v", est, err)
 	}
+	// The estimate reads only the usage events, and adds them up as Metrics does.
+	m, err := e.svc.Metrics(e.ctx, "demo", owner(), 30*24*time.Hour)
+	if err != nil {
+		t.Fatal(err)
+	}
+	u, err := e.svc.usageTokens(e.ctx, "demo", 30*24*time.Hour)
+	if err != nil || !maps.Equal(u.TokensByItem, m.TokensByItem) || !maps.Equal(u.TokensByModel, m.TokensByModel) {
+		t.Fatalf("usage %+v, metrics %+v %+v (%v)", u, m.TokensByItem, m.TokensByModel, err)
+	}
+	e.store.FailQuery = errStore
+	if _, err := e.svc.EstimateItem(e.ctx, "demo", owner(), it.ID); err == nil {
+		t.Fatal("store error")
+	}
+	e.store.FailQuery = nil
 }
 
 func TestAccounts(t *testing.T) {
