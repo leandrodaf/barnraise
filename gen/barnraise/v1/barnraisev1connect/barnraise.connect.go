@@ -53,6 +53,9 @@ const (
 	// BarnraiseServiceCreateItemProcedure is the fully-qualified name of the BarnraiseService's
 	// CreateItem RPC.
 	BarnraiseServiceCreateItemProcedure = "/barnraise.v1.BarnraiseService/CreateItem"
+	// BarnraiseServiceCreateItemFromChatProcedure is the fully-qualified name of the BarnraiseService's
+	// CreateItemFromChat RPC.
+	BarnraiseServiceCreateItemFromChatProcedure = "/barnraise.v1.BarnraiseService/CreateItemFromChat"
 	// BarnraiseServiceGetItemProcedure is the fully-qualified name of the BarnraiseService's GetItem
 	// RPC.
 	BarnraiseServiceGetItemProcedure = "/barnraise.v1.BarnraiseService/GetItem"
@@ -272,6 +275,9 @@ type BarnraiseServiceClient interface {
 	ReloadProject(context.Context, *connect.Request[v1.ProjectRef]) (*connect.Response[v1.ProjectsResponse], error)
 	// Items
 	CreateItem(context.Context, *connect.Request[v1.CreateItemRequest]) (*connect.Response[v1.CreateItemResponse], error)
+	// CreateItemFromChat writes an item from the owner's conversation with the
+	// advisor (a thread C-…): the advisor turns it into the fixed shape.
+	CreateItemFromChat(context.Context, *connect.Request[v1.DiscussionRef]) (*connect.Response[v1.CreateItemResponse], error)
 	GetItem(context.Context, *connect.Request[v1.ItemRef]) (*connect.Response[v1.ItemResponse], error)
 	ListItems(context.Context, *connect.Request[v1.ListItemsRequest]) (*connect.Response[v1.ItemsResponse], error)
 	UpdateItem(context.Context, *connect.Request[v1.UpdateItemRequest]) (*connect.Response[v1.ItemResponse], error)
@@ -425,6 +431,12 @@ func NewBarnraiseServiceClient(httpClient connect.HTTPClient, baseURL string, op
 			httpClient,
 			baseURL+BarnraiseServiceCreateItemProcedure,
 			connect.WithSchema(barnraiseServiceMethods.ByName("CreateItem")),
+			connect.WithClientOptions(opts...),
+		),
+		createItemFromChat: connect.NewClient[v1.DiscussionRef, v1.CreateItemResponse](
+			httpClient,
+			baseURL+BarnraiseServiceCreateItemFromChatProcedure,
+			connect.WithSchema(barnraiseServiceMethods.ByName("CreateItemFromChat")),
 			connect.WithClientOptions(opts...),
 		),
 		getItem: connect.NewClient[v1.ItemRef, v1.ItemResponse](
@@ -880,6 +892,7 @@ type barnraiseServiceClient struct {
 	registerProject    *connect.Client[v1.RegisterProjectRequest, v1.ProjectsResponse]
 	reloadProject      *connect.Client[v1.ProjectRef, v1.ProjectsResponse]
 	createItem         *connect.Client[v1.CreateItemRequest, v1.CreateItemResponse]
+	createItemFromChat *connect.Client[v1.DiscussionRef, v1.CreateItemResponse]
 	getItem            *connect.Client[v1.ItemRef, v1.ItemResponse]
 	listItems          *connect.Client[v1.ListItemsRequest, v1.ItemsResponse]
 	updateItem         *connect.Client[v1.UpdateItemRequest, v1.ItemResponse]
@@ -974,6 +987,11 @@ func (c *barnraiseServiceClient) ReloadProject(ctx context.Context, req *connect
 // CreateItem calls barnraise.v1.BarnraiseService.CreateItem.
 func (c *barnraiseServiceClient) CreateItem(ctx context.Context, req *connect.Request[v1.CreateItemRequest]) (*connect.Response[v1.CreateItemResponse], error) {
 	return c.createItem.CallUnary(ctx, req)
+}
+
+// CreateItemFromChat calls barnraise.v1.BarnraiseService.CreateItemFromChat.
+func (c *barnraiseServiceClient) CreateItemFromChat(ctx context.Context, req *connect.Request[v1.DiscussionRef]) (*connect.Response[v1.CreateItemResponse], error) {
+	return c.createItemFromChat.CallUnary(ctx, req)
 }
 
 // GetItem calls barnraise.v1.BarnraiseService.GetItem.
@@ -1354,6 +1372,9 @@ type BarnraiseServiceHandler interface {
 	ReloadProject(context.Context, *connect.Request[v1.ProjectRef]) (*connect.Response[v1.ProjectsResponse], error)
 	// Items
 	CreateItem(context.Context, *connect.Request[v1.CreateItemRequest]) (*connect.Response[v1.CreateItemResponse], error)
+	// CreateItemFromChat writes an item from the owner's conversation with the
+	// advisor (a thread C-…): the advisor turns it into the fixed shape.
+	CreateItemFromChat(context.Context, *connect.Request[v1.DiscussionRef]) (*connect.Response[v1.CreateItemResponse], error)
 	GetItem(context.Context, *connect.Request[v1.ItemRef]) (*connect.Response[v1.ItemResponse], error)
 	ListItems(context.Context, *connect.Request[v1.ListItemsRequest]) (*connect.Response[v1.ItemsResponse], error)
 	UpdateItem(context.Context, *connect.Request[v1.UpdateItemRequest]) (*connect.Response[v1.ItemResponse], error)
@@ -1503,6 +1524,12 @@ func NewBarnraiseServiceHandler(svc BarnraiseServiceHandler, opts ...connect.Han
 		BarnraiseServiceCreateItemProcedure,
 		svc.CreateItem,
 		connect.WithSchema(barnraiseServiceMethods.ByName("CreateItem")),
+		connect.WithHandlerOptions(opts...),
+	)
+	barnraiseServiceCreateItemFromChatHandler := connect.NewUnaryHandler(
+		BarnraiseServiceCreateItemFromChatProcedure,
+		svc.CreateItemFromChat,
+		connect.WithSchema(barnraiseServiceMethods.ByName("CreateItemFromChat")),
 		connect.WithHandlerOptions(opts...),
 	)
 	barnraiseServiceGetItemHandler := connect.NewUnaryHandler(
@@ -1959,6 +1986,8 @@ func NewBarnraiseServiceHandler(svc BarnraiseServiceHandler, opts ...connect.Han
 			barnraiseServiceReloadProjectHandler.ServeHTTP(w, r)
 		case BarnraiseServiceCreateItemProcedure:
 			barnraiseServiceCreateItemHandler.ServeHTTP(w, r)
+		case BarnraiseServiceCreateItemFromChatProcedure:
+			barnraiseServiceCreateItemFromChatHandler.ServeHTTP(w, r)
 		case BarnraiseServiceGetItemProcedure:
 			barnraiseServiceGetItemHandler.ServeHTTP(w, r)
 		case BarnraiseServiceListItemsProcedure:
@@ -2130,6 +2159,10 @@ func (UnimplementedBarnraiseServiceHandler) ReloadProject(context.Context, *conn
 
 func (UnimplementedBarnraiseServiceHandler) CreateItem(context.Context, *connect.Request[v1.CreateItemRequest]) (*connect.Response[v1.CreateItemResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("barnraise.v1.BarnraiseService.CreateItem is not implemented"))
+}
+
+func (UnimplementedBarnraiseServiceHandler) CreateItemFromChat(context.Context, *connect.Request[v1.DiscussionRef]) (*connect.Response[v1.CreateItemResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("barnraise.v1.BarnraiseService.CreateItemFromChat is not implemented"))
 }
 
 func (UnimplementedBarnraiseServiceHandler) GetItem(context.Context, *connect.Request[v1.ItemRef]) (*connect.Response[v1.ItemResponse], error) {

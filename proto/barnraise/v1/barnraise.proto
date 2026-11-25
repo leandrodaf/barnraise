@@ -1600,6 +1600,9 @@ service BarnraiseService {
 
   // Items
   rpc CreateItem(CreateItemRequest) returns (CreateItemResponse);
+  // CreateItemFromChat writes an item from the owner's conversation with the
+  // advisor (a thread C-…): the advisor turns it into the fixed shape.
+  rpc CreateItemFromChat(DiscussionRef) returns (CreateItemResponse);
   rpc GetItem(ItemRef) returns (ItemResponse);
   rpc ListItems(ListItemsRequest) returns (ItemsResponse);
   rpc UpdateItem(UpdateItemRequest) returns (ItemResponse);

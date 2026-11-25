@@ -16,7 +16,7 @@ const EVENT_TYPES = [
 	'proposal.created', 'proposal.updated', 'tweak.added', 'tweak.attached', 'owner.question.asked', 'owner.question.answered',
 	'goal.set', 'goal.finished', 'focus.changed', 'system.paused', 'system.resumed', 'account.updated',
 	'account.limit.reached', 'machine.updated', 'machine.left', 'machine.worktrees', 'agent.session', 'agent.usage',
-	'message.sent', 'message.delivered', 'journal.entry', 'policy.violation.blocked', 'secret.blocked', 'owner.discussion', 'owner.discussion.step', 'autopilot.changed'
+	'message.sent', 'message.delivered', 'journal.entry', 'policy.violation.blocked', 'secret.blocked', 'owner.discussion', 'owner.discussion.step', 'autopilot.changed', 'autopilot.step'
 ];
 
 class Session {
@@ -48,6 +48,9 @@ class Session {
 	autopilot = $state<string[]>([]);
 	// Why the advisor of a project cannot answer now; absent when it can.
 	advisorDown = $state<Record<string, string>>({});
+	// What the autopilot decides right now: project/thread (a question, an
+	// item, or "proposals") -> since when, in this browser's clock.
+	autopilotWorking = $state<Record<string, number>>({});
 	live = $state<LiveMode>('wait');
 	retryIn = $state(0);
 	// tick changes when something happened: screens read again on it.
@@ -197,6 +200,15 @@ class Session {
 					/* not JSON */
 				}
 				const type = ev.type && ev.type !== 'message' ? ev.type : String(ce?.type || '').replace(/^dev\.barnraise\./, '');
+				if (type === 'autopilot.step' && ce?.subject) {
+					// What the autopilot decides right now: project/thread -> since.
+					const key = project + '/' + ce.subject;
+					const next = { ...this.autopilotWorking };
+					if (!replaying && ce?.data?.note === 'working') next[key] = Date.now();
+					else delete next[key];
+					this.autopilotWorking = next;
+					return;
+				}
 				const step = ce?.data?.discussion_step;
 				if (type === 'owner.discussion.step' && step?.thread) {
 					if (!replaying) this.advisorSteps = [...this.advisorSteps.slice(-40), { thread: step.thread, tool: step.tool || '', target: step.target || '', at: step.at || '' }];

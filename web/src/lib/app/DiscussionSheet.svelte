@@ -26,6 +26,9 @@
 	import { session } from '$lib/session.svelte';
 	import { discussion } from './discussion.svelte';
 	import { act } from './act';
+	import { newItemByHand } from './actions';
+	import { openItem } from './open';
+	import PlusIcon from '@lucide/svelte/icons/plus';
 	import Markdown from './Markdown.svelte';
 
 	// The owner talks a decision over with the advisor. The daemon runs the
@@ -201,7 +204,28 @@
 			toast.error(t('copyFailed'));
 		}
 	}
-	const SUGGEST = ['discussWhat', 'discussRisk', 'discussRecommend'];
+	// A conversation to ask for work (C-…): no decision on top; the item is
+	// written from it when the owner is happy.
+	const chat = $derived(discussion.thread.startsWith('C-'));
+	const SUGGEST = $derived(chat ? ['chatIdea1', 'chatIdea2', 'chatIdea3'] : ['discussWhat', 'discussRisk', 'discussRecommend']);
+	let creating = $state(false);
+	const answered = $derived(messages.some((m) => m.role !== 'owner'));
+	async function createItem() {
+		creating = true;
+		error = '';
+		try {
+			const r = await api.createItemFromChat({ project: discussion.project, thread: discussion.thread });
+			const id = r.item?.id || r.proposal?.id || '';
+			toast.success(t('chatCreated', id));
+			await load();
+			session.bump(0);
+			if (r.item?.id) openItem(discussion.project, r.item.id);
+		} catch (e) {
+			if (!session.failed(e)) error = errorText(e);
+		} finally {
+			creating = false;
+		}
+	}
 	const stepIcon = (tool: string) => (tool === 'read' ? FileTextIcon : tool === 'search' ? SearchIcon : FolderSearchIcon);
 </script>
 
@@ -213,7 +237,7 @@
 		<header class="flex items-start gap-3 border-b px-4 py-3">
 			<span class="mt-0.5 grid size-8 shrink-0 place-items-center rounded-lg bg-st-review/15 text-st-review"><SparklesIcon class="size-4" /></span>
 			<div class="min-w-0 flex-1">
-				<Sheet.Title class="text-base">{t('discussTitle')}</Sheet.Title>
+				<Sheet.Title class="text-base">{chat ? t('chatTitle') : t('discussTitle')}</Sheet.Title>
 				<Sheet.Description class="num truncate text-xs">{discussion.thread} · {discussion.project}</Sheet.Description>
 			</div>
 			<Button size="icon" variant="ghost" class="hidden size-8 sm:inline-flex" onclick={() => (wide = !wide)} aria-label={wide ? t('discussNarrow') : t('discussWiden')} title={wide ? t('discussNarrow') : t('discussWiden')}>
@@ -223,7 +247,7 @@
 		</header>
 
 		<!-- The decision stays in view, and can be answered from here. -->
-		<section class="border-b bg-muted/30 px-4 py-3">
+		<section class="border-b bg-muted/30 px-4 py-3 {chat ? 'hidden' : ''}">
 			<button class="flex w-full items-center gap-2 text-left" onclick={() => (showDecision = !showDecision)}>
 				<span class="eyebrow text-st-needs">{t('discussDecision')}</span>
 				<ChevronDownIcon class="ml-auto size-4 text-muted-foreground transition-transform {showDecision ? '' : '-rotate-90'}" />
@@ -251,7 +275,7 @@
 			<div class="mx-auto w-full max-w-3xl space-y-6 px-4 py-5 sm:px-6">
 				{#if !messages.length && !busy}
 					<div class="space-y-3 text-sm text-muted-foreground">
-						<p>{t('discussIntro')}</p>
+						<p>{chat ? t('chatIntro', discussion.project) : t('discussIntro')}</p>
 						<div class="flex flex-wrap gap-2">
 							{#each SUGGEST as k (k)}<button class="rounded-full border bg-card px-3 py-1.5 text-xs text-foreground hover:bg-muted" onclick={() => (text = t(k))}>{t(k)}</button>{/each}
 						</div>
@@ -327,8 +351,17 @@
 			<div class="mx-auto w-full max-w-3xl space-y-2">
 				<Textarea bind:ref={input} bind:value={text} rows={3} placeholder={t('discussPlaceholder')} onkeydown={keydown} disabled={busy} class="resize-none" />
 				<div class="flex items-center justify-between gap-2">
-					<p class="text-[11px] text-muted-foreground">{t('discussFooter')}</p>
-					<Button type="submit" size="sm" disabled={busy || !text.trim() || !!session.advisorDown[discussion.project]}><SendIcon />{t('send')}</Button>
+					{#if chat}
+						<button type="button" class="text-[11px] text-muted-foreground hover:text-foreground hover:underline" onclick={() => ((discussion.open = false), newItemByHand())}>{t('chatByHand')}</button>
+					{:else}<p class="text-[11px] text-muted-foreground">{t('discussFooter')}</p>{/if}
+					<div class="flex gap-2">
+						{#if chat}
+							<Button type="button" size="sm" variant="secondary" disabled={busy || creating || !answered || !!session.advisorDown[discussion.project]} title={answered ? t('chatCreateHelp') : t('chatCreateFirst')} onclick={createItem}>
+								{#if creating}<Spinner class="size-3.5" />{:else}<PlusIcon />{/if}{t('chatCreate')}
+							</Button>
+						{/if}
+						<Button type="submit" size="sm" disabled={busy || !text.trim() || !!session.advisorDown[discussion.project]}><SendIcon />{t('send')}</Button>
+					</div>
 				</div>
 			</div>
 		</form>

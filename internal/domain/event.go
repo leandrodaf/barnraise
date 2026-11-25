@@ -55,7 +55,11 @@ const (
 	// EvAutopilot switches a project's autopilot: Note is "on" or "off".
 	// With it on, the advisor takes the owner's decisions (questions,
 	// approvals, proposals) and leaves only what it cannot resolve.
-	EvAutopilot     = "autopilot.changed"
+	EvAutopilot = "autopilot.changed"
+	// EvAutopilotStep is live only: the autopilot works on a decision
+	// (subject: the question, the item, or "proposals"), Note "working" or
+	// "done", so the owner sees it act.
+	EvAutopilotStep = "autopilot.step"
 	EvAgentSession  = "agent.session"
 	EvAgentUsage    = "agent.usage"
 	EvJournal       = "journal.entry"
@@ -137,7 +141,7 @@ func NewEvent(id, typ, project, subject, machine, actor string, at time.Time, p 
 // heartbeat and readings, an agent session's progress): only its latest
 // value matters, so it is never stored and never kept as history.
 func (e Event) LiveOnly() bool {
-	return e.Type == EvMachineUpdated || e.Type == EvAgentSession || e.Type == EvMachineWorktrees || e.Type == EvDiscussionStep
+	return e.Type == EvMachineUpdated || e.Type == EvAgentSession || e.Type == EvMachineWorktrees || e.Type == EvDiscussionStep || e.Type == EvAutopilotStep
 }
 
 // GPUStat is the live state of one GPU of a machine.

@@ -11,6 +11,7 @@
 	import StatusIcon from './StatusIcon.svelte';
 	import MessagesIcon from '@lucide/svelte/icons/messages-square';
 	import WandIcon from '@lucide/svelte/icons/wand-sparkles';
+	import { Spinner } from '$lib/components/ui/spinner';
 	import { discussion } from './discussion.svelte';
 
 	let { q, project = '' }: { q: Question; project?: string } = $props();
@@ -45,6 +46,7 @@
 			<p class="font-medium leading-snug [overflow-wrap:anywhere] {long && !more ? 'line-clamp-5' : ''}">{q.decision}</p>
 			{#if q.context}<p class="text-sm text-muted-foreground [overflow-wrap:anywhere] {long && !more ? 'line-clamp-4' : ''}">{q.context}</p>{/if}
 			{#if long}<button class="text-xs font-medium hover:underline" onclick={() => (more = !more)}>{more ? t('showLess') : t('showMore')}</button>{/if}
+			{#if session.autopilotWorking[proj + '/' + q.id]}<p class="flex items-center gap-2 rounded-md border border-st-review/30 bg-st-review/[0.06] px-3 py-2 text-sm text-st-review" role="status"><Spinner class="size-3.5" />{t('autopilotDeciding')}</p>{/if}
 			{#if left}<p class="rounded-md border border-st-review/30 bg-st-review/[0.06] px-3 py-2 text-sm [overflow-wrap:anywhere]"><span class="font-medium text-st-review">{t('autopilotLeft')}</span> {left}</p>{/if}
 			<p class="num flex flex-wrap gap-x-3 text-[11px] text-muted-foreground">
 				{#if q.urgent}<span class="font-semibold text-st-fail">{t('urgent')}</span>{/if}

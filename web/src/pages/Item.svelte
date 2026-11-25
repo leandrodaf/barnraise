@@ -1,6 +1,8 @@
 <script lang="ts">
 	import * as Tabs from '$lib/components/ui/tabs';
 	import { Button } from '$lib/components/ui/button';
+	import { Spinner } from '$lib/components/ui/spinner';
+	import { session } from '$lib/session.svelte';
 	import { Badge } from '$lib/components/ui/badge';
 	import CheckIcon from '@lucide/svelte/icons/circle-check';
 	import CircleIcon from '@lucide/svelte/icons/circle-dashed';
@@ -90,6 +92,7 @@
 			</div>
 			<div class="flex flex-wrap gap-2">
 				{#if row?.awaits}<ApprovalButtons id={it.id} awaits={row.awaits} {project} />{/if}
+				{#if session.autopilotWorking[project + '/' + it.id]}<span class="inline-flex items-center gap-1.5 text-sm text-st-review" role="status"><Spinner class="size-3.5" />{t('autopilotDeciding')}</span>{/if}
 				<Button size="sm" variant="secondary" onclick={() => discussion.show(project, it.id, it.title)}><MessagesIcon />{t('discuss')}</Button>
 				{#if it.status === 'paused'}<Button size="sm" variant="outline" onclick={handback}><UndoIcon />{t('handback')}</Button>
 				{:else if it.status !== 'integrated' && it.status !== 'closed'}<Button size="sm" variant="outline" onclick={takeover}><HandIcon />{t('takeover')}</Button>{/if}

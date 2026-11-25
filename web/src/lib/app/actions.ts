@@ -1,4 +1,5 @@
 // The owner's actions, shared by the screens and the command palette.
+import { discussion } from './discussion.svelte';
 import { api } from '$lib/api';
 import { t } from '$lib/i18n';
 import { go } from '$lib/router.svelte';
@@ -7,7 +8,15 @@ import { cluster } from '$lib/cluster.svelte';
 import { act } from './act';
 import { dialog } from './dialog.svelte';
 
+// newItem opens a conversation with the advisor to ask for work: it reads
+// the code, answers, and writes the item when the owner is happy with it.
 export function newItem() {
+	const id = 'C-' + Array.from(crypto.getRandomValues(new Uint8Array(5)), (b) => 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'[b % 32]).join('');
+	discussion.show(session.project, id, t('chatTitle'));
+}
+
+// newItemByHand is the form, for who already knows the item to the letter.
+export function newItemByHand() {
 	// With every project on screen, the form asks which one.
 	const pick = !session.scope && session.projects.length > 1;
 	dialog.open({

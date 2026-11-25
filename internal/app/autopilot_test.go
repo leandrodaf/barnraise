@@ -373,3 +373,39 @@ func TestAdviceUnlocksALockedTest(t *testing.T) {
 		t.Fatal("UNLOCKED read as an unlock")
 	}
 }
+
+// The owner talks a request over in a chat, then the advisor writes the
+// item from it, with criteria tied to checks.
+func TestChatToItem(t *testing.T) {
+	e, adv := autopilotEnv(t, func(r AdviceRequest) string {
+		if strings.Contains(r.Prompt, "Answer ONLY with JSON") {
+			return `{"title":"Sound the bell early","kind":"feature","area":"nope","priority":"P1","size":"3h","body":"A button starts the next wave.",` +
+				`"criteria":[{"text":"WHEN the keeper presses Sound the bell, THE SYSTEM SHALL start the next wave","check":"main"}],"files":["bastion.gd"]}`
+		}
+		return "Today the wave starts after 10 s; a button could start it early."
+	})
+	if !IsChat("C-AB12CD") || IsChat("Q-1") || IsChat("C-x") {
+		t.Fatal("chat ids")
+	}
+	conv, err := e.svc.Discuss(e.ctx, "demo", owner(), "c-ab12cd", "Quero um botão para chamar a onda antes.")
+	if err != nil || len(conv) != 2 || conv[0].ItemID != "" {
+		t.Fatalf("%+v %v", conv, err)
+	}
+	if !strings.Contains(adv.got[0].System, "talks it over with you before it becomes an item") {
+		t.Fatal("the chat runs with the decision's instructions")
+	}
+	res, err := e.svc.CreateItemFromChat(e.ctx, "demo", owner(), "C-AB12CD")
+	if err != nil || res.Item == nil {
+		t.Fatalf("%+v %v", res, err)
+	}
+	it := res.Item
+	if it.Title != "Sound the bell early" || len(it.Criteria) != 1 || it.Area != "" || !strings.Contains(it.Body, "C-AB12CD") {
+		t.Fatalf("item %+v", it)
+	}
+	conv = e.p.Snapshot().Discussions["C-AB12CD"]
+	if last := conv[len(conv)-1]; !strings.Contains(last.Text, it.ID) {
+		t.Fatalf("the chat does not say the item: %+v", last)
+	}
+	wantErr(t, func() error { _, err := e.svc.CreateItemFromChat(e.ctx, "demo", owner(), "C-EMPTY1"); return err }(), ErrInvalid)
+	wantErr(t, func() error { _, err := e.svc.CreateItemFromChat(e.ctx, "demo", owner(), "Q-1"); return err }(), ErrInvalid)
+}

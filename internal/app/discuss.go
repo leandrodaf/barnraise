@@ -89,6 +89,9 @@ func (s *Service) Discuss(ctx context.Context, project string, a Actor, thread, 
 		prop = &c
 	}
 	itemID := thread
+	if IsChat(thread) {
+		itemID = "" // a conversation to ask for work is about no item yet
+	}
 	if q != nil {
 		itemID = q.ItemID
 	}
@@ -101,7 +104,7 @@ func (s *Service) Discuss(ctx context.Context, project string, a Actor, thread, 
 			it = x.Clone()
 		}
 	}
-	if q == nil && it == nil && prop == nil {
+	if q == nil && it == nil && prop == nil && !IsChat(thread) {
 		p.mu.Unlock()
 		return nil, fmt.Errorf("%w: %s is not a question, an item or a proposal", ErrNotFound, thread)
 	}
@@ -127,7 +130,7 @@ func (s *Service) Discuss(ctx context.Context, project string, a Actor, thread, 
 	actx, cancel := context.WithTimeout(ctx, adviceTimeout)
 	defer cancel()
 	ans, err := adv.Advise(actx, AdviceRequest{
-		System:  advisorSystem(p, workdir == p.Cfg().Root),
+		System:  map[bool]string{true: advisorChatSystem(p), false: advisorSystem(p, workdir == p.Cfg().Root)}[IsChat(thread)],
 		Prompt:  advisorPrompt(qq, prop, it, timeline, append(history, mine)),
 		Workdir: workdir,
 		Progress: func(tool, target string) {

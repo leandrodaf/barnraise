@@ -4,6 +4,11 @@ All notable changes to Barnraise are recorded here. The format follows [Keep a C
 
 ## [Unreleased]
 
+### Added
+
+- **owner:** *New item* opens a conversation with the advisor: it reads the code, answers and asks what is unclear, and *Create the item* writes the item from the conversation, with criteria tied to checks (`CreateItemFromChat`). The form stays behind *Write it by hand*.
+- **panel:** The autopilot shows what it decides right now: on the question, on the item waiting for approval, on the proposals while it triages them, and on Home.
+
 ### Fixed
 
 - **cli:** `barnraise item edit -c` writes the criteria again; it failed with "proto: invalid type", so analysts could not record a refinement.

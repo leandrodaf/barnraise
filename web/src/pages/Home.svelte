@@ -44,7 +44,7 @@
 <PageHeader title={t('navHome')} icon={HouseIcon} meta={[session.scope || t('allProjects'), session.machine, t('homeSpendShort', money(usage.cost), compact(usage.tokens))]} subtitle={t('homeSummary', needs, g.working.length, g.blocked.length)} />
 {#if session.autopilot.length}
 	<p class="mb-4 flex items-start gap-2 rounded-lg border border-st-review/40 bg-st-review/[0.06] px-3 py-2 text-sm">
-		<PlaneIcon class="mt-0.5 size-4 shrink-0 text-st-review" /><span>{t('autopilotBanner', session.autopilot.join(', '))}</span>
+		<PlaneIcon class="mt-0.5 size-4 shrink-0 text-st-review" /><span>{t('autopilotBanner', session.autopilot.join(', '))}{#if Object.keys(session.autopilotWorking).length} <strong>{t('autopilotNow', Object.keys(session.autopilotWorking).map((k) => (k.split('/')[1] === 'proposals' ? t('autopilotProposals') : k.split('/')[1])).join(', '))}</strong>{/if}</span>
 	</p>
 {/if}
 

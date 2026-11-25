@@ -156,6 +156,18 @@ func (h *Handler) CreateItem(ctx context.Context, r *connect.Request[pb.CreateIt
 	return respond[pb.CreateItemResponse](res, err)
 }
 
+// CreateItemFromChat writes an item from a conversation with the advisor.
+func (h *Handler) CreateItemFromChat(ctx context.Context, r *connect.Request[pb.DiscussionRef]) (*connect.Response[pb.CreateItemResponse], error) {
+	res, err := h.svc().CreateItemFromChat(ctx, r.Msg.Project, actorFrom(ctx), r.Msg.Thread)
+	if errors.Is(err, app.ErrNoAdvisor) {
+		return nil, connect.NewError(connect.CodeUnavailable, err)
+	}
+	if err == nil {
+		h.audit(ctx, "item.create.chat", idOf(res.Item), r.Msg.Project, r.Msg.Thread)
+	}
+	return respond[pb.CreateItemResponse](res, err)
+}
+
 func idOf(it *domain.Item) string {
 	if it == nil {
 		return ""

@@ -251,6 +251,8 @@ func (s *Service) runAutopilot(ctx context.Context, p *Project) int {
 		}
 	}
 	if proposals && autopilotOn(p) {
+		s.autopilotStep(p, "proposals", true)
+		defer s.autopilotStep(p, "proposals", false)
 		verdicts, err := s.triage(ctx, p, func(pr *domain.Proposal) bool { return pr.Status == domain.ProposalOpen })
 		if err != nil {
 			s.d.Log.Warn("autopilot: the advisor gave no verdict on the proposals", "project", p.Name, "err", err)
@@ -272,9 +274,20 @@ func (s *Service) runAutopilot(ctx context.Context, p *Project) int {
 	return applied
 }
 
+// autopilotStep tells, live, that the autopilot works on a decision or is done.
+func (s *Service) autopilotStep(p *Project, thread string, working bool) {
+	note := "done"
+	if working {
+		note = "working"
+	}
+	s.emitEphemeral(p, domain.EvAutopilotStep, thread, "advisor", domain.Payload{Note: note})
+}
+
 // autopilotDecide talks one decision over with the advisor and applies the
 // answer it suggests, or leaves it to the owner with what to do.
 func (s *Service) autopilotDecide(ctx context.Context, p *Project, d autopilotDecision) (bool, error) {
+	s.autopilotStep(p, d.thread, true)
+	defer s.autopilotStep(p, d.thread, false)
 	ask := ot(p, "autopilot.ask")
 	if d.awaits != "" {
 		ask += ot(p, "autopilot.approve", d.awaits)

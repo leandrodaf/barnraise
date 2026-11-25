@@ -139,6 +139,11 @@
 </PageHeader>
 <Loading state={r}>
 	<PageGrid>
+		{#each Object.keys(session.autopilotWorking).filter((k) => k.endsWith('/proposals')) as k (k)}
+			<div class="flex items-center gap-2 rounded-xl border border-st-review/40 bg-st-review/[0.06] p-3 text-sm text-st-review" role="status">
+				<Spinner class="size-4" />{t('autopilotTriaging', k.split('/')[0])}
+			</div>
+		{/each}
 		{#if triage.busy}
 			<div class="flex items-center gap-2 rounded-xl border border-dashed p-3 text-sm" role="status">
 				<Spinner class="size-4 text-st-review" />{t('triageRunning')}<span class="num ml-auto text-xs text-muted-foreground">{dur((now - triage.started) / 1000)}</span>

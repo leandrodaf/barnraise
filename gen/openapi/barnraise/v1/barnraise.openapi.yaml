@@ -433,6 +433,47 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/barnraise.v1.CreateItemResponse'
+  /barnraise.v1.BarnraiseService/CreateItemFromChat:
+    post:
+      tags:
+        - barnraise.v1.BarnraiseService
+      summary: CreateItemFromChat
+      description: |-
+        CreateItemFromChat writes an item from the owner's conversation with the
+         advisor (a thread C-…): the advisor turns it into the fixed shape.
+      operationId: barnraise.v1.BarnraiseService.CreateItemFromChat
+      parameters:
+        - name: Connect-Protocol-Version
+          in: header
+          description: Define the version of the Connect protocol
+          schema:
+            $ref: '#/components/schemas/connect-protocol-version'
+          example: 1
+        - name: Connect-Timeout-Ms
+          in: header
+          description: Define the timeout, in ms
+          schema:
+            $ref: '#/components/schemas/connect-timeout-header'
+          example: 1000
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/barnraise.v1.DiscussionRef'
+        required: true
+      responses:
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.error'
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/barnraise.v1.CreateItemResponse'
   /barnraise.v1.BarnraiseService/CreateToken:
     post:
       tags:
