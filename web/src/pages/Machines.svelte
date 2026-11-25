@@ -7,7 +7,10 @@
 	import { ago, bytes, compact, dur, money, num, pct } from '$lib/format';
 	import { session } from '$lib/session.svelte';
 	import { cluster } from '$lib/cluster.svelte';
-	import { standby } from '$lib/app/actions';
+	import { standbyMachine, clusterStandby, stopMachine } from '$lib/app/actions';
+	import { pendingStandby } from '$lib/app/standby.svelte';
+	import PowerIcon from '@lucide/svelte/icons/power';
+	import SunIcon from '@lucide/svelte/icons/sun';
 	import PageHeader from '$lib/app/PageHeader.svelte';
 	import ServerIcon from '@lucide/svelte/icons/server';
 	import Sparkline from '$lib/app/Sparkline.svelte';
@@ -35,7 +38,7 @@
 
 	// Every machine of the cluster, from the overview: the header's project
 	// does not narrow this screen.
-	const list = $derived(cluster.data?.machines || []);
+	const list = $derived((cluster.data?.machines || []).map((mo) => (mo.machine ? { ...mo, machine: { ...mo.machine, standby: pendingStandby.of(mo.machine) } } : mo)));
 	const cpuPct = (m: { load1: number; cpus: number }) => (m.cpus ? Math.min(100, (m.load1 / m.cpus) * 100) : 0);
 	const memPct = (m: { memGb: number; freeMemGb: number }) => (m.memGb && m.freeMemGb > 0 ? ((m.memGb - m.freeMemGb) / m.memGb) * 100 : 0);
 	let busyLimit = $state(false);
@@ -62,7 +65,13 @@
 	const health = (m: { health: string; standby: boolean; left: boolean }) => (m.left ? 'idle' : m.standby ? 'needs' : m.health === 'green' ? 'done' : m.health === 'red' ? 'fail' : 'needs');
 </script>
 
-<PageHeader title={t('machines')} icon={ServerIcon} meta={[t('machinesN', list.length), t('standbyN', list.filter((m) => m.machine?.standby).length), t('sbDaemon', session.version, session.machine)]} subtitle={t('machinesHelp')} />
+<PageHeader title={t('machines')} icon={ServerIcon} meta={[t('machinesN', list.length), t('standbyN', list.filter((m) => m.machine?.standby).length), t('sbDaemon', session.version, session.machine)]} subtitle={t('machinesHelp')}>
+	{#snippet actions()}
+		{@const live = list.filter((x) => !x.machine?.left)}
+		<Button size="sm" variant="outline" disabled={!live.some((x) => !x.machine?.standby)} onclick={() => clusterStandby(true)}><MoonStarIcon />{t('allStandbyOn')}</Button>
+		<Button size="sm" disabled={!live.some((x) => x.machine?.standby)} onclick={() => clusterStandby(false)}><SunIcon />{t('allStandbyOff')}</Button>
+	{/snippet}
+</PageHeader>
 
 {#if !cluster.data}<Empty text={t('loading')} />{:else if !list.length}<Empty text={t('noMachines')} />{/if}
 <div class="grid gap-4 2xl:grid-cols-2 min-[2400px]:grid-cols-3">
@@ -79,11 +88,15 @@
 					<p class="flex flex-wrap items-center gap-x-2 font-semibold"><span class="break-all">{m.name}</span>{#if self}<Badge variant="outline" class="h-4 px-1.5 text-[10px]">{t('thisMachine')}</Badge>{/if}</p>
 					<p class="num text-[11px] text-muted-foreground">{m.platform} · {m.version} · {t('lastSeenShort', ago(m.lastSeen))}</p>
 				</div>
-				{#if self}
+				{#if !m.left}
+					<!-- Every machine has its switch: another one is switched through this daemon. -->
 					<label class="flex items-center gap-2 rounded-lg border px-3 py-1.5 text-sm {m.standby ? 'border-st-needs/50 bg-st-needs/10' : ''}">
 						<MoonStarIcon class="size-4 {m.standby ? 'text-st-needs' : 'text-muted-foreground'}" />{t('standbyBadge')}
-						<Switch checked={m.standby} onCheckedChange={(v) => standby(v)} aria-label={t('standbyBadge')} />
+						<Switch checked={m.standby} onCheckedChange={(v) => standbyMachine(m.name, v)} aria-label={t('standbyTitle', m.name)} />
 					</label>
+					{#if !self}
+						<Button size="icon" variant="ghost" class="size-8 text-muted-foreground hover:text-st-fail" title={t('mStopDaemon', m.name)} aria-label={t('mStopDaemon', m.name)} onclick={() => stopMachine(m.name)}><PowerIcon class="size-4" /></Button>
+					{/if}
 				{:else if m.standby}
 					<span class="flex items-center gap-1.5 rounded-lg border border-st-needs/50 bg-st-needs/10 px-3 py-1.5 text-sm text-st-needs"><MoonStarIcon class="size-4" />{t('standbyBadge')}</span>
 				{/if}

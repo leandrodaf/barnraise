@@ -1,8 +1,0 @@
-import{r as e,t}from"./chunk-QB3YPZ4I-D990esC4.js";import"./chunk-TU62E6Q5-w0uCKIel.js";import"./mermaid.core-CxlSel-Y.js";import"./chunk-HFQBQIA3-DoKAeDDq.js";import"./chunk-M57EVK23--aUCjuoT.js";import"./chunk-DQASFODM-DIAW9VmF.js";import"./chunk-LEVMRMFU-CjvNuLYY.js";import"./chunk-AXFCVDMN-BuWMVA6U.js";import"./chunk-X4PVCEUW-D00pSUtG.js";import"./chunk-STOXU5M4-CUNDuqls.js";import"./chunk-R3KSYZAL-BZiC71vF.js";import"./chunk-6MUBBAK2--E5p5fqt.js";import"./chunk-BG4553SI-B-WHl9Q_.js";import"./d3-selection-COWvaQNI.js";import{n}from"./chunk-Y2CYZVJY-DsF7k-Jl.js";var r=t({styles:n(t=>`${e(t)}
-  .swimlane.cluster:not([data-color-id]) rect {
-    stroke: ${t.clusterBorder} !important;
-  }
-  [data-look="neo"].cluster rect {
-    filter: none;
-  }
-`,`getStyles`)});export{r as diagram};

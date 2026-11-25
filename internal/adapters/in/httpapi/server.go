@@ -46,7 +46,7 @@ type Options struct {
 	StopPeers func(ctx context.Context, names []string) []*pb.PeerStop
 	// SetStandby switches this machine's standby, keeps it in the machine's
 	// configuration and passes it on to the named peers.
-	SetStandby func(ctx context.Context, on bool, why string, peers []string) (*pb.StandbyResponse, error)
+	SetStandby func(ctx context.Context, on bool, why string, peers []string, peersOnly bool) (*pb.StandbyResponse, error)
 	// SetMaxAgents keeps the limit of agents in the named machines' configuration.
 	SetMaxAgents func(ctx context.Context, n int, machines []string) (*pb.MaxAgentsResponse, error)
 	// ShareProject has the named machines clone and register a project.
@@ -96,6 +96,7 @@ func New(svc *app.Service, opts Options) *Server {
 	s.mux.Handle("GET /v1/events", s.auth(s.guardHTTP(app.ProcStreamEvents, http.HandlerFunc(s.handleSSE))))
 	s.routeLessons()
 	s.routeDocuments()
+	s.routeMachines()
 	s.trustRoutes()
 	s.mux.HandleFunc("POST /v1/webhooks/github", s.handleGitHub)
 	s.mux.HandleFunc("POST /v1/webhooks/gitlab", s.handleGitLab)
