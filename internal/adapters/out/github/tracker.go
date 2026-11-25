@@ -105,7 +105,7 @@ func (t *Tracker) Create(ctx context.Context, it *domain.Item, lang string) (por
 	var created ghIssue
 	_, err := t.c.do(ctx, http.MethodPost, t.c.repoPath("/issues"), map[string]any{
 		"title":  itemdoc.Title(it),
-		"body":   itemdoc.Markdown(it, lang),
+		"body":   ports.IssueBody(ctx, itemdoc.Markdown(it, lang)),
 		"labels": labels,
 	}, &created)
 	if err != nil {
@@ -163,7 +163,7 @@ func (t *Tracker) Update(ctx context.Context, it *domain.Item, lang string) erro
 	if !it.Adopted {
 		// An issue a person wrote keeps its own title and text.
 		fields["title"] = itemdoc.Title(it)
-		fields["body"] = itemdoc.Markdown(it, lang)
+		fields["body"] = ports.IssueBody(ctx, itemdoc.Markdown(it, lang))
 	}
 	if _, err := t.c.do(ctx, http.MethodPatch, t.c.repoPath("/issues/%d", n), fields, nil); err != nil {
 		return err

@@ -95,6 +95,7 @@ func New(svc *app.Service, opts Options) *Server {
 	s.mux.Handle(path, s.auth(handler))
 	s.mux.Handle("GET /v1/events", s.auth(s.guardHTTP(app.ProcStreamEvents, http.HandlerFunc(s.handleSSE))))
 	s.routeLessons()
+	s.routeDocuments()
 	s.trustRoutes()
 	s.mux.HandleFunc("POST /v1/webhooks/github", s.handleGitHub)
 	s.mux.HandleFunc("POST /v1/webhooks/gitlab", s.handleGitLab)
@@ -121,7 +122,7 @@ func securityHeaders(h http.Handler) http.Handler {
 		w.Header().Set("X-Content-Type-Options", "nosniff")
 		w.Header().Set("X-Frame-Options", "DENY")
 		w.Header().Set("Referrer-Policy", "no-referrer")
-		w.Header().Set("Content-Security-Policy", "default-src 'self'; style-src 'self' 'unsafe-inline'; connect-src 'self'")
+		w.Header().Set("Content-Security-Policy", "default-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' blob:; connect-src 'self'")
 		h.ServeHTTP(w, r)
 	})
 }

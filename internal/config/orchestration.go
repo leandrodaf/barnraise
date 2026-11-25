@@ -2,6 +2,7 @@ package config
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/leandrodaf/barnraise/internal/domain"
 )
@@ -17,6 +18,11 @@ type staleReadsRaw struct {
 type lessonsRaw struct {
 	Enabled *bool `yaml:"enabled"`
 	Max     *int  `yaml:"max"`
+}
+
+// documentsRaw is the `documents:` block.
+type documentsRaw struct {
+	Diagrams string `yaml:"diagrams"`
 }
 
 // compileOrchestration fills the stale-read warning and the lessons from
@@ -42,6 +48,13 @@ func compileOrchestration(r *rawConfig, c *domain.ProjectConfig) error {
 			return fmt.Errorf("lessons.max must be between 0 and 20")
 		}
 		c.Lessons.Max = *r.Lessons.Max
+	}
+	c.Documents = domain.DefaultDocuments()
+	if d := strings.ToLower(strings.TrimSpace(r.Documents.Diagrams)); d != "" {
+		if !domain.ValidDiagrams(d) {
+			return fmt.Errorf("documents.diagrams must be auto, always or off, not %q", r.Documents.Diagrams)
+		}
+		c.Documents.Diagrams = d
 	}
 	return nil
 }

@@ -40,6 +40,7 @@
 	import Processes from './pages/Processes.svelte';
 	import Activity from './pages/Activity.svelte';
 	import Admin from './pages/Admin.svelte';
+	import Documents from './pages/Documents.svelte';
 
 	session.start().catch(() => (session.booting = false));
 
@@ -113,6 +114,7 @@
 								{:else if router.current.name === 'processes'}<Processes />
 								{:else if router.current.name === 'activity'}<Activity />
 								{:else if router.current.name === 'admin'}<Admin />
+								{:else if router.current.name === 'documents'}<Documents />
 								{/if}
 							</div>
 						{/key}

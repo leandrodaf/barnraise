@@ -397,6 +397,7 @@ type rawConfig struct {
 	} `yaml:"worktree"`
 	StaleReads staleReadsRaw `yaml:"stale_reads"`
 	Lessons    lessonsRaw    `yaml:"lessons"`
+	Documents  documentsRaw  `yaml:"documents"`
 	Sandbox    struct {
 		Read         []string `yaml:"read"`
 		Write        []string `yaml:"write"`
@@ -1129,7 +1130,7 @@ func Explain(cfg *domain.ProjectConfig) (string, error) {
 	if v := acpView(cfg); len(v) > 0 {
 		view["acp_providers"] = v
 	}
-	view["stale_reads"], view["lessons"] = cfg.StaleReads, cfg.Lessons
+	view["stale_reads"], view["lessons"], view["documents"] = cfg.StaleReads, cfg.Lessons, cfg.Documents
 	var buf bytes.Buffer
 	enc := yaml.NewEncoder(&buf)
 	enc.SetIndent(2)

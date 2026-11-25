@@ -1,6 +1,7 @@
 package app
 
 import (
+	"cmp"
 	"context"
 	"fmt"
 	"os"
@@ -330,6 +331,14 @@ func (s *Service) reviewMaterial(ctx context.Context, p *Project, it *domain.Ite
 			return b.String()
 		}
 	}
+	if plan, err := os.ReadFile(filepath.Join(s.WorktreeDir(p.Name, it.ID), "plan.md")); err == nil {
+		if ds := domain.FindDiagrams(string(plan)); len(ds) > 0 {
+			b.WriteString("\n## Diagrams the author drew (before and after the change)\n")
+			for _, d := range ds {
+				fmt.Fprintf(&b, "%s:\n```mermaid\n%s\n```\n", cmp.Or(d.Title, "Diagram"), truncate(d.Source, 3000))
+			}
+		}
+	}
 	results := s.checkResultsSince(ctx, p, it.ID, nil)
 	if len(results) > 0 {
 		b.WriteString("\n## Check results\n")
@@ -386,15 +395,21 @@ func stepInstructions(p *Project, it *domain.Item, st domain.StepDef) string {
 			strings.Join(sortedKeys(p.Cfg().Checks), ", "), it.ID)
 	case st.Type == domain.StepApproval:
 		what := approvalWhat(p, it, st)
-		return fmt.Sprintf("Approve the %s or send it back. Submit with the `review` tool: criteria_verdict and code_verdict (pass/fail) and decision APPROVE or REWORK with findings. Then stop.", what)
+		extra := ""
+		if what == "plan" {
+			extra = planApprovalRule(p)
+		}
+		return fmt.Sprintf("Approve the %s or send it back.%s Submit with the `review` tool: criteria_verdict and code_verdict (pass/fail) and decision APPROVE or REWORK with findings. Then stop.", what, extra)
 	case st.Review:
-		return "Review the change shown above (plan.md and criteria.json are the item's memory: they never land on main and are not part of the scope). Submit exactly one `review` with both verdicts and a decision (APPROVE, REWORK with findings, or REJECT). Then stop."
+		return "Review the change shown above (plan.md and criteria.json are the item's memory: they never land on main and are not part of the scope). " +
+			"When diagrams are shown, the \"After\" one must match what the diff does: a mismatch is a finding. " +
+			"Submit exactly one `review` with both verdicts and a decision (APPROVE, REWORK with findings, or REJECT). Then stop."
 	case st.Output == "plan.md":
-		return "Write plan.md at the worktree root: files, steps, risks, and how each criterion will be verified. No code in this step. Then `deliver` with status DONE."
+		return planInstructions(p, it)
 	case st.Output == "failing_test":
 		return "Write a test that fails on main and shows the bug. Do not fix it. `deliver` DONE with the test file in `files` and the failing output as evidence."
 	default:
-		return "Implement following plan.md. Keep plan.md current. Mark each criterion you verified with evidence. Commit locally at each passing plan step, " +
+		return "Implement following plan.md. Keep plan.md current (when the design moves, redraw its \"After\" diagram: the pull request shows it). Mark each criterion you verified with evidence. Commit locally at each passing plan step, " +
 			"with a Conventional Commits message in English (`fix(api): keep cents as integers in the forecast`) and the trailer `" + domain.CommitTrailer(it.ID) + "`. " +
 			"Then `deliver`, with `change` describing the whole item the same way (type, scope, subject, in English): it becomes the commit on main and the line of the changelog. " +
 			"Do not edit the changelog yourself."
@@ -443,4 +458,27 @@ func ownerDecisions(p *Project, itemID string) string {
 		fmt.Fprintf(&b, "- %s: %s → %s\n", q.ID, strings.TrimSpace(q.Decision), q.Answer)
 	}
 	return b.String()
+}
+
+// planInstructions asks for plan.md in the structure of the project's plan
+// document.
+func planInstructions(p *Project, it *domain.Item) string {
+	tpl, err := RenderDocument(p.Cfg(), domain.DocPlan, itemDocData(it, ""))
+	if err != nil && tpl == "" {
+		tpl = "## Files\n## Steps\n## Risks\n## Verification\n"
+	}
+	return "Write plan.md at the worktree root following the structure below (the project's plan template: keep its headings and order, " +
+		"replace the guidance under each heading with the plan). No code in this step. Then `deliver` with status DONE.\n\n" +
+		"<plan-template>\n" + tpl + "</plan-template>"
+}
+
+// planApprovalRule is what the approver checks about diagrams.
+func planApprovalRule(p *Project) string {
+	switch diagramsMode(p.Cfg()) {
+	case domain.DiagramsAlways:
+		return " plan.md must follow the project's plan template and carry a \"Before and after\" section with Mermaid diagrams (only \"After\" for new code); send it back without them."
+	case domain.DiagramsAuto:
+		return " plan.md must follow the project's plan template; when the item changes a flow or a structure that already exists and the plan draws no \"Before and after\" Mermaid diagrams, ask for them."
+	}
+	return " plan.md must follow the project's plan template."
 }

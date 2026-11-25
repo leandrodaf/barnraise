@@ -500,6 +500,9 @@ type ProjectConfig struct {
 	StaleReads StaleReadsDef `json:"stale_reads"`
 	// Lessons are distilled from resolved rework and given to later items.
 	Lessons LessonsDef `json:"lessons"`
+	// Documents are the texts Barnraise writes for people (pull request,
+	// plan, item, issue) and when plans draw diagrams (documents.go).
+	Documents DocumentsDef `json:"documents"`
 	// Sandbox is how confined commands of the project are (profiles, extra paths and ports).
 	Sandbox SandboxDef `json:"sandbox,omitzero"`
 	// Worktree are the per-item isolation, build caches and phase hooks of

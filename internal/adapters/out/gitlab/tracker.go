@@ -101,7 +101,7 @@ func (t *Tracker) Create(ctx context.Context, it *domain.Item, lang string) (por
 	var created glIssue
 	_, err := t.c.do(ctx, http.MethodPost, t.c.path("/issues"), map[string]any{
 		"title":       itemdoc.Title(it),
-		"description": itemdoc.Markdown(it, lang),
+		"description": ports.IssueBody(ctx, itemdoc.Markdown(it, lang)),
 		"labels":      strings.Join(t.managedLabels(it), ","),
 	}, &created)
 	if err != nil {
@@ -142,7 +142,7 @@ func (t *Tracker) Update(ctx context.Context, it *domain.Item, lang string) erro
 	if !it.Adopted {
 		// An issue a person wrote keeps its own title and description.
 		fields["title"] = itemdoc.Title(it)
-		fields["description"] = itemdoc.Markdown(it, lang)
+		fields["description"] = ports.IssueBody(ctx, itemdoc.Markdown(it, lang))
 	}
 	switch closed := itemdoc.Closed(it); {
 	case closed && cur.State != "closed":
