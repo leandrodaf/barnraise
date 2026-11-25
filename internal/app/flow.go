@@ -20,6 +20,48 @@ type stepOutcome struct {
 	Criteria []domain.CriterionMark
 	Files    []string
 	Change   *domain.ChangeNote
+	// WaitsFor, with a block, are the items the step waits for.
+	WaitsFor []string
+}
+
+// waitsFor keeps the items a blocked step may wait for: known, not the
+// item itself, not landed yet, and not waiting on it in turn (directly or
+// further down), so two items never wait for each other.
+func waitsFor(items map[string]*domain.Item, self string, ids []string) []string {
+	var out []string
+	for _, raw := range ids {
+		id, err := domain.NormalizeItemID(raw)
+		if err != nil || id == self {
+			continue
+		}
+		dep := items[id]
+		if dep == nil || dep.Status == domain.StatusIntegrated || dep.Status == domain.StatusClosed {
+			continue
+		}
+		if reaches(items, id, self, map[string]bool{}) {
+			continue
+		}
+		out = append(out, id)
+	}
+	return domain.Dedupe(out)
+}
+
+// reaches reports whether from depends on to, through any chain of deps.
+func reaches(items map[string]*domain.Item, from, to string, seen map[string]bool) bool {
+	if seen[from] {
+		return false
+	}
+	seen[from] = true
+	it := items[from]
+	if it == nil {
+		return false
+	}
+	for _, d := range it.Deps {
+		if d == to || reaches(items, d, to, seen) {
+			return true
+		}
+	}
+	return false
 }
 
 // finishStep applies the flow engine's decision. The flow is code: Barnraise
@@ -58,6 +100,12 @@ func (s *Service) finishStep(ctx context.Context, p *Project, o stepOutcome) (*d
 	focus := p.state.Focus
 	focusActive := focus.Active(p.state.ItemList(), now)
 	park := false
+	// A step blocked only because other items have not landed waits for
+	// them: they become dependencies and nobody is asked anything.
+	var waits []string
+	if tr.Kind == domain.TransBlocked {
+		waits = waitsFor(p.state.Items, cur.ID, o.WaitsFor)
+	}
 	evType := domain.EvItemStepFinished
 	o.Payload = withStepOutcome(o.Payload, o.Step, o.Outcome)
 	it, err := s.mutateItemLocked(ctx, p, o.Item, evType, o.Actor, func(it *domain.Item) error {
@@ -109,6 +157,11 @@ func (s *Service) finishStep(ctx context.Context, p *Project, o stepOutcome) (*d
 			it.Step = tr.NextStep
 			it.Status = domain.StatusWaitingOwner
 		case domain.TransBlocked:
+			if len(waits) > 0 {
+				it.Deps = domain.Dedupe(append(it.Deps, waits...))
+				it.StepStartedAt = now // the same step, once they land
+				break
+			}
 			it.Status = domain.StatusBlocked
 		case domain.TransComplete:
 			it.Status = domain.StatusIntegrated
@@ -129,7 +182,18 @@ func (s *Service) finishStep(ctx context.Context, p *Project, o stepOutcome) (*d
 			ID: s.d.IDs.NewID(), From: "barnraise", To: "item:" + it.ID, ItemID: it.ID, At: now,
 			Text: fmt.Sprintf("Rework round %d from %s: %s", len(it.Rework), o.Step, truncate(o.Reason, 1500)),
 		}})
-	case domain.TransOwner, domain.TransBlocked:
+	case domain.TransBlocked:
+		if len(waits) == 0 {
+			break
+		}
+		_, _ = s.emitLocked(ctx, p, domain.EvItemBlocked, it.ID, o.Actor, domain.Payload{Note: "waits for " + strings.Join(waits, ", ") + ": " + truncate(o.Reason, 800)})
+		_, _ = s.emitLocked(ctx, p, domain.EvMessageSent, it.ID, "barnraise", domain.Payload{Message: &domain.Message{
+			ID: s.d.IDs.NewID(), From: "barnraise", To: "item:" + it.ID, ItemID: it.ID, At: now,
+			Text: "This item waits for " + strings.Join(waits, ", ") + ". The step starts again by itself once they are integrated.",
+		}})
+	}
+	switch {
+	case tr.Kind == domain.TransOwner || (tr.Kind == domain.TransBlocked && len(waits) == 0):
 		if tr.Kind == domain.TransBlocked {
 			_, _ = s.emitLocked(ctx, p, domain.EvItemBlocked, it.ID, o.Actor, domain.Payload{Note: o.Reason})
 		}
@@ -310,7 +374,7 @@ func (s *Service) Deliver(ctx context.Context, project string, a Actor, d domain
 	}
 	run := runInfo(a)
 	it, tr, err := s.finishStep(ctx, p, stepOutcome{Item: d.ItemID, Step: d.Step, Outcome: outcome, Reason: reason, Actor: d.Agent,
-		Criteria: d.Criteria, Files: d.Files, Change: d.Change, RunInfo: run, Payload: domain.Payload{Note: d.Summary}})
+		Criteria: d.Criteria, Files: d.Files, Change: d.Change, RunInfo: run, WaitsFor: d.WaitsFor, Payload: domain.Payload{Note: d.Summary}})
 	if err != nil {
 		return nil, err
 	}

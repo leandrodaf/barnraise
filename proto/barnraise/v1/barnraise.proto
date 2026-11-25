@@ -230,6 +230,10 @@ message Delivery {
   string at = 11;
   // How the change is described on main, in English.
   ChangeNote change = 12;
+  // With BLOCKED: the items that must be integrated before this step can go
+  // on. They become dependencies and the item waits for them, without a
+  // question to the owner.
+  repeated string waits_for = 13;
 }
 
 // ChangeNote describes a change in the form of Conventional Commits. It

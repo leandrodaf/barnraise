@@ -4074,6 +4074,15 @@ components:
           title: change
           description: How the change is described on main, in English.
           $ref: '#/components/schemas/barnraise.v1.ChangeNote'
+        waitsFor:
+          type: array
+          items:
+            type: string
+          title: waits_for
+          description: |-
+            With BLOCKED: the items that must be integrated before this step can go
+             on. They become dependencies and the item waits for them, without a
+             question to the owner.
       title: Delivery
       additionalProperties: false
     barnraise.v1.DeliveryMark:

@@ -56,6 +56,9 @@ type Delivery struct {
 	Change *ChangeNote `json:"change,omitempty"`
 	Commit string      `json:"commit,omitempty"`
 	At     time.Time   `json:"at,omitzero"`
+	// WaitsFor, with BLOCKED, names the items that must be integrated
+	// first: they become dependencies and the item waits for them.
+	WaitsFor []string `json:"waits_for,omitempty"`
 }
 
 // Validate enforces the fields: loose text does not move an item.

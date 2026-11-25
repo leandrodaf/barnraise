@@ -158,6 +158,9 @@ func MCPTools(scopes []string) []string {
 	if has(ScopeApprove) {
 		out = append(out, "approve")
 	}
+	if has(ScopeItemsWrite) {
+		out = append(out, "edit_item")
+	}
 	if has(ScopeFocus) {
 		out = append(out, "focus")
 	}

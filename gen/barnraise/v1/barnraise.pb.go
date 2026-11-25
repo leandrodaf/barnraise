@@ -1842,7 +1842,11 @@ type Delivery struct {
 	Commit   string           `protobuf:"bytes,10,opt,name=commit,proto3" json:"commit,omitempty"`
 	At       string           `protobuf:"bytes,11,opt,name=at,proto3" json:"at,omitempty"`
 	// How the change is described on main, in English.
-	Change        *ChangeNote `protobuf:"bytes,12,opt,name=change,proto3" json:"change,omitempty"`
+	Change *ChangeNote `protobuf:"bytes,12,opt,name=change,proto3" json:"change,omitempty"`
+	// With BLOCKED: the items that must be integrated before this step can go
+	// on. They become dependencies and the item waits for them, without a
+	// question to the owner.
+	WaitsFor      []string `protobuf:"bytes,13,rep,name=waits_for,json=waitsFor,proto3" json:"waits_for,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1957,6 +1961,13 @@ func (x *Delivery) GetAt() string {
 func (x *Delivery) GetChange() *ChangeNote {
 	if x != nil {
 		return x.Change
+	}
+	return nil
+}
+
+func (x *Delivery) GetWaitsFor() []string {
+	if x != nil {
+		return x.WaitsFor
 	}
 	return nil
 }
@@ -13574,7 +13585,7 @@ const file_barnraise_v1_barnraise_proto_rawDesc = "" +
 	"\rCriterionMark\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x10\n" +
 	"\x03met\x18\x02 \x01(\bR\x03met\x12\x1a\n" +
-	"\bevidence\x18\x03 \x01(\tR\bevidence\"\xdc\x02\n" +
+	"\bevidence\x18\x03 \x01(\tR\bevidence\"\xf9\x02\n" +
 	"\bDelivery\x12\x17\n" +
 	"\aitem_id\x18\x01 \x01(\tR\x06itemId\x12\x12\n" +
 	"\x04step\x18\x02 \x01(\tR\x04step\x12\x14\n" +
@@ -13588,7 +13599,8 @@ const file_barnraise_v1_barnraise_proto_rawDesc = "" +
 	"\x06commit\x18\n" +
 	" \x01(\tR\x06commit\x12\x0e\n" +
 	"\x02at\x18\v \x01(\tR\x02at\x120\n" +
-	"\x06change\x18\f \x01(\v2\x18.barnraise.v1.ChangeNoteR\x06change\"\x80\x01\n" +
+	"\x06change\x18\f \x01(\v2\x18.barnraise.v1.ChangeNoteR\x06change\x12\x1b\n" +
+	"\twaits_for\x18\r \x03(\tR\bwaitsFor\"\x80\x01\n" +
 	"\n" +
 	"ChangeNote\x12\x12\n" +
 	"\x04type\x18\x01 \x01(\tR\x04type\x12\x14\n" +

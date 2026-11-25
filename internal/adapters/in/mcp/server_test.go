@@ -30,6 +30,7 @@ type fakeAPI struct {
 	paused     []string
 	deliverErr error
 	none       bool
+	updates    []*pb.UpdateItemRequest
 
 	statusMu      sync.Mutex
 	statusWaiting int
@@ -46,6 +47,18 @@ func (f *fakeAPI) NextItem(_ context.Context, r *connect.Request[pb.NextItemRequ
 		Id: "I-7", Title: "Add login", Status: "in_progress", Step: "implement", Area: "auth", Priority: 1,
 		Criteria: []*pb.Criterion{{Id: "C1", Text: "When the user signs in, the app shall show the home screen."}},
 	}}), nil
+}
+
+func (f *fakeAPI) UpdateItem(_ context.Context, r *connect.Request[pb.UpdateItemRequest]) (*connect.Response[pb.ItemResponse], error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.updates = append(f.updates, r.Msg)
+	crit, _ := r.Msg.Patch.AsMap()["criteria"].([]any)
+	item := &pb.Item{Id: r.Msg.Id, Title: "Refined", Status: "ready"}
+	for range crit {
+		item.Criteria = append(item.Criteria, &pb.Criterion{})
+	}
+	return connect.NewResponse(&pb.ItemResponse{Item: item}), nil
 }
 
 func (f *fakeAPI) Context(_ context.Context, r *connect.Request[pb.ContextRequest]) (*connect.Response[pb.ContextResponse], error) {
@@ -259,7 +272,7 @@ func TestToolVisibilityByRole(t *testing.T) {
 			t.Errorf("implementer should see %s", n)
 		}
 	}
-	for _, n := range []string{"approve", "review", "focus", "pause", "answer", "create_item"} {
+	for _, n := range []string{"approve", "review", "focus", "pause", "answer", "create_item", "edit_item"} {
 		if impl[n] != nil {
 			t.Errorf("implementer must not see %s", n)
 		}
@@ -273,13 +286,13 @@ func TestToolVisibilityByRole(t *testing.T) {
 	}
 
 	analyst := listTools(t, "analyst")
-	if analyst["approve"] == nil || analyst["review"] == nil || analyst["answer"] != nil {
+	if analyst["approve"] == nil || analyst["review"] == nil || analyst["edit_item"] == nil || analyst["answer"] != nil {
 		t.Errorf("analyst sees the wrong tools: %v", keys(analyst))
 	}
 
 	owner := listTools(t, "")
 	all := []string{"next_item", "deliver", "review", "propose", "ask_owner", "message", "status", "context", "find",
-		"approve", "focus", "pause", "answer", "create_item"}
+		"approve", "focus", "pause", "answer", "create_item", "edit_item"}
 	if len(owner) != len(all) {
 		t.Errorf("owner should see %d tools, sees %v", len(all), keys(owner))
 	}
@@ -502,5 +515,40 @@ func TestConcurrentCalls(t *testing.T) {
 		if r.IsError || !strings.Contains(r.text(), strings.ToLower("Project app")) || !strings.Contains(r.text(), strings.ToLower("ready 2")) {
 			t.Errorf("call %d: %+v", 100+i, r)
 		}
+	}
+}
+
+func TestEditItem(t *testing.T) {
+	f := &fakeAPI{}
+	got, _ := run(t, f, Options{Project: "app", Role: "analyst", Item: "I-28"},
+		call(1, "edit_item", map[string]any{
+			"title": "Keep the defeat checks through the rebase",
+			"criteria": []any{
+				map[string]any{"id": "C1", "text": "WHEN the keeper falls in horde 1, THE SYSTEM SHALL keep best horde 0", "check": "main"},
+			},
+			"deps": []string{"I-4"}, "clear_clarifications": true, "reason": "refined",
+		}),
+		call(2, "edit_item", map[string]any{"item_id": "I-3"}),
+		call(3, "edit_item", map[string]any{"criteria": []any{map[string]any{"id": "C1", "text": " "}}}),
+		call(4, "edit_item", map[string]any{"priority": "P9"}),
+	)
+	ok := toolResultOf(t, got["1"])
+	if ok.IsError || !strings.Contains(ok.text(), "1 criteria") {
+		t.Fatalf("valid edit: %+v", ok)
+	}
+	for id, want := range map[string]string{"2": "at least one field", "3": "needs an id and a text", "4": "priority must be"} {
+		if r := toolResultOf(t, got[id]); !r.IsError || !strings.Contains(r.text(), want) {
+			t.Errorf("call %s: want an error containing %q, got %+v", id, want, r)
+		}
+	}
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if len(f.updates) != 1 {
+		t.Fatalf("only the valid edit reaches the daemon: %d", len(f.updates))
+	}
+	u := f.updates[0]
+	m := u.Patch.AsMap()
+	if u.Id != "I-28" || u.Project != "app" || fmt.Sprint(m["deps"]) != "[I-4]" || fmt.Sprint(m["clarifications"]) != "[]" || m["reason"] != "refined" || m["body"] != nil {
+		t.Fatalf("patch sent: %s %v", u.Id, m)
 	}
 }

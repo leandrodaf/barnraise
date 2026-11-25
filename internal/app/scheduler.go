@@ -168,6 +168,9 @@ func (s *Service) heldWorkLocked(p *Project, slot Slot, skip map[string]bool) *A
 		if it.Alt != nil && it.Alt.A != nil {
 			continue // attempt a delivered; the second attempt decides when it ends
 		}
+		if !it.DepsSatisfied(func(id string) *domain.Item { return p.state.Items[id] }) {
+			continue // its step waits for other items to land
+		}
 		f, err := p.Cfg().FlowOf(it.Kind, it.Area)
 		if err != nil {
 			continue

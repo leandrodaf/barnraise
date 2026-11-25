@@ -350,7 +350,7 @@ func TestStepInstructionsPerStepKind(t *testing.T) {
 		st   domain.StepDef
 		want string
 	}{
-		"refine":    {domain.StepDef{Name: RefineStep, Type: domain.StepAgent}, "barnraise item edit I-7"},
+		"refine":    {domain.StepDef{Name: RefineStep, Type: domain.StepAgent}, "`edit_item` tool on I-7"},
 		"approval":  {domain.StepDef{Name: "approval", Type: domain.StepApproval}, "Approve the"},
 		"review":    {domain.StepDef{Name: "review", Type: domain.StepAgent, Review: true}, "exactly one `review`"},
 		"plan":      {domain.StepDef{Name: "plan", Type: domain.StepAgent, Output: "plan.md"}, "Write plan.md"},

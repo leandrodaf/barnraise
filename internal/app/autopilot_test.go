@@ -81,6 +81,14 @@ func TestAutopilotAnswersQuestions(t *testing.T) {
 	if len(adv.got) != calls {
 		t.Fatalf("asked again: %d calls, then %d", calls, len(adv.got))
 	}
+	// Once something lands on main, what was left is weighed again: it is
+	// often what the decision waited for.
+	e.clock.Advance(time.Minute)
+	e.integrateFake(e.ready("simple", "Wallet screen", "wallet"), 0, "")
+	e.svc.runAutopilot(e.ctx, e.p)
+	if len(adv.got) != calls+1 {
+		t.Fatalf("not weighed again after main moved: %d calls, then %d", calls, len(adv.got))
+	}
 }
 
 // On autopilot the advisor approves a plan that waits for the owner, and

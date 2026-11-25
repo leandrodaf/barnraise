@@ -27,6 +27,7 @@ type API interface {
 	Pause(context.Context, *connect.Request[pb.PauseRequest]) (*connect.Response[pb.Empty], error)
 	Resume(context.Context, *connect.Request[pb.ProjectRef]) (*connect.Response[pb.Empty], error)
 	CreateItem(context.Context, *connect.Request[pb.CreateItemRequest]) (*connect.Response[pb.CreateItemResponse], error)
+	UpdateItem(context.Context, *connect.Request[pb.UpdateItemRequest]) (*connect.Response[pb.ItemResponse], error)
 }
 
 // The generated client satisfies API.

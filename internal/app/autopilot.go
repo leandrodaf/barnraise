@@ -147,9 +147,17 @@ type autopilotDecision struct {
 // autopilotWork is what waits for the owner now and was not left to them.
 func (s *Service) autopilotWork(ctx context.Context, p *Project) (decisions []autopilotDecision, proposals bool) {
 	snap := p.Snapshot()
+	// What the advisor left to the owner stands until main moves: an item
+	// that lands afterwards is often what the decision was waiting for.
+	var landed time.Time
+	for _, it := range snap.Items {
+		if it.IntegratedAt.After(landed) {
+			landed = it.IntegratedAt
+		}
+	}
 	left := func(thread string, since time.Time) bool {
 		for _, m := range snap.Discussions[thread] {
-			if m.LeftToOwner && !m.At.Before(since) {
+			if m.LeftToOwner && !m.At.Before(since) && !landed.After(m.At) {
 				return true
 			}
 		}

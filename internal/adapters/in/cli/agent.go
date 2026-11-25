@@ -46,11 +46,11 @@ func (e *env) nextCmd() *cobra.Command {
 func (e *env) deliverCmd() *cobra.Command {
 	var status, summary, reason, item, step string
 	var ctype, cscope, csubject, cbody, cbreaking string
-	var crit, files, concerns []string
+	var crit, files, concerns, waits []string
 	c := &cobra.Command{Use: "deliver", Short: "End a step with a delivery: DONE, DONE_WITH_CONCERNS, NEEDS_CONTEXT or BLOCKED", Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			d := &pb.Delivery{ItemId: def(item, os.Getenv("BARNRAISE_ITEM")), Step: def(step, os.Getenv("BARNRAISE_STEP")), Status: strings.ToUpper(status),
-				Summary: summary, Files: files, Concerns: concerns, Reason: reason}
+				Summary: summary, Files: files, Concerns: concerns, Reason: reason, WaitsFor: waits}
 			if ctype != "" || csubject != "" {
 				d.Change = &pb.ChangeNote{Type: ctype, Scope: cscope, Subject: csubject, Body: cbody, Breaking: cbreaking}
 			}
@@ -83,6 +83,7 @@ func (e *env) deliverCmd() *cobra.Command {
 	f.StringSliceVar(&files, "files", nil, "files touched")
 	f.StringArrayVar(&concerns, "concern", nil, "a concern (repeat)")
 	f.StringVar(&reason, "reason", "", "for NEEDS_CONTEXT and BLOCKED: the exact question or blocker")
+	f.StringArrayVar(&waits, "waits-for", nil, "with BLOCKED: an item that must land on main first (repeat); the item waits for it without asking the owner")
 	f.StringVar(&item, "item", "", "item (default: the session's)")
 	f.StringVar(&step, "step", "", "step (default: the session's)")
 	f.StringVar(&ctype, "type", "", "the change, for the commit and the changelog: feat, fix, perf, refactor, docs, test, build, ci, chore, style, revert")

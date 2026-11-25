@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"connectrpc.com/connect"
+	"google.golang.org/protobuf/types/known/structpb"
 
 	pb "github.com/leandrodaf/barnraise/gen/barnraise/v1"
 	"github.com/leandrodaf/barnraise/internal/app"
@@ -60,7 +61,7 @@ func allTools() []*tool {
 	return []*tool{
 		nextItemTool(), deliverTool(), reviewTool(), proposeTool(), askOwnerTool(), messageTool(),
 		statusTool(), contextTool(), findTool(), approveTool(), focusTool(), pauseTool(),
-		answerTool(), createItemTool(),
+		answerTool(), createItemTool(), editItemTool(),
 	}
 }
 
@@ -234,6 +235,8 @@ func deliverTool() *tool {
 			"files":    strList("Files you touched, relative to the repository root."),
 			"concerns": strList("Concerns the reviewer should know about. Required for DONE_WITH_CONCERNS."),
 			"reason":   str("Why you need context or are blocked. Required for NEEDS_CONTEXT and BLOCKED."),
+			"waits_for": strList("With BLOCKED, when the block is only that other items have not landed on main yet: their ids (e.g. I-4). " +
+				"The item then waits for them and the step starts again by itself, without asking the owner."),
 			"change": described("How the change is described on main, in English: the commit header (Conventional Commits) and, for features, fixes and performance, the changelog line. Give it when the step changed the product.", object(map[string]any{
 				"type":     enum("What kind of change it is.", "feat", "fix", "perf", "refactor", "docs", "test", "build", "ci", "chore", "style", "revert"),
 				"scope":    str("The part of the product, one short lower-case word: api, web, mobile, auth."),
@@ -252,6 +255,7 @@ func deliverTool() *tool {
 			Files    []string        `json:"files"`
 			Concerns []string        `json:"concerns"`
 			Reason   string          `json:"reason"`
+			WaitsFor []string        `json:"waits_for"`
 			Change   *struct {
 				Type     string `json:"type"`
 				Scope    string `json:"scope"`
@@ -269,7 +273,7 @@ func deliverTool() *tool {
 			return errorResult(err.Error())
 		}
 		d := &pb.Delivery{ItemId: id, Status: a.Status, Summary: strings.TrimSpace(a.Summary), Files: a.Files,
-			Concerns: nonBlank(a.Concerns), Reason: strings.TrimSpace(a.Reason)}
+			Concerns: nonBlank(a.Concerns), Reason: strings.TrimSpace(a.Reason), WaitsFor: nonBlank(a.WaitsFor)}
 		if c := a.Change; c != nil && !blank(c.Type+c.Subject) {
 			d.Change = &pb.ChangeNote{Type: strings.TrimSpace(c.Type), Scope: strings.TrimSpace(c.Scope), Subject: strings.TrimSpace(c.Subject),
 				Body: strings.TrimSpace(c.Body), Breaking: strings.TrimSpace(c.Breaking)}
@@ -1171,6 +1175,115 @@ func createItemTool() *tool {
 		if n := resp.Msg.GetNote(); n != "" {
 			text += " " + n
 		}
+		return textResult(text, pbJSON(resp.Msg))
+	}
+	return t
+}
+
+// ---------- edit_item (analyst, owner) ----------
+
+// editItemTool is `barnraise item edit` for a session: a sandbox that keeps
+// commands from reaching the daemon's socket cannot run the command, and
+// the MCP server runs outside it.
+func editItemTool() *tool {
+	t := &tool{
+		Name: "edit_item",
+		Description: "Change an item: its title, text, area, size, priority, EARS criteria (each with the check that verifies it), the items it waits for, " +
+			"what must not change, and its open clarifications. Only the fields given change; a list given replaces the whole list.",
+		Schema: object(map[string]any{
+			"item_id":  str("The item; empty uses this session's item."),
+			"title":    str("Short title stating the result."),
+			"body":     str("What and why, facts first."),
+			"area":     str("Area of the project it touches."),
+			"size":     str("Estimate such as 2h-6h."),
+			"priority": enum("P0 (highest) to P3.", "P0", "P1", "P2", "P3"),
+			"criteria": array("Acceptance criteria in EARS form; replaces the item's criteria.", object(map[string]any{
+				"id":    str("Criterion id, e.g. C1."),
+				"text":  str("WHEN <trigger>, THE SYSTEM SHALL <response>."),
+				"check": str("The project check that verifies it."),
+			}, "id", "text")),
+			"deps":                 strList("Items that must be integrated first; replaces the item's list. An empty list clears it."),
+			"preserve":             strList("For bugs: behavior that must not change; replaces the item's list."),
+			"clear_clarifications": boolean("True once every [NEEDS CLARIFICATION] is answered."),
+			"reason":               str("Why it changes, in one sentence."),
+		}),
+	}
+	t.run = func(ctx context.Context, s *server, args json.RawMessage) *toolResult {
+		var a struct {
+			ItemID   string  `json:"item_id"`
+			Title    *string `json:"title"`
+			Body     *string `json:"body"`
+			Area     *string `json:"area"`
+			Size     *string `json:"size"`
+			Priority *string `json:"priority"`
+			Criteria *[]struct {
+				ID    string `json:"id"`
+				Text  string `json:"text"`
+				Check string `json:"check"`
+			} `json:"criteria"`
+			Deps     *[]string `json:"deps"`
+			Preserve *[]string `json:"preserve"`
+			Clear    bool      `json:"clear_clarifications"`
+			Reason   string    `json:"reason"`
+		}
+		if err := decodeArgs(t, args, &a); err != nil {
+			return errorResult(err.Error())
+		}
+		id, err := s.itemID(a.ItemID, "edit_item")
+		if err != nil {
+			return errorResult(err.Error())
+		}
+		patch := map[string]any{}
+		for k, v := range map[string]*string{"title": a.Title, "body": a.Body, "area": a.Area, "size": a.Size} {
+			if v != nil {
+				patch[k] = strings.TrimSpace(*v)
+			}
+		}
+		if a.Priority != nil {
+			pr := strings.ToUpper(strings.TrimSpace(*a.Priority))
+			if _, err := domain.ParsePriority(pr); err != nil {
+				return errorResult("priority must be P0, P1, P2 or P3")
+			}
+			patch["priority"] = pr
+		}
+		if a.Criteria != nil {
+			var crit []any
+			for i, c := range *a.Criteria {
+				if blank(c.ID) || blank(c.Text) {
+					return errorResult(fmt.Sprintf("criterion %d needs an id and a text", i+1))
+				}
+				crit = append(crit, map[string]any{"id": strings.TrimSpace(c.ID), "text": strings.TrimSpace(c.Text), "check": strings.TrimSpace(c.Check)})
+			}
+			patch["criteria"] = crit
+		}
+		for k, v := range map[string]*[]string{"deps": a.Deps, "preserve": a.Preserve} {
+			if v != nil {
+				list := []any{}
+				for _, x := range nonBlank(*v) {
+					list = append(list, x)
+				}
+				patch[k] = list
+			}
+		}
+		if a.Clear {
+			patch["clarifications"] = []any{}
+		}
+		if len(patch) == 0 {
+			return errorResult("edit_item needs at least one field to change")
+		}
+		if r := strings.TrimSpace(a.Reason); r != "" {
+			patch["reason"] = r
+		}
+		st, err := structpb.NewStruct(patch)
+		if err != nil {
+			return errorResult(err.Error())
+		}
+		resp, err := s.api.UpdateItem(ctx, connect.NewRequest(&pb.UpdateItemRequest{Project: s.opts.Project, Id: id, Patch: st}))
+		if err != nil {
+			return daemonError(err)
+		}
+		it := resp.Msg.GetItem()
+		text := fmt.Sprintf("Updated %s %q: %d criteria, %s.", it.GetId(), it.GetTitle(), len(it.GetCriteria()), strings.ReplaceAll(it.GetStatus(), "_", " "))
 		return textResult(text, pbJSON(resp.Msg))
 	}
 	return t
