@@ -152,8 +152,9 @@ func (s *Service) applyAnswer(ctx context.Context, p *Project, a Actor, it *doma
 	case strings.Contains(lc, "split"):
 		_, err := s.CloseItem(ctx, p.Name, Owner(a.Name), it.ID, "split", "", def(note, "split by the owner"))
 		return err
-	case strings.Contains(lc, "accept"):
-		// Accept with a caveat: skip forward to the merge queue.
+	case strings.Contains(lc, "accept") && it.Step != "":
+		// Accept with a caveat: skip forward to the merge queue. A draft
+		// never started has nothing to accept: it goes back to refining.
 		next := ""
 		for _, x := range f.Steps {
 			if x.Type == domain.StepMergeQueue {
@@ -185,7 +186,11 @@ func (s *Service) applyAnswer(ctx context.Context, p *Project, a Actor, it *doma
 				x.Rework = nil // a fresh budget of rounds on the stronger model
 			}
 			if x.Claim == nil {
+				// Back to the queue only when it can start: a draft answered
+				// while it was being refined stays a draft (no criteria, an
+				// open [NEEDS CLARIFICATION]) and the analyst refines it again.
 				x.Status = domain.StatusReady
+				x.RefreshReadiness(true)
 			}
 			return nil
 		}, domain.Payload{Note: note})
