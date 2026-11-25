@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"path"
 	"strings"
@@ -91,6 +92,61 @@ func retryOption(q *domain.Question) string {
 	return ""
 }
 
+// editOption reads "EDIT {json}": the item fields the advisor records
+// (criteria, deps, area, size, priority, title, clarifications cleared).
+func editOption(option string) (ItemPatch, bool, error) {
+	rest, ok := strings.CutPrefix(option, "EDIT")
+	if !ok {
+		if rest, ok = strings.CutPrefix(option, "edit"); !ok {
+			return ItemPatch{}, false, nil
+		}
+	}
+	var in struct {
+		ItemPatch
+		Clear bool `json:"clear_clarifications"`
+	}
+	dec := json.NewDecoder(strings.NewReader(strings.TrimSpace(rest)))
+	dec.DisallowUnknownFields()
+	if err := dec.Decode(&in); err != nil {
+		return ItemPatch{}, true, fmt.Errorf("%w: option EDIT needs a JSON object of item fields: %v", ErrInvalid, err)
+	}
+	patch := in.ItemPatch
+	if in.Clear {
+		none := []string{}
+		patch.Clarifications = &none
+	}
+	if patch.Branch != nil || patch.Kind != nil || patch.Class != nil {
+		return ItemPatch{}, true, fmt.Errorf("%w: option EDIT records criteria, dependencies, area, size, priority and title only", ErrInvalid)
+	}
+	return patch, true, nil
+}
+
+// moveOnOption is the option of a question that lets the item go on once
+// what it waited for is recorded: one that does not stop, abandon or hand
+// the decision to the owner, the recommended first.
+func moveOnOption(q *domain.Question) string {
+	stops := func(label string) bool {
+		l := strings.ToLower(label)
+		for _, w := range []string{"owner", "dono", "abandon", "desistir", "close", "fechar", "parado", "stays", "fica parado", "contorn", "workaround"} {
+			if strings.Contains(l, w) {
+				return true
+			}
+		}
+		return false
+	}
+	for _, o := range q.Options {
+		if o.Recommended && !stops(o.Label) {
+			return o.Label
+		}
+	}
+	for _, o := range q.Options {
+		if !stops(o.Label) {
+			return o.Label
+		}
+	}
+	return retryOption(q)
+}
+
 // applyAdvice applies the answer the advisor suggests on a decision: a
 // question's option, a proposal's verdict, an approval, an unlock (then the
 // step goes on), or leaves it to the owner (OWNER). left reports the last.
@@ -117,6 +173,30 @@ func (s *Service) applyAdvice(ctx context.Context, p *Project, a Actor, thread, 
 		}
 		if q := snap.Questions[thread]; q != nil && q.Open() {
 			_, err = s.Answer(ctx, p.Name, a, thread, retryOption(q), reason)
+		}
+		return false, err
+	}
+	if patch, ok, perr := editOption(option); ok {
+		if perr != nil {
+			return false, perr
+		}
+		snap := p.Snapshot()
+		itemID := last.ItemID
+		if q := snap.Questions[thread]; q != nil && q.ItemID != "" {
+			itemID = q.ItemID
+		}
+		if itemID == "" && !strings.HasPrefix(thread, "Q-") && !strings.HasPrefix(thread, "P-") {
+			itemID = thread
+		}
+		if itemID == "" {
+			return false, fmt.Errorf("%w: %s names no item to edit", ErrInvalid, thread)
+		}
+		patch.Reason = reason
+		if _, err := s.UpdateItem(ctx, p.Name, a, itemID, patch); err != nil {
+			return false, err
+		}
+		if q := snap.Questions[thread]; q != nil && q.Open() {
+			_, err = s.Answer(ctx, p.Name, a, thread, moveOnOption(q), reason)
 		}
 		return false, err
 	}

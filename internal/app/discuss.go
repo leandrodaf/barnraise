@@ -115,6 +115,7 @@ func (s *Service) Discuss(ctx context.Context, project string, a Actor, thread, 
 		qq = &c
 	}
 	timeline := s.discussTimeline(p, itemID)
+	msgs := s.discussMessages(p, itemID)
 	p.mu.Unlock()
 
 	now := s.d.Clock.Now().UTC()
@@ -131,7 +132,7 @@ func (s *Service) Discuss(ctx context.Context, project string, a Actor, thread, 
 	defer cancel()
 	ans, err := adv.Advise(actx, AdviceRequest{
 		System:  map[bool]string{true: advisorChatSystem(p), false: advisorSystem(p, workdir == p.Cfg().Root)}[IsChat(thread)],
-		Prompt:  advisorPrompt(qq, prop, it, timeline, append(history, mine)),
+		Prompt:  advisorPrompt(qq, prop, it, timeline, msgs, append(history, mine)),
 		Workdir: workdir,
 		Progress: func(tool, target string) {
 			// Live only: the owner follows the advisor; nothing is kept.
@@ -193,6 +194,29 @@ func (s *Service) discussTimeline(p *Project, itemID string) []string {
 	return out
 }
 
+// discussMessages are the item's last messages between agents (a refinement
+// the analyst could not record lives there), oldest first; the project's
+// lock is held.
+func (s *Service) discussMessages(p *Project, itemID string) []*domain.Message {
+	if itemID == "" {
+		return nil
+	}
+	var out []*domain.Message
+	for _, m := range p.state.Messages {
+		if m.ItemID == itemID && m.From != "barnraise" {
+			c := *m
+			out = append(out, &c)
+		}
+	}
+	if len(out) > advisorMessages {
+		out = out[len(out)-advisorMessages:]
+	}
+	return out
+}
+
+// advisorMessages is how many of an item's messages the advisor reads.
+const advisorMessages = 12
+
 // advisorSystem is the advisor's standing instructions.
 func advisorSystem(p *Project, onMain bool) string {
 	lang := ownerLanguageName(p.Cfg().Language)
@@ -212,6 +236,10 @@ func advisorSystem(p *Project, onMain bool) string {
 		"- When the decision only waits because an agent may not change an existing locked file (a test, a reference or a check " +
 		"script) and that change is the right one, recommend option: UNLOCK <path>, <path> (paths from the repository root): " +
 		"Barnraise lets that item change those files and the step goes on; nobody edits them by hand.\n" +
+		"- When the decision only waits because the item's criteria, area, size or dependencies were not recorded (an agent could not " +
+		"record them; the text is often in the item's messages), recommend option: EDIT {json} on one line, with only the fields to set: " +
+		"{\"criteria\":[{\"id\":\"C1\",\"text\":\"WHEN …, THE SYSTEM SHALL …\",\"check\":\"<a project check>\"}],\"deps\":[\"I-3\"],\"area\":\"…\",\"size\":\"2h\",\"clear_clarifications\":true}. " +
+		"Barnraise records it on the item and the step goes on. Copy criteria as the agent wrote them; this is not a workaround.\n" +
 		"- Whenever you can recommend, end with this block, exactly, after everything else (the panel turns it into a button):\n" +
 		suggestionOpen + "\noption: <one option, written exactly as listed; for a proposal: approve, reject or later>\n" +
 		"note: <what the owner would say with it, in " + lang + ", in one paragraph, specific enough for the next agent>\n" + suggestionClose + "\n" +
@@ -219,7 +247,7 @@ func advisorSystem(p *Project, onMain bool) string {
 }
 
 // advisorPrompt carries the decision, the item and the conversation so far.
-func advisorPrompt(q *domain.Question, prop *domain.Proposal, it *domain.Item, timeline []string, conv []*domain.DiscussionMessage) string {
+func advisorPrompt(q *domain.Question, prop *domain.Proposal, it *domain.Item, timeline []string, msgs []*domain.Message, conv []*domain.DiscussionMessage) string {
 	var b strings.Builder
 	if prop != nil {
 		fmt.Fprintf(&b, "# The proposal %s: %s\nKind %s, priority P%d, size %s, area %s, by %s.\nThe owner approves it (it becomes an item), rejects it, or leaves it for later.\n\n<<<UNTRUSTED proposal\nProblem: %s\nEvidence: %s\nImpact: %s\nGoal: %s\nComments: %s\n>>>END UNTRUSTED\n\n",
@@ -246,6 +274,13 @@ func advisorPrompt(q *domain.Question, prop *domain.Proposal, it *domain.Item, t
 	}
 	if len(timeline) > 0 {
 		b.WriteString("\n## What happened\n- " + strings.Join(timeline, "\n- ") + "\n")
+	}
+	if len(msgs) > 0 {
+		b.WriteString("\n## The item's messages, oldest first\n<<<UNTRUSTED messages between agents\n")
+		for _, m := range msgs {
+			fmt.Fprintf(&b, "\n[%s, from %s]\n%s\n", m.At.Format("2006-01-02 15:04"), m.From, truncate(m.Text, 4000))
+		}
+		b.WriteString(">>>END UNTRUSTED\n")
 	}
 	b.WriteString("\n# The conversation so far\n")
 	for _, m := range conv {

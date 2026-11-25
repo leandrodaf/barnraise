@@ -46,10 +46,16 @@ var ownerTexts = map[string][2]string{ // key: {en, pt-BR}
 	"autopilot.reason":  {"Decided by the advisor on autopilot: %s", "Decidido pelo conselheiro no piloto automático: %s"},
 	"autopilot.ask": {"Autopilot: the owner is away and asked you to take this decision. Choose the answer you recommend and say why. " +
 		"Only when the decision truly needs the owner (signing in to an account, spending money, a physical device or place, giving an access or a secret, " +
-		"a legal, brand or personal choice) end with option: OWNER and, in the note, exactly what the owner must do.",
+		"a legal, brand or personal choice) end with option: OWNER and, in the note, exactly what the owner must do. " +
+		"Anything Barnraise itself can do is not the owner's: recording criteria or dependencies (option: EDIT), unlocking files (option: UNLOCK), " +
+		"retrying, or choosing the option that moves the item on. An earlier owner answer that forbade a workaround does not forbid these. " +
+		"When no listed option fits, choose the one closest to moving the item on and say in the note what to do.",
 		"Piloto automático: o dono está ausente e pediu que você tome esta decisão. Escolha a resposta que recomenda e diga por quê. " +
 			"Só quando a decisão realmente precisa do dono (entrar numa conta, gastar dinheiro, um aparelho ou lugar físico, dar um acesso ou um segredo, " +
-			"uma escolha legal, de marca ou pessoal) termine com option: OWNER e, na nota, exatamente o que o dono precisa fazer."},
+			"uma escolha legal, de marca ou pessoal) termine com option: OWNER e, na nota, exatamente o que o dono precisa fazer. " +
+			"O que o próprio Barnraise consegue fazer não é do dono: gravar critérios ou dependências (option: EDIT), liberar arquivos (option: UNLOCK), " +
+			"tentar de novo ou escolher a opção que faz o item andar. Uma resposta antiga do dono que proibiu contornar não proíbe isso. " +
+			"Quando nenhuma opção listada serve, escolha a mais próxima de fazer o item andar e diga na nota o que fazer."},
 	"autopilot.approve": {"\nThe decision is the approval of %s of this item: the options are approve or send back.", "\nA decisão é a aprovação %s deste item: as opções são approve ou send back."},
 	"autopilot.left":    {"Left to you: %s", "Ficou para você: %s"},
 	"chat.from":         {"Written from the owner's conversation %s.", "Escrito a partir da conversa %s do dono."},
