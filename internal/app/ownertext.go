@@ -52,6 +52,9 @@ var ownerTexts = map[string][2]string{ // key: {en, pt-BR}
 			"uma escolha legal, de marca ou pessoal) termine com option: OWNER e, na nota, exatamente o que o dono precisa fazer."},
 	"autopilot.approve": {"\nThe decision is the approval of %s of this item: the options are approve or send back.", "\nA decisão é a aprovação %s deste item: as opções são approve ou send back."},
 	"autopilot.left":    {"Left to you: %s", "Ficou para você: %s"},
+	"advisor.none":      {"no Claude account can run the advisor on this machine", "nenhuma conta Claude pode rodar o conselheiro nesta máquina"},
+	"advisor.limited":   {"every account is at its limit, in every model", "todas as contas estão no limite, em todos os modelos"},
+	"advisor.until":     {"every account is at its limit, in every model, until %s", "todas as contas estão no limite, em todos os modelos, até %s"},
 	"autopilot.failed":  {"The autopilot could not ask the advisor on %s; it tries again later. The error: %s", "O piloto automático não conseguiu consultar o conselheiro em %s; tenta de novo mais tarde. O erro: %s"},
 	"autopilot.done":    {"Decided on autopilot: %s.", "Decidido no piloto automático: %s."},
 }

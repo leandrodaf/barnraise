@@ -79,3 +79,18 @@ func release(v string) (releaseVersion, bool) {
 	r.pre = pre
 	return r, true
 }
+
+// LimitedModel reports whether a limit message names the model itself (its
+// own cap, "You've hit your Fable limit") rather than the account's window
+// ("5-hour", "weekly", "usage"): then only that model waits, and the
+// account still runs the others.
+func LimitedModel(text, model string) bool {
+	t, m := strings.ToLower(text), strings.ToLower(strings.TrimSpace(model))
+	if m == "" {
+		return false
+	}
+	if i := strings.IndexAny(m, "@-:"); i > 0 {
+		m = m[:i]
+	}
+	return strings.Contains(t, m+" limit") || strings.Contains(t, m+" weekly limit") || strings.Contains(t, m+" usage limit")
+}

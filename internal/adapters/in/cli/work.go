@@ -379,7 +379,22 @@ func (e *env) itemCmd() *cobra.Command {
 			return nil
 		}}
 	redo.Flags().StringVar(&why, "why", "", "reason")
-	c.AddCommand(add, list, show, edit, closeC, timeline, estimate, redo)
+	var unlockWhy string
+	unlock := &cobra.Command{Use: "unlock <I-id> <file>...", Short: "Let an item change locked files (existing tests, references, check scripts)", Args: cobra.MinimumNArgs(2),
+		Long: "Existing tests, references and check scripts are locked for agents. When the change is the right one,\n" +
+			"unlock them for that item: its agent changes them, and nobody edits them by hand.",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			ctx, cancel := e.ctx()
+			defer cancel()
+			res, err := e.client().UnlockFiles(ctx, req(&pb.UnlockFilesRequest{Project: e.proj(ctx), Item: args[0], Files: args[1:], Why: unlockWhy}))
+			if err != nil {
+				return err
+			}
+			fmt.Fprintf(e.out, "✔ %s may change: %s\n", res.Msg.Item.GetId(), strings.Join(res.Msg.Item.GetUnlocked(), ", "))
+			return nil
+		}}
+	unlock.Flags().StringVar(&unlockWhy, "why", "", "why the change is right")
+	c.AddCommand(add, list, show, edit, closeC, timeline, estimate, redo, unlock)
 	return c
 }
 

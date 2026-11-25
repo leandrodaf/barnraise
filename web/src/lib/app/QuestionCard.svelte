@@ -54,8 +54,9 @@
 				{#if q.deadline}<span>{t('deadline', when(q.deadline))}</span>{/if}
 			</p>
 			<div class="flex flex-wrap gap-2 pt-1">
-				<Button size="sm" variant="secondary" class="h-auto min-h-8 py-1.5" onclick={() => discussion.show(proj, q.id, q.decision)}><MessagesIcon />{t('discuss')}</Button>
-				<Button size="sm" variant="secondary" class="h-auto min-h-8 py-1.5" disabled={busy} title={t('decideForMeHelp')} onclick={() => discussion.show(proj, q.id, q.decision, true)}><WandIcon />{t('decideForMe')}</Button>
+				<Button size="sm" variant="secondary" class="h-auto min-h-8 py-1.5" disabled={!!session.advisorDown[proj]} title={session.advisorDown[proj] ? t('advisorDown', session.advisorDown[proj]) : ''} onclick={() => discussion.show(proj, q.id, q.decision)}><MessagesIcon />{t('discuss')}</Button>
+				<Button size="sm" variant="secondary" class="h-auto min-h-8 py-1.5" disabled={busy || !!session.advisorDown[proj]} title={session.advisorDown[proj] ? t('advisorDown', session.advisorDown[proj]) : t('decideForMeHelp')} onclick={() => discussion.show(proj, q.id, q.decision, true)}><WandIcon />{t('decideForMe')}</Button>
+				{#if session.advisorDown[proj]}<p class="w-full text-xs text-muted-foreground">{t('advisorDown', session.advisorDown[proj])}</p>{/if}
 				{#each q.options as o (o.label)}
 					<Button size="sm" class="h-auto min-h-8 max-w-full py-1.5" variant={o.recommended ? 'default' : 'outline'} disabled={busy} onclick={() => answer(o.label)}>
 						<span class="whitespace-normal text-left">{o.label}</span>{#if o.recommended}<StarIcon class="size-3" aria-hidden="true" /><span class="sr-only">({t('recommended')})</span>{/if}

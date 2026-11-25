@@ -48,3 +48,39 @@ func TestGitTokenSecret(t *testing.T) {
 		t.Fatal("a key without host or path")
 	}
 }
+
+func TestLimitedModel(t *testing.T) {
+	for _, c := range []struct {
+		text, model string
+		want        bool
+	}{
+		{"You've hit your Fable limit · resets Mon 7pm", "fable", true},
+		{"You've hit your Opus weekly limit", "opus", true},
+		{"You've hit your 5-hour limit · resets 1am", "fable", false},
+		{"You've hit your weekly limit", "opus", false},
+		{"You've hit your Fable limit", "opus", false},
+		{"anything", "", false},
+	} {
+		if got := LimitedModel(c.text, c.model); got != c.want {
+			t.Errorf("LimitedModel(%q, %q) = %v", c.text, c.model, got)
+		}
+	}
+}
+
+func TestPolicyUnlocked(t *testing.T) {
+	p := DefaultPolicy()
+	p.Worktree = "/w"
+	exists := func(string) bool { return true }
+	call := ToolCall{Tool: "Edit", Paths: []string{"/w/tests/quarry_test.go"}, Write: true}
+	if d := p.Decide(call, exists); d.Allow {
+		t.Skip("tests/quarry_test.go is not locked by the default policy")
+	}
+	p.Unlocked = []string{"tests/quarry_test.go"}
+	if d := p.Decide(call, exists); !d.Allow {
+		t.Fatalf("an unlocked file is still refused: %+v", d)
+	}
+	other := ToolCall{Tool: "Edit", Paths: []string{"/w/tests/other_test.go"}, Write: true}
+	if d := p.Decide(other, exists); d.Allow {
+		t.Fatal("unlocking one file unlocked another")
+	}
+}

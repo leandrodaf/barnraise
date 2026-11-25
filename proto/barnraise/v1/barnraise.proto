@@ -100,6 +100,8 @@ message Item {
   map<string, StepRun> runs = 39;
   int32 attempts = 40;
   ChangeNote change = 41;
+  // Locked files (existing tests, references) this item may change.
+  repeated string unlocked = 42;
 }
 
 message Goal {
@@ -429,6 +431,15 @@ message ProjectRef {
 message ItemRef {
   string project = 1;
   string id = 2;
+}
+
+// UnlockFilesRequest lets an item change locked files (existing tests,
+// references, check scripts) the owner decided must change.
+message UnlockFilesRequest {
+  string project = 1;
+  string item = 2;
+  repeated string files = 3;
+  string why = 4;
 }
 
 message ItemResponse {
@@ -1166,6 +1177,9 @@ message ProjectsResponse {
   bool self_update = 11;
   // The projects whose autopilot is on (SetAutopilot).
   repeated string autopilot = 12;
+  // Why the advisor of a project cannot answer now (every account at its
+  // limit, until when); absent when it can.
+  map<string, string> advisor_down = 13;
 }
 
 // AutopilotRequest switches the autopilot: the advisor takes the owner's
@@ -1589,6 +1603,8 @@ service BarnraiseService {
   rpc GetItem(ItemRef) returns (ItemResponse);
   rpc ListItems(ListItemsRequest) returns (ItemsResponse);
   rpc UpdateItem(UpdateItemRequest) returns (ItemResponse);
+  // UnlockFiles lets an item change locked files; nobody edits them by hand.
+  rpc UnlockFiles(UnlockFilesRequest) returns (ItemResponse);
   rpc CloseItem(CloseItemRequest) returns (ItemResponse);
   rpc NextItem(NextItemRequest) returns (Assignment);
   rpc Deliver(DeliverRequest) returns (ItemResponse);

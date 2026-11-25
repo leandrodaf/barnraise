@@ -284,23 +284,11 @@ func (s *Service) autopilotDecide(ctx context.Context, p *Project, d autopilotDe
 		return false, fmt.Errorf("%w: %v", errAdvisorFailed, err)
 	}
 	last := conv[len(conv)-1]
-	option, note := strings.TrimSpace(last.SuggestOption), strings.TrimSpace(last.SuggestNote)
-	if option == "" || strings.EqualFold(option, "owner") {
-		why := note
-		if why == "" {
-			why = last.Text
-		}
-		return false, s.leaveToOwner(ctx, p, last, why)
-	}
-	reason := ot(p, "autopilot.reason", note)
-	switch {
-	case strings.HasPrefix(d.thread, "Q-"):
-		_, err = s.Answer(ctx, p.Name, advisorActor, d.thread, option, reason)
-	case d.awaits != "":
-		approve := strings.HasPrefix(strings.ToLower(option), "approve")
-		err = s.Approve(ctx, p.Name, advisorActor, d.thread, d.awaits, approve, reason)
-	default:
-		return false, fmt.Errorf("%w: %s is not a decision the autopilot takes", ErrInvalid, d.thread)
+	option := strings.TrimSpace(last.SuggestOption)
+	reason := ot(p, "autopilot.reason", strings.TrimSpace(last.SuggestNote))
+	left, err := s.applyAdvice(ctx, p, advisorActor, d.thread, d.awaits, last, reason)
+	if left {
+		return false, err
 	}
 	if err != nil {
 		// An answer that does not fit (an option that is not there, a step

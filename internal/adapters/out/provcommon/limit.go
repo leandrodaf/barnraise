@@ -29,7 +29,15 @@ var limitMarkers = []string{
 	"resets at",
 	"try again at",
 	"try again in",
+	// Claude Code names the window or the model: "You've hit your 5-hour
+	// limit · resets 1am", "…weekly limit", "…Fable limit", and "out of
+	// usage credits" when the plan's credits are spent.
+	"out of usage",
+	"usage credits",
 }
+
+// hitLimit is "hit your <anything> limit".
+var hitLimit = regexp.MustCompile(`(?i)\bhit your\b[^.\n]{0,40}\blimit\b`)
 
 // IsLimitText reports whether an error text says a usage or rate limit was hit.
 func IsLimitText(text string) bool {
@@ -39,7 +47,7 @@ func IsLimitText(text string) bool {
 			return true
 		}
 	}
-	return false
+	return hitLimit.MatchString(text)
 }
 
 var (

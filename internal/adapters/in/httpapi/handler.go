@@ -68,7 +68,18 @@ func (h *Handler) ListProjects(ctx context.Context, _ *connect.Request[pb.Empty]
 	v := h.svc().Versions()
 	return connect.NewResponse(&pb.ProjectsResponse{Projects: h.svc().Projects(), Machine: h.svc().Machine(), Version: h.srv.opts.Version, Standby: on, StandbyWhy: why,
 		BuildTime: rfc3339(v.Self.Time), Outdated: v.Outdated, NewestMachine: v.NewestMachine, NewestVersion: v.Newest.Version,
-		NewestBuildTime: rfc3339(v.Newest.Time), SelfUpdate: v.SelfUpdate, Autopilot: h.svc().AutopilotProjects()}), nil
+		NewestBuildTime: rfc3339(v.Newest.Time), SelfUpdate: v.SelfUpdate, Autopilot: h.svc().AutopilotProjects(), AdvisorDown: h.advisorDown()}), nil
+}
+
+// advisorDown says, per project, why its advisor cannot answer now.
+func (h *Handler) advisorDown() map[string]string {
+	out := map[string]string{}
+	for _, p := range h.svc().Projects() {
+		if why := h.svc().AdvisorStatus(p); why != "" {
+			out[p] = why
+		}
+	}
+	return out
 }
 
 // SetAutopilot switches the autopilot of one project, or of every project.
@@ -747,6 +758,15 @@ func (h *Handler) SetStandby(ctx context.Context, r *connect.Request[pb.StandbyR
 	}
 	h.audit(ctx, action, h.svc().Machine(), "", r.Msg.Why)
 	return connect.NewResponse(out), nil
+}
+
+// UnlockFiles lets an item change locked files.
+func (h *Handler) UnlockFiles(ctx context.Context, r *connect.Request[pb.UnlockFilesRequest]) (*connect.Response[pb.ItemResponse], error) {
+	it, err := h.svc().UnlockFiles(ctx, r.Msg.Project, actorFrom(ctx), r.Msg.Item, r.Msg.Files, r.Msg.Why)
+	if err == nil {
+		h.audit(ctx, "item.unlock", it.ID, r.Msg.Project, strings.Join(r.Msg.Files, ","))
+	}
+	return respond[pb.ItemResponse](map[string]any{"item": it}, err)
 }
 
 // ShareProject has other machines clone and register a project.

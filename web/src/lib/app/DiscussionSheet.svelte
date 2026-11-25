@@ -187,7 +187,7 @@
 	}
 	// A screen asked for the advisor to decide: start once what is decided is known.
 	$effect(() => {
-		if (discussion.open && discussion.delegate && options.length && !busy) {
+		if (discussion.open && discussion.delegate && options.length && !busy && !session.advisorDown[discussion.project]) {
 			discussion.delegate = false;
 			decideForMe();
 		}
@@ -238,12 +238,15 @@
 								<span class="whitespace-normal text-left">{o.label}</span>{#if o.recommended}<StarIcon class="size-3" />{/if}
 							</Button>
 						{/each}
-						<Button size="sm" variant="secondary" class="h-auto min-h-8 py-1.5 sm:ml-auto" onclick={decideForMe} disabled={busy} title={t('decideForMeHelp')}><WandIcon />{t('decideForMe')}</Button>
+						<Button size="sm" variant="secondary" class="h-auto min-h-8 py-1.5 sm:ml-auto" onclick={decideForMe} disabled={busy || !!session.advisorDown[discussion.project]} title={session.advisorDown[discussion.project] ? t('advisorDown', session.advisorDown[discussion.project]) : t('decideForMeHelp')}><WandIcon />{t('decideForMe')}</Button>
 					</div>
 				{/if}
 			{/if}
 		</section>
 
+		{#if session.advisorDown[discussion.project]}
+			<p class="border-b bg-st-needs/10 px-4 py-2 text-sm text-st-needs" role="status">{t('advisorDown', session.advisorDown[discussion.project])}</p>
+		{/if}
 		<div bind:this={list} class="min-h-0 flex-1 overflow-y-auto">
 			<div class="mx-auto w-full max-w-3xl space-y-6 px-4 py-5 sm:px-6">
 				{#if !messages.length && !busy}
@@ -325,7 +328,7 @@
 				<Textarea bind:ref={input} bind:value={text} rows={3} placeholder={t('discussPlaceholder')} onkeydown={keydown} disabled={busy} class="resize-none" />
 				<div class="flex items-center justify-between gap-2">
 					<p class="text-[11px] text-muted-foreground">{t('discussFooter')}</p>
-					<Button type="submit" size="sm" disabled={busy || !text.trim()}><SendIcon />{t('send')}</Button>
+					<Button type="submit" size="sm" disabled={busy || !text.trim() || !!session.advisorDown[discussion.project]}><SendIcon />{t('send')}</Button>
 				</div>
 			</div>
 		</form>

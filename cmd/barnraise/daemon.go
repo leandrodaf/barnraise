@@ -808,12 +808,21 @@ func (d *daemon) projectPorts(cfg *domain.ProjectConfig) (app.ProjectPorts, erro
 	}}
 	// The advisor talks a decision over with the owner, with the strongest
 	// model of the project's Claude ladder, reading only.
+	// When the strongest is at its limit (or every account's window is),
+	// the next model of the ladder answers.
 	ladder := cfg.Models.Ladders["claude"]
-	strongest := "opus"
+	models := []string{"opus"}
 	if len(ladder) > 0 {
-		strongest = ladder[len(ladder)-1]
+		models = make([]string, 0, len(ladder))
+		for i := len(ladder) - 1; i >= 0; i-- {
+			models = append(models, ladder[i])
+		}
 	}
-	pp.Advisor = &app.ProviderAdvisor{Provider: claude.New(claude.Options{}), Model: strongest, TempDir: os.TempDir(), Account: pp.Triage.(*app.ProviderTriage).Account}
+	pp.Advisor = &app.ProviderAdvisor{Provider: claude.New(claude.Options{}), Models: models, TempDir: os.TempDir(),
+		Accounts: func(model string) []domain.Account { return d.svc.AdvisorAccounts(name, "claude", model) },
+		OnLimit: func(account, model string, resets time.Time, modelOnly bool) {
+			d.svc.AdvisorLimit(name, account, model, resets, modelOnly)
+		}}
 	if d.opts.Fake {
 		pp.Triage, pp.Advisor = nil, nil
 	}

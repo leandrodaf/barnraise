@@ -206,6 +206,9 @@ func advisorSystem(p *Project, onMain bool) string {
 		"- You only read: look at the files to ground what you say, quote paths and lines when they matter. You never change files, " +
 		"run commands or answer the question in the owner's place. " + where + "\n" +
 		"- Explain what each option means in practice, what it costs and what it risks, and say which one you recommend and why.\n" +
+		"- When the decision only waits because an agent may not change an existing locked file (a test, a reference or a check " +
+		"script) and that change is the right one, recommend option: UNLOCK <path>, <path> (paths from the repository root): " +
+		"Barnraise lets that item change those files and the step goes on; nobody edits them by hand.\n" +
 		"- Whenever you can recommend, end with this block, exactly, after everything else (the panel turns it into a button):\n" +
 		suggestionOpen + "\noption: <one option, written exactly as listed; for a proposal: approve, reject or later>\n" +
 		"note: <what the owner would say with it, in " + lang + ", in one paragraph, specific enough for the next agent>\n" + suggestionClose + "\n" +
@@ -275,12 +278,22 @@ func discussionNotes(p *Project, itemID string) string {
 	return "\n## What the owner said while deciding (their words)\n<<<UNTRUSTED owner discussion\n" + strings.Join(lines, "\n") + "\n>>>END UNTRUSTED\n"
 }
 
-// ProviderAdvisor answers through a provider's CLI with the strongest model
-// of the provider's ladder, confined to reading.
+// ProviderAdvisor answers through a provider's CLI, confined to reading: with
+// the strongest model of the provider's ladder that an account here can run
+// now, then the next one. A limit (of the account's window, or of the model
+// alone) is recorded and the next account, then the next model, answers.
 type ProviderAdvisor struct {
 	Provider ports.Provider
+	// Account is the one account to use (tests and simple setups); Accounts,
+	// when set, gives the accounts that may run a model now, the least
+	// loaded first.
 	Account  func() (domain.Account, bool)
-	Model    string
+	Accounts func(model string) []domain.Account
+	// Model is the one model; Models, when set, the ladder strongest first.
+	Model  string
+	Models []string
+	// OnLimit hears a limit: modelOnly when it is the model's own cap.
+	OnLimit func(account, model string, resets time.Time, modelOnly bool)
 	// TempDir holds the read-only settings of each answer.
 	TempDir string
 }
@@ -289,12 +302,81 @@ type ProviderAdvisor struct {
 // subagents it may start inherit the same rules.
 const readOnlySettings = `{"permissions":{"allow":["Read","Grep","Glob","LS"],"deny":["Edit","MultiEdit","Write","NotebookEdit","Bash","WebFetch","WebSearch"]}}`
 
+func (a *ProviderAdvisor) models() []string {
+	if len(a.Models) > 0 {
+		return a.Models
+	}
+	return []string{a.Model}
+}
+
+func (a *ProviderAdvisor) accounts(model string) []domain.Account {
+	if a.Accounts != nil {
+		return a.Accounts(model)
+	}
+	if a.Account != nil {
+		if acc, ok := a.Account(); ok {
+			return []domain.Account{acc}
+		}
+	}
+	return nil
+}
+
+// Ready says whether an account here can answer now, and why not.
+func (a *ProviderAdvisor) Ready() (bool, string) {
+	for _, m := range a.models() {
+		if len(a.accounts(m)) > 0 {
+			return true, ""
+		}
+	}
+	return false, "every account is at its limit"
+}
+
+// errAdvisorLimit: the answer was a limit message, not an answer.
+type errAdvisorLimit struct {
+	account, model, text string
+	resets               time.Time
+}
+
+func (e *errAdvisorLimit) Error() string {
+	return fmt.Sprintf("%s on %s is at its limit: %s", e.model, e.account, e.text)
+}
+
+// limitAnswer reports whether a reply is a limit message the CLI printed in
+// place of an answer.
+func limitAnswer(r ports.SessionResult) bool {
+	if r.Limited {
+		return true
+	}
+	t := strings.ToLower(strings.TrimSpace(r.Text))
+	return len(t) < 300 && strings.Contains(t, "hit your") && strings.Contains(t, "limit")
+}
+
 // Advise implements Advisor.
 func (a *ProviderAdvisor) Advise(ctx context.Context, req AdviceRequest) (AdviceAnswer, error) {
-	acc, ok := a.Account()
-	if !ok {
+	var limits []string
+	tried := false
+	for _, model := range a.models() {
+		for _, acc := range a.accounts(model) {
+			tried = true
+			ans, err := a.adviseWith(ctx, req, acc, model)
+			var lim *errAdvisorLimit
+			if errors.As(err, &lim) {
+				limits = append(limits, lim.Error())
+				if a.OnLimit != nil {
+					a.OnLimit(acc.ID, model, lim.resets, domain.LimitedModel(lim.text, model))
+				}
+				continue
+			}
+			return ans, err
+		}
+	}
+	if !tried {
 		return AdviceAnswer{}, ErrNoAdvisor
 	}
+	return AdviceAnswer{}, fmt.Errorf("%w: %s", ErrNoAdvisor, strings.Join(limits, "; "))
+}
+
+func (a *ProviderAdvisor) adviseWith(ctx context.Context, req AdviceRequest, acc domain.Account, model string) (AdviceAnswer, error) {
 	dir, err := os.MkdirTemp(a.TempDir, "advisor-")
 	if err != nil {
 		return AdviceAnswer{}, err
@@ -304,7 +386,7 @@ func (a *ProviderAdvisor) Advise(ctx context.Context, req AdviceRequest) (Advice
 	if err := os.WriteFile(settings, []byte(readOnlySettings), 0o600); err != nil {
 		return AdviceAnswer{}, err
 	}
-	sess, err := a.Provider.Open(ctx, ports.SessionSpec{Agent: "advisor", Role: "advisor", Account: acc, Model: a.Model, Effort: "high",
+	sess, err := a.Provider.Open(ctx, ports.SessionSpec{Agent: "advisor", Role: "advisor", Account: acc, Model: model, Effort: "high",
 		Workdir: req.Workdir, SystemPrompt: req.System, Prompt: req.Prompt, SettingsFile: settings, MaxTurns: 20, Timeout: adviceTimeout})
 	if err != nil {
 		return AdviceAnswer{}, err
@@ -317,13 +399,16 @@ func (a *ProviderAdvisor) Advise(ctx context.Context, req AdviceRequest) (Advice
 		}
 	}
 	r, err := sess.Wait()
+	if limitAnswer(r) {
+		return AdviceAnswer{}, &errAdvisorLimit{account: acc.ID, model: model, text: strings.TrimSpace(r.Text), resets: r.ResetsAt}
+	}
 	if err != nil {
 		return AdviceAnswer{}, err
 	}
 	if strings.TrimSpace(r.Text) == "" {
 		return AdviceAnswer{}, errors.New("the advisor's answer was empty")
 	}
-	return AdviceAnswer{Text: r.Text, Model: a.Model, Tokens: int64(r.Usage.Input + r.Usage.Output)}, nil
+	return AdviceAnswer{Text: r.Text, Model: model, Tokens: int64(r.Usage.Input + r.Usage.Output)}, nil
 }
 
 // advisorAction names what a tool call of the advisor does: read (a file),
@@ -406,16 +491,13 @@ func (s *Service) Delegate(ctx context.Context, project string, a Actor, thread 
 	}
 	thread = strings.ToUpper(strings.TrimSpace(thread))
 	note := ot(p, "delegate.note", last.SuggestNote)
-	switch {
-	case strings.HasPrefix(thread, "Q-"):
-		_, err = s.Answer(ctx, project, a, thread, last.SuggestOption, note)
-	case strings.HasPrefix(thread, "P-"):
-		_, err = s.DecideProposal(ctx, project, a, thread, strings.ToLower(last.SuggestOption), note)
-	default:
-		return conv, fmt.Errorf("%w: only a question or a proposal can be decided for you", ErrInvalid)
-	}
+	left, err := s.applyAdvice(ctx, p, a, thread, s.awaitsOf(ctx, p, thread), last, note)
 	if err != nil {
 		return conv, err
+	}
+	if left {
+		// Only the owner can take this one: the conversation says what to do.
+		return s.Discussion(project, a, thread)
 	}
 	done := *last
 	done.Delegated, done.Text, done.At = true, ot(p, "delegate.done", last.SuggestOption), s.d.Clock.Now().UTC()
@@ -423,6 +505,26 @@ func (s *Service) Delegate(ctx context.Context, project string, a Actor, thread 
 		return conv, err
 	}
 	return s.Discussion(project, a, thread)
+}
+
+// awaitsOf is what an item thread waits for the owner to approve (plan or
+// delivery), "" for any other thread.
+func (s *Service) awaitsOf(ctx context.Context, p *Project, thread string) string {
+	if strings.HasPrefix(thread, "Q-") || strings.HasPrefix(thread, "P-") {
+		return ""
+	}
+	o, err := s.Overview(ctx, System(), OverviewQuery{Project: p.Name, Item: thread, Brief: true})
+	if err != nil {
+		return ""
+	}
+	for _, po := range o.Projects {
+		for _, io := range po.Items {
+			if io.ID == thread {
+				return io.Awaits
+			}
+		}
+	}
+	return ""
 }
 
 // ProposalVerdict is the advisor's word on one open proposal.

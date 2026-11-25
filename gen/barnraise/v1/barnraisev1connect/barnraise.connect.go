@@ -62,6 +62,9 @@ const (
 	// BarnraiseServiceUpdateItemProcedure is the fully-qualified name of the BarnraiseService's
 	// UpdateItem RPC.
 	BarnraiseServiceUpdateItemProcedure = "/barnraise.v1.BarnraiseService/UpdateItem"
+	// BarnraiseServiceUnlockFilesProcedure is the fully-qualified name of the BarnraiseService's
+	// UnlockFiles RPC.
+	BarnraiseServiceUnlockFilesProcedure = "/barnraise.v1.BarnraiseService/UnlockFiles"
 	// BarnraiseServiceCloseItemProcedure is the fully-qualified name of the BarnraiseService's
 	// CloseItem RPC.
 	BarnraiseServiceCloseItemProcedure = "/barnraise.v1.BarnraiseService/CloseItem"
@@ -272,6 +275,8 @@ type BarnraiseServiceClient interface {
 	GetItem(context.Context, *connect.Request[v1.ItemRef]) (*connect.Response[v1.ItemResponse], error)
 	ListItems(context.Context, *connect.Request[v1.ListItemsRequest]) (*connect.Response[v1.ItemsResponse], error)
 	UpdateItem(context.Context, *connect.Request[v1.UpdateItemRequest]) (*connect.Response[v1.ItemResponse], error)
+	// UnlockFiles lets an item change locked files; nobody edits them by hand.
+	UnlockFiles(context.Context, *connect.Request[v1.UnlockFilesRequest]) (*connect.Response[v1.ItemResponse], error)
 	CloseItem(context.Context, *connect.Request[v1.CloseItemRequest]) (*connect.Response[v1.ItemResponse], error)
 	NextItem(context.Context, *connect.Request[v1.NextItemRequest]) (*connect.Response[v1.Assignment], error)
 	Deliver(context.Context, *connect.Request[v1.DeliverRequest]) (*connect.Response[v1.ItemResponse], error)
@@ -438,6 +443,12 @@ func NewBarnraiseServiceClient(httpClient connect.HTTPClient, baseURL string, op
 			httpClient,
 			baseURL+BarnraiseServiceUpdateItemProcedure,
 			connect.WithSchema(barnraiseServiceMethods.ByName("UpdateItem")),
+			connect.WithClientOptions(opts...),
+		),
+		unlockFiles: connect.NewClient[v1.UnlockFilesRequest, v1.ItemResponse](
+			httpClient,
+			baseURL+BarnraiseServiceUnlockFilesProcedure,
+			connect.WithSchema(barnraiseServiceMethods.ByName("UnlockFiles")),
 			connect.WithClientOptions(opts...),
 		),
 		closeItem: connect.NewClient[v1.CloseItemRequest, v1.ItemResponse](
@@ -872,6 +883,7 @@ type barnraiseServiceClient struct {
 	getItem            *connect.Client[v1.ItemRef, v1.ItemResponse]
 	listItems          *connect.Client[v1.ListItemsRequest, v1.ItemsResponse]
 	updateItem         *connect.Client[v1.UpdateItemRequest, v1.ItemResponse]
+	unlockFiles        *connect.Client[v1.UnlockFilesRequest, v1.ItemResponse]
 	closeItem          *connect.Client[v1.CloseItemRequest, v1.ItemResponse]
 	nextItem           *connect.Client[v1.NextItemRequest, v1.Assignment]
 	deliver            *connect.Client[v1.DeliverRequest, v1.ItemResponse]
@@ -977,6 +989,11 @@ func (c *barnraiseServiceClient) ListItems(ctx context.Context, req *connect.Req
 // UpdateItem calls barnraise.v1.BarnraiseService.UpdateItem.
 func (c *barnraiseServiceClient) UpdateItem(ctx context.Context, req *connect.Request[v1.UpdateItemRequest]) (*connect.Response[v1.ItemResponse], error) {
 	return c.updateItem.CallUnary(ctx, req)
+}
+
+// UnlockFiles calls barnraise.v1.BarnraiseService.UnlockFiles.
+func (c *barnraiseServiceClient) UnlockFiles(ctx context.Context, req *connect.Request[v1.UnlockFilesRequest]) (*connect.Response[v1.ItemResponse], error) {
+	return c.unlockFiles.CallUnary(ctx, req)
 }
 
 // CloseItem calls barnraise.v1.BarnraiseService.CloseItem.
@@ -1340,6 +1357,8 @@ type BarnraiseServiceHandler interface {
 	GetItem(context.Context, *connect.Request[v1.ItemRef]) (*connect.Response[v1.ItemResponse], error)
 	ListItems(context.Context, *connect.Request[v1.ListItemsRequest]) (*connect.Response[v1.ItemsResponse], error)
 	UpdateItem(context.Context, *connect.Request[v1.UpdateItemRequest]) (*connect.Response[v1.ItemResponse], error)
+	// UnlockFiles lets an item change locked files; nobody edits them by hand.
+	UnlockFiles(context.Context, *connect.Request[v1.UnlockFilesRequest]) (*connect.Response[v1.ItemResponse], error)
 	CloseItem(context.Context, *connect.Request[v1.CloseItemRequest]) (*connect.Response[v1.ItemResponse], error)
 	NextItem(context.Context, *connect.Request[v1.NextItemRequest]) (*connect.Response[v1.Assignment], error)
 	Deliver(context.Context, *connect.Request[v1.DeliverRequest]) (*connect.Response[v1.ItemResponse], error)
@@ -1502,6 +1521,12 @@ func NewBarnraiseServiceHandler(svc BarnraiseServiceHandler, opts ...connect.Han
 		BarnraiseServiceUpdateItemProcedure,
 		svc.UpdateItem,
 		connect.WithSchema(barnraiseServiceMethods.ByName("UpdateItem")),
+		connect.WithHandlerOptions(opts...),
+	)
+	barnraiseServiceUnlockFilesHandler := connect.NewUnaryHandler(
+		BarnraiseServiceUnlockFilesProcedure,
+		svc.UnlockFiles,
+		connect.WithSchema(barnraiseServiceMethods.ByName("UnlockFiles")),
 		connect.WithHandlerOptions(opts...),
 	)
 	barnraiseServiceCloseItemHandler := connect.NewUnaryHandler(
@@ -1940,6 +1965,8 @@ func NewBarnraiseServiceHandler(svc BarnraiseServiceHandler, opts ...connect.Han
 			barnraiseServiceListItemsHandler.ServeHTTP(w, r)
 		case BarnraiseServiceUpdateItemProcedure:
 			barnraiseServiceUpdateItemHandler.ServeHTTP(w, r)
+		case BarnraiseServiceUnlockFilesProcedure:
+			barnraiseServiceUnlockFilesHandler.ServeHTTP(w, r)
 		case BarnraiseServiceCloseItemProcedure:
 			barnraiseServiceCloseItemHandler.ServeHTTP(w, r)
 		case BarnraiseServiceNextItemProcedure:
@@ -2115,6 +2142,10 @@ func (UnimplementedBarnraiseServiceHandler) ListItems(context.Context, *connect.
 
 func (UnimplementedBarnraiseServiceHandler) UpdateItem(context.Context, *connect.Request[v1.UpdateItemRequest]) (*connect.Response[v1.ItemResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("barnraise.v1.BarnraiseService.UpdateItem is not implemented"))
+}
+
+func (UnimplementedBarnraiseServiceHandler) UnlockFiles(context.Context, *connect.Request[v1.UnlockFilesRequest]) (*connect.Response[v1.ItemResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("barnraise.v1.BarnraiseService.UnlockFiles is not implemented"))
 }
 
 func (UnimplementedBarnraiseServiceHandler) CloseItem(context.Context, *connect.Request[v1.CloseItemRequest]) (*connect.Response[v1.ItemResponse], error) {

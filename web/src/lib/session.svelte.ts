@@ -46,6 +46,8 @@ class Session {
 	standbyWhy = $state('');
 	// The projects whose autopilot is on: the advisor takes the owner's decisions.
 	autopilot = $state<string[]>([]);
+	// Why the advisor of a project cannot answer now; absent when it can.
+	advisorDown = $state<Record<string, string>>({});
 	live = $state<LiveMode>('wait');
 	retryIn = $state(0);
 	// tick changes when something happened: screens read again on it.
@@ -110,6 +112,7 @@ class Session {
 		this.standby = r.standby;
 		this.standbyWhy = r.standbyWhy;
 		this.autopilot = r.autopilot;
+		this.advisorDown = r.advisorDown;
 		const saved = store.get('project');
 		if (this.scope && !this.projects.includes(this.scope)) this.scope = '';
 		if (this.scope) this.project = this.scope;

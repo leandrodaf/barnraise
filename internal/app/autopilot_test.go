@@ -3,11 +3,13 @@ package app
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/leandrodaf/barnraise/internal/domain"
+	"github.com/leandrodaf/barnraise/internal/ports"
 )
 
 func suggestion(option, note string) string {
@@ -229,5 +231,139 @@ func TestAutopilotWhenTheAdvisorFails(t *testing.T) {
 func TestAutopilotRetry(t *testing.T) {
 	if autopilotRetry(1) != 5*time.Minute || autopilotRetry(2) != 10*time.Minute || autopilotRetry(10) != 2*time.Hour {
 		t.Fatal(autopilotRetry(1), autopilotRetry(2), autopilotRetry(10))
+	}
+}
+
+// scriptedSession is a provider session that answers with a fixed result.
+type limitProvider struct {
+	answers map[string]ports.SessionResult // model -> result
+	asked   []string
+}
+
+func (l *limitProvider) Name() string   { return "claude" }
+func (l *limitProvider) Family() string { return "anthropic" }
+func (l *limitProvider) Detect(context.Context) (ports.Capabilities, error) {
+	return ports.Capabilities{}, nil
+}
+func (l *limitProvider) Open(_ context.Context, spec ports.SessionSpec) (ports.Session, error) {
+	l.asked = append(l.asked, spec.Account.ID+"/"+spec.Model)
+	r := l.answers[spec.Account.ID+"/"+spec.Model]
+	if _, ok := l.answers[spec.Account.ID+"/"+spec.Model]; !ok {
+		r = l.answers[spec.Model]
+	}
+	ch := make(chan ports.ProviderEvent)
+	close(ch)
+	return &fixedSession{ev: ch, res: r}, nil
+}
+
+type fixedSession struct {
+	ev  chan ports.ProviderEvent
+	res ports.SessionResult
+}
+
+func (f *fixedSession) Events() <-chan ports.ProviderEvent { return f.ev }
+func (f *fixedSession) Wait() (ports.SessionResult, error) { return f.res, nil }
+func (f *fixedSession) Stop() error                        { return nil }
+
+// The advisor goes down its ladder: a model at its own limit gives the
+// answer to the next model; an account at its window's limit to the next
+// account. A limit message is never taken for an answer.
+func TestAdvisorFallsBackOnLimits(t *testing.T) {
+	prov := &limitProvider{answers: map[string]ports.SessionResult{
+		"a1/fable": {Text: "You've hit your Fable limit · resets Mon 7pm", Limited: true},
+		"a2/fable": {Text: "You've hit your 5-hour limit · resets 1am", Limited: true},
+		"opus":     {Text: "Use option (a)."},
+	}}
+	var heard []string
+	adv := &ProviderAdvisor{Provider: prov, Models: []string{"fable", "opus"}, TempDir: t.TempDir(),
+		Accounts: func(string) []domain.Account { return []domain.Account{{ID: "a1"}, {ID: "a2"}} },
+		OnLimit: func(acc, model string, _ time.Time, modelOnly bool) {
+			heard = append(heard, fmt.Sprintf("%s/%s/%v", acc, model, modelOnly))
+		}}
+	ans, err := adv.Advise(context.Background(), AdviceRequest{Workdir: t.TempDir()})
+	if err != nil || ans.Model != "opus" || ans.Text != "Use option (a)." {
+		t.Fatalf("%+v %v", ans, err)
+	}
+	if strings.Join(heard, ",") != "a1/fable/true,a2/fable/false" {
+		t.Fatalf("limits heard %v", heard)
+	}
+	// Nothing left: the advisor says why, and no limit text is an answer.
+	prov.answers["opus"] = ports.SessionResult{Text: "You've hit your weekly limit"}
+	if _, err := adv.Advise(context.Background(), AdviceRequest{Workdir: t.TempDir()}); !errors.Is(err, ErrNoAdvisor) || !strings.Contains(err.Error(), "weekly limit") {
+		t.Fatalf("every option at its limit: %v", err)
+	}
+	if ok, _ := (&ProviderAdvisor{Models: []string{"fable"}, Accounts: func(string) []domain.Account { return nil }}).Ready(); ok {
+		t.Fatal("ready without an account")
+	}
+}
+
+// A model at its own limit leaves the account to the next model of the class.
+func TestPickChoiceSkipsAModelAtItsLimit(t *testing.T) {
+	e := newEnv(t)
+	accs := []*domain.Account{{ID: "c1", Provider: "claude", Status: domain.AccountOK, CeilingPct: 100}}
+	choices := []domain.ModelChoice{{Provider: "claude", Model: "fable"}, {Provider: "claude", Model: "opus"}}
+	if c, a := e.svc.pickChoice(choices, accs, "demo", e.clock.Now()); c.Model != "fable" || a == nil {
+		t.Fatalf("%+v %v", c, a)
+	}
+	e.svc.markModelLimited("c1", "fable", e.clock.Now().Add(time.Hour))
+	if c, a := e.svc.pickChoice(choices, accs, "demo", e.clock.Now()); c.Model != "opus" || a == nil {
+		t.Fatalf("after fable's limit: %+v %v", c, a)
+	}
+	if c, _ := e.svc.pickChoice(choices, accs, "demo", e.clock.Now().Add(2*time.Hour)); c.Model != "fable" {
+		t.Fatalf("after the reset: %+v", c)
+	}
+	if status := e.svc.AdvisorStatus("demo"); status == "" {
+		t.Fatal("no advisor in this env, and no reason given")
+	}
+}
+
+// "Decide for me" when only the owner can decide: the conversation says
+// what to do, and no error comes back.
+func TestDelegateLeavesToOwner(t *testing.T) {
+	e, _ := autopilotEnv(t, func(AdviceRequest) string { return suggestion("OWNER", "Sign in to the store first.") })
+	it := e.ready("simple", "Store", "store")
+	q := e.askOwner(it.ID, "Enroll now?", "(a) yes", "(b) later")
+	conv, err := e.svc.Delegate(e.ctx, "demo", owner(), q.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if last := conv[len(conv)-1]; !last.LeftToOwner || !strings.Contains(last.Text, "Sign in to the store") {
+		t.Fatalf("%+v", last)
+	}
+	if !e.p.Snapshot().Questions[q.ID].Open() {
+		t.Fatal("answered a decision only the owner can take")
+	}
+}
+
+// When a step waits only because a locked test must change, the advisor
+// unlocks it for that item and the step goes on: nobody edits it by hand.
+func TestAdviceUnlocksALockedTest(t *testing.T) {
+	e, _ := autopilotEnv(t, func(AdviceRequest) string {
+		return suggestion("UNLOCK tests/quarry_test.go", "The owner decided the radius; the locked test must follow.")
+	})
+	it := e.ready("simple", "Radius", "field")
+	q := e.askOwner(it.ID, "How to go on?", "Try the step again", "Give the item up")
+	if n := e.svc.runAutopilot(e.ctx, e.p); n != 1 {
+		t.Fatalf("%d decisions", n)
+	}
+	snap := e.p.Snapshot()
+	if got := snap.Items[it.ID].Unlocked; len(got) != 1 || got[0] != "tests/quarry_test.go" {
+		t.Fatalf("unlocked %v", got)
+	}
+	if a := snap.Questions[q.ID].Answer; !strings.HasPrefix(a, "Try the step again") {
+		t.Fatalf("answer %q", a)
+	}
+	// Only locked files, inside the repository, and only by who approves.
+	wantErr(t, func() error { _, err := e.svc.UnlockFiles(e.ctx, "demo", owner(), it.ID, []string{"app/main.go"}, ""); return err }(), ErrInvalid)
+	wantErr(t, func() error { _, err := e.svc.UnlockFiles(e.ctx, "demo", owner(), it.ID, []string{"../tests/x_test.go"}, ""); return err }(), ErrInvalid)
+	wantErr(t, func() error {
+		_, err := e.svc.UnlockFiles(e.ctx, "demo", agent("implementer", it.ID, "implement"), it.ID, []string{"tests/a_test.go"}, "")
+		return err
+	}(), ErrForbidden)
+	if files, ok := unlockOption("UNLOCK: a_test.go, tests/b.test.ts"); !ok || len(files) != 2 {
+		t.Fatalf("%v %v", files, ok)
+	}
+	if _, ok := unlockOption("UNLOCKED"); ok {
+		t.Fatal("UNLOCKED read as an unlock")
 	}
 }

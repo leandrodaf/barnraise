@@ -434,7 +434,7 @@ func (s *Service) runCheckStep(ctx context.Context, p *Project, it *domain.Item,
 		}
 	}
 	// Existing tests and check scripts are locked: an item that changed one fails.
-	if locked := s.lockedChanges(ctx, p, main, touched); len(locked) > 0 {
+	if locked := s.lockedChanges(ctx, p, main, touched, it.ID); len(locked) > 0 {
 		_, _, err := s.finishStep(ctx, p, stepOutcome{Item: it.ID, Step: st.Name, Outcome: domain.OutcomeFail, Actor: "checks",
 			Reason: "existing tests, references or check scripts were changed (they are locked; add new tests instead): " + strings.Join(locked, ", ")})
 		return err
@@ -588,12 +588,21 @@ func (s *Service) itemFiles(ctx context.Context, p *Project, main, head string) 
 }
 
 // lockedChanges returns touched files that are locked because they existed on main.
-func (s *Service) lockedChanges(ctx context.Context, p *Project, main string, touched []string) []string {
+func (s *Service) lockedChanges(ctx context.Context, p *Project, main string, touched []string, itemID string) []string {
 	if p.Ports().Git == nil || main == "" {
 		return nil
 	}
+	unlocked := map[string]bool{}
+	if it := p.Snapshot().Items[itemID]; it != nil {
+		for _, f := range it.Unlocked {
+			unlocked[f] = true
+		}
+	}
 	var out []string
 	for _, f := range touched {
+		if unlocked[f] {
+			continue
+		}
 		for _, g := range p.Cfg().Policy.LockExisting {
 			if domain.MatchGlob(g, f) && p.Ports().Git.ExistsAt(ctx, main, f) {
 				out = append(out, f)

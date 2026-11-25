@@ -27,8 +27,11 @@ type Decision struct {
 // The barrier is the OS and the daemon, not the prompt; the hook adds a
 // layer that works even with --dangerously-skip-permissions.
 type Policy struct {
-	DenyWrite    []string `json:"deny_write"`     // globs relative to the worktree
-	LockExisting []string `json:"lock_existing"`  // globs: existing files cannot change (tests, references); new ones can
+	DenyWrite    []string `json:"deny_write"`    // globs relative to the worktree
+	LockExisting []string `json:"lock_existing"` // globs: existing files cannot change (tests, references); new ones can
+	// Unlocked are the locked files this session's item may change, as the
+	// owner (or the autopilot) allowed.
+	Unlocked     []string `json:"unlocked,omitempty"`
 	DenyRead     []string `json:"deny_read"`      // absolute or ~ globs (credentials)
 	DenyCommands []string `json:"deny_commands"`  // regular expressions
 	AllowHosts   []string `json:"allow_hosts"`    // for the sandbox and proxy
@@ -140,7 +143,7 @@ func (p *Policy) Decide(c ToolCall, exists func(string) bool) Decision {
 			}
 		}
 		for _, g := range p.LockExisting {
-			if MatchGlob(g, rel) && exists != nil && exists(rel) {
+			if MatchGlob(g, rel) && exists != nil && exists(rel) && !contains(p.Unlocked, rel) {
 				return deny("locked_existing", "existing tests, references and check scripts are locked; add a new test instead: "+rel)
 			}
 		}

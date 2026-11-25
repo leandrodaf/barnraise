@@ -131,7 +131,7 @@
 <PageHeader title={t('proposals')} icon={LightbulbIcon} meta={[session.scope || t('allProjects'), t('openN', open.length)]} subtitle={t('proposalsHelp')}>
 	{#snippet actions()}
 		{#if open.length}
-			<Button size="sm" variant="secondary" onclick={runTriage} disabled={triage.busy || applying} title={t('triageHelp')}>
+			<Button size="sm" variant="secondary" onclick={runTriage} disabled={triage.busy || applying || open.every((o) => session.advisorDown[o.project])} title={open.every((o) => session.advisorDown[o.project]) ? t('advisorDown', Object.values(session.advisorDown)[0] || '') : t('triageHelp')}>
 				{#if triage.busy}<Spinner />{:else}<SparklesIcon />{/if}{t('triageRun')}
 			</Button>
 		{/if}
@@ -185,8 +185,8 @@
 								</div>
 							{/if}
 							<div class="flex flex-wrap gap-2 sm:pl-7">
-								<Button size="sm" variant="secondary" onclick={() => discussion.show(o.project, p.id, p.title)}><MessagesIcon />{t('discuss')}</Button>
-								<Button size="sm" variant="secondary" title={t('decideForMeHelp')} onclick={() => discussion.show(o.project, p.id, p.title, true)}><WandIcon />{t('decideForMe')}</Button>
+								<Button size="sm" variant="secondary" disabled={!!session.advisorDown[o.project]} title={session.advisorDown[o.project] ? t('advisorDown', session.advisorDown[o.project]) : ''} onclick={() => discussion.show(o.project, p.id, p.title)}><MessagesIcon />{t('discuss')}</Button>
+								<Button size="sm" variant="secondary" disabled={!!session.advisorDown[o.project]} title={session.advisorDown[o.project] ? t('advisorDown', session.advisorDown[o.project]) : t('decideForMeHelp')} onclick={() => discussion.show(o.project, p.id, p.title, true)}><WandIcon />{t('decideForMe')}</Button>
 								<Button size="sm" onclick={() => act(() => decide(o, 'approve'), t('decided', p.id, t('approveProposal')))}>{t('approveProposal')}</Button>
 								<Button size="sm" variant="outline" onclick={() => reject(o)}>{t('reject')}</Button>
 								<Button size="sm" variant="ghost" onclick={() => act(() => decide(o, 'later'), t('decided', p.id, t('later')))}>{t('later')}</Button>

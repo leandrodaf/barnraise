@@ -132,6 +132,8 @@ type Service struct {
 	logins loginRegistry
 	// autopilot is each project's autopilot run (autopilot.go).
 	autopilot sync.Map
+	// modelLimits are the models at their own limit, per account (modellimits.go).
+	modelLimits sync.Map
 }
 
 // New creates the service.

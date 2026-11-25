@@ -523,8 +523,9 @@ func (r *Runtime) start(ctx context.Context, p *Project, slot Slot, a *Assignmen
 		s.notifyAccountsExhausted(ctx, p)
 		return err
 	}
-	choice := choices[0]
-	acc := domain.PickAccount(accounts, choice.Provider, s.d.Machine, p.Name, now)
+	// The strongest model of the class that an account here may run now:
+	// one at its own limit gives the step to the next.
+	choice, acc := s.pickChoice(choices, accounts, p.Name, now)
 	if acc == nil {
 		return errors.New("no account available")
 	}
@@ -850,6 +851,9 @@ func (r *Runtime) writeSessionFiles(p *Project, sessDir, worktree string, env ma
 	pol.Worktree = worktree
 	pol.MainBranch = p.Cfg().MainBranch
 	pol.PrivateTmp = p.Cfg().Container.Image != "" // the container's /tmp is in memory and its own
+	if it := p.Snapshot().Items[a.ItemID]; it != nil {
+		pol.Unlocked = append([]string(nil), it.Unlocked...)
+	}
 	// The agent profile's command rules join the project's.
 	for _, rx := range domain.AgentDenyCommands() {
 		if !domain.Contains(pol.DenyCommands, rx) {
@@ -1012,7 +1016,15 @@ loop:
 	usage.FilteredRuns, usage.FilterSaved = filterSavings(ls.outputs, ls.run)
 	_, _ = s.emit(ctx, p, domain.EvAgentUsage, a.Item.ID, slot.Agent, domain.Payload{Usage: &usage})
 	if limited {
-		s.markAccountLimited(ctx, p, acc.ID, resets)
+		why := res.Text
+		if err != nil {
+			why += " " + err.Error()
+		}
+		if domain.LimitedModel(why, choice.Model) {
+			s.markModelLimited(acc.ID, choice.Model, resets)
+		} else {
+			s.markAccountLimited(ctx, p, acc.ID, resets)
+		}
 	}
 	if strings.TrimSpace(res.Text) != "" {
 		_, _ = s.emit(ctx, p, domain.EvJournal, a.Item.ID, slot.Agent, domain.Payload{Journal: &domain.JournalEntry{Agent: slot.Agent, ItemID: a.Item.ID, Step: a.Step.Name, Text: truncate(res.Text, 2000), At: s.d.Clock.Now().UTC()}})

@@ -2875,6 +2875,45 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/barnraise.v1.ProposalTriageResponse'
+  /barnraise.v1.BarnraiseService/UnlockFiles:
+    post:
+      tags:
+        - barnraise.v1.BarnraiseService
+      summary: UnlockFiles
+      description: UnlockFiles lets an item change locked files; nobody edits them by hand.
+      operationId: barnraise.v1.BarnraiseService.UnlockFiles
+      parameters:
+        - name: Connect-Protocol-Version
+          in: header
+          description: Define the version of the Connect protocol
+          schema:
+            $ref: '#/components/schemas/connect-protocol-version'
+          example: 1
+        - name: Connect-Timeout-Ms
+          in: header
+          description: Define the timeout, in ms
+          schema:
+            $ref: '#/components/schemas/connect-timeout-header'
+          example: 1000
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/barnraise.v1.UnlockFilesRequest'
+        required: true
+      responses:
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.error'
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/barnraise.v1.ItemResponse'
   /barnraise.v1.BarnraiseService/UpdateItem:
     post:
       tags:
@@ -4751,6 +4790,12 @@ components:
         change:
           title: change
           $ref: '#/components/schemas/barnraise.v1.ChangeNote'
+        unlocked:
+          type: array
+          items:
+            type: string
+          title: unlocked
+          description: Locked files (existing tests, references) this item may change.
       title: Item
       additionalProperties: false
     barnraise.v1.ItemOverview:
@@ -6309,6 +6354,15 @@ components:
             type: string
           title: autopilot
           description: The projects whose autopilot is on (SetAutopilot).
+        advisorDown:
+          type: object
+          title: advisor_down
+          additionalProperties:
+            type: string
+            title: value
+          description: |-
+            Why the advisor of a project cannot answer now (every account at its
+             limit, until when); absent when it can.
       title: ProjectsResponse
       additionalProperties: false
     barnraise.v1.Proposal:
@@ -7229,6 +7283,28 @@ components:
           title: item_id
       title: Tweak
       additionalProperties: false
+    barnraise.v1.UnlockFilesRequest:
+      type: object
+      properties:
+        project:
+          type: string
+          title: project
+        item:
+          type: string
+          title: item
+        files:
+          type: array
+          items:
+            type: string
+          title: files
+        why:
+          type: string
+          title: why
+      title: UnlockFilesRequest
+      additionalProperties: false
+      description: |-
+        UnlockFilesRequest lets an item change locked files (existing tests,
+         references, check scripts) the owner decided must change.
     barnraise.v1.UpdateItemRequest:
       type: object
       properties:
