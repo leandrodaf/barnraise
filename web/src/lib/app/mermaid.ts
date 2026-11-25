@@ -98,8 +98,15 @@ function palette(tone: DiagramTone) {
 	return { v, css };
 }
 
+// A failed load is not kept: the next diagram tries again (and a page left
+// open across an update of the daemon reloads, see $lib/build).
 async function load(): Promise<Mermaid> {
-	loading ??= Promise.all([import('mermaid'), document.fonts?.load(`13px '${FONT}'`).catch(() => null)]).then(([m]) => m.default);
+	loading ??= Promise.all([import('mermaid'), document.fonts?.load(`13px '${FONT}'`).catch(() => null)])
+		.then(([m]) => m.default)
+		.catch((e) => {
+			loading = null;
+			throw e;
+		});
 	return loading;
 }
 

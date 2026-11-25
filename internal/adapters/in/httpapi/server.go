@@ -110,9 +110,25 @@ func New(svc *app.Service, opts Options) *Server {
 		_ = json.NewEncoder(w).Encode(map[string]any{"ok": true, "machine": svc.Machine(), "version": opts.Version, "projects": svc.Projects()})
 	})
 	if opts.Panel != nil {
-		s.mux.Handle("/", securityHeaders(http.FileServerFS(opts.Panel)))
+		s.mux.Handle("/", securityHeaders(panelCache(http.FileServerFS(opts.Panel))))
 	}
 	return s
+}
+
+// panelCache tells the browser how long to keep the panel's files. Those
+// under assets/ are named after their content, so they never change; the
+// rest (index.html first) is asked for again on every load, so a reload
+// after the daemon is updated always starts the current build and every
+// chunk it imports later exists.
+func panelCache(h http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.HasPrefix(r.URL.Path, "/assets/") {
+			w.Header().Set("Cache-Control", "public, max-age=31536000, immutable")
+		} else {
+			w.Header().Set("Cache-Control", "no-cache")
+		}
+		h.ServeHTTP(w, r)
+	})
 }
 
 // Handler returns the root handler.
