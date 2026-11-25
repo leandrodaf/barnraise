@@ -192,3 +192,14 @@ func TestGitCredentialRequest(t *testing.T) {
 		t.Fatalf("%v %q", err, out.String())
 	}
 }
+
+// Criteria are a list of maps: the patch must still become a Struct.
+func TestPatchStructTakesCriteria(t *testing.T) {
+	st, err := patchStruct(map[string]any{"title": "x", "criteria": []map[string]any{{"id": "C1", "text": "WHEN a, THE SYSTEM SHALL b", "check": "main"}}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := st.Fields["criteria"].GetListValue().GetValues()[0].GetStructValue().Fields["id"].GetStringValue(); got != "C1" {
+		t.Fatalf("%q", got)
+	}
+}

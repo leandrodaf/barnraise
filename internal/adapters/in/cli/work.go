@@ -292,7 +292,7 @@ func (e *env) itemCmd() *cobra.Command {
 			if cmd.Flags().Changed("clear-clarifications") {
 				m["clarifications"] = []any{}
 			}
-			st, err := structpb.NewStruct(m)
+			st, err := patchStruct(m)
 			if err != nil {
 				return err
 			}
@@ -658,4 +658,19 @@ func (e *env) eventsCmd() *cobra.Command {
 	c.Flags().Int64Var(&after, "after", 0, "after this sequence number")
 	c.AddCommand(e.eventsVerifyCmd())
 	return c
+}
+
+// patchStruct turns an item patch into the request's Struct. It goes
+// through JSON, so lists of maps (the criteria) become the generic lists a
+// Struct takes: structpb refuses []map[string]any ("proto: invalid type").
+func patchStruct(m map[string]any) (*structpb.Struct, error) {
+	data, err := json.Marshal(m)
+	if err != nil {
+		return nil, err
+	}
+	var generic map[string]any
+	if err := json.Unmarshal(data, &generic); err != nil {
+		return nil, err
+	}
+	return structpb.NewStruct(generic)
 }

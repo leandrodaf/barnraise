@@ -6,6 +6,7 @@ All notable changes to Barnraise are recorded here. The format follows [Keep a C
 
 ### Fixed
 
+- **cli:** `barnraise item edit -c` writes the criteria again; it failed with "proto: invalid type", so analysts could not record a refinement.
 - **providers:** Claude Code's current limit messages ("You've hit your 5-hour limit · resets 1am · out of usage credits", "…weekly limit", "…Fable limit") are recognized: the account (or only the model, when the limit is the model's own) waits, and the work goes to another account or to the next model of its class.
 - **owner:** The advisor goes down the ladder (fable, opus, sonnet, haiku) over every account with room before it gives up, never takes a limit message for an answer, and the panel disables *Talk it over*, *Decide for me* and *Triage* with the reason and the time it comes back. *Decide for me* on a decision only the owner can take leaves it to the owner with what to do instead of failing.
 - **machines:** Sessions, the advisor and checks write their temporary files in `/var/tmp/barnraise-<uid>` (the `TMPDIR` the daemon gives them, on the system disk; `<data dir>/tmp` without `/var/tmp`), never in a small `/tmp`: a full `/tmp` had broken every command of every session on a machine. Each machine removes temporary leftovers untouched for a day (its own and Claude Code's `/tmp/claude-<uid>`), and holds new sessions while less than 1 GB is free there.
