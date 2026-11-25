@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/leandrodaf/barnraise/internal/domain"
 	"github.com/leandrodaf/barnraise/internal/testkit"
@@ -215,5 +216,25 @@ func TestItemWhoseAgentCannotStartIsStalled(t *testing.T) {
 	o, _ = e.svc.Overview(e.ctx, owner(), OverviewQuery{})
 	if io := o.item(t, held.ID); io.Activity == ActStalled {
 		t.Fatalf("an old failure still stalls %s: %s", held.ID, io.Detail)
+	}
+}
+
+// A start failure that repeats is told to the cluster again now and then:
+// the agent's failed state is live only, and a machine that restarted would
+// otherwise show the item idle for as long as the failure lasts.
+func TestRepeatingStartFailureIsToldAgain(t *testing.T) {
+	r := &Runtime{}
+	if !r.saidStartErr("demo/a/I-1", true) {
+		t.Fatal("first telling")
+	}
+	if r.saidStartErr("demo/a/I-1", false) {
+		t.Fatal("told again at once")
+	}
+	r.startErrSaid["demo/a/I-1"] = time.Now().Add(-restateStartErr - time.Second)
+	if !r.saidStartErr("demo/a/I-1", false) {
+		t.Fatal("not told again after the interval")
+	}
+	if r.saidStartErr("demo/a/I-1", false) {
+		t.Fatal("the new telling was not recorded")
 	}
 }

@@ -61,7 +61,11 @@ type Runtime struct {
 	// failure that repeats every pass (accounts out of limits, a missing
 	// binary) is logged once, not every few seconds.
 	startErrs map[string]string
-	gpu       *[]string // engine arguments for the machine's GPU, probed once
+	// startErrSaid is when each start failure was last told to the
+	// cluster: the agent's failed state is live only, so a machine that
+	// restarts (or joins) would never learn it from a failure logged once.
+	startErrSaid map[string]time.Time
+	gpu          *[]string // engine arguments for the machine's GPU, probed once
 	// Sandbox turns on the provider's native sandbox in session settings.
 	Sandbox bool
 	// EgressProxy routes agent traffic through the allow-list proxy (host:port).
@@ -377,15 +381,20 @@ func (r *Runtime) fillSlot(ctx context.Context, p *Project, slot Slot, failed, u
 		}
 		// Recorded once per agent and item: the agent's state must say it
 		// failed, without repeating it on every pass.
-		if r.newStartErr(p.Name+"/"+slot.Agent+"/"+a.Item.ID, err.Error()) {
+		key := p.Name + "/" + slot.Agent + "/" + a.Item.ID
+		if r.newStartErr(key, err.Error()) {
 			r.s.d.Log.Warn("start session", "agent", slot.Agent, "item", a.Item.ID, "err", err)
 			r.s.sessionState(ctx, p, slot, a, "failed", err.Error(), "", "", "")
+			r.saidStartErr(key, true)
 			switch {
 			case errors.Is(err, domain.ErrNoOtherModel):
 				r.s.notifyOwner(ctx, p, "model_rule", a.Item.ID+" cannot be reviewed", err.Error())
 			case strings.Contains(err.Error(), "bubblewrap"):
 				r.s.notifyOwner(ctx, p, "model_rule", a.Item.ID+" waits: a provider cannot run here", err.Error())
 			}
+		}
+		if r.saidStartErr(key, false) {
+			r.s.sessionState(ctx, p, slot, a, "failed", err.Error(), "", "", "")
 		}
 		if errors.Is(err, errUntrustedItem) {
 			untrusted[a.Item.ID] = true
@@ -395,6 +404,9 @@ func (r *Runtime) fillSlot(ctx context.Context, p *Project, slot Slot, failed, u
 	}
 	failed[a.Item.ID] = true
 	r.newStartErr(p.Name+"/"+slot.Agent+"/"+a.Item.ID, "")
+	r.mu.Lock()
+	delete(r.startErrSaid, p.Name+"/"+slot.Agent+"/"+a.Item.ID)
+	r.mu.Unlock()
 	if dual {
 		slotB := Slot{Agent: slot.Agent + "-b", Role: slot.Role, Machine: slot.Machine, Reviewer: slot.Reviewer}
 		p.mu.Lock()
@@ -490,6 +502,25 @@ func (r *Runtime) newStartErr(key, msg string) bool {
 	} else {
 		r.startErrs[key] = msg
 	}
+	return true
+}
+
+// restateStartErr is how often a start failure that repeats is told to the
+// cluster again.
+const restateStartErr = 5 * time.Minute
+
+// saidStartErr records that a start failure was just told (now) or says
+// whether it is time to tell it again.
+func (r *Runtime) saidStartErr(key string, now bool) bool {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if r.startErrSaid == nil {
+		r.startErrSaid = map[string]time.Time{}
+	}
+	if !now && time.Since(r.startErrSaid[key]) < restateStartErr {
+		return false
+	}
+	r.startErrSaid[key] = time.Now()
 	return true
 }
 
