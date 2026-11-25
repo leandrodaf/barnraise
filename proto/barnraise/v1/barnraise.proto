@@ -1064,6 +1064,9 @@ message StandbyRequest {
   string why = 2;
   // Other machines to switch the same way, through this daemon.
   repeated string peers = 3;
+  // Switch only the peers and leave this machine as it is (the panel
+  // switching another machine).
+  bool peers_only = 4;
 }
 
 // What a machine answered to a request sent through another one.

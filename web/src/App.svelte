@@ -25,6 +25,7 @@
 	import ScopeSelect from '$lib/app/ScopeSelect.svelte';
 	import VersionNotice from '$lib/app/VersionNotice.svelte';
 	import AutopilotSwitch from '$lib/app/AutopilotSwitch.svelte';
+	import ClusterPower from '$lib/app/ClusterPower.svelte';
 	import SignIn from './pages/SignIn.svelte';
 	import Home from './pages/Home.svelte';
 	import Overview from './pages/Overview.svelte';
@@ -77,6 +78,7 @@
 				<div class="ml-auto flex items-center gap-1.5">
 					<VersionNotice />
 					<AutopilotSwitch />
+					<ClusterPower />
 					{#if session.standby}
 						<button onclick={() => standby(false)} class="inline-flex h-8 items-center gap-1.5 rounded-md border border-dashed border-st-needs/60 bg-st-needs/10 px-2 text-xs font-medium text-st-needs hover:bg-st-needs/20" title={session.standbyWhy}>
 							<MoonStarIcon class="size-3.5 shrink-0" /><span class="hidden whitespace-nowrap sm:inline">{t('standbyBadge')}</span><span class="hidden whitespace-nowrap xl:inline">· {session.machine}</span>

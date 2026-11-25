@@ -1146,10 +1146,14 @@ func (d *daemon) applyStandby(on bool, why string) (int, error) {
 }
 
 // setStandby switches this machine and, through NATS, the named peers.
-func (d *daemon) setStandby(ctx context.Context, on bool, why string, peers []string) (*pb.StandbyResponse, error) {
-	stopped, err := d.applyStandby(on, why)
-	if err != nil {
-		return nil, err
+// setStandby switches this machine (unless peersOnly) and the named peers.
+func (d *daemon) setStandby(ctx context.Context, on bool, why string, peers []string, peersOnly bool) (*pb.StandbyResponse, error) {
+	stopped := 0
+	if !peersOnly {
+		var err error
+		if stopped, err = d.applyStandby(on, why); err != nil {
+			return nil, err
+		}
 	}
 	out := &pb.StandbyResponse{On: on, Stopped: int32(stopped), Peers: make([]*pb.PeerResult, len(peers))}
 	body, _ := json.Marshal(remoteStandby{On: on, Why: why, From: d.df.Machine})

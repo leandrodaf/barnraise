@@ -7062,6 +7062,12 @@ components:
             type: string
           title: peers
           description: Other machines to switch the same way, through this daemon.
+        peersOnly:
+          type: boolean
+          title: peers_only
+          description: |-
+            Switch only the peers and leave this machine as it is (the panel
+             switching another machine).
       title: StandbyRequest
       additionalProperties: false
     barnraise.v1.StandbyResponse:

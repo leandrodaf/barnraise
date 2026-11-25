@@ -46,7 +46,7 @@ type Options struct {
 	StopPeers func(ctx context.Context, names []string) []*pb.PeerStop
 	// SetStandby switches this machine's standby, keeps it in the machine's
 	// configuration and passes it on to the named peers.
-	SetStandby func(ctx context.Context, on bool, why string, peers []string) (*pb.StandbyResponse, error)
+	SetStandby func(ctx context.Context, on bool, why string, peers []string, peersOnly bool) (*pb.StandbyResponse, error)
 	// SetMaxAgents keeps the limit of agents in the named machines' configuration.
 	SetMaxAgents func(ctx context.Context, n int, machines []string) (*pb.MaxAgentsResponse, error)
 	// ShareProject has the named machines clone and register a project.

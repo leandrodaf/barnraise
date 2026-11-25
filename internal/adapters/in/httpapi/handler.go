@@ -760,7 +760,10 @@ func (h *Handler) SetStandby(ctx context.Context, r *connect.Request[pb.StandbyR
 	if h.srv.opts.SetStandby == nil {
 		return nil, connect.NewError(connect.CodeUnimplemented, errors.New("this daemon has no standby"))
 	}
-	out, err := h.srv.opts.SetStandby(ctx, r.Msg.On, r.Msg.Why, r.Msg.Peers)
+	if r.Msg.PeersOnly && len(r.Msg.Peers) == 0 {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("name the machines to switch"))
+	}
+	out, err := h.srv.opts.SetStandby(ctx, r.Msg.On, r.Msg.Why, r.Msg.Peers, r.Msg.PeersOnly)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
@@ -768,7 +771,13 @@ func (h *Handler) SetStandby(ctx context.Context, r *connect.Request[pb.StandbyR
 	if r.Msg.On {
 		action = "machine.standby.on"
 	}
-	h.audit(ctx, action, h.svc().Machine(), "", r.Msg.Why)
+	target := h.svc().Machine()
+	if r.Msg.PeersOnly {
+		target = strings.Join(r.Msg.Peers, ",")
+	} else if len(r.Msg.Peers) > 0 {
+		target += "," + strings.Join(r.Msg.Peers, ",")
+	}
+	h.audit(ctx, action, target, "", r.Msg.Why)
 	return connect.NewResponse(out), nil
 }
 

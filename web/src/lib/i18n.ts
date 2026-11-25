@@ -893,6 +893,28 @@ Object.assign(pt, {
   tokSecretTitle: 'Segredo de {0}', tokSecretOnce: 'Copie agora: ele não aparece de novo.', tokRevoke: 'Revogar', tokRevokeTitle: 'Revogar {0}?', tokRevokeHelp: 'O que usar este token para de funcionar na hora.', tokRevoked: '{0} revogado.', tokRevokedBadge: 'revogado', tokCreatedAt: 'criado {0}', tokExpires: 'expira {0}', tokNoExpiry: 'nunca expira',
 });
 
+// The cluster's switch: standby for one machine or every one, from any screen.
+Object.assign(en, {
+  mStandbyOnTitle: 'Put {0} in standby?', mStandbyOffTitle: 'Take {0} out of standby?', mStandbyIsOn: '{0} is in standby.', mStandbyIsOff: '{0} works again.',
+  allStandbyOnTitle: 'Put the {0} machines in standby?', allStandbyOffTitle: 'Wake the {0} machines?',
+  allStandbyOnHelp: 'No agent, check or merge starts anywhere; sessions running stop as with a pause and continue later. Status, the panel and questions keep working.',
+  allStandbyWho: 'Machines: {0}.', allStandbyOn: 'Everything in standby', allStandbyOff: 'Wake every machine',
+  allStandbyIsOn: '{0} machines in standby. Sessions stopped here: {1}.', allStandbyIsOff: '{0} machines working again.',
+  mStopDaemon: 'Stop the daemon of {0}',
+  clusterPowerTitle: 'Machines: standby for one or every one', clusterPowerWorking: 'working', clusterPowerLabel: '{0} of {1} machines working',
+  clusterPowerWake: 'wake', clusterPowerRest: 'standby', clusterPowerOpen: 'Open the machines',
+});
+Object.assign(pt, {
+  mStandbyOnTitle: 'Pôr {0} em standby?', mStandbyOffTitle: 'Tirar {0} do standby?', mStandbyIsOn: '{0} está em standby.', mStandbyIsOff: '{0} voltou a trabalhar.',
+  allStandbyOnTitle: 'Pôr as {0} máquinas em standby?', allStandbyOffTitle: 'Acordar as {0} máquinas?',
+  allStandbyOnHelp: 'Nenhum agente, verificação ou merge começa em lugar nenhum; as sessões em andamento param como numa pausa e continuam depois. Status, o painel e as perguntas seguem funcionando.',
+  allStandbyWho: 'Máquinas: {0}.', allStandbyOn: 'Tudo em standby', allStandbyOff: 'Acordar todas',
+  allStandbyIsOn: '{0} máquinas em standby. Sessões paradas aqui: {1}.', allStandbyIsOff: '{0} máquinas trabalhando de novo.',
+  mStopDaemon: 'Parar o daemon de {0}',
+  clusterPowerTitle: 'Máquinas: standby de uma ou de todas', clusterPowerWorking: 'trabalhando', clusterPowerLabel: '{0} de {1} máquinas trabalhando',
+  clusterPowerWake: 'acordar', clusterPowerRest: 'standby', clusterPowerOpen: 'Abrir as máquinas',
+});
+
 import { locale } from './locale.svelte';
 
 // The current language; t() and tm() read it, so the screen follows a switch.

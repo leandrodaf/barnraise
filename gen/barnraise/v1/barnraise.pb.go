@@ -9153,7 +9153,10 @@ type StandbyRequest struct {
 	On  bool   `protobuf:"varint,1,opt,name=on,proto3" json:"on,omitempty"`
 	Why string `protobuf:"bytes,2,opt,name=why,proto3" json:"why,omitempty"`
 	// Other machines to switch the same way, through this daemon.
-	Peers         []string `protobuf:"bytes,3,rep,name=peers,proto3" json:"peers,omitempty"`
+	Peers []string `protobuf:"bytes,3,rep,name=peers,proto3" json:"peers,omitempty"`
+	// Switch only the peers and leave this machine as it is (the panel
+	// switching another machine).
+	PeersOnly     bool `protobuf:"varint,4,opt,name=peers_only,json=peersOnly,proto3" json:"peers_only,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -9207,6 +9210,13 @@ func (x *StandbyRequest) GetPeers() []string {
 		return x.Peers
 	}
 	return nil
+}
+
+func (x *StandbyRequest) GetPeersOnly() bool {
+	if x != nil {
+		return x.PeersOnly
+	}
+	return false
 }
 
 // What a machine answered to a request sent through another one.
@@ -14223,11 +14233,13 @@ const file_barnraise_v1_barnraise_proto_rawDesc = "" +
 	"\aproject\x18\x01 \x01(\tR\aproject\x12\x16\n" +
 	"\x06thread\x18\x02 \x01(\tR\x06thread\"Q\n" +
 	"\x12DiscussionResponse\x12;\n" +
-	"\bmessages\x18\x01 \x03(\v2\x1f.barnraise.v1.DiscussionMessageR\bmessages\"H\n" +
+	"\bmessages\x18\x01 \x03(\v2\x1f.barnraise.v1.DiscussionMessageR\bmessages\"g\n" +
 	"\x0eStandbyRequest\x12\x0e\n" +
 	"\x02on\x18\x01 \x01(\bR\x02on\x12\x10\n" +
 	"\x03why\x18\x02 \x01(\tR\x03why\x12\x14\n" +
-	"\x05peers\x18\x03 \x03(\tR\x05peers\"F\n" +
+	"\x05peers\x18\x03 \x03(\tR\x05peers\x12\x1d\n" +
+	"\n" +
+	"peers_only\x18\x04 \x01(\bR\tpeersOnly\"F\n" +
 	"\n" +
 	"PeerResult\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x0e\n" +
