@@ -177,7 +177,7 @@ class Session {
 	}
 
 	// bump asks the screens to read again, a moment later so that a burst of
-	// events makes one read; a steady stream still reads every two seconds.
+	// events makes one read; a steady stream still reads every five seconds.
 	// The events of the burst go with it (none given: anything may have changed).
 	bump(ms = 300, change?: Change) {
 		if (!change) this.#pending = null;
@@ -186,7 +186,7 @@ class Session {
 		const now = Date.now();
 		if (!this.#refresh) this.#pendingSince = now;
 		clearTimeout(this.#refresh);
-		const wait = Math.max(0, Math.min(ms, this.#pendingSince + 2000 - now));
+		const wait = Math.max(0, Math.min(ms, this.#pendingSince + 5000 - now));
 		this.#refresh = window.setTimeout(() => {
 			this.#refresh = 0;
 			this.changes = this.#pending;

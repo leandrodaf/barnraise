@@ -22,9 +22,17 @@
 	// On autopilot, a question that reaches the owner is one the advisor left
 	// to them: say what it said they must do.
 	let left = $state('');
+	// Read again when the question or the conversation changes, not on every
+	// refresh of the screen that lists it (each one hands a new q).
+	const qid = $derived(q.id);
+	let lastTick = -1;
 	$effect(() => {
-		const id = q.id;
+		const id = qid;
+		const tick = session.tick;
 		if (!session.autopilot.includes(proj)) return void (left = '');
+		const ch = session.changes;
+		if (lastTick >= 0 && tick !== lastTick && ch && !ch.some((c) => c.type.startsWith('owner.'))) return void (lastTick = tick);
+		lastTick = tick;
 		api.getDiscussion({ project: proj, thread: id })
 			.then((r) => {
 				const m = [...r.messages].reverse().find((x) => x.leftToOwner);
