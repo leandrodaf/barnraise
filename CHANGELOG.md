@@ -15,6 +15,7 @@ All notable changes to Barnraise are recorded here. The format follows [Keep a C
 
 ### Fixed
 
+- **tracker:** The tracker and the code host on GitHub use the repository's token that `barnraise machine share --token-stdin` keeps on a machine (the one git already pushes with there) before `GITHUB_TOKEN` and `gh auth token`. A machine the project was shared with could push and merge, but its issue and pull request updates went out with a `gh` login that could not reach the repository.
 - **tracker:** A machine whose token cannot write to the tracker no longer leaves items in limbo silently: its heartbeat carries the error and `barnraise status` says *machine X cannot write to the tracker*, and items left without an issue are listed. Before, an update that failed twice was only a warning in that machine's log, and its issues kept a stale status for good.
 - **panel:** Once the advisor answered, a conversation about the goal or the focus shows *Review the goal* / *Review the focus* where the eye is, under the last answer, as the main button; it was a small grey button by *Send* that owners did not find.
 - **panel:** *Set goal* and *Set focus* with every project on screen ask which project first; they opened the conversation in whichever project was the default.

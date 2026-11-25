@@ -693,6 +693,37 @@ func (d *daemon) reloadRoot(ctx context.Context, root string) error {
 	return nil
 }
 
+// ghAuthToken is `gh auth token` (a variable for the tests).
+var ghAuthToken = func() string {
+	out, err := exec.Command("gh", "auth", "token").Output()
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSpace(string(out))
+}
+
+// githubToken picks the token for a GitHub repository: the one barnraise.yaml
+// names, then the one `barnraise machine share --token-stdin` kept for that
+// repository (git already pushes with it here, so a machine that can push can
+// also write the repository's issues and pull requests), then GITHUB_TOKEN,
+// then `gh auth token`.
+func (d *daemon) githubToken(resolve func(ref, env string) string, ref, repo string) string {
+	if ref != "" {
+		if v := resolve(ref, "GITHUB_TOKEN"); v != "" {
+			return v
+		}
+	}
+	if key := domain.GitTokenSecret("github.com", repo); key != "" && d.secrets != nil {
+		if v, _ := d.secrets.Get(key); v != "" {
+			return v
+		}
+	}
+	if v := resolve("", "GITHUB_TOKEN"); v != "" {
+		return v
+	}
+	return ghAuthToken()
+}
+
 // projectPorts resolves git, the arbiter, the tracker and the code host.
 func (d *daemon) projectPorts(cfg *domain.ProjectConfig) (app.ProjectPorts, error) {
 	remote, remoteURL := "", ""
@@ -729,12 +760,7 @@ func (d *daemon) projectPorts(cfg *domain.ProjectConfig) (app.ProjectPorts, erro
 	}
 	switch cfg.Tracker.Type {
 	case "github":
-		tok := token(cfg.Tracker.Token, "GITHUB_TOKEN")
-		if tok == "" {
-			if out, err := exec.Command("gh", "auth", "token").Output(); err == nil {
-				tok = strings.TrimSpace(string(out))
-			}
-		}
+		tok := d.githubToken(token, cfg.Tracker.Token, cfg.Tracker.Repo)
 		proj, _ := strconv.Atoi(cfg.Tracker.Project)
 		var c *github.Client
 		c, err = github.New(github.Options{Repo: cfg.Tracker.Repo, Token: tok, Project: proj, Columns: cfg.Tracker.Columns})
@@ -779,15 +805,11 @@ func (d *daemon) projectPorts(cfg *domain.ProjectConfig) (app.ProjectPorts, erro
 	if remote != "" {
 		switch cfg.CodeHost.Type {
 		case "github":
-			tok := token(cfg.CodeHost.Token, "GITHUB_TOKEN")
-			if tok == "" {
-				tok = token(cfg.Tracker.Token, "GITHUB_TOKEN")
+			ref := cfg.CodeHost.Token
+			if ref == "" {
+				ref = cfg.Tracker.Token
 			}
-			if tok == "" {
-				if out, err := exec.Command("gh", "auth", "token").Output(); err == nil {
-					tok = strings.TrimSpace(string(out))
-				}
-			}
+			tok := d.githubToken(token, ref, cfg.CodeHost.Repo)
 			if tok != "" && cfg.CodeHost.Repo != "" {
 				if c, err := github.New(github.Options{Repo: cfg.CodeHost.Repo, Token: tok}); err == nil {
 					pp.CodeHost = c.CodeHost()
