@@ -3,7 +3,7 @@
 import { go, type RouteName } from '$lib/router.svelte';
 
 export const GO_KEYS: [string, RouteName][] = [
-	['h', 'home'], ['c', 'overview'], ['q', 'queue'], ['r', 'parts'], ['a', 'agents'], ['p', 'proposals'], ['m', 'machines'], ['t', 'accounts'], ['x', 'metrics']
+	['h', 'home'], ['c', 'overview'], ['q', 'queue'], ['r', 'parts'], ['a', 'agents'], ['p', 'proposals'], ['m', 'machines'], ['t', 'accounts'], ['x', 'metrics'], ['o', 'processes'], ['e', 'activity'], ['s', 'admin']
 ];
 
 class Keys {

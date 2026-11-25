@@ -37,6 +37,9 @@
 	import Metrics from './pages/Metrics.svelte';
 	import Capabilities from './pages/Capabilities.svelte';
 	import Parts from './pages/Parts.svelte';
+	import Processes from './pages/Processes.svelte';
+	import Activity from './pages/Activity.svelte';
+	import Admin from './pages/Admin.svelte';
 
 	session.start().catch(() => (session.booting = false));
 
@@ -107,6 +110,9 @@
 								{:else if router.current.name === 'capabilities'}<Capabilities />
 								{:else if router.current.name === 'parts'}<Parts />
 								{:else if router.current.name === 'metrics'}<Metrics />
+								{:else if router.current.name === 'processes'}<Processes />
+								{:else if router.current.name === 'activity'}<Activity />
+								{:else if router.current.name === 'admin'}<Admin />
 								{/if}
 							</div>
 						{/key}

@@ -22,6 +22,8 @@
 	import PaceMeter from '$lib/app/PaceMeter.svelte';
 	import Bars from '$lib/app/Bars.svelte';
 	import Empty from '$lib/app/Empty.svelte';
+	import UserPlusIcon from '@lucide/svelte/icons/user-plus';
+	import { upsertAccount } from '$lib/app/ownerActions';
 
 	// Each account of the scope once (the daemon filters the scope); the
 	// outlook of each one is the daemon's (domain.AccountOutlook).
@@ -50,6 +52,7 @@
 
 <PageHeader title={t('accounts')} icon={KeyRoundIcon} meta={[session.scope || t('allProjects'), t('accountsN', accounts.length), limited.length ? t('limitedN', limited.length) : '']} subtitle={t('accountsHelp')}>
 	{#snippet actions()}
+		<Button size="sm" variant="outline" onclick={() => upsertAccount()}><UserPlusIcon />{t('accAdd')}</Button>
 		<Button size="sm" onclick={() => loginPanel.show()} title={t('loginHelp')}><LogInIcon />{t('loginEverywhere')}</Button>
 	{/snippet}
 </PageHeader>

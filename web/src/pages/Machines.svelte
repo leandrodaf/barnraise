@@ -19,6 +19,19 @@
 	import { toast } from 'svelte-sonner';
 	import { api } from '$lib/api';
 	import { act } from '$lib/app/act';
+	import ActivityIcon from '@lucide/svelte/icons/activity';
+	import ChevronDownIcon from '@lucide/svelte/icons/chevron-down';
+	import { procs, procRows } from '$lib/procs.svelte';
+	import { href } from '$lib/router.svelte';
+	import ProcSummary from '$lib/app/ProcSummary.svelte';
+	import ProcTable from '$lib/app/ProcTable.svelte';
+	import WorktreeList from '$lib/app/WorktreeList.svelte';
+
+	// The processes of each machine come from the detailed overview, read every few seconds.
+	procs.use();
+	const detail = (name: string) => procs.data?.machines.find((x) => x.machine?.name === name);
+	const rowsOf = (name: string) => procRows(procs.data).filter((r) => r.machine === name);
+	let openWt = $state<Record<string, boolean>>({});
 
 	// Every machine of the cluster, from the overview: the header's project
 	// does not narrow this screen.
@@ -57,6 +70,8 @@
 		{@const m = mo.machine!}
 		{@const h = cluster.history[m.name]?.samples || []}
 		{@const self = m.name === session.machine}
+			{@const pr = rowsOf(m.name)}
+			{@const d = detail(m.name)}
 		<article class="overflow-hidden rounded-xl border bg-card {m.standby ? 'border-dashed border-st-needs/60' : ''} {m.left ? 'opacity-60' : ''}">
 			<header class="flex flex-wrap items-center gap-x-3 gap-y-2 border-b px-4 py-3">
 				<Dot tone={health(m)} pulse={!m.standby && mo.sessions.length > 0} />
@@ -74,12 +89,13 @@
 				{/if}
 			</header>
 			{#if m.standby}<p class="border-b bg-st-needs/5 px-4 py-2 text-xs text-muted-foreground">{t('standbyCard')}{#if self && session.standbyWhy} · {session.standbyWhy}{/if}</p>{/if}
-			<div class="grid grid-cols-2 gap-px bg-border sm:grid-cols-4">
+			<div class="grid grid-cols-2 gap-px bg-border sm:grid-cols-4 {h.some((x) => x.gpuPct > 0) ? 'xl:grid-cols-5' : ''}">
 				{#each [
 					{ k: 'cpu', v: cpuPct(m), sub: t('mCores', m.cpus) + ' · ' + t('cpuSub', num(m.load1), m.cpus), series: h.map((x) => x.cpuPct), tone: 'work' },
 					{ k: 'ram', v: memPct(m), sub: t('memoryUsed', num(Math.max(0, m.memGb - m.freeMemGb)), num(m.memGb)), series: h.map((x) => x.memPct), tone: 'review' },
 					{ k: t('mAgentsLabel'), v: m.slots ? (m.busy * 100) / m.slots : 0, sub: t('mAgents', m.busy, m.slots), series: h.map((x) => (x.slots ? (x.busy * 100) / x.slots : 0)), tone: 'done' },
-					{ k: 'disk', v: Number(mo.diskTotalBytes) ? (1 - Number(mo.diskFreeBytes) / Number(mo.diskTotalBytes)) * 100 : 0, sub: t('diskSub', bytes(mo.diskFreeBytes)), series: [], tone: 'queue' }
+					...(h.some((x) => x.gpuPct > 0) ? [{ k: 'gpu', v: h[h.length - 1]?.gpuPct || 0, sub: h[h.length - 1]?.gpuTempC ? t('degrees', num(h[h.length - 1].gpuTempC)) : '', series: h.map((x) => x.gpuPct), tone: 'needs' }] : []),
+				{ k: 'disk', v: Number(mo.diskTotalBytes) ? (1 - Number(mo.diskFreeBytes) / Number(mo.diskTotalBytes)) * 100 : 0, sub: t('diskSub', bytes(mo.diskFreeBytes)), series: [], tone: 'queue' }
 				] as g (g.k)}
 					<div class="space-y-1 bg-card p-3">
 						<p class="eyebrow flex justify-between text-muted-foreground"><span>{g.k}</span><span class="num text-foreground">{pct(g.v)}</span></p>
@@ -101,6 +117,21 @@
 					{#if m.slotsBy === 'owner'}<Button size="sm" variant="ghost" disabled={busyLimit} onclick={() => setLimit(m.name, 0)}>{t('mAuto')}</Button>{/if}
 				</div>
 			</div>
+			<div class="space-y-2 border-t px-4 py-3">
+				<p class="eyebrow flex items-center gap-1.5 text-muted-foreground"><ActivityIcon class="size-3" />{t('procTitle')}{#if d?.reportedAt}<span class="num ml-auto normal-case tracking-normal">{t('procReported', ago(d.reportedAt))}</span>{/if}</p>
+				{#if d && !d.procsSupported}<p class="text-xs text-muted-foreground">{t('procNotHere')}</p>{:else}<ProcSummary p={d?.procs || mo.procs} cores={m.cpus} />{/if}
+			</div>
+			{#if pr.length}
+				<div class="border-t"><ProcTable rows={pr} where={false} limit={6} /></div>
+				<a href={href('processes')} class="block border-t px-4 py-1.5 text-[11px] text-muted-foreground hover:bg-muted/40 hover:text-foreground">{t('procSeeAll', pr.length)}</a>
+			{/if}
+			{#if mo.worktrees.length}
+				<button class="flex w-full items-center gap-1.5 border-t px-4 py-2 text-left text-xs text-muted-foreground hover:bg-muted/40" onclick={() => (openWt[m.name] = !openWt[m.name])}>
+					<ChevronDownIcon class="size-3.5 transition-transform {openWt[m.name] ? 'rotate-180' : ''}" />{t('ovWorktrees')} <span class="num">{mo.worktrees.length} · {bytes(mo.worktreeBytes)}</span>
+					<span class="num ml-auto">{t('wtInUseN', mo.worktrees.filter((w) => w.inUse).length)}</span>
+				</button>
+				{#if openWt[m.name]}<div class="border-t"><WorktreeList list={d?.worktrees || mo.worktrees} machine={false} /></div>{/if}
+			{/if}
 			<div class="num grid gap-x-6 gap-y-1 border-t px-4 py-3 text-xs sm:grid-cols-2">
 				<p class="flex justify-between"><span class="text-muted-foreground">{t('ovSessions')}</span><span>{mo.sessions.length}</span></p>
 				<p class="flex justify-between"><span class="text-muted-foreground">{t('ovItems')}</span><span>{mo.items.length}</span></p>

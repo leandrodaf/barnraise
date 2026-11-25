@@ -32,6 +32,21 @@
 	import Empty from '$lib/app/Empty.svelte';
 	import Markdown from '$lib/app/Markdown.svelte';
 	import QuestionCard from '$lib/app/QuestionCard.svelte';
+	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
+	import PencilIcon from '@lucide/svelte/icons/pencil';
+	import SendIcon from '@lucide/svelte/icons/send';
+	import EllipsisIcon from '@lucide/svelte/icons/ellipsis';
+	import LockOpenIcon from '@lucide/svelte/icons/lock-open';
+	import ArchiveXIcon from '@lucide/svelte/icons/archive-x';
+	import WandIcon from '@lucide/svelte/icons/wand-sparkles';
+	import Bars from '$lib/app/Bars.svelte';
+	import ProcSummary from '$lib/app/ProcSummary.svelte';
+	import ProcTable from '$lib/app/ProcTable.svelte';
+	import WorktreeList from '$lib/app/WorktreeList.svelte';
+	import type { ProcRow } from '$lib/procs.svelte';
+	import type { UsageTotals } from '$lib/gen/barnraise/v1/barnraise_pb';
+	import { editItem, closeItem, unlockFiles, addTweak, messageAgent } from '$lib/app/ownerActions';
+	import { onDestroy } from 'svelte';
 
 	let { id, project }: { id: string; project: string } = $props();
 	const data = loader(async () => {
@@ -49,6 +64,23 @@
 		return { it: ir.item!, entries: tl?.entries || [], est, questions, row: row ? ({ ...row, project } as Row) : undefined };
 	});
 	let tab = $state('summary');
+	// What the item's machines run changes in seconds: while something runs
+	// for it, read it again every few seconds.
+	const live = $derived(!!(data.data?.row && (data.data.row.sessions.length || data.data.row.procs?.count)));
+	const timer = window.setInterval(() => {
+		if (live && !document.hidden) data.reload();
+	}, 5_000);
+	onDestroy(() => clearInterval(timer));
+	// The knowledge base's links of the item (decisions, files, other items), read when its tab opens.
+	let related = $state<{ text: string } | null>(null);
+	$effect(() => {
+		if (tab === 'related' && !related) api.related({ project, target: id }).then((r) => (related = { text: r.text || '```json\n' + JSON.stringify(r.result || {}, null, 2) + '\n```' })).catch((e) => (related = { text: String(e) }));
+	});
+	const finished = (s: string) => s === 'integrated' || s === 'closed';
+	const cost = (m: Record<string, UsageTotals> | undefined) => Object.fromEntries(Object.entries(m || {}).map(([k, u]) => [k, u.costUsd]));
+	const procRowsOf = (r: Row | undefined): ProcRow[] =>
+		(r?.worktrees || []).flatMap((w) => (w.procs?.top || []).map((p) => ({ ...p, machine: w.machine, project: w.project, worktree: w.name, wkind: w.kind, itemId: w.itemId, path: w.path }) as ProcRow));
+	const verdict = (x: string) => (x === 'pass' ? t('passed') : x === 'fail' ? t('failed') : x || '—');
 
 	const takeover = () => act(() => api.takeover({ project, id }), (r) => t('takenOver', r.worktree || ''));
 	function handback() {
@@ -84,7 +116,7 @@
 				<div class="flex flex-wrap items-center gap-1.5">
 					{#if row}<StatusBadge status={row.activity || it.status} {tone} />{/if}
 					<Badge variant={it.priority <= 1 ? 'destructive' : 'secondary'} class="num">P{it.priority}</Badge>
-					{#if it.size}<Badge variant="outline">{it.size}</Badge>{/if}
+					{#if it.size && it.size !== 'unknown'}<Badge variant="outline">{it.size}</Badge>{/if}
 					{#if it.risky}<Badge variant="destructive">{t('risky')}</Badge>{/if}
 					{#if it.parked}<Badge variant="secondary">{t('parked')}</Badge>{/if}
 					{#if sub}<span class="num ml-1 text-xs {TEXT[sub.tone]}">{sub.text}</span>{/if}
@@ -94,11 +126,28 @@
 				{#if row?.awaits}<ApprovalButtons id={it.id} awaits={row.awaits} {project} />{/if}
 				{#if session.autopilotWorking[project + '/' + it.id]}<span class="inline-flex items-center gap-1.5 text-sm text-st-review" role="status"><Spinner class="size-3.5" />{t('autopilotDeciding')}</span>{/if}
 				<Button size="sm" variant="secondary" onclick={() => discussion.show(project, it.id, it.title)}><MessagesIcon />{t('discuss')}</Button>
+				{#if !finished(it.status)}
+					{#if it.claim?.agent || row?.sessions.length}<Button size="sm" variant="outline" onclick={() => messageAgent(project, it.id)}><SendIcon />{t('msgShort')}</Button>{/if}
+					<Button size="sm" variant="outline" onclick={() => editItem(project, it, data.reload)}><PencilIcon />{t('edit')}</Button>
+				{/if}
 				{#if it.status === 'paused'}<Button size="sm" variant="outline" onclick={handback}><UndoIcon />{t('handback')}</Button>
-				{:else if it.status !== 'integrated' && it.status !== 'closed'}<Button size="sm" variant="outline" onclick={takeover}><HandIcon />{t('takeover')}</Button>{/if}
+				{:else if !finished(it.status)}<Button size="sm" variant="outline" onclick={takeover}><HandIcon />{t('takeover')}</Button>{/if}
+				{#if !finished(it.status)}
+					<DropdownMenu.Root>
+						<DropdownMenu.Trigger>{#snippet child({ props })}<Button size="icon" variant="outline" class="size-8" aria-label={t('moreActions')} {...props}><EllipsisIcon /></Button>{/snippet}</DropdownMenu.Trigger>
+						<DropdownMenu.Content align="end" class="w-56">
+							<DropdownMenu.Item onSelect={() => addTweak(project, it.area)}><WandIcon />{t('tweakTitle')}</DropdownMenu.Item>
+							<DropdownMenu.Item onSelect={() => unlockFiles(project, it)}><LockOpenIcon />{t('unlockShort')}</DropdownMenu.Item>
+							<DropdownMenu.Separator />
+							<DropdownMenu.Item variant="destructive" onSelect={() => closeItem(project, it)}><ArchiveXIcon />{t('closeShort')}</DropdownMenu.Item>
+						</DropdownMenu.Content>
+					</DropdownMenu.Root>
+				{/if}
 			</div>
 		</div>
 		<Stepper flow={row?.flow || []} {tone} />
+		{#if it.status === 'closed'}<div class="rounded-lg border border-l-2 border-l-st-idle bg-muted/40 p-3 text-sm">{t('closedLine', t('close_' + it.closedReason), it.closedBy || '—')}</div>{/if}
+		{#if finished(it.status) && !it.criteria.length}<div class="rounded-lg border border-l-2 border-l-st-needs bg-st-needs/5 p-3 text-sm">{t('integratedNoCriteria')}</div>{/if}
 		{#each questions as q (q.id)}<QuestionCard {q} {project} />{:else}{#if it.waitingQuestion}<div class="rounded-lg border border-l-2 border-l-st-needs bg-st-needs/5 p-3 text-sm">{t('waitingQuestion', it.waitingQuestion)}</div>{/if}{/each}
 	</header>
 
@@ -109,6 +158,9 @@
 				<Tabs.Trigger value="timeline">{t('timeline')} <span class="num ml-1 text-[11px] text-muted-foreground">{entries.length}</span></Tabs.Trigger>
 				<Tabs.Trigger value="criteria">{t('criteria')} <span class="num ml-1 text-[11px] text-muted-foreground">{it.criteria.filter((c) => c.met).length}/{it.criteria.length}</span></Tabs.Trigger>
 				{#if row?.checks.length}<Tabs.Trigger value="checks">{t('tabChecks')} <span class="num ml-1 text-[11px] text-muted-foreground">{row.checks.length}</span></Tabs.Trigger>{/if}
+				{#if row?.worktrees.length || row?.procs?.count || row?.sessions.length}<Tabs.Trigger value="resources">{t('tabResources')}{#if row?.procs?.count} <span class="num ml-1 text-[11px] text-st-work">{row.procs.count}</span>{/if}</Tabs.Trigger>{/if}
+				{#if row?.usage && Number(row.usage.tokens)}<Tabs.Trigger value="cost">{t('ovCost')}</Tabs.Trigger>{/if}
+				<Tabs.Trigger value="related">{t('tabRelated')}</Tabs.Trigger>
 			</Tabs.List>
 			<Tabs.Content value="summary" class="mt-3 space-y-4">
 				{#if it.body}<Section title={t('body')}><Markdown text={it.body} /></Section>{/if}
@@ -157,6 +209,8 @@
 									<span class="font-medium">{c.check}</span>
 									{#if c.flaky}<span class="text-st-needs">{t('flaky')}</span>{/if}
 									{#if c.mainRed}<span class="text-st-fail">main red</span>{/if}
+									{#if c.runs > 1}<span class="text-muted-foreground">{t('checkRuns', c.runs)}</span>{/if}
+									{#if c.commit}<code class="text-[10px] text-muted-foreground">{c.commit.slice(0, 8)}</code>{/if}
 									<span class="ml-auto text-muted-foreground">{c.runsOn} · {dur(c.seconds)} · {since(c.at)}</span>
 								</li>
 							{/each}
@@ -164,12 +218,57 @@
 					</Section>
 				</Tabs.Content>
 			{/if}
+			<Tabs.Content value="resources" class="mt-3 space-y-4">
+				<Section title={t('procTitle')} sub={t('procItemHelp')}>
+					<ProcSummary p={row?.procs} />
+				</Section>
+				<Section title={t('procTop')} count={procRowsOf(row).length} pad={false}><ProcTable rows={procRowsOf(row)} /></Section>
+				{#if row?.sessions.length}
+					<Section title={t('ovSessions')} count={row.sessions.length} pad={false}>
+						<ul class="divide-y">{#each row.sessions as s (s.agent + s.sessionId)}<li class="num flex flex-wrap items-center gap-x-3 gap-y-1 px-4 py-2 text-xs"><span class="font-medium">{s.agent}</span><span class="text-muted-foreground">{s.role} · {s.provider} · {s.model}{s.effort ? ' · ' + s.effort : ''}</span><span class="text-muted-foreground">{s.account} @ {s.machine}</span><StatusBadge status={s.state || 'idle'} map="agentStates" /><span class="ml-auto text-muted-foreground">{s.since ? since(s.since) : ''} · {compact(s.tokens)} · {money(s.costUsd)}</span></li>{/each}</ul>
+					</Section>
+				{/if}
+				<Section title={t('ovWorktrees')} count={row?.worktrees.length || 0} pad={false}><WorktreeList list={row?.worktrees || []} /></Section>
+			</Tabs.Content>
+			{#if row?.usage}
+				{@const u = row.usage}
+				<Tabs.Content value="cost" class="mt-3 space-y-4">
+					<div class="num grid grid-cols-2 gap-2 text-xs sm:grid-cols-4">
+						{#each [[t('ovCost'), money(u.costUsd)], [t('tokens'), compact(u.tokens)], [t('ovSessions'), u.sessions], [t('ovAgentTime'), dur(u.seconds)], [t('procCpuTime'), u.cpuSeconds ? dur(u.cpuSeconds) : '—'], [t('procPeakLabel'), Number(u.peakRssBytes) ? bytes(u.peakRssBytes) : '—'], [t('reviewsN'), row.reviews], [t('deliveriesN'), row.deliveries]] as [k, v] (k)}
+							<div class="rounded-lg border bg-card p-3"><p class="text-muted-foreground">{k}</p><p class="mt-1 text-lg font-semibold">{v}</p></div>
+						{/each}
+					</div>
+					<div class="grid gap-4 lg:grid-cols-2">
+						<Section title={t('costByStep')}><Bars map={cost(row.usageByStep)} fmt={money} share /></Section>
+						<Section title={t('ovByModel')}><Bars map={cost(row.usageByModel)} fmt={money} share /></Section>
+						<Section title={t('ovByRole')}><Bars map={cost(row.usageByRole)} fmt={money} share /></Section>
+						<Section title={t('ovByMachine')}><Bars map={cost(row.usageByMachine)} fmt={money} share /></Section>
+					</div>
+					{#if Object.keys(row.runs).length}
+						<Section title={t('runsTitle')} pad={false}>
+							<ul class="divide-y">{#each Object.entries(row.runs) as [step, r] (step)}<li class="num flex flex-wrap gap-x-3 px-4 py-2 text-xs"><span class="w-28 font-medium">{step}</span><span>{r.agent}</span><span class="text-muted-foreground">{r.provider} · {r.model}{r.family ? ' · ' + r.family : ''}</span><span class="ml-auto text-muted-foreground">{r.account}</span></li>{/each}</ul>
+						</Section>
+					{/if}
+				</Tabs.Content>
+			{/if}
+			<Tabs.Content value="related" class="mt-3">
+				<Section title={t('tabRelated')} sub={t('relatedHelp')}>
+					{#if !related}<p class="flex items-center gap-2 text-sm text-muted-foreground"><Spinner class="size-3.5" />{t('loading')}</p>{:else}<Markdown text={related.text} />{/if}
+				</Section>
+			</Tabs.Content>
 		</Tabs.Root>
 
 		<aside class="space-y-4">
 			<Section title={t('details')}>
 				<KV rows={[
-					[t('step'), it.step ? it.step + (it.stepStartedAt ? ' · ' + since(it.stepStartedAt) : '') : ''],
+					[t('step'), finished(it.status) ? '' : it.step ? it.step + (it.stepStartedAt ? ' · ' + since(it.stepStartedAt) : '') : ''],
+					[t('integratedAt'), it.integratedAt ? when(it.integratedAt) : ''],
+					[t('leadTime'), row?.leadSeconds ? dur(row.leadSeconds) : ''],
+					[t('quietFor'), !finished(it.status) && row?.quietSeconds && row.quietSeconds > 600 ? dur(row.quietSeconds) : ''],
+					[t('blockedByLabel'), row?.blockedBy.join(', ')],
+					[t('lastDelivery'), row?.lastDelivery?.status ? row.lastDelivery.status + ' · ' + row.lastDelivery.agent + ' · ' + since(row.lastDelivery.at) : ''],
+					[t('lastActivity'), row?.lastActivity?.type ? row.lastActivity.type + ' · ' + (row.lastActivity.actor || row.lastActivity.machine) + ' · ' + since(row.lastActivity.at) : ''],
+					[t('unlockedLabel'), it.unlocked.join(', ')],
 					[t('holderLabel'), holder],
 					[t('goal'), it.goalId],
 					[t('tier'), it.tier || ''],
@@ -186,7 +285,10 @@
 						{#if row?.pr?.number}
 							<a href={row.pr.url} target="_blank" rel="noreferrer" class="flex items-center gap-1.5 hover:underline"><GitPullRequestIcon class="size-3.5" />#{row.pr.number} · {row.pr.state}<ExternalLinkIcon class="size-3" /></a>
 						{:else if it.pr}<p class="flex items-center gap-1.5"><GitPullRequestIcon class="size-3.5" />{it.pr}</p>{/if}
-						{#if row?.lastReview}<p class="text-muted-foreground">{t('lastReview', row.lastReview.decision, row.lastReview.reviewer, row.lastReview.findings)}</p>{/if}
+						{#if row?.lastReview}
+							<p class="text-muted-foreground">{t('lastReview', row.lastReview.decision, row.lastReview.reviewer, row.lastReview.findings)}</p>
+							{#if row.lastReview.criteriaVerdict || row.lastReview.codeVerdict}<p class="text-muted-foreground">{t('verdictCriteria', '')} <strong class="text-foreground">{verdict(row.lastReview.criteriaVerdict)}</strong> · {t('verdictCode', '')} <strong class="text-foreground">{verdict(row.lastReview.codeVerdict)}</strong></p>{/if}
+						{/if}
 						{#if it.mergeCommit}<p class="text-muted-foreground">{t('merged', it.mergeCommit)}</p>{/if}
 					</div>
 				</Section>
@@ -204,15 +306,16 @@
 					</div>
 				</Section>
 			{/if}
-			{#if est && (est.hours || Number(est.tokens))}
+			{#if est && !finished(it.status) && (est.hours || Number(est.tokens))}
 				<Section title={t('estimate')}>
 					<p class="text-sm">{t('estimateLine', num(est.hours), compact(est.tokens), num(est.weekPct), est.account || '—')}</p>
 					{#if est.basedOnItems}<p class="mt-1 text-xs text-muted-foreground">{t('estimateBase', est.basedOnItems)}</p>{/if}
 				</Section>
 			{/if}
-			{#if row?.worktrees.length}
-				<Section title={t('ovWorktrees')} count={row.worktrees.length} pad={false}>
-					<ul class="divide-y">{#each row.worktrees as w (w.machine + w.path)}<li class="num px-4 py-2 text-[11px]"><p class="flex justify-between"><span class="font-medium">{w.machine}</span><span class="text-muted-foreground">{bytes(w.sizeBytes)}</span></p><p class="truncate text-muted-foreground" title={w.path}>{w.path}</p></li>{/each}</ul>
+			{#if row?.procs?.count}
+				<Section title={t('procTitle')}>
+					{#snippet right()}<button class="text-xs text-muted-foreground hover:text-foreground hover:underline" onclick={() => (tab = 'resources')}>{t('seeAll')}</button>{/snippet}
+					<ProcSummary p={row.procs} compact />
 				</Section>
 			{/if}
 			{#if it.filesTouched.length}

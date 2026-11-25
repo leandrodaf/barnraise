@@ -8,6 +8,9 @@ import ServerIcon from '@lucide/svelte/icons/server';
 import BlocksIcon from '@lucide/svelte/icons/blocks';
 import BoxesIcon from '@lucide/svelte/icons/boxes';
 import ChartIcon from '@lucide/svelte/icons/chart-no-axes-column';
+import ActivityIcon from '@lucide/svelte/icons/activity';
+import RadioIcon from '@lucide/svelte/icons/radio';
+import SettingsIcon from '@lucide/svelte/icons/settings-2';
 import type { RouteName } from '$lib/router.svelte';
 
 export type NavEntry = { name: RouteName; label: string; icon: typeof HouseIcon };
@@ -22,7 +25,8 @@ export const NAV_GROUPS: { label: string; items: NavEntry[] }[] = [
 			{ name: 'home', label: 'navHome', icon: HouseIcon },
 			{ name: 'queue', label: 'navQueue', icon: KanbanIcon },
 			{ name: 'proposals', label: 'navProposals', icon: LightbulbIcon },
-			{ name: 'agents', label: 'navAgents', icon: BotIcon }
+			{ name: 'agents', label: 'navAgents', icon: BotIcon },
+			{ name: 'activity', label: 'navActivity', icon: RadioIcon }
 		]
 	},
 	{
@@ -37,8 +41,10 @@ export const NAV_GROUPS: { label: string; items: NavEntry[] }[] = [
 		items: [
 			{ name: 'overview', label: 'navOverview', icon: NetworkIcon },
 			{ name: 'machines', label: 'navMachines', icon: ServerIcon },
+			{ name: 'processes', label: 'navProcesses', icon: ActivityIcon },
 			{ name: 'accounts', label: 'navAccounts', icon: KeyRoundIcon },
-			{ name: 'capabilities', label: 'navCapabilities', icon: BlocksIcon }
+			{ name: 'capabilities', label: 'navCapabilities', icon: BlocksIcon },
+			{ name: 'admin', label: 'navAdmin', icon: SettingsIcon }
 		]
 	}
 ];

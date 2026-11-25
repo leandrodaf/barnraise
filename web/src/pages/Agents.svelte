@@ -12,6 +12,20 @@
 	import StatusBadge from '$lib/app/StatusBadge.svelte';
 	import Dot from '$lib/app/Dot.svelte';
 	import Empty from '$lib/app/Empty.svelte';
+	import SendIcon from '@lucide/svelte/icons/send';
+	import { procs } from '$lib/procs.svelte';
+	import { bytes, pct } from '$lib/format';
+	import { messageAgent } from '$lib/app/ownerActions';
+
+	// What each session's worktree runs on its machine (the CLI and what it started).
+	procs.use();
+	function res(machine: string, itemId: string) {
+		const ws = (procs.data?.machines.find((m) => m.machine?.name === machine)?.worktrees || []).filter((w) => w.itemId === itemId && w.procs);
+		if (!ws.length) return null;
+		const kinds: Record<string, number> = {};
+		for (const w of ws) for (const [k, n] of Object.entries(w.procs!.byKind)) kinds[k] = (kinds[k] || 0) + n;
+		return { count: ws.reduce((s, w) => s + w.procs!.count, 0), cpu: ws.reduce((s, w) => s + w.procs!.cpuPct, 0), rss: ws.reduce((s, w) => s + w.procs!.rssBytes, 0n), kinds, inUse: ws.some((w) => w.inUse) };
+	}
 
 	// Live sessions of every machine; the stream of this page's project is
 	// newer for its own agents. Finished sessions stay ten minutes.
@@ -50,6 +64,7 @@
 			<div class="grid gap-3 md:grid-cols-2 xl:grid-cols-3 min-[1900px]:grid-cols-4 min-[2500px]:grid-cols-5">
 				{#each rows as a (a.agent)}
 					{@const tone = toneOf(a.state || 'idle')}
+						{@const r = a.itemId ? res(a.machine, a.itemId) : null}
 					<article class="space-y-3 rounded-xl border bg-card p-4">
 						<header class="flex items-start justify-between gap-2">
 							<div class="min-w-0">
@@ -70,9 +85,16 @@
 								{#if a.detail}<p class="mt-0.5 line-clamp-2">{a.detail}</p>{/if}
 							</button>
 						{/if}
-						<footer class="num flex justify-between text-[11px] text-muted-foreground">
+						{#if r}
+							<div class="num grid grid-cols-3 gap-1.5 text-[11px]" title={Object.entries(r.kinds).map(([k, n]) => t('pk_' + k) + ' ' + n).join(' · ')}>
+								<div class="rounded-md bg-muted/50 px-2 py-1"><p class="text-muted-foreground">CPU</p><p class="font-semibold">{pct(r.cpu)}</p></div>
+								<div class="rounded-md bg-muted/50 px-2 py-1"><p class="text-muted-foreground">RAM</p><p class="font-semibold">{bytes(r.rss)}</p></div>
+								<div class="rounded-md bg-muted/50 px-2 py-1"><p class="text-muted-foreground">{t('procCount')}</p><p class="font-semibold">{r.count}</p></div>
+							</div>
+						{/if}
+						<footer class="num flex items-center justify-between gap-2 text-[11px] text-muted-foreground">
 							<span>{a.since ? t('runningFor', since(a.since)) : since(a.at)}</span>
-							<span>{compact(a.tokens)} · {money(a.costUsd)}</span>
+							<span class="flex items-center gap-2">{compact(a.tokens)} · {money(a.costUsd)}{#if a.itemId && !/^(done|failed)$/.test(a.state)}<button class="rounded p-0.5 hover:bg-muted hover:text-foreground" onclick={() => messageAgent(projectOf(a.itemId), a.itemId)} title={t('msgShort')} aria-label={t('msgShort')}><SendIcon class="size-3" /></button>{/if}</span>
 						</footer>
 					</article>
 				{/each}

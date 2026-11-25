@@ -24,6 +24,8 @@
 	import Section from '$lib/app/Section.svelte';
 	import Bars from '$lib/app/Bars.svelte';
 	import Empty from '$lib/app/Empty.svelte';
+	import PlusIcon from '@lucide/svelte/icons/plus';
+	import { propose, addTweak } from '$lib/app/ownerActions';
 	import StatusIcon from '$lib/app/StatusIcon.svelte';
 	import KV from '$lib/app/KV.svelte';
 
@@ -130,6 +132,8 @@
 
 <PageHeader title={t('proposals')} icon={LightbulbIcon} meta={[session.scope || t('allProjects'), t('openN', open.length)]} subtitle={t('proposalsHelp')}>
 	{#snippet actions()}
+		<Button size="sm" variant="outline" onclick={() => addTweak()} title={t('tweakHelp', session.project)}><WandIcon />{t('tweakTitle')}</Button>
+		<Button size="sm" variant="outline" onclick={() => propose()}><PlusIcon />{t('proposeShort')}</Button>
 		{#if open.length}
 			<Button size="sm" variant="secondary" onclick={runTriage} disabled={triage.busy || applying || open.every((o) => session.advisorDown[o.project])} title={open.every((o) => session.advisorDown[o.project]) ? t('advisorDown', Object.values(session.advisorDown)[0] || '') : t('triageHelp')}>
 				{#if triage.busy}<Spinner />{:else}<SparklesIcon />{/if}{t('triageRun')}

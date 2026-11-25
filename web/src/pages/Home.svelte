@@ -26,6 +26,8 @@
 	import ApprovalButtons from '$lib/app/ApprovalButtons.svelte';
 	import ItemRow from '$lib/app/ItemRow.svelte';
 	import Empty from '$lib/app/Empty.svelte';
+	import XIcon from '@lucide/svelte/icons/x';
+	import { setGoal, setFocus, clearFocus } from '$lib/app/ownerActions';
 
 	// The questions, approvals, goals and alerts of the projects in scope.
 	const st = loader((projects) => Promise.all(projects.map((project) => api.status({ project }).then((s) => ({ project, s })))));
@@ -81,8 +83,14 @@
 					<div class="divide-y">{#each g.working.slice(0, 8) as r (r.project + r.id)}<ItemRow {r}>{#snippet meta()}<span>{r.step}</span><span>{r.machine}</span><span>{since(r.stepStartedAt)}</span>{/snippet}</ItemRow>{/each}</div>
 				{/if}
 			</Section>
-			{#if goals.length || focuses.length}
-				<Section title={t('goal')}>
+			<Section title={t('goal')}>
+				{#snippet right()}
+					<div class="flex gap-1">
+						<button class="inline-flex items-center gap-1 rounded-md border px-2 py-1 text-[11px] hover:bg-muted" onclick={() => setGoal()} title={t('goalSetTitle', session.project)}><TargetIcon class="size-3" />{t('goalSet')}</button>
+						<button class="inline-flex items-center gap-1 rounded-md border px-2 py-1 text-[11px] hover:bg-muted" onclick={() => setFocus()} title={t('focusSetTitle', session.project)}><CrosshairIcon class="size-3" />{t('focusSet')}</button>
+					</div>
+				{/snippet}
+				{#if !goals.length && !focuses.length}<Empty text={t('goalNone', session.project)} />{/if}
 					<div class="space-y-4">
 						{#each goals as { project, s } (project)}
 							{@const pr = s.progress}
@@ -93,11 +101,10 @@
 							</div>
 						{/each}
 						{#each focuses as { project, s } (project)}
-							<div class="flex items-start gap-2 border-t pt-3"><CrosshairIcon class="mt-0.5 size-4 shrink-0 text-muted-foreground" /><div class="min-w-0 flex-1"><p class="text-sm font-medium">{s.focus!.name}</p><p class="num text-[11px] text-muted-foreground">{project} · {t('focusItems', s.focusDone, s.focusAll)}</p></div></div>
+							<div class="flex items-start gap-2 {goals.length ? 'border-t pt-3' : ''}"><CrosshairIcon class="mt-0.5 size-4 shrink-0 text-muted-foreground" /><div class="min-w-0 flex-1"><p class="text-sm font-medium">{s.focus!.name}</p><p class="num text-[11px] text-muted-foreground">{project} · {t('focusItems', s.focusDone, s.focusAll)}{s.focus!.share ? ' · ' + t('focusShareShort', s.focus!.share) : ''}{s.focus!.until ? ' · ' + t('focusUntilShort', day(s.focus!.until)) : ''}</p></div><button class="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground" onclick={() => clearFocus(project)} title={t('focusClear')} aria-label={t('focusClear')}><XIcon class="size-3.5" /></button></div>
 						{/each}
 					</div>
-				</Section>
-			{/if}
+			</Section>
 			<Section title={t('sbRecent')} count={g.recent.length} pad={false}>
 				{#if !g.recent.length}<div class="p-4"><Empty /></div>{:else}
 					<div class="divide-y">{#each g.recent.slice(0, 6) as r (r.project + r.id)}<ItemRow {r}>{#snippet meta()}<span>{since(r.integratedAt)}</span>{#if r.usage}<span>{money(r.usage.costUsd)}</span>{/if}{/snippet}</ItemRow>{/each}</div>
