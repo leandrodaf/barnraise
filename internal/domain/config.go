@@ -386,6 +386,11 @@ type MergeDef struct {
 	Changelog    string `json:"changelog,omitempty"`
 	Tag          bool   `json:"tag,omitempty"`
 	UseHostQueue bool   `json:"use_host_queue,omitempty"`
+	// HostChecks is what the merge queue does with the code host's own CI
+	// on the item's pull request: "wait" (the default) lands the item only
+	// after every check of the host passed on its commit, "ignore" lands
+	// it on Barnraise's own checks alone.
+	HostChecks string `json:"host_checks,omitempty"`
 	// Rerere keeps git's record of conflict resolutions (rerere) on for the
 	// project, so a conflict resolved once is reapplied the next time.
 	Rerere bool `json:"rerere"`

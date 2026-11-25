@@ -683,3 +683,31 @@ func TestParseEvent(t *testing.T) {
 		t.Error("bad json accepted")
 	}
 }
+
+func TestHostChecks(t *testing.T) {
+	f := newFake(t)
+	sha := "6dcb09b5b57875f334f61aebed695e2e4193db5e"
+	raw := func(body string) http.HandlerFunc {
+		return func(w http.ResponseWriter, _ *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = w.Write([]byte(body))
+		}
+	}
+	f.on("GET /repos/acme/app/commits/"+sha+"/check-runs", raw(`{"check_runs":[
+		{"name":"build","status":"completed","conclusion":"success"},
+		{"name":"docs","status":"completed","conclusion":"skipped"},
+		{"name":"unit","status":"completed","conclusion":"failure"},
+		{"name":"e2e","status":"in_progress","conclusion":null}]}`))
+	f.on("GET /repos/acme/app/commits/"+sha+"/status", raw(`{"statuses":[
+		{"context":"barnraise/unit","state":"failure"},
+		{"context":"deploy/preview","state":"pending"},
+		{"context":"license","state":"error"}]}`))
+	c, err := f.client(t, nil).CodeHost().Checks(context.Background(), sha)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Barnraise's own status is not the host's CI.
+	if c.Total != 6 || c.Pending != 2 || strings.Join(c.Failed, ",") != "unit,license" || c.Done() {
+		t.Fatalf("checks %+v", c)
+	}
+}

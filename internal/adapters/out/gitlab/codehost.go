@@ -168,6 +168,35 @@ func (h *CodeHost) ReportCheck(ctx context.Context, sha, name string, passed boo
 	return err
 }
 
+// Checks reads the statuses of sha: the jobs of its pipelines and what
+// other services set. For a job that ran more than once, the latest counts.
+func (h *CodeHost) Checks(ctx context.Context, sha string) (ports.HostChecks, error) {
+	var out ports.HostChecks
+	var sts []struct {
+		Name   string `json:"name"`
+		Status string `json:"status"`
+	}
+	if _, err := h.c.do(ctx, http.MethodGet, h.c.path("/repository/commits/%s/statuses?per_page=100", url.PathEscape(sha)), nil, &sts); err != nil {
+		return out, err
+	}
+	seen := map[string]bool{}
+	for _, st := range sts { // newest first
+		if strings.HasPrefix(st.Name, "barnraise/") || seen[st.Name] {
+			continue
+		}
+		seen[st.Name] = true
+		out.Total++
+		switch st.Status {
+		case "success", "skipped", "manual":
+		case "created", "pending", "running", "waiting_for_resource", "preparing", "scheduled":
+			out.Pending++
+		default:
+			out.Failed = append(out.Failed, st.Name)
+		}
+	}
+	return out, nil
+}
+
 // Merge accepts the merge request. "squash" squashes, "merge" keeps the
 // commits, "rebase" asks GitLab to rebase first and waits for it. Returns
 // the merge commit, else the squash commit, else the head sha

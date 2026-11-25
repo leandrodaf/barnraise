@@ -77,6 +77,10 @@ func (s *Service) ProcessQueue(ctx context.Context, project string) (int, error)
 	if batch <= 0 {
 		batch = 1
 	}
+	if s.hostChecksApply(ctx, p) {
+		// The host checks one pull request, on top of main: one item at a time.
+		batch = 1
+	}
 	if len(queued) > batch {
 		queued = queued[:batch]
 	}
@@ -89,6 +93,9 @@ func (s *Service) integrateBatch(ctx context.Context, p *Project, items []*domai
 	var lastErr error
 	for range 3 {
 		ok, failed, reason, err := s.tryIntegrate(ctx, p, items)
+		if errors.Is(err, errHostWait) {
+			return 0, nil // the host's checks still run: the next pass asks again
+		}
 		if errors.Is(err, ports.ErrStaleMain) {
 			lastErr = err
 			continue // another machine integrated first: rebase and check again
@@ -153,6 +160,18 @@ func (s *Service) tryIntegrate(ctx context.Context, p *Project, items []*domain.
 	main, err := g.MainHead(ctx)
 	if err != nil {
 		return false, nil, "", err
+	}
+	viaPR := len(items) == 1 && items[0].PR != "" && items[0].Branch != "" && s.hostChecksApply(ctx, p)
+	if viaPR {
+		// A commit of this item may already be on its pull request, waiting
+		// for the host's checks: nothing is built again while they run.
+		if w := s.hostWaiting(ctx, p, items[0], main); w != nil {
+			pass, why, err := s.hostVerdict(ctx, p, items[0], w)
+			if err != nil || !pass {
+				return false, items[0], why, err
+			}
+			return s.land(ctx, p, main, w.sha, items, []string{w.sha}, true)
+		}
 	}
 	head := main
 	var lastDir string
@@ -231,21 +250,71 @@ func (s *Service) tryIntegrate(ctx context.Context, p *Project, items []*domain.
 		}
 		return false, nil, why, nil
 	}
+	shas := make([]string, len(done))
+	for i, b := range done {
+		shas[i] = b.sha
+	}
+	if viaPR {
+		// The commit that would land goes to the pull request first: people
+		// see the change there, and the repository's own CI runs on it.
+		it := items[0]
+		if err := g.PushRev(ctx, head, it.Branch); err != nil {
+			return false, nil, "", fmt.Errorf("push %s to its pull request: %w", it.ID, err)
+		}
+		_ = p.Ports().CodeHost.MarkReady(ctx, prFromRef(it.PR))
+		w := &hostWait{main: main, sha: head, since: s.d.Clock.Now()}
+		if len(origins) > 0 {
+			w.orig = origins[0].head
+		}
+		p.mu.Lock()
+		if p.hostWait == nil {
+			p.hostWait = map[string]*hostWait{}
+		}
+		p.hostWait[it.ID] = w
+		p.mu.Unlock()
+		pass, why, err := s.hostVerdict(ctx, p, it, w)
+		if err != nil || !pass {
+			return false, it, why, err
+		}
+		return s.land(ctx, p, main, head, items, shas, true)
+	}
 	for _, b := range done {
-		branch := b.it.Branch
-		if branch != "" {
+		if b.it.Branch != "" {
 			// The branch moves to the integrated commit (force: it was rebased).
-			if err := g.PushRev(ctx, b.sha, branch); err != nil {
+			if err := g.PushRev(ctx, b.sha, b.it.Branch); err != nil {
 				s.d.Log.Debug("push branch to integrated commit", "item", b.it.ID, "err", err)
 			}
 		}
 	}
+	return s.land(ctx, p, main, head, items, shas, false)
+}
+
+// land moves main to head and closes the flow of the items, each at its
+// own commit. With viaPR, a main the host does not let Barnraise push to
+// (a protected branch) is moved by merging the item's pull request.
+func (s *Service) land(ctx context.Context, p *Project, main, head string, items []*domain.Item, shas []string, viaPR bool) (bool, *domain.Item, string, error) {
+	g := p.Ports().Git
 	if err := p.Ports().Arbiter.Integrate(ctx, main, head); err != nil {
-		return false, nil, "", err
+		if !viaPR || errors.Is(err, ports.ErrStaleMain) {
+			s.forgetHostWait(p, items)
+			return false, nil, "", err
+		}
+		sha, merr := p.Ports().CodeHost.Merge(ctx, prFromRef(items[0].PR), "rebase")
+		if merr != nil {
+			return false, nil, "", fmt.Errorf("main was not moved (%v) and the pull request was not merged: %w", err, merr)
+		}
+		if ferr := g.Fetch(ctx); ferr != nil {
+			s.d.Log.Warn("fetch after the pull request was merged", "err", ferr)
+		}
+		if m, merr := g.MainHead(ctx); merr == nil && m != "" && m != main {
+			sha = m
+		}
+		head, shas = sha, []string{sha}
 	}
+	s.forgetHostWait(p, items)
 	changed, _ := g.ChangedFiles(ctx, main, head)
-	for _, b := range done {
-		s.markIntegrated(ctx, p, b.it, b.sha)
+	for i, it := range items {
+		s.markIntegrated(ctx, p, it, shas[i])
 	}
 	s.revalidateAsync(p, domain.Change{Kind: "integration", Cause: "main " + short(head), Commit: head, Files: changed, Summary: integrationSummary(items)})
 	s.mainMovedAsync(p, head, itemIDs(items), strings.Join(itemIDs(items), ", ")+" integrated")

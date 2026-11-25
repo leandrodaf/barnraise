@@ -302,6 +302,17 @@ type PR struct {
 	Head   string `json:"head"`
 }
 
+// HostChecks sums up the checks the code host ran on one commit: its CI
+// and the statuses other services set.
+type HostChecks struct {
+	Total   int      `json:"total"`
+	Pending int      `json:"pending"`
+	Failed  []string `json:"failed,omitempty"` // names of the checks that did not pass
+}
+
+// Done reports whether every check has ended.
+func (c HostChecks) Done() bool { return c.Pending == 0 }
+
 // CodeHost is the git server: PRs, reviews, checks, workflows.
 type CodeHost interface {
 	Name() string
@@ -311,6 +322,9 @@ type CodeHost interface {
 	Comment(ctx context.Context, pr PR, body string) error
 	Review(ctx context.Context, pr PR, approve bool, body string) error
 	ReportCheck(ctx context.Context, sha, name string, passed bool, summary string) error
+	// Checks is what the host's own CI says about a commit. What Barnraise
+	// reported itself (ReportCheck) is left out.
+	Checks(ctx context.Context, sha string) (HostChecks, error)
 	Merge(ctx context.Context, pr PR, method string) (string, error)
 	Close(ctx context.Context, pr PR, reason string) error
 	DispatchWorkflow(ctx context.Context, workflow, ref string, inputs map[string]string) error

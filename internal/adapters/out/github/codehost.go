@@ -156,6 +156,57 @@ func (h *CodeHost) ReportCheck(ctx context.Context, sha, name string, passed boo
 	return err
 }
 
+// ownCheck is the prefix of the statuses ReportCheck sets.
+const ownCheck = "barnraise/"
+
+// Checks reads the check runs (GitHub Actions and apps) and the commit
+// statuses of sha. For a status set more than once, the latest counts.
+func (h *CodeHost) Checks(ctx context.Context, sha string) (ports.HostChecks, error) {
+	var out ports.HostChecks
+	var runs struct {
+		CheckRuns []struct {
+			Name       string `json:"name"`
+			Status     string `json:"status"`
+			Conclusion string `json:"conclusion"`
+		} `json:"check_runs"`
+	}
+	if _, err := h.c.do(ctx, http.MethodGet, h.c.repoPath("/commits/%s/check-runs?per_page=100", url.PathEscape(sha)), nil, &runs); err != nil {
+		return out, err
+	}
+	for _, r := range runs.CheckRuns {
+		out.Total++
+		switch {
+		case r.Status != "completed":
+			out.Pending++
+		case r.Conclusion != "success" && r.Conclusion != "neutral" && r.Conclusion != "skipped":
+			out.Failed = append(out.Failed, r.Name)
+		}
+	}
+	var combined struct {
+		Statuses []struct {
+			Context string `json:"context"`
+			State   string `json:"state"`
+		} `json:"statuses"`
+	}
+	if _, err := h.c.do(ctx, http.MethodGet, h.c.repoPath("/commits/%s/status?per_page=100", url.PathEscape(sha)), nil, &combined); err != nil {
+		return out, err
+	}
+	for _, st := range combined.Statuses {
+		if strings.HasPrefix(st.Context, ownCheck) {
+			continue
+		}
+		out.Total++
+		switch st.State {
+		case "success":
+		case "pending":
+			out.Pending++
+		default:
+			out.Failed = append(out.Failed, st.Context)
+		}
+	}
+	return out, nil
+}
+
 // Merge merges with squash (default), rebase or merge and returns the sha.
 func (h *CodeHost) Merge(ctx context.Context, pr ports.PR, method string) (string, error) {
 	switch method {

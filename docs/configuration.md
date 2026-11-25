@@ -563,6 +563,7 @@ Any other file an item is predicted to touch still keeps the items apart.
 | `changelog` | `CHANGELOG.md` | Changelog file Barnraise keeps, in the [Keep a Changelog](https://keepachangelog.com) format; empty turns it off |
 | `tag` | `false` | Tag after integrating |
 | `use_host_queue` | `false` | Use the code host's merge queue when it has one |
+| `host_checks` | `wait` | What the merge queue does with the repository's own CI (a `.github/workflows` folder or a `.gitlab-ci.yml` on main). `wait`: the commit that would land goes to the item's pull request first, without the item's `plan.md` and `criteria.json`, and main moves only after every check the host ran on it passed; a failed check sends the item back as rework, and a main Barnraise may not push to is moved by merging the pull request. Items land one at a time. `ignore`: items land on Barnraise's own checks alone |
 | `rerere` | `true` | Keep git's record of conflict resolutions (`rerere`) on for the repository, so a conflict resolved once is resolved again the same way; `false` removes the settings Barnraise added |
 | `structural` | `auto` | `auto` merges supported files with [mergiraf](https://mergiraf.org) when it is on the `PATH`; `off` never does. Without it, git's normal merge is used |
 

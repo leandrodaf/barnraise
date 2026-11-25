@@ -232,6 +232,10 @@ type CodeHost struct {
 	calls   []string
 	n       int
 	OpenErr error
+	// HostChecks, when set, is what the host's CI says about a commit.
+	HostChecks func(sha string) (ports.HostChecks, error)
+	// MergeSHA, when set, is the commit Merge reports ("merged" otherwise).
+	MergeSHA func() string
 }
 
 var _ ports.CodeHost = (*CodeHost)(nil)
@@ -306,9 +310,24 @@ func (h *CodeHost) ReportCheck(_ context.Context, sha, name string, passed bool,
 	return nil
 }
 
+// Checks implements ports.CodeHost: HostChecks answers, when set.
+func (h *CodeHost) Checks(_ context.Context, sha string) (ports.HostChecks, error) {
+	h.record("Checks %s", sha)
+	h.mu.Lock()
+	f := h.HostChecks
+	h.mu.Unlock()
+	if f == nil {
+		return ports.HostChecks{}, nil
+	}
+	return f(sha)
+}
+
 // Merge implements ports.CodeHost.
 func (h *CodeHost) Merge(_ context.Context, pr ports.PR, method string) (string, error) {
 	h.record("Merge %d %s", pr.Number, method)
+	if h.MergeSHA != nil {
+		return h.MergeSHA(), nil
+	}
 	return "merged", nil
 }
 

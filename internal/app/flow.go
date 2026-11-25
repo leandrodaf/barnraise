@@ -375,7 +375,9 @@ func (s *Service) afterDelivery(ctx context.Context, p *Project, it *domain.Item
 		}
 		_ = p.Ports().CodeHost.Comment(ctx, pr, body)
 		_ = p.Ports().CodeHost.UpdatePR(ctx, pr, prTitle(it), prBody(p, it))
-		if d.Status == domain.DeliveryDone && isImplementStep(p, it, d.Step) {
+		// Delivered with concerns is delivered too: the change goes on to
+		// review, and the pull request stops being a draft with it.
+		if (d.Status == domain.DeliveryDone || d.Status == domain.DeliveryConcerns) && isImplementStep(p, it, d.Step) {
 			_ = p.Ports().CodeHost.MarkReady(ctx, pr)
 		}
 	}()

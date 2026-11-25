@@ -102,7 +102,10 @@ type Project struct {
 	running map[string]string // item -> runner (agent name or "driver")
 	refined map[string]int    // draft item -> version the analyst last refined
 	opening map[string]bool   // items whose pull request is being opened right now
-	queueMu sync.Mutex
+	// hostWait are the queued items whose commit is on their pull request,
+	// waiting for the code host's own checks before it lands on main.
+	hostWait map[string]*hostWait
+	queueMu  sync.Mutex
 }
 
 // Service is the application.

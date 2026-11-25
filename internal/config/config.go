@@ -308,6 +308,7 @@ type rawConfig struct {
 		Changelog    string `yaml:"changelog"`
 		Tag          bool   `yaml:"tag"`
 		UseHostQueue bool   `yaml:"use_host_queue"`
+		HostChecks   string `yaml:"host_checks"`
 		Rerere       *bool  `yaml:"rerere"`
 		Structural   string `yaml:"structural"`
 	} `yaml:"merge"`
@@ -628,7 +629,7 @@ func (r *rawConfig) compile(root, tmpl string) (*domain.ProjectConfig, error) {
 	c.Container = domain.ContainerDef{Image: strings.TrimSpace(r.Container.Image), Engine: r.Container.Engine, Network: r.Container.Network, Mounts: r.Container.Mounts, GPU: r.Container.GPU}
 	c.Selection = domain.SelectionDef{AllWhen: r.Selection.AllWhen, NoneWhen: r.Selection.NoneWhen}
 	c.Scheduling = domain.SchedulingDef{SharedFiles: r.Scheduling.SharedFiles}
-	c.Merge = domain.MergeDef{Mode: def(r.Merge.Mode, "squash"), Batch: r.Merge.Batch, Changelog: r.Merge.Changelog, Tag: r.Merge.Tag, UseHostQueue: r.Merge.UseHostQueue}
+	c.Merge = domain.MergeDef{Mode: def(r.Merge.Mode, "squash"), Batch: r.Merge.Batch, Changelog: r.Merge.Changelog, Tag: r.Merge.Tag, UseHostQueue: r.Merge.UseHostQueue, HostChecks: def(r.Merge.HostChecks, "wait")}
 	if c.Merge.Batch <= 0 {
 		c.Merge.Batch = 4
 	}
