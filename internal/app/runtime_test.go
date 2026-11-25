@@ -823,3 +823,20 @@ func TestRuntimeReadOnlyProviderOnlyReviewsOnTheHost(t *testing.T) {
 	release()
 	e.idle()
 }
+
+// While a newer binary waits for the running sessions, no new one starts.
+func TestDrainingStartsNoSession(t *testing.T) {
+	e := newEnv(t)
+	e.account("fake-1")
+	release := e.holdSessions()
+	defer release()
+	e.svc.runtime.SetDraining(true)
+	e.ready("simple", "Cards screen", "x")
+	e.fill()
+	if n := len(e.prov.Specs()); n != 0 {
+		t.Fatalf("%d sessions started while draining", n)
+	}
+	e.svc.runtime.SetDraining(false)
+	e.fill()
+	eventually(t, "a session once the drain ends", func() bool { return len(e.prov.Specs()) == 1 })
+}

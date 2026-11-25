@@ -41,6 +41,8 @@ type Runtime struct {
 	SessionTimeout time.Duration
 	// MaxSessions caps concurrent sessions on this machine (0 = machine slots).
 	MaxSessions int
+	// draining holds new sessions while a newer binary waits for the running ones.
+	draining atomic.Bool
 	lastHK      map[string]time.Time
 	lastRenew   map[string]time.Time
 	// queues counts the merge-queue passes started by Tick, which fetch and
@@ -146,6 +148,20 @@ func (r *Runtime) SetStandby(on bool, why string) int {
 	}
 	return len(list)
 }
+
+// SetDraining stops new sessions from starting on this machine while the
+// running ones end (a newer binary waits for them). Nothing is stopped.
+func (r *Runtime) SetDraining(on bool) {
+	if r.draining.Swap(on) != on {
+		r.s.d.Log.Info("draining", "on", on)
+	}
+	if !on {
+		r.Poke()
+	}
+}
+
+// Draining reports whether new sessions wait for the running ones to end.
+func (r *Runtime) Draining() bool { return r.draining.Load() }
 
 func (r *Runtime) isStopped() bool {
 	r.mu.Lock()
@@ -276,7 +292,7 @@ func (r *Runtime) slotsFor(p *Project, m domain.Machine) []Slot {
 }
 
 func (r *Runtime) fillSlots(ctx context.Context, p *Project, m domain.Machine) {
-	if r.isStopped() || r.MaxSessions < 0 {
+	if r.isStopped() || r.MaxSessions < 0 || r.draining.Load() {
 		return
 	}
 	if on, _ := r.Standby(); on {

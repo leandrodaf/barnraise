@@ -44,13 +44,14 @@ func (d *daemon) publishBinary(ctx context.Context) string {
 func (d *daemon) watchVersions(ctx context.Context, self string) {
 	t := time.NewTicker(10 * time.Second)
 	defer t.Stop()
+	var draining time.Time // when new sessions stopped starting for an update
 	for {
 		select {
 		case <-ctx.Done():
 			return
 		case <-t.C:
 		}
-		if os.Getenv("BARNRAISE_NO_SELF_UPDATE") != "" || d.blobs == nil || len(d.svc.Runtime().Sessions()) > 0 {
+		if os.Getenv("BARNRAISE_NO_SELF_UPDATE") != "" || d.blobs == nil {
 			continue
 		}
 		var target *domain.Machine
@@ -70,15 +71,36 @@ func (d *daemon) watchVersions(ctx context.Context, self string) {
 			}
 		}
 		if target == nil {
+			if !draining.IsZero() { // the newer machine left: work goes on here
+				d.svc.Runtime().SetDraining(false)
+				draining = time.Time{}
+			}
 			continue
 		}
+		// The running sessions end first: no new one starts meanwhile, and
+		// after drainLimit they are stopped (their steps start again later).
+		if n := len(d.svc.Runtime().Sessions()); n > 0 {
+			if draining.IsZero() {
+				draining = time.Now()
+				d.svc.Runtime().SetDraining(true)
+				d.log.Info("a newer version runs on the cluster; waiting for the running sessions", "from", target.Name, "version", target.Version, "sessions", n)
+			}
+			if time.Since(draining) < drainLimit {
+				continue
+			}
+		}
 		if err := d.selfUpdate(ctx, target); err != nil {
+			d.svc.Runtime().SetDraining(false)
+			draining = time.Time{}
 			d.log.Warn("self-update", "from", target.Name, "version", target.Version, "err", err)
 			continue
 		}
 		return
 	}
 }
+
+// drainLimit is how long an update waits for the running sessions to end.
+const drainLimit = 30 * time.Minute
 
 func (d *daemon) selfUpdate(ctx context.Context, m *domain.Machine) error {
 	d.log.Info("a newer version runs on the cluster; updating", "from", m.Name, "version", m.Version, "current", version)
