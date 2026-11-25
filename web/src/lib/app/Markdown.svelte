@@ -2,10 +2,21 @@
 	import SquareIcon from '@lucide/svelte/icons/square';
 	import SquareCheckIcon from '@lucide/svelte/icons/square-check';
 	import { parse, type Inline } from './markdown';
+	import Mermaid from './Mermaid.svelte';
 
 	let { text }: { text: string } = $props();
 	// Tracker text arrives wrapped in an untrusted marker; it stays out of view.
 	const blocks = $derived(parse(text.replace(/^<<<UNTRUSTED[^\n]*\n?/m, '').replace(/\n?>>>\s*$/m, '')));
+	// The heading above a diagram names it ("Before", "After").
+	const lastHeading = (i: number) => {
+		for (let j = i - 1; j >= 0; j--) {
+			const b = blocks[j];
+			if (b.k === 'h') return b.parts.map((p) => p.v).join('');
+			if (j === i - 1 && b.k === 'p' && b.parts.length === 1 && b.parts[0].t === 'bold') return b.parts[0].v;
+			if (b.k === 'pre') return '';
+		}
+		return '';
+	};
 	const H = ['', 'text-base', 'text-base', 'text-sm', 'text-sm', 'text-sm', 'text-sm'];
 </script>
 
@@ -23,6 +34,7 @@
 				<span class="min-w-0">{@render parts(b.parts)}</span>
 			</div>
 		{:else if b.k === 'quote'}<p class="border-l-2 pl-3 text-muted-foreground">{@render parts(b.parts)}</p>
+		{:else if b.k === 'pre' && b.lang === 'mermaid'}{@const ttl = lastHeading(i)}<Mermaid source={b.v} title={ttl} tone={/\b(after|depois)\b/i.test(ttl) ? 'after' : /\b(before|antes)\b/i.test(ttl) ? 'before' : ''} />
 		{:else if b.k === 'pre'}<pre class="num overflow-x-auto rounded-lg bg-muted/60 p-3 text-xs">{b.v}</pre>
 		{:else}<hr class="border-border" />{/if}
 	{/each}

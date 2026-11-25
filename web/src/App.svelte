@@ -25,6 +25,7 @@
 	import ScopeSelect from '$lib/app/ScopeSelect.svelte';
 	import VersionNotice from '$lib/app/VersionNotice.svelte';
 	import AutopilotSwitch from '$lib/app/AutopilotSwitch.svelte';
+	import ClusterPower from '$lib/app/ClusterPower.svelte';
 	import SignIn from './pages/SignIn.svelte';
 	import Home from './pages/Home.svelte';
 	import Overview from './pages/Overview.svelte';
@@ -40,6 +41,7 @@
 	import Processes from './pages/Processes.svelte';
 	import Activity from './pages/Activity.svelte';
 	import Admin from './pages/Admin.svelte';
+	import Documents from './pages/Documents.svelte';
 
 	session.start().catch(() => (session.booting = false));
 
@@ -77,6 +79,7 @@
 				<div class="ml-auto flex items-center gap-1.5">
 					<VersionNotice />
 					<AutopilotSwitch />
+					<ClusterPower />
 					{#if session.standby}
 						<button onclick={() => standby(false)} class="inline-flex h-8 items-center gap-1.5 rounded-md border border-dashed border-st-needs/60 bg-st-needs/10 px-2 text-xs font-medium text-st-needs hover:bg-st-needs/20" title={session.standbyWhy}>
 							<MoonStarIcon class="size-3.5 shrink-0" /><span class="hidden whitespace-nowrap sm:inline">{t('standbyBadge')}</span><span class="hidden whitespace-nowrap xl:inline">· {session.machine}</span>
@@ -113,6 +116,7 @@
 								{:else if router.current.name === 'processes'}<Processes />
 								{:else if router.current.name === 'activity'}<Activity />
 								{:else if router.current.name === 'admin'}<Admin />
+								{:else if router.current.name === 'documents'}<Documents />
 								{/if}
 							</div>
 						{/key}

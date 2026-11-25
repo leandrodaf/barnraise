@@ -11,6 +11,7 @@ import ChartIcon from '@lucide/svelte/icons/chart-no-axes-column';
 import ActivityIcon from '@lucide/svelte/icons/activity';
 import RadioIcon from '@lucide/svelte/icons/radio';
 import SettingsIcon from '@lucide/svelte/icons/settings-2';
+import FileTextIcon from '@lucide/svelte/icons/file-text';
 import type { RouteName } from '$lib/router.svelte';
 
 export type NavEntry = { name: RouteName; label: string; icon: typeof HouseIcon };
@@ -33,7 +34,8 @@ export const NAV_GROUPS: { label: string; items: NavEntry[] }[] = [
 		label: 'navGroupProject',
 		items: [
 			{ name: 'parts', label: 'navParts', icon: BoxesIcon },
-			{ name: 'metrics', label: 'navMetrics', icon: ChartIcon }
+			{ name: 'metrics', label: 'navMetrics', icon: ChartIcon },
+			{ name: 'documents', label: 'navDocuments', icon: FileTextIcon }
 		]
 	},
 	{

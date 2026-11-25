@@ -529,3 +529,25 @@ type ProviderLogin interface {
 	// LoggedIn reports whether the folder holds a login that works.
 	LoggedIn(ctx context.Context, spec LoginSpec) (bool, error)
 }
+
+// IssueBodyFunc rewrites the body a tracker writes for an item from the
+// built-in one (the project's issue document).
+type IssueBodyFunc func(builtIn string) string
+
+type issueBodyKey struct{}
+
+// WithIssueBody carries the project's issue document to a tracker call.
+func WithIssueBody(ctx context.Context, f IssueBodyFunc) context.Context {
+	return context.WithValue(ctx, issueBodyKey{}, f)
+}
+
+// IssueBody returns the body a Markdown tracker writes: builtIn, or what the
+// project's issue document makes of it.
+func IssueBody(ctx context.Context, builtIn string) string {
+	if f, ok := ctx.Value(issueBodyKey{}).(IssueBodyFunc); ok && f != nil {
+		if b := f(builtIn); b != "" {
+			return b
+		}
+	}
+	return builtIn
+}

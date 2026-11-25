@@ -113,8 +113,14 @@ func (s *Service) DecideProposal(ctx context.Context, project string, a Actor, i
 		case "feature":
 			kind = "feature"
 		}
+		body, derr := RenderDocument(p.Cfg(), domain.DocItem, DocData{
+			Item:     DocItem{Title: pr.Title, Kind: kind, Priority: pr.Priority.String(), Area: pr.Area},
+			Proposal: DocProposal{ID: pr.ID, Title: pr.Title, Kind: pr.Kind, Problem: pr.Problem, Evidence: pr.Evidence, Impact: pr.Impact, Goal: pr.GoalLink, Area: pr.Area}})
+		if derr != nil {
+			s.d.Log.Warn("item document", "proposal", pr.ID, "err", derr)
+		}
 		res, err := s.CreateItem(ctx, p.Name, Owner(actorName(a)), NewItem{Title: pr.Title, Kind: kind, Priority: pr.Priority.String(), Area: pr.Area, Size: pr.Size,
-			Body: fmt.Sprintf("From proposal %s.\n\nProblem: %s\n\nEvidence: %s\n\nImpact: %s\n\nRelation to the goal: %s\n\n[NEEDS CLARIFICATION: analyst writes EARS criteria]", pr.ID, pr.Problem, pr.Evidence, pr.Impact, pr.GoalLink)})
+			Body: strings.TrimSpace(body)})
 		if err != nil {
 			return nil, err
 		}

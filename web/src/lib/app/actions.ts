@@ -7,6 +7,12 @@ import { session } from '$lib/session.svelte';
 import { cluster } from '$lib/cluster.svelte';
 import { act } from './act';
 import { dialog } from './dialog.svelte';
+import { pendingStandby } from './standby.svelte';
+import { rest } from '$lib/rest';
+
+// machineStandby switches one machine; the one serving the panel stays as it is.
+const machineStandby = (name: string, on: boolean, why: string) =>
+	rest<{ on?: boolean; peers?: { name: string; ok?: boolean; error?: string }[] }>('POST', '/v1/machines/' + encodeURIComponent(name) + '/standby', {}, { on, why });
 
 // newItem opens a conversation with the advisor to ask for work: it reads
 // the code, answers, and writes the item when the owner is happy with it.
@@ -72,6 +78,89 @@ export function pauseProject(project = session.project) {
 
 export const resumeProject = (project = session.project) => act(() => api.resume({ project }), t('resumed'));
 
+// connectedPeers are the other machines this daemon reaches now.
+const connectedPeers = () => api.listPeers({}).then((r) => r.peers.filter((p) => p.connected).map((p) => p.name)).catch(() => [] as string[]);
+
+// standbyMachine switches one machine of the cluster: this one as standby()
+// does, another one through this daemon, leaving this machine as it is.
+export function standbyMachine(name: string, on: boolean) {
+	if (!on) {
+		// Waking stops nothing: no question asked.
+		return act(async () => {
+			const r = await machineStandby(name, false, '');
+			pendingStandby.set([name], false);
+			await session.readProjects();
+			cluster.read();
+			const bad = (r.peers || []).filter((p) => !p.ok);
+			if (bad.length) throw new Error(bad.map((p) => p.name + ': ' + p.error).join('; '));
+		}, t('mStandbyIsOff', name));
+	}
+	if (name === session.machine) return standby(on);
+	dialog.open({
+		title: on ? t('mStandbyOnTitle', name) : t('mStandbyOffTitle', name),
+		description: on ? t('standbyOnHelp') : t('standbyOffHelp'),
+		fields: on ? [{ name: 'why', label: t('standbyWhy'), type: 'textarea' as const }] : [],
+		submit: on ? t('standbyOn') : t('standbyOff'),
+		danger: on,
+		onSubmit: async (v) => {
+			const r = await machineStandby(name, on, v.why || '');
+			pendingStandby.set([name], on);
+			cluster.read();
+			const bad = (r.peers || []).filter((p) => !p.ok);
+			if (bad.length) throw new Error(bad.map((p) => p.name + ': ' + p.error).join('; '));
+			return on ? t('mStandbyIsOn', name) : t('mStandbyIsOff', name);
+		}
+	});
+}
+
+// clusterStandby switches every machine at once: this one and every connected one.
+export async function clusterStandby(on: boolean) {
+	const peers = await connectedPeers();
+	const names = [session.machine, ...peers].filter(Boolean);
+	if (!on) {
+		return act(async () => {
+			const r = await api.setStandby({ on: false, why: '', peers });
+			pendingStandby.set(names, false);
+			await session.readProjects();
+			cluster.read();
+			const bad = r.peers.filter((p) => !p.ok);
+			if (bad.length) throw new Error(bad.map((p) => p.name + ': ' + p.error).join('; '));
+		}, t('allStandbyIsOff', names.length));
+	}
+	dialog.open({
+		title: on ? t('allStandbyOnTitle', names.length) : t('allStandbyOffTitle', names.length),
+		description: (on ? t('allStandbyOnHelp') : t('standbyOffHelp')) + ' ' + t('allStandbyWho', names.join(', ')),
+		fields: on ? [{ name: 'why', label: t('standbyWhy'), type: 'textarea' as const }] : [],
+		submit: on ? t('allStandbyOn') : t('allStandbyOff'),
+		danger: on,
+		onSubmit: async (v) => {
+			const r = await api.setStandby({ on, why: v.why || '', peers });
+			pendingStandby.set(names, on);
+			await session.readProjects();
+			cluster.read();
+			const bad = r.peers.filter((p) => !p.ok);
+			if (bad.length) throw new Error(bad.map((p) => p.name + ': ' + p.error).join('; '));
+			return on ? t('allStandbyIsOn', names.length, r.stopped) : t('allStandbyIsOff', names.length);
+		}
+	});
+}
+
+// stopMachine stops the daemon of another machine; it starts again only there.
+export function stopMachine(name: string) {
+	dialog.open({
+		title: t('admStopTitle', name),
+		description: t('admStopHelp'),
+		fields: [],
+		submit: t('admStop'),
+		danger: true,
+		onSubmit: async () => {
+			const r = await api.stopPeers({ names: [name] });
+			setTimeout(() => cluster.read(), 1500);
+			return t('admStopped', r.results.filter((x) => x.stopped).map((x) => x.name).join(', ') || '—');
+		}
+	});
+}
+
 // standby switches this machine, and the connected ones when the owner says so.
 export async function standby(on: boolean) {
 	const peers = await api.listPeers({}).then((r) => r.peers.filter((p) => p.connected).map((p) => p.name)).catch(() => [] as string[]);
@@ -89,6 +178,7 @@ export async function standby(on: boolean) {
 		danger: on,
 		onSubmit: async (v) => {
 			const r = await api.setStandby({ on, why: v.why || '', peers: v.peers === 'all' ? peers : [] });
+			pendingStandby.set([session.machine, ...(v.peers === 'all' ? peers : [])], on);
 			await session.readProjects();
 			cluster.read();
 			const bad = r.peers.filter((p) => !p.ok);

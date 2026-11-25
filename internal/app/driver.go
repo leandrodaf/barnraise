@@ -204,7 +204,7 @@ func (s *Service) ensurePR(ctx context.Context, p *Project, itemID string) {
 			return
 		}
 	}
-	pr, err := host.OpenDraftPR(ctx, it.Branch, p.Cfg().MainBranch, prTitle(it), prBody(p, it))
+	pr, err := host.OpenDraftPR(ctx, it.Branch, p.Cfg().MainBranch, prTitle(it), s.prBody(p, it))
 	if err != nil {
 		s.d.Log.Warn("open draft PR", "item", itemID, "err", err)
 		return
@@ -327,29 +327,18 @@ func (s *Service) scanSecrets(ctx context.Context, dir string) (string, error) {
 
 func prTitle(it *domain.Item) string { return fmt.Sprintf("[%s] %s", it.ID, it.Title) }
 
-func prBody(p *Project, it *domain.Item) string {
-	var b strings.Builder
-	fmt.Fprintf(&b, "Barnraise item **%s** · kind %s · %s", it.ID, it.Kind, it.Priority)
-	if it.GoalID != "" {
-		fmt.Fprintf(&b, " · goal %s", it.GoalID)
+// prBody renders the pull request of an item from the pr document, with the
+// diagrams of its plan.md.
+func (s *Service) prBody(p *Project, it *domain.Item) string {
+	plan, _ := os.ReadFile(filepath.Join(s.WorktreeDir(p.Name, it.ID), "plan.md"))
+	body, err := RenderDocument(p.Cfg(), domain.DocPR, itemDocData(it, string(plan)))
+	if err != nil {
+		s.d.Log.Warn("pull request body", "item", it.ID, "err", err)
 	}
-	if it.Area != "" {
-		fmt.Fprintf(&b, " · area %s", it.Area)
+	if body == "" {
+		body = fmt.Sprintf("Barnraise item **%s**\n\n### Criteria\n%s", it.ID, it.CriteriaChecklist())
 	}
-	b.WriteString("\n\n")
-	if it.TrackerRef != "" {
-		fmt.Fprintf(&b, "Tracker: %s\n\n", it.TrackerRef)
-	}
-	b.WriteString("### Criteria\n")
-	b.WriteString(it.CriteriaChecklist())
-	if len(it.Preserve) > 0 {
-		b.WriteString("\n### What must not change\n- " + strings.Join(it.Preserve, "\n- ") + "\n")
-	}
-	if len(it.Tweaks) > 0 {
-		b.WriteString("\n### Tweaks riding along\n- " + strings.Join(it.Tweaks, "\n- ") + "\n")
-	}
-	fmt.Fprintf(&b, "\nStep: `%s` · status: `%s`\n", it.Step, it.Status)
-	return b.String()
+	return body
 }
 
 func prRef(pr ports.PR) string {

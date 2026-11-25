@@ -93,7 +93,7 @@ func (e *env) rootCmd() *cobra.Command {
 	add("know", e.contextCmd(), e.findCmd(), e.knowCmd("get", "Get the full content of an id (I-142, D-12, a file or a symbol)"),
 		e.knowCmd("related", "Show what is linked to an id"), e.knowCmd("why", "Explain why a line is the way it is (path:line)"),
 		e.knowCmd("history", "Show what happened to a symbol or path"), e.knowCmd("rules", "List the rules that apply to a path"), e.revalidateCmd())
-	add("setup", e.initCmd(), e.upCmd(), e.daemonCmd(), e.checkCmd(), e.explainCmd(), e.templateCmd(), e.accountCmd(), e.trackerCmd(), e.webhookCmd(), e.machineCmd(), e.clusterCmd(), e.tokenCmd(), e.auditCmd(), e.downCmd(), e.pluginCmd())
+	add("setup", e.initCmd(), e.upCmd(), e.daemonCmd(), e.checkCmd(), e.explainCmd(), e.templateCmd(), e.documentsCmd(), e.accountCmd(), e.trackerCmd(), e.webhookCmd(), e.machineCmd(), e.clusterCmd(), e.tokenCmd(), e.auditCmd(), e.downCmd(), e.pluginCmd())
 	add("agent", e.imageCmd(), e.firewallCmd(), e.nextCmd(), e.deliverCmd(), e.reviewCmd(), e.askCmd(), e.messageCmd(), e.inboxCmd(), e.journalCmd(), e.hookCmd(), e.statuslineCmd(), e.filterCmd(), e.outputCmd(), e.mcpCmd())
 	add("setup", e.sandboxCmd())
 	add("setup", e.capabilitiesCmd(), e.toolsCmd())

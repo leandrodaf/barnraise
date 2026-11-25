@@ -33,6 +33,7 @@
 	import Timeline from '$lib/app/Timeline.svelte';
 	import Empty from '$lib/app/Empty.svelte';
 	import Markdown from '$lib/app/Markdown.svelte';
+	import ItemDocuments from '$lib/app/ItemDocuments.svelte';
 	import QuestionCard from '$lib/app/QuestionCard.svelte';
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
 	import PencilIcon from '@lucide/svelte/icons/pencil';
@@ -184,6 +185,7 @@
 				{#if row?.worktrees.length || row?.procs?.count || row?.sessions.length}<Tabs.Trigger value="resources">{t('tabResources')}{#if row?.procs?.count} <span class="num ml-1 text-[11px] text-st-work">{row.procs.count}</span>{/if}</Tabs.Trigger>{/if}
 				{#if row?.usage && Number(row.usage.tokens)}<Tabs.Trigger value="cost">{t('ovCost')}</Tabs.Trigger>{/if}
 				{#if it.deps.length || depRows.some((r) => r.deps?.includes(id))}<Tabs.Trigger value="deps">{t('tabDeps')}</Tabs.Trigger>{/if}
+				<Tabs.Trigger value="documents">{t('tabDocuments')}</Tabs.Trigger>
 				<Tabs.Trigger value="related">{t('tabRelated')}</Tabs.Trigger>
 			</Tabs.List>
 			<Tabs.Content value="summary" class="mt-3 space-y-4">
@@ -276,6 +278,7 @@
 					{/if}
 				</Tabs.Content>
 			{/if}
+			<Tabs.Content value="documents" class="mt-3">{#if tab === 'documents'}<ItemDocuments {project} id={it.id} />{/if}</Tabs.Content>
 			<Tabs.Content value="related" class="mt-3">
 				<Section title={t('tabRelated')} sub={t('relatedHelp')}>
 					{#if !related}<p class="flex items-center gap-2 text-sm text-muted-foreground"><Spinner class="size-3.5" />{t('loading')}</p>{:else if related.error}<p class="text-sm text-destructive">{related.error}</p>{:else}<Related data={related.data || {}} {project} {id} />{/if}

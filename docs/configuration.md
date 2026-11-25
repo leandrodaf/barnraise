@@ -54,6 +54,7 @@ Formats used below:
 | `worktree` | mapping | `{include: [.env, .env.local], port_base: 4100, safety_commit: 15m}` | See [worktree](#worktree): also per-item services, build caches and hooks |
 | `stale_reads` | mapping | `{enabled: true, rebase: false, max_files: 10}` | See [stale_reads](#stale_reads) |
 | `lessons` | mapping | `{enabled: true, max: 5}` | See [lessons](#lessons) |
+| `documents` | mapping | `{diagrams: auto}` | See [documents](#documents) |
 
 A minimal file, as `barnraise init` writes it:
 
@@ -937,6 +938,35 @@ When an item's work is sent back (a failed check, a review asking for rework, th
 | --- | --- | --- |
 | `enabled` | `true` | Learn lessons from resolved rework and give them to later items |
 | `max` | `5` | Most lessons in one prompt (0 to 20; 0 keeps learning without giving them) |
+
+## documents
+
+Barnraise writes four texts for people, each from a template: the body of an item's pull request (`pr`), the structure the implementer follows in `plan.md` (`plan`), the body of an item made from an approved proposal (`item`) and the body of its issue in GitHub or GitLab (`issue`). Each has a built-in version. A project replaces one with `.barnraise/documents/<name>.md`, and one area or kind of item with `<name>.<area>.md` or `<name>.<kind>.md` (the area wins over the kind, both over the general file). The files are committed with the project, so every machine and every agent uses them; agents cannot edit `.barnraise/`.
+
+```sh
+barnraise documents                          # which documents are built-in and which are the project's
+barnraise documents customize pr             # copy the built-in pr template to .barnraise/documents/pr.md
+barnraise documents customize plan --area web
+barnraise documents show pr                  # the template in use, and what it may use
+barnraise documents preview pr               # rendered with a sample item
+barnraise documents check                    # every project template renders (exit 1 otherwise)
+```
+
+Templates are Go [text/template](https://pkg.go.dev/text/template). They see `.Item` (`ID`, `Title`, `Kind`, `Priority`, `Area`, `Goal`, `TrackerRef`, `Step`, `Status`, `Body`, `Branch`, `PR`), `.Criteria` (the checklist), `.Preserve` and `.Tweaks`, `.Plan` (the item's `plan.md`) and `.Diagrams` (its Mermaid blocks, each with `.Title` and `.Source`), `.Proposal` (for `item`), `.DiagramsMode`, `.Project`, `.Language` and `.Default`, the built-in text, to wrap rather than rewrite. Functions: `bullets`, `mermaid`, `section .Plan "Risks"`, `join`, `trim`, `lower`, `upper`, `default`. A template that fails to render is replaced by the built-in one, and the daemon logs why: a mistake never stops a pull request from opening.
+
+**Diagrams.** On a project that changes code that has run for a long time, a reviewer understands a change faster from a picture of the design before and after it. `documents.diagrams` decides when `plan.md` draws one, as Mermaid blocks under `### Before` and `### After`:
+
+| Value | Meaning |
+| --- | --- |
+| `auto` (default) | When the item changes a flow, a structure or a contract that already exists; not for new code or a small fix. The analyst asks for them when they are missing |
+| `always` | Every plan; the analyst sends back a plan without them (only "After" for new code) |
+| `off` | Plans draw none |
+
+The diagrams travel with the item: the pull request shows them (GitHub and GitLab render Mermaid), the implementer redraws "After" when the design moves, and the reviewer is shown them and sends back a change whose diff does not match its "After" diagram.
+
+```yaml
+documents: { diagrams: always }
+```
 
 ## sandbox
 

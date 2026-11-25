@@ -893,6 +893,77 @@ Object.assign(pt, {
   tokSecretTitle: 'Segredo de {0}', tokSecretOnce: 'Copie agora: ele não aparece de novo.', tokRevoke: 'Revogar', tokRevokeTitle: 'Revogar {0}?', tokRevokeHelp: 'O que usar este token para de funcionar na hora.', tokRevoked: '{0} revogado.', tokRevokedBadge: 'revogado', tokCreatedAt: 'criado {0}', tokExpires: 'expira {0}', tokNoExpiry: 'nunca expira',
 });
 
+// Documents: the templates of the pull request, plan, item and issue, and
+// the diagrams before and after a change.
+Object.assign(en, {
+  navDocuments: 'Documents', tabDocuments: 'Documents',
+  docTitle: 'Documents', docHelp: 'The texts Barnraise writes for people come from these templates. Each team rewrites them; per area or kind if needed.',
+  docName_pr: 'Pull request', docName_plan: 'Plan', docName_item: 'Item from a proposal', docName_issue: 'Issue in the tracker',
+  docDesc_pr: 'The body of each pull request.', docDesc_plan: 'The structure of plan.md.', docDesc_item: 'When a proposal is approved.', docDesc_issue: 'GitHub or GitLab.',
+  docBuiltIn: 'built-in', docCustom: '{0} custom', docGeneral: 'Every item', docArea: 'Area', docKind: 'Kind', docAreas: 'Areas', docKinds: 'Kinds', docAppliesTo: 'Applies to',
+  docFileIs: 'File: {0}', docInheritsGeneral: 'Starts from the project\'s general template.', docUsesBuiltIn: 'Starts from the built-in template.',
+  docTemplate: 'Template text', docUnsaved: 'Not saved', docInsert: 'Insert', docPreview: 'Preview', docPreviewHelp: 'With a sample item.', docRenders: 'Renders', docBroken: 'Does not render',
+  docRendered: 'Rendered', docMarkdown: 'Markdown', docSave: 'Save', docUndo: 'Undo', docReset: 'Back to the built-in', docSaved: 'Saved {0}.',
+  docResetTitle: 'Remove this template?', docResetHelp: 'The document goes back to the built-in template.', docResetVariantHelp: 'Items of this area or kind go back to the general template.', docResetDone: 'Template removed.',
+  docDiscardTitle: 'Discard the changes?', docDiscardHelp: 'What you typed is not saved.', docDiscard: 'Discard',
+  docCommitHint: 'Templates are saved in .barnraise/documents/ of the repository: commit them so every machine uses them. Agents cannot change them.',
+  docDiagramsBadge: 'Diagrams: {0}', docMode_auto: 'when the change alters what exists', docMode_always: 'in every plan', docMode_off: 'off',
+  docModeHelp: 'When plans draw the design before and after is documents.diagrams in barnraise.yaml: auto, always or off.',
+  docFieldId: 'Item id', docFieldTitle: 'Title', docFieldKind: 'Kind', docFieldPriority: 'Priority', docFieldArea: 'Area', docFieldGoal: 'Goal', docFieldBody: 'Description',
+  docFieldCriteria: 'Criteria', docFieldPreserve: 'What must not change', docFieldSection: 'A section of the plan', docFieldDiagrams: 'Diagrams', docFieldDefault: 'Built-in text',
+  docFieldProblem: 'Proposal problem', docFieldMode: 'If diagrams are required',
+  docDiagram: 'Diagram', docShowCode: 'Show the source', docShowDiagram: 'Show the diagram', docCopySource: 'Copy the source', docExpand: 'Enlarge', docCopied: 'Copied.', docCopy: 'Copy',
+  docDiagramError: 'The diagram does not draw: {0}', docBefore: 'Before', docAfter: 'After', docSideBySide: 'Side by side', docStacked: 'One above the other',
+  docBeforeAfter: 'Before and after', docBeforeAfterHelp: 'The design as it is on main and as this item leaves it, from plan.md.',
+  docNoDiagrams: 'The plan draws no diagram: the change adds new code or is small.', docNoPlan: 'No plan yet: the diagrams come with plan.md.',
+  docPlanHelp: 'The item\'s memory: it never lands on main.', docPRBody: 'Pull request body', docFrom: 'From {0}', docFromBuiltIn: 'From the built-in template', docEditTemplate: 'Edit the template',
+});
+Object.assign(pt, {
+  navDocuments: 'Documentos', tabDocuments: 'Documentos',
+  docTitle: 'Documentos', docHelp: 'Os textos que o Barnraise escreve para as pessoas saem destes modelos. Cada time reescreve os seus; por área ou tipo, se precisar.',
+  docName_pr: 'Pull request', docName_plan: 'Plano', docName_item: 'Item de uma proposta', docName_issue: 'Issue no tracker',
+  docDesc_pr: 'O corpo de cada pull request.', docDesc_plan: 'A estrutura do plan.md.', docDesc_item: 'Quando uma proposta é aprovada.', docDesc_issue: 'GitHub ou GitLab.',
+  docBuiltIn: 'padrão', docCustom: '{0} do projeto', docGeneral: 'Todos os itens', docArea: 'Área', docKind: 'Tipo', docAreas: 'Áreas', docKinds: 'Tipos', docAppliesTo: 'Vale para',
+  docFileIs: 'Arquivo: {0}', docInheritsGeneral: 'Começa do modelo geral do projeto.', docUsesBuiltIn: 'Começa do modelo padrão.',
+  docTemplate: 'Modelo', docUnsaved: 'Não salvo', docInsert: 'Inserir', docPreview: 'Prévia', docPreviewHelp: 'Com um item de exemplo.', docRenders: 'Funciona', docBroken: 'Não funciona',
+  docRendered: 'Renderizado', docMarkdown: 'Markdown', docSave: 'Salvar', docUndo: 'Desfazer', docReset: 'Voltar ao padrão', docSaved: '{0} salvo.',
+  docResetTitle: 'Remover este modelo?', docResetHelp: 'O documento volta ao modelo padrão.', docResetVariantHelp: 'Os itens desta área ou tipo voltam ao modelo geral.', docResetDone: 'Modelo removido.',
+  docDiscardTitle: 'Descartar as mudanças?', docDiscardHelp: 'O que você digitou não foi salvo.', docDiscard: 'Descartar',
+  docCommitHint: 'Os modelos ficam em .barnraise/documents/ do repositório: faça commit para todas as máquinas usarem. Os agentes não podem mudá-los.',
+  docDiagramsBadge: 'Diagramas: {0}', docMode_auto: 'quando a mudança altera o que existe', docMode_always: 'em todo plano', docMode_off: 'desligados',
+  docModeHelp: 'Quando os planos desenham o antes e o depois é documents.diagrams no barnraise.yaml: auto, always ou off.',
+  docFieldId: 'Id do item', docFieldTitle: 'Título', docFieldKind: 'Tipo', docFieldPriority: 'Prioridade', docFieldArea: 'Área', docFieldGoal: 'Objetivo', docFieldBody: 'Descrição',
+  docFieldCriteria: 'Critérios', docFieldPreserve: 'O que não pode mudar', docFieldSection: 'Uma seção do plano', docFieldDiagrams: 'Diagramas', docFieldDefault: 'Texto padrão',
+  docFieldProblem: 'Problema da proposta', docFieldMode: 'Se os diagramas são obrigatórios',
+  docDiagram: 'Diagrama', docShowCode: 'Ver o código', docShowDiagram: 'Ver o diagrama', docCopySource: 'Copiar o código', docExpand: 'Ampliar', docCopied: 'Copiado.', docCopy: 'Copiar',
+  docDiagramError: 'O diagrama não desenha: {0}', docBefore: 'Antes', docAfter: 'Depois', docSideBySide: 'Lado a lado', docStacked: 'Um embaixo do outro',
+  docBeforeAfter: 'Antes e depois', docBeforeAfterHelp: 'O desenho como está na main e como este item deixa, do plan.md.',
+  docNoDiagrams: 'O plano não desenha diagrama: a mudança traz código novo ou é pequena.', docNoPlan: 'Ainda sem plano: os diagramas vêm com o plan.md.',
+  docPlanHelp: 'A memória do item: nunca vai para a main.', docPRBody: 'Corpo do pull request', docFrom: 'De {0}', docFromBuiltIn: 'Do modelo padrão', docEditTemplate: 'Editar o modelo',
+});
+
+// The cluster's switch: standby for one machine or every one, from any screen.
+Object.assign(en, {
+  mStandbyOnTitle: 'Put {0} in standby?', mStandbyOffTitle: 'Take {0} out of standby?', mStandbyIsOn: '{0} is in standby.', mStandbyIsOff: '{0} works again.',
+  allStandbyOnTitle: 'Put the {0} machines in standby?', allStandbyOffTitle: 'Wake the {0} machines?',
+  allStandbyOnHelp: 'No agent, check or merge starts anywhere; sessions running stop as with a pause and continue later. Status, the panel and questions keep working.',
+  allStandbyWho: 'Machines: {0}.', allStandbyOn: 'Everything in standby', allStandbyOff: 'Wake every machine',
+  allStandbyIsOn: '{0} machines in standby. Sessions stopped here: {1}.', allStandbyIsOff: '{0} machines working again.',
+  mStopDaemon: 'Stop the daemon of {0}',
+  clusterPowerTitle: 'Machines: standby for one or every one', clusterPowerWorking: 'working', clusterPowerLabel: '{0} of {1} machines working',
+  clusterPowerWake: 'wake', clusterPowerRest: 'standby', clusterPowerOpen: 'Open the machines',
+});
+Object.assign(pt, {
+  mStandbyOnTitle: 'Pôr {0} em standby?', mStandbyOffTitle: 'Tirar {0} do standby?', mStandbyIsOn: '{0} está em standby.', mStandbyIsOff: '{0} voltou a trabalhar.',
+  allStandbyOnTitle: 'Pôr as {0} máquinas em standby?', allStandbyOffTitle: 'Acordar as {0} máquinas?',
+  allStandbyOnHelp: 'Nenhum agente, verificação ou merge começa em lugar nenhum; as sessões em andamento param como numa pausa e continuam depois. Status, o painel e as perguntas seguem funcionando.',
+  allStandbyWho: 'Máquinas: {0}.', allStandbyOn: 'Tudo em standby', allStandbyOff: 'Acordar todas',
+  allStandbyIsOn: '{0} máquinas em standby. Sessões paradas aqui: {1}.', allStandbyIsOff: '{0} máquinas trabalhando de novo.',
+  mStopDaemon: 'Parar o daemon de {0}',
+  clusterPowerTitle: 'Máquinas: standby de uma ou de todas', clusterPowerWorking: 'trabalhando', clusterPowerLabel: '{0} de {1} máquinas trabalhando',
+  clusterPowerWake: 'acordar', clusterPowerRest: 'standby', clusterPowerOpen: 'Abrir as máquinas',
+});
+
 import { locale } from './locale.svelte';
 
 // The current language; t() and tm() read it, so the screen follows a switch.

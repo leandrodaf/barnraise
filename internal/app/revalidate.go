@@ -386,7 +386,7 @@ func (s *Service) syncTracker(p *Project, id string, create bool) {
 			return
 		}
 		if create || it.TrackerRef == "" {
-			ti, err := p.Ports().Tracker.Create(ctx, it, p.Cfg().Language)
+			ti, err := p.Ports().Tracker.Create(s.issueCtx(ctx, p, it), it, p.Cfg().Language)
 			if err != nil {
 				s.d.Log.Warn("tracker create", "item", id, "err", err)
 				return
@@ -397,7 +397,7 @@ func (s *Service) syncTracker(p *Project, id string, create bool) {
 			}, domain.Payload{Note: fmt.Sprintf("item %s appears as %s in %s", id, ti.Ref, p.Ports().Tracker.Name())})
 			return
 		}
-		err := p.Ports().Tracker.Update(ctx, it, p.Cfg().Language)
+		err := p.Ports().Tracker.Update(s.issueCtx(ctx, p, it), it, p.Cfg().Language)
 		if err != nil {
 			// Once more with the state as it is now (someone else may have changed the entry meanwhile).
 			select {
@@ -405,7 +405,7 @@ func (s *Service) syncTracker(p *Project, id string, create bool) {
 			case <-time.After(trackerRetryDelay):
 			}
 			if cur := p.Snapshot().Items[id]; cur != nil {
-				err = p.Ports().Tracker.Update(ctx, cur, p.Cfg().Language)
+				err = p.Ports().Tracker.Update(s.issueCtx(ctx, p, cur), cur, p.Cfg().Language)
 			}
 		}
 		if err != nil {

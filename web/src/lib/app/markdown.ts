@@ -7,7 +7,7 @@ export type Block =
 	| { k: 'p'; parts: Inline[] }
 	| { k: 'li'; parts: Inline[]; check?: boolean; done?: boolean; ordered?: string; depth: number }
 	| { k: 'quote'; parts: Inline[] }
-	| { k: 'pre'; v: string }
+	| { k: 'pre'; v: string; lang?: string }
 	| { k: 'hr' };
 
 export function inline(s: string): Inline[] {
@@ -36,11 +36,13 @@ export function parse(src: string): Block[] {
 	};
 	for (let i = 0; i < lines.length; i++) {
 		const l = lines[i];
-		if (/^\s*```/.test(l)) {
+		const fence = l.match(/^\s*(`{3,}|~{3,})\s*([\w+-]*)/);
+		if (fence) {
 			flush();
 			const body: string[] = [];
-			while (++i < lines.length && !/^\s*```/.test(lines[i])) body.push(lines[i]);
-			out.push({ k: 'pre', v: body.join('\n') });
+			const close = new RegExp('^\\s*' + (fence[1][0] === '`' ? '`' : '~') + '{' + fence[1].length + ',}\\s*$');
+			while (++i < lines.length && !close.test(lines[i])) body.push(lines[i]);
+			out.push({ k: 'pre', v: body.join('\n'), lang: fence[2].toLowerCase() || undefined });
 			continue;
 		}
 		let m: RegExpMatchArray | null;
