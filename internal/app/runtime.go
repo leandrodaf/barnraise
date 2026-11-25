@@ -300,6 +300,10 @@ func (r *Runtime) fillSlots(ctx context.Context, p *Project, m domain.Machine) {
 	// at once (or a start that fails) is not tried again by the next free
 	// slot of the same pass. The next pass decides again.
 	failed := map[string]bool{}
+	// Items refused for their own files (provenance): the slot takes its
+	// next item in the same pass, or one refused item would hold every
+	// other item of its role on this machine for as long as it is refused.
+	untrusted := map[string]bool{}
 	for _, slot := range r.slotsFor(p, m) {
 		r.mu.Lock()
 		_, busy := r.running[slot.Agent]
@@ -311,63 +315,77 @@ func (r *Runtime) fillSlots(ctx context.Context, p *Project, m domain.Machine) {
 		if n >= limit {
 			return
 		}
-		a, err := r.s.NextWork(ctx, p.Name, slot)
-		if err != nil {
-			// No authorized work: the agent records nothing and ends its turn.
-			continue
+		for r.fillSlot(ctx, p, slot, failed, untrusted) {
 		}
-		if failed[a.Item.ID] {
-			// Another slot just failed to start this item for a reason that
-			// is the machine's, not the slot's: do not try again this pass.
-			r.s.doneRunning(p, a.Item.ID, slot.Agent)
-			continue
-		}
-		dual := false
-		if dualEligible(a.Item, a.Step) && !r.s.hasAlt(p, a.Item.ID, a.Step.Name) {
-			if _, err := r.s.ensureWorkspace(ctx, p, a.Item.ID); err == nil {
-				if _, err := r.s.prepareAlt(ctx, p, a.Item.ID, a.Step); err == nil {
-					dual = true
-				} else {
-					r.s.d.Log.Warn("second attempt not prepared", "item", a.Item.ID, "err", err)
-				}
-			}
-		}
-		if err := r.start(ctx, p, slot, a, ""); err != nil {
-			failed[a.Item.ID] = true
-			r.s.doneRunning(p, a.Item.ID, slot.Agent)
-			if a.Step.Name == RefineStep {
-				r.s.forgetRefine(p, a.Item.ID) // it never ran: refine it on a later pass
-			}
-			// Recorded once per agent and item: the agent's state must say it
-			// failed, without repeating it on every pass.
-			if r.newStartErr(p.Name+"/"+slot.Agent+"/"+a.Item.ID, err.Error()) {
-				r.s.d.Log.Warn("start session", "agent", slot.Agent, "item", a.Item.ID, "err", err)
-				r.s.sessionState(ctx, p, slot, a, "failed", err.Error(), "", "", "")
-				switch {
-				case errors.Is(err, domain.ErrNoOtherModel):
-					r.s.notifyOwner(ctx, p, "model_rule", a.Item.ID+" cannot be reviewed", err.Error())
-				case strings.Contains(err.Error(), "bubblewrap"):
-					r.s.notifyOwner(ctx, p, "model_rule", a.Item.ID+" waits: a provider cannot run here", err.Error())
-				}
-			}
-			continue
-		}
-		failed[a.Item.ID] = true
-		r.newStartErr(p.Name+"/"+slot.Agent+"/"+a.Item.ID, "")
-		if dual {
-			slotB := Slot{Agent: slot.Agent + "-b", Role: slot.Role, Machine: slot.Machine, Reviewer: slot.Reviewer}
-			p.mu.Lock()
-			p.running[altKey(a.Item.ID)] = slotB.Agent
-			p.mu.Unlock()
-			if err := r.start(ctx, p, slotB, a, "b"); err != nil {
-				r.s.d.Log.Warn("second attempt", "item", a.Item.ID, "err", err)
-				r.s.doneRunning(p, altKey(a.Item.ID), slotB.Agent)
-				if r.s.hasAlt(p, a.Item.ID, a.Step.Name) {
-					r.s.altEnded(ctx, p, a.Item.ID)
-				}
+	}
+}
+
+// fillSlot gives one slot its next item and starts the session. It reports
+// whether the slot should ask again in this pass: only when the item it got
+// was refused for provenance, which is the item's matter and not the
+// slot's or the machine's.
+func (r *Runtime) fillSlot(ctx context.Context, p *Project, slot Slot, failed, untrusted map[string]bool) bool {
+	a, err := r.s.nextWorkSkipping(ctx, p.Name, slot, untrusted)
+	if err != nil {
+		// No authorized work: the agent records nothing and ends its turn.
+		return false
+	}
+	if failed[a.Item.ID] {
+		// Another slot just failed to start this item for a reason that
+		// is the machine's, not the slot's: do not try again this pass.
+		r.s.doneRunning(p, a.Item.ID, slot.Agent)
+		return false
+	}
+	dual := false
+	if dualEligible(a.Item, a.Step) && !r.s.hasAlt(p, a.Item.ID, a.Step.Name) {
+		if _, err := r.s.ensureWorkspace(ctx, p, a.Item.ID); err == nil {
+			if _, err := r.s.prepareAlt(ctx, p, a.Item.ID, a.Step); err == nil {
+				dual = true
+			} else {
+				r.s.d.Log.Warn("second attempt not prepared", "item", a.Item.ID, "err", err)
 			}
 		}
 	}
+	if err := r.start(ctx, p, slot, a, ""); err != nil {
+		failed[a.Item.ID] = true
+		r.s.doneRunning(p, a.Item.ID, slot.Agent)
+		if a.Step.Name == RefineStep {
+			r.s.forgetRefine(p, a.Item.ID) // it never ran: refine it on a later pass
+		}
+		// Recorded once per agent and item: the agent's state must say it
+		// failed, without repeating it on every pass.
+		if r.newStartErr(p.Name+"/"+slot.Agent+"/"+a.Item.ID, err.Error()) {
+			r.s.d.Log.Warn("start session", "agent", slot.Agent, "item", a.Item.ID, "err", err)
+			r.s.sessionState(ctx, p, slot, a, "failed", err.Error(), "", "", "")
+			switch {
+			case errors.Is(err, domain.ErrNoOtherModel):
+				r.s.notifyOwner(ctx, p, "model_rule", a.Item.ID+" cannot be reviewed", err.Error())
+			case strings.Contains(err.Error(), "bubblewrap"):
+				r.s.notifyOwner(ctx, p, "model_rule", a.Item.ID+" waits: a provider cannot run here", err.Error())
+			}
+		}
+		if errors.Is(err, errUntrustedItem) {
+			untrusted[a.Item.ID] = true
+			return true
+		}
+		return false
+	}
+	failed[a.Item.ID] = true
+	r.newStartErr(p.Name+"/"+slot.Agent+"/"+a.Item.ID, "")
+	if dual {
+		slotB := Slot{Agent: slot.Agent + "-b", Role: slot.Role, Machine: slot.Machine, Reviewer: slot.Reviewer}
+		p.mu.Lock()
+		p.running[altKey(a.Item.ID)] = slotB.Agent
+		p.mu.Unlock()
+		if err := r.start(ctx, p, slotB, a, "b"); err != nil {
+			r.s.d.Log.Warn("second attempt", "item", a.Item.ID, "err", err)
+			r.s.doneRunning(p, altKey(a.Item.ID), slotB.Agent)
+			if r.s.hasAlt(p, a.Item.ID, a.Step.Name) {
+				r.s.altEnded(ctx, p, a.Item.ID)
+			}
+		}
+	}
+	return false
 }
 
 // underPressure says why this machine should not start another session
@@ -467,6 +485,8 @@ func (r *Runtime) start(ctx context.Context, p *Project, slot Slot, a *Assignmen
 	if err != nil {
 		return err
 	}
+	// A map left stale by an earlier session is put back before it is judged.
+	s.restoreRepoMap(ctx, p, a.Item.ID, dir)
 	if err := s.checkProvenance(ctx, p, a.Item.ID, dir); err != nil {
 		return err
 	}

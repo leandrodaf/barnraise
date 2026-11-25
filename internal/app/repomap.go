@@ -1,6 +1,7 @@
 package app
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"os"
@@ -72,6 +73,53 @@ func (s *Service) writeRepoMap(ctx context.Context, p *Project, dir string, it *
 	if _, _, err := g.CommitAll(ctx, dir, "docs(map): refresh the repository map for "+it.ID+"\n\n"+domain.CommitTrailer(it.ID)); err != nil {
 		s.d.Log.Warn("repository map: commit", "item", it.ID, "err", err)
 	}
+}
+
+// restoreRepoMap puts the repository map of an item's worktree back to the
+// one at the branch's base when it is neither that one nor main's now. The
+// map is Barnraise's own output and agents cannot write .barnraise/; when a
+// session's sandbox enforces that on the commands too, a git rebase the
+// agent runs cannot update the file main changed and leaves the old copy
+// behind, as a change of the worktree. Committed with the step, that copy
+// would refuse every later session of the item as an instruction file
+// changed outside Barnraise. What the owner accepted for the item stays.
+func (s *Service) restoreRepoMap(ctx context.Context, p *Project, itemID, dir string) {
+	g := p.Ports().Git
+	if g == nil || dir == "" || filepath.Clean(dir) == filepath.Clean(p.Cfg().Root) {
+		return
+	}
+	file := filepath.Join(dir, filepath.FromSlash(domain.RepoMapFile))
+	cur, err := os.ReadFile(file)
+	if err != nil {
+		return
+	}
+	main, err := g.MainHead(ctx)
+	if err != nil || main == "" {
+		return
+	}
+	base := main
+	if head, err := g.Head(ctx, dir); err == nil && head != "" {
+		if b, err := g.MergeBase(ctx, head, main); err == nil && b != "" {
+			base = b
+		}
+	}
+	want, err := g.Show(ctx, base, domain.RepoMapFile)
+	if err != nil || bytes.Equal(cur, want) {
+		return // no map at the base, or the worktree has it
+	}
+	if base != main {
+		if now, err := g.Show(ctx, main, domain.RepoMapFile); err == nil && bytes.Equal(cur, now) {
+			return
+		}
+	}
+	if acc, err := s.accepted(ctx, p, itemID); err != nil || acc[domain.RepoMapFile+"\x00"+bytesSHA(cur)] {
+		return
+	}
+	if err := os.WriteFile(file, want, 0o644); err != nil {
+		s.d.Log.Warn("repository map: restore", "item", itemID, "err", err)
+		return
+	}
+	s.d.Log.Info("repository map restored to the branch's base", "item", itemID, "base", short(base))
 }
 
 // repoMapPart is the repository map as a part of the context pack: all of

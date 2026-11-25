@@ -189,8 +189,20 @@ func (s *Service) ensurePR(ctx context.Context, p *Project, itemID string) {
 	if err1 != nil || err2 != nil || main == head {
 		return
 	}
-	if files, err := g.ChangedFiles(ctx, main, head); err == nil && len(files) == 0 {
-		return
+	// Only the item's memory (its plan, its criteria) so far: a pull request
+	// with nothing of the product in it tells a reader nothing. It opens with
+	// the first commit that changes the repository itself.
+	if files, err := g.ChangedFiles(ctx, main, head); err == nil {
+		product := false
+		for _, f := range files {
+			if !domain.Contains(ItemFiles, f) && f != domain.RepoMapFile {
+				product = true
+				break
+			}
+		}
+		if !product {
+			return
+		}
 	}
 	pr, err := host.OpenDraftPR(ctx, it.Branch, p.Cfg().MainBranch, prTitle(it), prBody(p, it))
 	if err != nil {
@@ -267,6 +279,8 @@ func (s *Service) commitIn(ctx context.Context, p *Project, itemID, dir, branch,
 	if _, err := os.Stat(dir); err != nil {
 		return "", nil
 	}
+	// A stale copy of the map never rides with the step's commit.
+	s.restoreRepoMap(ctx, p, itemID, dir)
 	p.mu.Lock()
 	if it := p.state.Items[itemID]; it != nil {
 		_ = s.writeCriteria(dir, it)

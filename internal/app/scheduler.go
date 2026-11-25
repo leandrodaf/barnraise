@@ -48,6 +48,13 @@ func stepRole(st domain.StepDef) string {
 // machine already holds, then a new item by capacity split, focus,
 // dependencies and file overlap, reserved atomically in the arbiter.
 func (s *Service) NextWork(ctx context.Context, project string, slot Slot) (*Assignment, error) {
+	return s.nextWorkSkipping(ctx, project, slot, nil)
+}
+
+// nextWorkSkipping is NextWork that leaves out the items in skip: the ones
+// whose session could not start in this pass, so the slot takes the next
+// one instead of standing behind them.
+func (s *Service) nextWorkSkipping(ctx context.Context, project string, slot Slot, skip map[string]bool) (*Assignment, error) {
 	p, err := s.Project(project)
 	if err != nil {
 		return nil, err
@@ -60,7 +67,7 @@ func (s *Service) NextWork(ctx context.Context, project string, slot Slot) (*Ass
 		p.mu.Unlock()
 		return nil, ErrPaused
 	}
-	if a := s.heldWorkLocked(p, slot); a != nil {
+	if a := s.heldWorkLocked(p, slot, skip); a != nil {
 		p.running[a.Item.ID] = slot.Agent
 		p.mu.Unlock()
 		return a, nil
@@ -74,6 +81,9 @@ func (s *Service) NextWork(ctx context.Context, project string, slot Slot) (*Ass
 		}
 	}
 	for _, it := range cands {
+		if skip[it.ID] {
+			continue
+		}
 		if ok := s.validBeforeStart(ctx, p, it); !ok {
 			continue
 		}
@@ -142,10 +152,13 @@ func (s *Service) forgetRefine(p *Project, itemID string) {
 }
 
 // heldWorkLocked finds a step of a held item that wants this role.
-func (s *Service) heldWorkLocked(p *Project, slot Slot) *Assignment {
+func (s *Service) heldWorkLocked(p *Project, slot Slot, skip map[string]bool) *Assignment {
 	var best *domain.Item
 	var bestStep domain.StepDef
 	for _, it := range p.state.Items {
+		if skip[it.ID] {
+			continue
+		}
 		if it.Status != domain.StatusInProgress || it.Claim == nil || it.Claim.Machine != s.d.Machine || it.Parked {
 			continue
 		}

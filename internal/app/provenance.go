@@ -42,6 +42,10 @@ import (
 // ErrUntrusted is returned when a session is refused for provenance.
 var ErrUntrusted = errors.New("untrusted")
 
+// errUntrustedItem marks a refusal that is only about the item's own
+// worktree: the project and the binary hold, so other items may start.
+var errUntrustedItem = fmt.Errorf("%w", ErrUntrusted)
+
 // trustState holds what provenance remembers in memory.
 type trustState struct {
 	mu         sync.Mutex
@@ -295,6 +299,9 @@ func (s *Service) checkProvenance(ctx context.Context, p *Project, itemID, dir s
 	if err != nil {
 		return fmt.Errorf("%w: provenance check: %v", ErrUntrusted, err)
 	}
+	if s.autopilotAccepts(ctx, p, itemID, probs) {
+		return nil
+	}
 	for _, pr := range probs {
 		subject := itemID
 		if pr.Scope == "root" || pr.Scope == "binary" {
@@ -303,10 +310,52 @@ func (s *Service) checkProvenance(ctx context.Context, p *Project, itemID, dir s
 		s.trustMismatch(ctx, p, subject, pr.Scope, pr.Changes, pr.Fix)
 	}
 	if len(probs) > 0 {
+		why := errUntrustedItem
+		for _, pr := range probs {
+			if pr.Scope != "worktree" {
+				why = ErrUntrusted
+			}
+		}
 		pr := probs[0]
-		return fmt.Errorf("%w: %s changed outside Barnraise (%s): %s", ErrUntrusted, scopeName(pr.Scope), domain.TrustPaths(pr.Changes, 5), pr.Fix)
+		return fmt.Errorf("%w: %s changed outside Barnraise (%s): %s", why, scopeName(pr.Scope), domain.TrustPaths(pr.Changes, 5), pr.Fix)
 	}
 	return nil
+}
+
+// autopilotAccepts takes the owner's decision about an item's own
+// instruction files when the project's autopilot is on: it accepts them
+// for the item, as `barnraise trust I-42` does, records who accepted what
+// and tells the owner. The project's root and the binary are never the
+// autopilot's to accept: they steer every item.
+func (s *Service) autopilotAccepts(ctx context.Context, p *Project, itemID string, probs []TrustProblem) bool {
+	if len(probs) == 0 || itemID == "" {
+		return false
+	}
+	p.mu.Lock()
+	on := p.state.Autopilot
+	p.mu.Unlock()
+	if !on {
+		return false
+	}
+	files := map[string]string{}
+	var all []domain.TrustChange
+	for _, pr := range probs {
+		if pr.Scope != "worktree" {
+			return false
+		}
+		for _, c := range pr.Changes {
+			files[c.Path] = c.Got
+		}
+		all = append(all, pr.Changes...)
+	}
+	note := "instruction files accepted by the autopilot: " + domain.TrustPaths(all, 10)
+	if _, err := s.emit(ctx, p, domain.EvTrustAccepted, itemID, "autopilot", domain.Payload{Note: note, Extra: map[string]any{"files": files}}); err != nil {
+		s.d.Log.Warn("autopilot: accept instruction files", "item", itemID, "err", err)
+		return false
+	}
+	s.trust.forget(p.Name + "/worktree/" + itemID)
+	go s.notifyOwner(context.WithoutCancel(ctx), p, "trust", "The autopilot accepted changed instruction files of "+itemID, note)
+	return true
 }
 
 func scopeName(scope string) string {
