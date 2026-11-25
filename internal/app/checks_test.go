@@ -47,26 +47,74 @@ func TestCheckStepOutcomes(t *testing.T) {
 	}
 }
 
-// A check that is red on main too says nothing about the item: the item is
-// held for the owner, with the reason, instead of going back to an agent to
-// "fix" code that is not wrong, and nothing else runs or integrates.
-func TestCheckRedOnMainHoldsTheItem(t *testing.T) {
+// A check that is red on main too says nothing about the item. Instead of
+// sending it back to an agent to "fix" code that is not wrong, or asking
+// the owner, Barnraise opens one item that repairs the check on main, and
+// every item held by that check waits for it, with nobody asked.
+func TestCheckRedOnMainWaitsForOneRepair(t *testing.T) {
 	e := newEnv(t)
 	e.checks.Script("main", testkit.CheckOutcome{Passed: false, MainRed: true, Summary: "red on main too: branch 0/1 passed, main 0/1 passed"})
 	it := e.atCheck("lint broken on main")
 	e.drive(it.ID)
+	got := e.item(it.ID)
+	if len(got.Rework) != 0 || got.WaitingQuestion != "" || got.Status == domain.StatusWaitingOwner {
+		t.Fatalf("not waiting quietly: %+v", got)
+	}
+	if len(got.Deps) != 1 {
+		t.Fatalf("deps %v, want the repair item", got.Deps)
+	}
+	repair := e.item(got.Deps[0])
+	if repair.Title != mainRepairTitle("main") || repair.Priority.String() != "P0" || !strings.Contains(repair.Body, "red on main too") {
+		t.Fatalf("repair item %+v", repair)
+	}
+	if k := strings.Join(e.notes.Kinds(), ","); strings.Contains(k, "check_red_on_main") {
+		t.Fatalf("the owner was told: %s", k)
+	}
+
+	// A second item held by the same check waits for the same repair.
+	other := e.atCheck("another one")
+	e.drive(other.ID)
+	if deps := e.item(other.ID).Deps; len(deps) != 1 || deps[0] != repair.ID {
+		t.Fatalf("second item deps %v, want %s", deps, repair.ID)
+	}
+	n := 0
+	p, _ := e.svc.Project("demo")
+	for _, x := range p.Snapshot().Items {
+		if x.Title == mainRepairTitle("main") {
+			n++
+		}
+	}
+	if n != 1 {
+		t.Fatalf("%d repair items", n)
+	}
+}
+
+// A check that cannot run at all here (its program is missing, the network
+// is down) is no item's to repair: the item is held and the owner told.
+func TestCheckThatCannotRunIsHeldForTheOwner(t *testing.T) {
+	e := newEnv(t)
+	e.checks.Script("main", testkit.CheckOutcome{Passed: false, MainRed: true, CannotRun: true, Summary: "check main needs ast-grep, which is not installed"})
+	it := e.atCheck("no ast-grep here")
+	e.drive(it.ID)
 	got := e.wantStatus(it.ID, domain.StatusBlocked, "check")
-	if len(got.Rework) != 0 {
-		t.Fatalf("went to rework: %+v", got.Rework)
-	}
-	if got.WaitingQuestion == "" {
-		t.Fatal("no question for the owner")
-	}
-	if ty := e.types(it.ID); !strings.Contains(ty, domain.EvItemBlocked) {
-		t.Fatalf("events %s", ty)
+	if len(got.Deps) != 0 || len(got.Rework) != 0 {
+		t.Fatalf("deps %v rework %v", got.Deps, got.Rework)
 	}
 	if k := strings.Join(e.notes.Kinds(), ","); !strings.Contains(k, "check_red_on_main") {
 		t.Fatalf("notifications %s", k)
+	}
+}
+
+// The repair item's own check red on main is its work not done yet: it goes
+// back to its agent like any failure, never waiting for itself.
+func TestMainRepairItemDoesNotWaitForItself(t *testing.T) {
+	e := newEnv(t)
+	e.checks.Script("main", testkit.CheckOutcome{Passed: false, MainRed: true, Summary: "still red"})
+	it := e.atCheck(mainRepairTitle("main"))
+	e.drive(it.ID)
+	got := e.item(it.ID)
+	if len(got.Deps) != 0 || len(got.Rework) != 1 {
+		t.Fatalf("repair item deps %v rework %d", got.Deps, len(got.Rework))
 	}
 }
 

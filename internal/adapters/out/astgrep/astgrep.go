@@ -74,7 +74,7 @@ func (r *Runner) Check(ctx context.Context, spec ports.CheckSpec) (domain.CheckR
 		if r.o.Machine != "" {
 			where = r.o.Machine
 		}
-		res.MainRed = true
+		res.MainRed, res.CannotRun = true, true
 		res.Summary = fmt.Sprintf("check %s needs ast-grep, which is not installed on %s: install it (https://ast-grep.github.io) or remove the check", spec.Def.Name, where)
 		return res, nil, nil
 	}
@@ -100,7 +100,7 @@ func (r *Runner) Check(ctx context.Context, spec ports.CheckSpec) (domain.CheckR
 		if ctx.Err() != nil {
 			return res, nil, ctx.Err()
 		}
-		res.MainRed = true
+		res.MainRed, res.CannotRun = true, true
 		res.Summary = "ast-grep could not run: " + err.Error()
 		return res, nil, nil
 	}
@@ -109,7 +109,7 @@ func (r *Runner) Check(ctx context.Context, spec ports.CheckSpec) (domain.CheckR
 	if out.ExitCode != 0 && out.ExitCode != 1 || out.ExitCode == 1 && len(matches) == 0 || bad {
 		// Not a verdict on the code: no sgconfig.yml, a rule that does not
 		// parse, a crash.
-		res.MainRed = true
+		res.MainRed, res.CannotRun = true, true
 		res.Summary = fmt.Sprintf("ast-grep could not scan (exit %d): %s", out.ExitCode, firstLine(out.Stderr, out.Stdout))
 		return res, log, nil
 	}

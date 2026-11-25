@@ -279,8 +279,14 @@ func (s *Service) commitIn(ctx context.Context, p *Project, itemID, dir, branch,
 	if _, err := os.Stat(dir); err != nil {
 		return "", nil
 	}
-	// A stale copy of a .barnraise/ file never rides with the step's commit.
+	primary := dir == s.WorktreeDir(p.Name, itemID)
+	if primary && !s.settleUnfinished(ctx, p, itemID, dir, false) {
+		return "", fmt.Errorf("an unfinished rebase in %s could not be undone", dir)
+	}
+	// A stale copy of a .barnraise/ file never rides with the step's commit,
+	// nor do the empty files the sandbox mounts over protected paths.
 	s.restoreBarnraiseFiles(ctx, p, itemID, dir)
+	s.dropSandboxMounts(ctx, p, dir)
 	p.mu.Lock()
 	if it := p.state.Items[itemID]; it != nil {
 		_ = s.writeCriteria(dir, it)
@@ -302,7 +308,7 @@ func (s *Service) commitIn(ctx context.Context, p *Project, itemID, dir, branch,
 	if branch != "" {
 		if err := g.Push(ctx, dir, branch); err != nil {
 			s.d.Log.Warn("push", "item", itemID, "err", err)
-		} else if dir == s.WorktreeDir(p.Name, itemID) {
+		} else if primary {
 			s.ensurePR(ctx, p, itemID)
 		}
 	}
@@ -487,7 +493,8 @@ func (s *Service) runCheckStep(ctx context.Context, p *Project, it *domain.Item,
 		return err
 	}
 	pendingAny := false
-	failedFirst, mainRed := "", ""
+	failedFirst, mainRed, redSummary := "", "", ""
+	cannotRun := false
 	for _, dec := range decisions {
 		n := dec.Name
 		def := p.Cfg().Checks[n]
@@ -539,22 +546,33 @@ func (s *Service) runCheckStep(ctx context.Context, p *Project, it *domain.Item,
 		if !res.Passed {
 			failedFirst = n
 			if res.MainRed {
-				mainRed = n
+				mainRed, redSummary, cannotRun = n, res.Summary, res.CannotRun
 			}
 		}
 	}
 	if pendingAny {
 		return nil // results come through ReportCheck
 	}
-	if mainRed != "" {
+	if mainRed != "" && !isMainRepair(it, mainRed) {
 		// Sending the item back would have an agent "fix" code that is not
-		// wrong; passing it would let anything through. A person fixes main
-		// or the machine, then retries the step.
-		reason := fmt.Sprintf("check %s is red on main too, so it says nothing about this item: main or this machine's environment is broken (a tool version, a missing build artifact, memory). Fix it and retry the step.", mainRed)
-		if _, _, err := s.finishStep(ctx, p, stepOutcome{Item: it.ID, Step: st.Name, Outcome: domain.OutcomeBlocked, Reason: reason, Actor: "checks"}); err != nil {
+		// wrong; passing it would let anything through. One item repairs
+		// the check on main, and this one waits for it: nobody is asked.
+		reason := fmt.Sprintf("check %s is red on main too, so it says nothing about this item: main or this machine's environment is broken (a tool version, a missing build artifact, memory, the locale).", mainRed)
+		repair := ""
+		if !cannotRun {
+			repair = s.mainRepairItem(ctx, p, mainRed, it.ID, redSummary)
+		}
+		var waits []string
+		if repair != "" {
+			waits = []string{repair}
+			reason += " " + repair + " repairs it; this step runs again once it is on main."
+		}
+		if _, _, err := s.finishStep(ctx, p, stepOutcome{Item: it.ID, Step: st.Name, Outcome: domain.OutcomeBlocked, Reason: reason, Actor: "checks", WaitsFor: waits}); err != nil {
 			return err
 		}
-		s.notifyOwner(ctx, p, "check_red_on_main", fmt.Sprintf("Check %s is red on main", mainRed), it.ID+" is held at "+st.Name+": "+reason)
+		if repair == "" {
+			s.notifyOwner(ctx, p, "check_red_on_main", fmt.Sprintf("Check %s is red on main", mainRed), it.ID+" is held at "+st.Name+": "+reason)
+		}
 		return nil
 	}
 	results := s.checkResultsSince(ctx, p, it.ID, it.StepStartedAt)

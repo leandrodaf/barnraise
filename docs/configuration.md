@@ -134,7 +134,7 @@ Each check is a command string or a mapping:
 | `url` | none | Endpoint for `webhook` checks; the result comes back on the signed inbound webhook |
 | `scope` | `touched` | `touched` runs only for the areas the item changed; `all` runs everything |
 | `timeout` | `30m` | duration |
-| `flaky_retries` | `3` | Runs on the branch and on main before calling a failure real. Red on the branch and green on main sends the item back; red on main too holds the item for the owner (main or the machine is broken), without rework |
+| `flaky_retries` | `3` | Runs on the branch and on main before calling a failure real. Red on the branch and green on main sends the item back; red on main too opens one P0 item, "Make check NAME pass on main again" (or reuses the open one), and the item waits for it and runs the step again once it lands, without rework and without asking anyone. A check that cannot run at all on the machine (its program missing, the network down) holds the item for the owner instead |
 | `areas` | all | Run only for changes that touch these areas |
 | `paths` | none | …or that touch a file matching one of these globs (a contract shared by two parts, for example) |
 | `covers` | none | Checks this one makes redundant: when both apply, the covered one is skipped (an integration run that already runs the unit tests) |

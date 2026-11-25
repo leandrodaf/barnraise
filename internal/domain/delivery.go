@@ -221,7 +221,11 @@ type CheckResult struct {
 	// MainRed: it failed on the branch and failed on main too. That is not
 	// the item's fault and not a flake either: main or this machine's
 	// environment is broken (a tool version, a missing build artifact).
-	MainRed   bool          `json:"main_red,omitempty"`
+	MainRed bool `json:"main_red,omitempty"`
+	// CannotRun, with MainRed: the check could not run on this machine at
+	// all (its program is missing, the network is down). No item can
+	// repair that; the owner or the machine has to.
+	CannotRun bool          `json:"cannot_run,omitempty"`
 	Summary   string        `json:"summary"`
 	LogPath   string        `json:"log_path,omitempty"`
 	LogHash   string        `json:"log_hash,omitempty"`

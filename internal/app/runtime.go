@@ -539,6 +539,12 @@ func (r *Runtime) start(ctx context.Context, p *Project, slot Slot, a *Assignmen
 	if err != nil {
 		return err
 	}
+	// Sent back by the merge queue for a conflict: Barnraise rebases, the
+	// agent only resolves (rebasefix.go).
+	var conflicts []string
+	if attempt != "b" && a.Step.Name != RefineStep {
+		conflicts = s.prepareRebase(ctx, p, p.Snapshot().Items[a.Item.ID], a.Step.Name, dir)
+	}
 	// A .barnraise/ file left stale by an earlier session is put back before it is judged.
 	s.restoreBarnraiseFiles(ctx, p, a.Item.ID, dir)
 	if err := s.checkProvenance(ctx, p, a.Item.ID, dir); err != nil {
@@ -640,6 +646,7 @@ func (r *Runtime) start(ctx context.Context, p *Project, slot Slot, a *Assignmen
 		s.tokens.Revoke(token)
 		return err
 	}
+	prompt.Prompt += rebaseBrief(conflicts)
 	if experiment != "" {
 		for _, ex := range p.Cfg().Experiments {
 			if ex.Name == experiment && ex.Prompt != "" {
@@ -1071,7 +1078,10 @@ loop:
 			}
 		case <-safety.C:
 			// Safety commit of pending changes.
-			_, _ = s.commitStep(ctx, p, a.Item.ID, "chore("+a.Item.ID+"): safety commit during "+a.Step.Name)
+			// Not while a rebase Barnraise started waits for this session.
+			if s.settleUnfinished(ctx, p, a.Item.ID, ls.dir, true) {
+				_, _ = s.commitStep(ctx, p, a.Item.ID, "chore("+a.Item.ID+"): safety commit during "+a.Step.Name)
+			}
 		}
 	}
 	res, err := ls.sess.Wait()

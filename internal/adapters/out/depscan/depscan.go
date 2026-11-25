@@ -87,7 +87,7 @@ func (s *Scanner) Check(ctx context.Context, spec ports.CheckSpec, pol domain.De
 		if ctx.Err() != nil {
 			return res, ctx.Err()
 		}
-		res.MainRed = true
+		res.MainRed, res.CannotRun = true, true
 		res.Summary = "could not check the dependencies (this is not the change's fault): " + err.Error()
 		return res, nil
 	}
