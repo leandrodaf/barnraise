@@ -113,9 +113,9 @@
 			<div class="space-y-2">
 				<p class="text-xs font-medium">{t('anchors')}</p>
 				{#each anchorKeys as k (k)}
-					<div class="flex flex-wrap items-baseline gap-1.5"><span class="eyebrow w-24 shrink-0 text-muted-foreground">{t(k)}</span>{#each list(anchors[k]) as a (a)}<code class="num rounded bg-muted px-1.5 py-0.5 text-[11px]">{a}</code>{/each}</div>
+					<div class="flex flex-wrap items-baseline gap-1.5"><span class="eyebrow w-40 shrink-0 whitespace-nowrap text-muted-foreground">{t(k)}</span>{#each list(anchors[k]) as a (a)}<code class="num rounded bg-muted px-1.5 py-0.5 text-[11px]">{a}</code>{/each}</div>
 				{/each}
-				{#if anchors.base}<div class="flex items-baseline gap-1.5"><span class="eyebrow w-24 shrink-0 text-muted-foreground">{t('base')}</span><code class="num rounded bg-muted px-1.5 py-0.5 text-[11px]" title={anchors.base}>{String(anchors.base).slice(0, 8)}</code></div>{/if}
+				{#if anchors.base}<div class="flex items-baseline gap-1.5"><span class="eyebrow w-40 shrink-0 whitespace-nowrap text-muted-foreground">{t('base')}</span><code class="num rounded bg-muted px-1.5 py-0.5 text-[11px]" title={anchors.base}>{String(anchors.base).slice(0, 8)}</code></div>{/if}
 			</div>
 		{/if}
 
