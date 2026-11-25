@@ -398,8 +398,14 @@ func TestWeeklyTurnsAlertsIntoProposals(t *testing.T) {
 	if len(props) != 1 || props[0].Kind != "self_improvement" || !strings.HasPrefix(props[0].Title, "Metric: ") {
 		t.Fatalf("%+v", props)
 	}
-	if n := e.notes.Sent(); len(n) == 0 || !strings.Contains(n[len(n)-1].Title, "proposed features") {
-		t.Fatalf("self-improvement proposals go to the owner weekly: %+v", n)
+	// The violation's own notification is sent in the background and may
+	// come after the weekly one: look for the weekly one among them.
+	sent := false
+	for _, n := range e.notes.Sent() {
+		sent = sent || strings.Contains(n.Title, "proposed features")
+	}
+	if !sent {
+		t.Fatalf("self-improvement proposals go to the owner weekly: %+v", e.notes.Sent())
 	}
 	// Without a notification channel nothing of this fails.
 	q := newEnv(t, withoutNotifier())

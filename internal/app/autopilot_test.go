@@ -354,8 +354,14 @@ func TestAdviceUnlocksALockedTest(t *testing.T) {
 		t.Fatalf("answer %q", a)
 	}
 	// Only locked files, inside the repository, and only by who approves.
-	wantErr(t, func() error { _, err := e.svc.UnlockFiles(e.ctx, "demo", owner(), it.ID, []string{"app/main.go"}, ""); return err }(), ErrInvalid)
-	wantErr(t, func() error { _, err := e.svc.UnlockFiles(e.ctx, "demo", owner(), it.ID, []string{"../tests/x_test.go"}, ""); return err }(), ErrInvalid)
+	wantErr(t, func() error {
+		_, err := e.svc.UnlockFiles(e.ctx, "demo", owner(), it.ID, []string{"app/main.go"}, "")
+		return err
+	}(), ErrInvalid)
+	wantErr(t, func() error {
+		_, err := e.svc.UnlockFiles(e.ctx, "demo", owner(), it.ID, []string{"../tests/x_test.go"}, "")
+		return err
+	}(), ErrInvalid)
 	wantErr(t, func() error {
 		_, err := e.svc.UnlockFiles(e.ctx, "demo", agent("implementer", it.ID, "implement"), it.ID, []string{"tests/a_test.go"}, "")
 		return err
