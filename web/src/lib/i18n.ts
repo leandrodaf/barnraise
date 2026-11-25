@@ -553,6 +553,8 @@ Object.assign(en, {
   dkIndependent: 'The daemon runs on its own: closing the app does not stop the agents.',
   dkOther: 'Another machine', dkAddress: 'Address', dkConnect: 'Connect',
   dkNotDesktop: 'This page belongs to the desktop app.',
+  dkStarting: 'Starting… {0} s', dkStartingWhy: 'The daemon loads every project before it answers; a large project takes some seconds.',
+  dkOtherShow: 'Open the panel of another machine', dkOtherWhy: 'The machines of the cluster already appear in this machine\'s panel. An address is only needed for a daemon this machine is not part of.',
 });
 
 Object.assign(pt, {
@@ -566,6 +568,8 @@ Object.assign(pt, {
   dkIndependent: 'O daemon roda sozinho: fechar o app não para os agentes.',
   dkOther: 'Outra máquina', dkAddress: 'Endereço', dkConnect: 'Conectar',
   dkNotDesktop: 'Esta página é do app desktop.',
+  dkStarting: 'Iniciando… {0} s', dkStartingWhy: 'O daemon carrega todos os projetos antes de responder; um projeto grande leva alguns segundos.',
+  dkOtherShow: 'Abrir o painel de outra máquina', dkOtherWhy: 'As máquinas do cluster já aparecem no painel desta máquina. Um endereço só é necessário para um daemon do qual esta máquina não faz parte.',
 });
 
 

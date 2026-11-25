@@ -4,6 +4,11 @@
 @import "@fontsource-variable/geist";
 @import "@fontsource-variable/geist-mono";
 
+/* The classes of everything under src/ are always generated. Tailwind looks
+   for them from the root of the build, and the desktop launcher builds from
+   web/desktop: without this line its buttons, cards and inputs had no style. */
+@source "./";
+
 @custom-variant dark (&:is(.dark *));
 
 :root {

@@ -19,6 +19,11 @@
 	let error = $state('');
 	let base = $state('');
 	let token = $state('');
+	let elapsed = $state(0);
+	let other = $state(false);
+	// With a daemon of its own this machine needs no address: the form for
+	// another machine stays folded until it is asked for.
+	const hasLocal = $derived(!!local && (local.running || local.service || !!local.binary));
 
 	const open = (u: string) => window.location.replace(u);
 
@@ -35,12 +40,16 @@
 	async function start() {
 		busy = true;
 		error = '';
+		elapsed = 0;
+		const began = Date.now();
+		const tick = setInterval(() => (elapsed = Math.round((Date.now() - began) / 1000)), 500);
 		try {
 			local = await startDaemon();
 			if (local.panel_url) open(local.panel_url);
 		} catch (e) {
 			error = String(e);
 		} finally {
+			clearInterval(tick);
 			busy = false;
 		}
 	}
@@ -83,20 +92,25 @@
 						<p class="text-sm text-muted-foreground">{local.problem || t('dkStopped')}</p>
 						<p class="text-xs text-muted-foreground">{local.service ? t('dkViaService') : local.binary ? t('dkViaBinary', local.binary) : t('dkNoBinary')}</p>
 						<div class="flex gap-2">
-							<Button class="flex-1" disabled={busy || (!local.service && !local.binary)} onclick={start}>{#if busy}<Spinner />{:else}<PlayIcon />{/if}{t('dkStart')}</Button>
+							<Button class="flex-1" disabled={busy || (!local.service && !local.binary)} onclick={start}>{#if busy}<Spinner />{t('dkStarting', elapsed)}{:else}<PlayIcon />{t('dkStart')}{/if}</Button>
 							<Button variant="outline" size="icon" aria-label={t('retry')} onclick={() => check(false)}><RefreshIcon /></Button>
 						</div>
-						<p class="text-xs text-muted-foreground">{t('dkIndependent')}</p>
+						<p class="text-xs text-muted-foreground" aria-live="polite">{busy ? t('dkStartingWhy') : t('dkIndependent')}</p>
 					{/if}
 				</div>
 			{/if}
-			<Separator />
-			<form class="space-y-3" onsubmit={connect}>
-				<p class="flex items-center gap-2 text-sm font-medium"><GlobeIcon class="size-4" />{t('dkOther')}</p>
-				<div class="grid gap-1.5"><Label for="base">{t('dkAddress')}</Label><Input id="base" placeholder="https://machine:7420" bind:value={base} required /></div>
-				<div class="grid gap-1.5"><Label for="tok">{t('tokenLabel')}</Label><Input id="tok" type="password" bind:value={token} /></div>
-				<Button type="submit" variant="outline" class="w-full" disabled={busy}>{t('dkConnect')}</Button>
-			</form>
+			{#if hasLocal && !other}
+				<Button variant="ghost" size="sm" class="w-full text-muted-foreground" onclick={() => (other = true)}><GlobeIcon />{t('dkOtherShow')}</Button>
+			{:else}
+				<Separator />
+				<form class="space-y-3" onsubmit={connect}>
+					<p class="flex items-center gap-2 text-sm font-medium"><GlobeIcon class="size-4" />{t('dkOther')}</p>
+					<p class="text-xs text-muted-foreground">{t('dkOtherWhy')}</p>
+					<div class="grid gap-1.5"><Label for="base">{t('dkAddress')}</Label><Input id="base" placeholder="https://machine:7420" bind:value={base} required /></div>
+					<div class="grid gap-1.5"><Label for="tok">{t('tokenLabel')}</Label><Input id="tok" type="password" bind:value={token} /></div>
+					<Button type="submit" variant="outline" class="w-full" disabled={busy}>{t('dkConnect')}</Button>
+				</form>
+			{/if}
 			{#if error}<p class="text-sm text-destructive" role="alert">{error}</p>{/if}
 		</Card.Content>
 	</Card.Root>

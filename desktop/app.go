@@ -72,6 +72,9 @@ func (a *App) Status() Local {
 	return l
 }
 
+// startWait is how long StartDaemon waits for the daemon to answer.
+const startWait = 90 * time.Second
+
 // StartDaemon starts this machine's daemon as its own process: through the
 // systemd user service when there is one, otherwise `barnraise daemon` in
 // the background with its log in the data folder. It waits until it answers.
@@ -105,14 +108,16 @@ func (a *App) StartDaemon() (Local, error) {
 		}
 		_ = cmd.Process.Release()
 	}
-	deadline := time.Now().Add(20 * time.Second)
+	// The daemon answers only after it loaded every project: a large one
+	// takes ten seconds or more, so the wait is generous.
+	deadline := time.Now().Add(startWait)
 	for time.Now().Before(deadline) {
 		if s := a.Status(); s.Running {
 			return s, nil
 		}
 		time.Sleep(300 * time.Millisecond)
 	}
-	return Local{}, errors.New("the daemon did not answer in 20 seconds; see " + filepath.Join(paths.DataDir(), "daemon.log"))
+	return Local{}, fmt.Errorf("the daemon did not answer in %s; see %s", startWait, filepath.Join(paths.DataDir(), "daemon.log"))
 }
 
 // Remote checks another machine's daemon and returns its panel address.
