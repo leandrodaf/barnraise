@@ -913,3 +913,20 @@ export function tm(map: string, value: unknown): string {
   const k = String(value ?? '');
   return m[k] || (en[map] || {})[k] || k;
 }
+
+Object.assign(en, {
+  viewGraph: 'Dependencies', tabDeps: 'Dependencies',
+  depNone: 'No item waits for another one now.', depNoneItem: 'This item waits for nothing, and nothing waits for it.',
+  depLegendWaits: 'waits: not on main yet', depLegendLanded: 'already on main', depLegendRead: 'An item stands to the right of what it waits for. Hover to see its chain.',
+  depHolds: 'holds {0}', depHoldsTitle: '{0} open items wait for this one', depWaitsN: 'waits for {0} item(s) to land', depOutside: 'landed earlier',
+  depWaitsFor: 'waits for {0}', depWaitsTitle: 'Starts by itself once {0} is on main',
+  depBanner: 'This item waits for', depBannerAfter: 'to land on main. It starts again by itself; nothing to do.',
+});
+Object.assign(pt, {
+  viewGraph: 'Dependências', tabDeps: 'Dependências',
+  depNone: 'Nenhum item espera outro agora.', depNoneItem: 'Este item não espera nada, e nada espera por ele.',
+  depLegendWaits: 'espera: ainda não está no main', depLegendLanded: 'já está no main', depLegendRead: 'Cada item fica à direita do que ele espera. Passe o mouse para ver a cadeia.',
+  depHolds: 'segura {0}', depHoldsTitle: '{0} itens abertos esperam por este', depWaitsN: 'espera {0} item(ns) entrar', depOutside: 'entrou antes',
+  depWaitsFor: 'espera {0}', depWaitsTitle: 'Recomeça sozinho quando {0} estiver no main',
+  depBanner: 'Este item espera', depBannerAfter: 'entrar no main. Ele recomeça sozinho; não há nada a fazer.',
+});

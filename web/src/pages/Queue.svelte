@@ -8,6 +8,7 @@
 	import PlusIcon from '@lucide/svelte/icons/plus';
 	import KanbanIcon from '@lucide/svelte/icons/square-kanban';
 	import ListIcon from '@lucide/svelte/icons/list';
+	import NetworkIcon from '@lucide/svelte/icons/network';
 	import SearchIcon from '@lucide/svelte/icons/search';
 	import ChevronLeftIcon from '@lucide/svelte/icons/chevron-left';
 	import ChevronRightIcon from '@lucide/svelte/icons/chevron-right';
@@ -25,6 +26,7 @@
 	import ItemCard from '$lib/app/ItemCard.svelte';
 	import StatusIcon from '$lib/app/StatusIcon.svelte';
 	import Empty from '$lib/app/Empty.svelte';
+	import DepGraph from '$lib/app/DepGraph.svelte';
 
 	let view = $state(store.get('queueView') || 'board');
 	let density = $state(store.get('density') || 'comfortable');
@@ -118,6 +120,7 @@
 		<ToggleGroup.Root type="single" bind:value={view} variant="outline" size="sm" class="shrink-0">
 			<ToggleGroup.Item value="board" aria-label={t('viewBoard')} title={t('viewBoard')}><KanbanIcon /></ToggleGroup.Item>
 			<ToggleGroup.Item value="table" aria-label={t('viewTable')} title={t('viewTable')}><ListIcon /></ToggleGroup.Item>
+			<ToggleGroup.Item value="graph" aria-label={t('viewGraph')} title={t('viewGraph')}><NetworkIcon /></ToggleGroup.Item>
 		</ToggleGroup.Root>
 		<Button size="sm" onclick={newItem}><PlusIcon />{t('newItem')}</Button>
 	{/snippet}
@@ -201,6 +204,9 @@
 			{/each}
 		</div>
 	</div>
+{:else if view === 'graph'}
+	<!-- What waits for what: an item stands right of everything it waits for. -->
+	<DepGraph {rows} compact={density === 'compact'} />
 {:else}
 	<!-- Table: a list on phones, a table with every column from tablets up. -->
 	<div class="divide-y overflow-hidden rounded-xl border bg-card md:hidden">

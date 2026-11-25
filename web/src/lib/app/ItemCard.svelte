@@ -1,6 +1,10 @@
 <script lang="ts">
 	import GitBranchIcon from '@lucide/svelte/icons/git-branch';
 	import ServerIcon from '@lucide/svelte/icons/server';
+	import HourglassIcon from '@lucide/svelte/icons/hourglass';
+	import { cluster } from '$lib/cluster.svelte';
+	import { clusterItems } from './items';
+	import { dependents } from './deps';
 	import { t } from '$lib/i18n';
 	import { compact, money, since } from '$lib/format';
 	import { TEXT, BG, toneOfItem, signalTone, signalText } from '$lib/status';
@@ -12,6 +16,10 @@
 	let { r, compact: dense = false }: { r: Row; compact?: boolean } = $props();
 	const tone = $derived(toneOfItem(r));
 	const sub = $derived({ text: signalText(r), tone: signalTone(r) });
+	const open = $derived(r.status !== 'integrated' && r.status !== 'closed');
+	// What this item waits for, and how many open items wait for it.
+	const waits = $derived(open ? r.blockedBy || [] : []);
+	const holds = $derived(open ? dependents(clusterItems(cluster.data)).get(r.project + '/' + r.id)?.length || 0 : 0);
 	const prTone = (st: string) => (st === 'merged' ? 'text-st-review' : st === 'closed' ? 'text-st-fail' : st === 'draft' ? 'text-muted-foreground' : 'text-st-done');
 </script>
 
@@ -29,6 +37,12 @@
 		</div>
 		{#if r.priority <= 1}<span class="num rounded bg-st-fail/12 px-1 text-[10px] font-semibold text-st-fail">P{r.priority}</span>{/if}
 	</div>
+	{#if waits.length || holds}
+		<div class="num flex flex-wrap items-center gap-1.5 px-3 pb-2 text-[10px] {dense ? 'px-2.5 pb-1.5' : ''}">
+			{#if waits.length}<span class="flex items-center gap-1 rounded-full bg-st-needs/15 px-1.5 py-0.5 font-medium text-st-needs" title={t('depWaitsTitle', waits.join(', '))}><HourglassIcon class="size-3" />{t('depWaitsFor', waits.join(', '))}</span>{/if}
+			{#if holds}<span class="rounded-full border px-1.5 py-0.5 text-muted-foreground" title={t('depHoldsTitle', holds)}>{t('depHolds', holds)}</span>{/if}
+		</div>
+	{/if}
 	<div class="num space-y-1 border-t {dense ? 'px-2.5 py-1.5' : 'px-3 py-2'} text-[11px]">
 		<div class="flex items-center gap-1.5">
 			<span class="size-1.5 shrink-0 rounded-full {BG[sub.tone]}"></span>

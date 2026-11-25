@@ -47,6 +47,11 @@
 	import type { UsageTotals } from '$lib/gen/barnraise/v1/barnraise_pb';
 	import { editItem, closeItem, unlockFiles, addTweak, messageAgent } from '$lib/app/ownerActions';
 	import { onDestroy } from 'svelte';
+	import HourglassIcon from '@lucide/svelte/icons/hourglass';
+	import DepGraph from '$lib/app/DepGraph.svelte';
+	import { cluster } from '$lib/cluster.svelte';
+	import { clusterItems } from '$lib/app/items';
+	import { openItem } from '$lib/app/open';
 
 	let { id, project }: { id: string; project: string } = $props();
 	const data = loader(async () => {
@@ -77,6 +82,12 @@
 		if (tab === 'related' && !related) api.related({ project, target: id }).then((r) => (related = { text: r.text || '```json\n' + JSON.stringify(r.result || {}, null, 2) + '\n```' })).catch((e) => (related = { text: String(e) }));
 	});
 	const finished = (s: string) => s === 'integrated' || s === 'closed';
+	// The cluster's items, with this one as the item page knows it, for its dependency chain.
+	const depRows = $derived.by(() => {
+		const rows = clusterItems(cluster.data).filter((r) => r.project === project);
+		const mine = data.data?.row;
+		return mine ? [...rows.filter((r) => r.id !== id), mine] : rows;
+	});
 	const cost = (m: Record<string, UsageTotals> | undefined) => Object.fromEntries(Object.entries(m || {}).map(([k, u]) => [k, u.costUsd]));
 	const procRowsOf = (r: Row | undefined): ProcRow[] =>
 		(r?.worktrees || []).flatMap((w) => (w.procs?.top || []).map((p) => ({ ...p, machine: w.machine, project: w.project, worktree: w.name, wkind: w.kind, itemId: w.itemId, path: w.path }) as ProcRow));
@@ -148,6 +159,14 @@
 		<Stepper flow={row?.flow || []} {tone} />
 		{#if it.status === 'closed'}<div class="rounded-lg border border-l-2 border-l-st-idle bg-muted/40 p-3 text-sm">{t('closedLine', t('close_' + it.closedReason), it.closedBy || '—')}</div>{/if}
 		{#if finished(it.status) && !it.criteria.length}<div class="rounded-lg border border-l-2 border-l-st-needs bg-st-needs/5 p-3 text-sm">{t('integratedNoCriteria')}</div>{/if}
+		{#if row && !finished(it.status) && row.blockedBy?.length}
+			<div class="flex flex-wrap items-center gap-2 rounded-lg border border-l-2 border-l-st-needs bg-st-needs/5 p-3 text-sm">
+				<HourglassIcon class="size-4 shrink-0 text-st-needs" />
+				<span>{t('depBanner')}</span>
+				{#each row.blockedBy as d (d)}<button class="num rounded-full border bg-card px-2 py-0.5 text-xs font-medium hover:bg-muted" onclick={() => openItem(project, d)}>{d}</button>{/each}
+				<span class="text-muted-foreground">{t('depBannerAfter')}</span>
+			</div>
+		{/if}
 		{#each questions as q (q.id)}<QuestionCard {q} {project} />{:else}{#if it.waitingQuestion}<div class="rounded-lg border border-l-2 border-l-st-needs bg-st-needs/5 p-3 text-sm">{t('waitingQuestion', it.waitingQuestion)}</div>{/if}{/each}
 	</header>
 
@@ -160,6 +179,7 @@
 				{#if row?.checks.length}<Tabs.Trigger value="checks">{t('tabChecks')} <span class="num ml-1 text-[11px] text-muted-foreground">{row.checks.length}</span></Tabs.Trigger>{/if}
 				{#if row?.worktrees.length || row?.procs?.count || row?.sessions.length}<Tabs.Trigger value="resources">{t('tabResources')}{#if row?.procs?.count} <span class="num ml-1 text-[11px] text-st-work">{row.procs.count}</span>{/if}</Tabs.Trigger>{/if}
 				{#if row?.usage && Number(row.usage.tokens)}<Tabs.Trigger value="cost">{t('ovCost')}</Tabs.Trigger>{/if}
+				{#if it.deps.length || depRows.some((r) => r.deps?.includes(id))}<Tabs.Trigger value="deps">{t('tabDeps')}</Tabs.Trigger>{/if}
 				<Tabs.Trigger value="related">{t('tabRelated')}</Tabs.Trigger>
 			</Tabs.List>
 			<Tabs.Content value="summary" class="mt-3 space-y-4">
@@ -180,6 +200,7 @@
 				{/if}
 				{#if !it.body && !it.rework.length}<Empty />{/if}
 			</Tabs.Content>
+			<Tabs.Content value="deps" class="mt-3"><Section title={t('tabDeps')}><DepGraph rows={depRows} focus={project + '/' + id} compact /></Section></Tabs.Content>
 			<Tabs.Content value="timeline" class="mt-3"><Section title={t('timeline')} count={entries.length}><Timeline item={it} {entries} {project} /></Section></Tabs.Content>
 			<Tabs.Content value="criteria" class="mt-3">
 				<Section title={t('criteria')} count={it.criteria.filter((c) => c.met).length + '/' + it.criteria.length} pad={false}>
