@@ -1,6 +1,8 @@
 package app
 
 import (
+	"context"
+	"errors"
 	"strings"
 	"testing"
 	"time"
@@ -168,5 +170,64 @@ func TestAutopilotWakesOnNewWork(t *testing.T) {
 	}
 	if !e.svc.autopilotDue(e.p, now.Add(2*time.Second)) {
 		t.Fatal("a new proposal did not wake the autopilot")
+	}
+}
+
+type failingAdvisor struct{ calls int }
+
+func (f *failingAdvisor) Advise(context.Context, AdviceRequest) (AdviceAnswer, error) {
+	f.calls++
+	return AdviceAnswer{}, errors.New("claude: exit code 1")
+}
+
+// An advisor that fails leaves the failure said once in the conversation,
+// not the request again and again; the decision waits before the next try,
+// and after a few failures in a row the machine gives the autopilot up.
+func TestAutopilotWhenTheAdvisorFails(t *testing.T) {
+	e := newEnv(t)
+	adv := &failingAdvisor{}
+	pp := *e.p.Ports()
+	pp.Advisor = adv
+	e.p.portsV.Store(&pp)
+	if err := e.svc.SetAutopilot(e.ctx, "demo", owner(), true); err != nil {
+		t.Fatal(err)
+	}
+	it := e.ready("simple", "Cards screen", "cards")
+	q := e.askOwner(it.ID, "Which do you want?", "(a) keep", "(b) rewrite")
+	e.svc.runAutopilot(e.ctx, e.p)
+	conv := e.p.Snapshot().Discussions[q.ID]
+	if len(conv) != 1 || conv[0].Role != domain.DiscussAdvisor || !strings.Contains(conv[0].Text, "exit code 1") || !strings.Contains(conv[0].Text, "m1") {
+		t.Fatalf("conversation after a failure: %+v", conv)
+	}
+	// The next run does not ask again before the wait is over.
+	calls := adv.calls
+	e.svc.runAutopilot(e.ctx, e.p)
+	if adv.calls != calls || len(e.p.Snapshot().Discussions[q.ID]) != 1 {
+		t.Fatalf("asked again at once: %d calls, %d messages", adv.calls, len(e.p.Snapshot().Discussions[q.ID]))
+	}
+	// After the wait it tries again, and the failure is not said twice.
+	e.clock.Advance(autopilotRetry(1) + time.Second)
+	e.svc.runAutopilot(e.ctx, e.p)
+	if adv.calls != calls+1 || len(e.p.Snapshot().Discussions[q.ID]) != 1 {
+		t.Fatalf("after the wait: %d calls, %d messages", adv.calls, len(e.p.Snapshot().Discussions[q.ID]))
+	}
+	// A third failure in a row hands the autopilot to another machine.
+	e.clock.Advance(autopilotRetry(2) + time.Second)
+	e.svc.runAutopilot(e.ctx, e.p)
+	st := e.svc.autopilotState("demo")
+	if st.benched.Load() <= e.clock.Now().UnixNano() {
+		t.Fatal("not handed over after three failures in a row")
+	}
+	if e.svc.autopilotDue(e.p, e.clock.Now().Add(time.Minute)) {
+		t.Fatal("due on a machine that handed the autopilot over")
+	}
+	if !e.svc.autopilotDue(e.p, e.clock.Now().Add(autopilotBench+time.Minute)) {
+		t.Fatal("not due again after the bench")
+	}
+}
+
+func TestAutopilotRetry(t *testing.T) {
+	if autopilotRetry(1) != 5*time.Minute || autopilotRetry(2) != 10*time.Minute || autopilotRetry(10) != 2*time.Hour {
+		t.Fatal(autopilotRetry(1), autopilotRetry(2), autopilotRetry(10))
 	}
 }

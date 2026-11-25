@@ -115,10 +115,9 @@ func (s *Service) Discuss(ctx context.Context, project string, a Actor, thread, 
 	p.mu.Unlock()
 
 	now := s.d.Clock.Now().UTC()
+	// The owner's message is kept with the answer: an advisor that fails
+	// leaves nothing behind, so trying again does not pile the same request up.
 	mine := &domain.DiscussionMessage{Thread: thread, ItemID: itemID, Role: domain.DiscussOwner, Text: text, By: actorName(a), At: now}
-	if err := s.emitDiscussion(ctx, p, mine, actorName(a)); err != nil {
-		return nil, err
-	}
 	workdir := p.Cfg().Root
 	if itemID != "" {
 		if d := s.WorktreeDir(p.Name, itemID); dirExists(d) {
@@ -138,7 +137,10 @@ func (s *Service) Discuss(ctx context.Context, project string, a Actor, thread, 
 		},
 	})
 	if err != nil {
-		return nil, fmt.Errorf("the advisor did not answer: %w", err)
+		return nil, fmt.Errorf("the advisor did not answer on %s: %w", s.d.Machine, err)
+	}
+	if err := s.emitDiscussion(ctx, p, mine, actorName(a)); err != nil {
+		return nil, err
 	}
 	shown, option, note := parseSuggestion(ans.Text)
 	reply := &domain.DiscussionMessage{Thread: thread, ItemID: itemID, Role: domain.DiscussAdvisor, Text: shown,

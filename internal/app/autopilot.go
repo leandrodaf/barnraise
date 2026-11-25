@@ -2,9 +2,11 @@ package app
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sort"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -30,6 +32,65 @@ var advisorActor = Actor{Kind: ActorSystem, Name: "advisor", Scopes: []string{Sc
 type autopilotState struct {
 	running atomic.Bool
 	last    atomic.Int64 // unix nanoseconds of the last start
+	// failed holds, per decision, when the advisor last failed on it and
+	// how many times in a row: the decision waits before the next try, and
+	// the others go on.
+	mu     sync.Mutex
+	failed map[string]autopilotFailure
+	// inARow counts the advisor's failures on this machine, whatever the
+	// decision; benched is when this machine may take the duty again.
+	inARow  atomic.Int32
+	benched atomic.Int64
+}
+
+// autopilotHandOver is how many failures in a row make a machine give the
+// autopilot to another one, and how long it then stays out.
+const (
+	autopilotHandOver = 3
+	autopilotBench    = 30 * time.Minute
+)
+
+type autopilotFailure struct {
+	at    time.Time
+	times int
+}
+
+// autopilotRetry is how long a decision waits after the advisor failed on
+// it n times in a row: 5, 10, 20 minutes… at most two hours.
+func autopilotRetry(n int) time.Duration {
+	d := 5 * time.Minute
+	for i := 1; i < n && d < 2*time.Hour; i++ {
+		d *= 2
+	}
+	return min(d, 2*time.Hour)
+}
+
+// waiting reports whether a decision still waits after a failure.
+func (st *autopilotState) waiting(thread string, now time.Time) bool {
+	st.mu.Lock()
+	defer st.mu.Unlock()
+	f, ok := st.failed[thread]
+	return ok && now.Sub(f.at) < autopilotRetry(f.times)
+}
+
+// fail records a failure of the advisor on a decision; it returns how many
+// in a row there were.
+func (st *autopilotState) fail(thread string, now time.Time) int {
+	st.mu.Lock()
+	defer st.mu.Unlock()
+	if st.failed == nil {
+		st.failed = map[string]autopilotFailure{}
+	}
+	f := st.failed[thread]
+	f.at, f.times = now, f.times+1
+	st.failed[thread] = f
+	return f.times
+}
+
+func (st *autopilotState) ok(thread string) {
+	st.mu.Lock()
+	defer st.mu.Unlock()
+	delete(st.failed, thread)
 }
 
 func (s *Service) autopilotState(project string) *autopilotState {
@@ -131,6 +192,9 @@ func (s *Service) autopilotDue(p *Project, now time.Time) bool {
 		return false
 	}
 	st := s.autopilotState(p.Name)
+	if now.UnixNano() < st.benched.Load() {
+		return false
+	}
 	if now.Sub(time.Unix(0, st.last.Load())) < autopilotEvery || !st.running.CompareAndSwap(false, true) {
 		return false
 	}
@@ -147,14 +211,38 @@ func autopilotOn(p *Project) bool {
 // runAutopilot takes every decision that waits, then weighs the open
 // proposals. It returns how many decisions were applied.
 func (s *Service) runAutopilot(ctx context.Context, p *Project) int {
-	defer s.autopilotState(p.Name).running.Store(false)
+	st := s.autopilotState(p.Name)
+	defer st.running.Store(false)
 	decisions, proposals := s.autopilotWork(ctx, p)
 	applied := 0
 	for _, d := range decisions {
 		if !autopilotOn(p) {
 			return applied
 		}
+		now := s.d.Clock.Now()
+		if st.waiting(d.thread, now) {
+			continue
+		}
 		ok, err := s.autopilotDecide(ctx, p, d)
+		if errors.Is(err, errAdvisorFailed) {
+			// Said once in the conversation, then tried again later.
+			if n := st.fail(d.thread, now); n == 1 {
+				s.noteAdvisorFailure(ctx, p, d.thread, err)
+			}
+			s.d.Log.Warn("autopilot: the advisor did not answer", "project", p.Name, "thread", d.thread, "err", err)
+			if st.inARow.Add(1) >= autopilotHandOver {
+				// This machine's advisor does not work: another machine
+				// takes the duty; this one stays out for a while.
+				st.inARow.Store(0)
+				st.benched.Store(now.Add(autopilotBench).UnixNano())
+				s.releaseLease(ctx, p, AutopilotKey)
+				s.d.Log.Warn("autopilot: handed to another machine", "project", p.Name, "for", autopilotBench)
+				return applied
+			}
+			continue
+		}
+		st.inARow.Store(0)
+		st.ok(d.thread)
 		if err != nil {
 			s.d.Log.Warn("autopilot: a decision was not taken", "project", p.Name, "thread", d.thread, "err", err)
 		}
@@ -193,7 +281,7 @@ func (s *Service) autopilotDecide(ctx context.Context, p *Project, d autopilotDe
 	}
 	conv, err := s.Discuss(ctx, p.Name, advisorActor, d.thread, ask)
 	if err != nil {
-		return false, err
+		return false, fmt.Errorf("%w: %v", errAdvisorFailed, err)
 	}
 	last := conv[len(conv)-1]
 	option, note := strings.TrimSpace(last.SuggestOption), strings.TrimSpace(last.SuggestNote)
@@ -222,6 +310,20 @@ func (s *Service) autopilotDecide(ctx context.Context, p *Project, d autopilotDe
 	done := *last
 	done.Delegated, done.LeftToOwner, done.Text, done.At = true, false, ot(p, "autopilot.done", option), s.d.Clock.Now().UTC()
 	return true, s.emitDiscussion(ctx, p, &done, "advisor")
+}
+
+// errAdvisorFailed: the advisor gave no answer on a decision.
+var errAdvisorFailed = errors.New("the advisor did not answer")
+
+// noteAdvisorFailure says once, in the decision's conversation, that the
+// advisor failed on this machine and why, so the owner and whoever fixes it
+// can read it.
+func (s *Service) noteAdvisorFailure(ctx context.Context, p *Project, thread string, err error) {
+	m := &domain.DiscussionMessage{Thread: thread, Role: domain.DiscussAdvisor, By: "advisor",
+		Text: ot(p, "autopilot.failed", s.d.Machine, err.Error()), At: s.d.Clock.Now().UTC()}
+	if e := s.emitDiscussion(ctx, p, m, "advisor"); e != nil {
+		s.d.Log.Warn("autopilot: the failure was not recorded", "project", p.Name, "thread", thread, "err", e)
+	}
 }
 
 // leaveToOwner records, in the decision's conversation, that the autopilot

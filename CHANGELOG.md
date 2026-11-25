@@ -4,6 +4,10 @@ All notable changes to Barnraise are recorded here. The format follows [Keep a C
 
 ## [Unreleased]
 
+### Fixed
+
+- **owner:** The autopilot no longer gets stuck on an advisor that fails: the failure is said once in the conversation with its cause, the decision waits (5, 10, 20 minutes… two hours) while the others go on, and after three failures in a row the machine hands the autopilot (now a duty of its own) to another machine. A failed request to the advisor is no longer kept.
+
 ### Added
 
 - **machines:** `barnraise machine share --machine <name>` (and **Work here on** in each machine of the panel) has another machine clone the project's repository and register it, so its agents work on it too.

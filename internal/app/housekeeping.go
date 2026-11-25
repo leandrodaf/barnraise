@@ -64,7 +64,17 @@ func (r *Runtime) housekeeping(ctx context.Context, p *Project, m domain.Machine
 		// A machine in standby takes no duty: the cluster's housekeeping
 		// (items of dead machines, imports, digests) goes to one that works.
 		s.releaseLease(ctx, p, HousekeepingKey)
+		s.releaseLease(ctx, p, AutopilotKey)
 		return
+	}
+	// The autopilot is a duty of its own: a machine whose advisor fails
+	// gives it up and another one takes it.
+	if s.autopilotDue(p, now) {
+		if s.holdDuty(ctx, p, AutopilotKey) {
+			go s.runAutopilot(context.WithoutCancel(ctx), p)
+		} else {
+			s.autopilotState(p.Name).running.Store(false)
+		}
 	}
 	if !s.holdHousekeeping(ctx, p) {
 		return
@@ -72,9 +82,6 @@ func (r *Runtime) housekeeping(ctx context.Context, p *Project, m domain.Machine
 	s.takeOverDeadItems(ctx, p)
 	if n := s.expireProposals(ctx, p); n > 0 {
 		s.d.Log.Info("proposals expired", "project", p.Name, "count", n)
-	}
-	if s.autopilotDue(p, now) {
-		go s.runAutopilot(context.WithoutCancel(ctx), p)
 	}
 	if now.Sub(r.lastImport[p.Name]) > 2*time.Minute && p.Ports().Tracker != nil {
 		r.mu.Lock()
@@ -120,18 +127,24 @@ func (r *Runtime) housekeeping(ctx context.Context, p *Project, m domain.Machine
 
 // holdHousekeeping claims or renews the housekeeping lease.
 func (s *Service) holdHousekeeping(ctx context.Context, p *Project) bool {
+	return s.holdDuty(ctx, p, HousekeepingKey)
+}
+
+// holdDuty claims, renews or takes over a project-wide duty held by one
+// machine at a time (a git ref with a deadline).
+func (s *Service) holdDuty(ctx context.Context, p *Project, key string) bool {
 	a := p.Ports().Arbiter
 	if a == nil {
 		return true
 	}
 	p.mu.Lock()
-	l, ok := p.leases[HousekeepingKey]
+	l, ok := p.leases[key]
 	p.mu.Unlock()
 	if ok {
 		nl, err := a.Renew(ctx, l)
 		if err == nil {
 			p.mu.Lock()
-			p.leases[HousekeepingKey] = nl
+			p.leases[key] = nl
 			p.mu.Unlock()
 			return true
 		}
@@ -139,25 +152,25 @@ func (s *Service) holdHousekeeping(ctx context.Context, p *Project) bool {
 			return true // offline: keep the duty until we know better
 		}
 		p.mu.Lock()
-		delete(p.leases, HousekeepingKey)
+		delete(p.leases, key)
 		p.mu.Unlock()
 	}
-	nl, err := a.Claim(ctx, HousekeepingKey, s.d.Machine)
+	nl, err := a.Claim(ctx, key, s.d.Machine)
 	if errors.Is(err, ports.ErrTaken) {
 		ttl := p.Cfg().Lease.TTL
-		info, ierr := a.Inspect(ctx, HousekeepingKey)
+		info, ierr := a.Inspect(ctx, key)
 		if ierr == nil && info.Holder == s.d.Machine {
 			// Ours from before a restart: adopt it.
-			nl, err = a.Renew(ctx, ports.Lease{Key: HousekeepingKey, Holder: s.d.Machine, Version: info.Version})
+			nl, err = a.Renew(ctx, ports.Lease{Key: key, Holder: s.d.Machine, Version: info.Version})
 		} else {
-			nl, err = a.TakeOver(ctx, HousekeepingKey, s.d.Machine, ttl)
+			nl, err = a.TakeOver(ctx, key, s.d.Machine, ttl)
 		}
 	}
 	if err != nil {
 		return false
 	}
 	p.mu.Lock()
-	p.leases[HousekeepingKey] = nl
+	p.leases[key] = nl
 	p.mu.Unlock()
 	return true
 }

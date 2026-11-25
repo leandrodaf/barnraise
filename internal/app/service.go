@@ -510,3 +510,6 @@ func claimKey(itemID string) string { return "claims/" + itemID }
 
 // HousekeepingKey is the lease of global duties.
 const HousekeepingKey = "lease/housekeeping"
+
+// AutopilotKey is the duty of taking the owner's decisions on autopilot.
+const AutopilotKey = "lease/autopilot"
