@@ -391,7 +391,9 @@ func stepInstructions(p *Project, it *domain.Item, st domain.StepDef) string {
 		return fmt.Sprintf("This item is a draft. Make it ready: write criteria in EARS form, each verified by one of the project checks (%s), "+
 			"the area and anchors (files, symbols, contracts, decisions), and keep it 2 to 6 agent hours (split or turn it into a tweak otherwise). "+
 			"Apply it with the `edit_item` tool on %s (criteria with their check, area, deps on the items it waits for, clear_clarifications); "+
-			"the command `barnraise item edit` does the same where the daemon is reachable. If only a person can decide something, ask with the `ask_owner` tool and do not guess. Do not write code. Then stop.",
+			"the command `barnraise item edit` does the same where the daemon is reachable. "+
+			"When main already has what the item asks, what it describes is no longer on main, or another item does the same work, do not make it ready and do not ask the owner: close it with the `close_item` tool (obsolete, duplicate or done_by, with the other item and the evidence you checked). "+
+			"If only a person can decide something, ask with the `ask_owner` tool and do not guess. Do not write code. Then stop.",
 			strings.Join(sortedKeys(p.Cfg().Checks), ", "), it.ID)
 	case st.Type == domain.StepApproval:
 		what := approvalWhat(p, it, st)

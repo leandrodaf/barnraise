@@ -305,3 +305,29 @@ func TestListAndGetItems(t *testing.T) {
 	_, err = e.svc.GetItem("x", owner(), a.ID)
 	wantErr(t, err, ErrUnknownProj)
 }
+
+// An agent closes only a draft, as obsolete, duplicate or done_by, with
+// the evidence: a draft whose work is gone from main stops being sent back
+// to the analyst, while work under way stays the owner's to stop.
+func TestAgentClosesOnlyDrafts(t *testing.T) {
+	e := newEnv(t)
+	analyst := Actor{Kind: ActorAgent, Name: "analyst-1", Scopes: []string{ScopeItemsWrite}}
+	draft, err := e.svc.CreateItem(e.ctx, "demo", owner(), NewItem{Title: "Redraw a scene main no longer has"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := e.svc.CloseItem(e.ctx, "demo", analyst, draft.Item.ID, "obsolete", "", ""); err == nil {
+		t.Fatal("closed without evidence")
+	}
+	if _, err := e.svc.CloseItem(e.ctx, "demo", analyst, draft.Item.ID, "abandoned", "", "no reason"); err == nil {
+		t.Fatal("an agent abandoned an item")
+	}
+	got, err := e.svc.CloseItem(e.ctx, "demo", analyst, draft.Item.ID, "obsolete", "", "the scene was replaced in 1a9ce1b")
+	if err != nil || got.Status != domain.StatusClosed {
+		t.Fatalf("close a draft: %+v %v", got, err)
+	}
+	ready := e.ready("simple", "work under way", "x")
+	if _, err := e.svc.CloseItem(e.ctx, "demo", analyst, ready.ID, "obsolete", "", "looks done"); err == nil {
+		t.Fatal("an agent closed an item that is not a draft")
+	}
+}

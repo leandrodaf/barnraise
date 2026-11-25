@@ -286,13 +286,13 @@ func TestToolVisibilityByRole(t *testing.T) {
 	}
 
 	analyst := listTools(t, "analyst")
-	if analyst["approve"] == nil || analyst["review"] == nil || analyst["edit_item"] == nil || analyst["answer"] != nil {
+	if analyst["approve"] == nil || analyst["review"] == nil || analyst["edit_item"] == nil || analyst["close_item"] == nil || analyst["answer"] != nil {
 		t.Errorf("analyst sees the wrong tools: %v", keys(analyst))
 	}
 
 	owner := listTools(t, "")
 	all := []string{"next_item", "deliver", "review", "propose", "ask_owner", "message", "status", "context", "find",
-		"approve", "focus", "pause", "answer", "create_item", "edit_item"}
+		"approve", "focus", "pause", "answer", "create_item", "edit_item", "close_item"}
 	if len(owner) != len(all) {
 		t.Errorf("owner should see %d tools, sees %v", len(all), keys(owner))
 	}

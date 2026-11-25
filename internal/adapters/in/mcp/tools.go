@@ -61,7 +61,7 @@ func allTools() []*tool {
 	return []*tool{
 		nextItemTool(), deliverTool(), reviewTool(), proposeTool(), askOwnerTool(), messageTool(),
 		statusTool(), contextTool(), findTool(), approveTool(), focusTool(), pauseTool(),
-		answerTool(), createItemTool(), editItemTool(),
+		answerTool(), createItemTool(), editItemTool(), closeItemTool(),
 	}
 }
 
@@ -1285,6 +1285,53 @@ func editItemTool() *tool {
 		it := resp.Msg.GetItem()
 		text := fmt.Sprintf("Updated %s %q: %d criteria, %s.", it.GetId(), it.GetTitle(), len(it.GetCriteria()), strings.ReplaceAll(it.GetStatus(), "_", " "))
 		return textResult(text, pbJSON(resp.Msg))
+	}
+	return t
+}
+
+// ---------- close_item (analyst, owner) ----------
+
+// closeItemTool closes a draft that has nothing left to do: what it asks is
+// on main already, what it describes is gone, or another item does it.
+func closeItemTool() *tool {
+	t := &tool{
+		Name: "close_item",
+		Description: "Close a draft that must not become work: obsolete (what it describes is no longer on main, or main already does it), " +
+			"duplicate (another item asks the same) or done_by (another item delivered it). Agents close only drafts, never work under way.",
+		Schema: object(map[string]any{
+			"item_id": str("The item; empty uses this session's item."),
+			"reason":  enum("Why it closes.", "obsolete", "duplicate", "done_by"),
+			"by":      str("For duplicate and done_by: the other item, e.g. I-41."),
+			"note":    str("The evidence you checked: files, commits, the other item."),
+		}, "reason", "note"),
+	}
+	t.run = func(ctx context.Context, s *server, args json.RawMessage) *toolResult {
+		var a struct {
+			ItemID string `json:"item_id"`
+			Reason string `json:"reason"`
+			By     string `json:"by"`
+			Note   string `json:"note"`
+		}
+		if err := decodeArgs(t, args, &a); err != nil {
+			return errorResult(err.Error())
+		}
+		id, err := s.itemID(a.ItemID, "close_item")
+		if err != nil {
+			return errorResult(err.Error())
+		}
+		if blank(a.Note) {
+			return errorResult("close_item needs the evidence in note")
+		}
+		if (a.Reason == "duplicate" || a.Reason == "done_by") && blank(a.By) {
+			return errorResult("close_item with " + a.Reason + " needs by: the other item")
+		}
+		resp, err := s.api.CloseItem(ctx, connect.NewRequest(&pb.CloseItemRequest{Project: s.opts.Project, Id: id,
+			Reason: strings.TrimSpace(a.Reason), By: strings.TrimSpace(a.By), Note: strings.TrimSpace(a.Note)}))
+		if err != nil {
+			return daemonError(err)
+		}
+		it := resp.Msg.GetItem()
+		return textResult(fmt.Sprintf("Closed %s %q as %s.", it.GetId(), it.GetTitle(), a.Reason), pbJSON(resp.Msg))
 	}
 	return t
 }

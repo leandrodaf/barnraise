@@ -449,9 +449,17 @@ func (s *Service) CloseItem(ctx context.Context, project string, a Actor, id, re
 	case "done_by":
 		typ = domain.EvItemSuperseded
 	}
+	agent := a.Kind == ActorAgent
+	if agent && (reason == "abandoned" || reason == "split" || strings.TrimSpace(note) == "") {
+		return nil, fmt.Errorf("%w: an agent closes a draft only as obsolete, duplicate or done_by, with the evidence in the note", ErrInvalid)
+	}
 	it, err := s.mutateItem(ctx, p, id, typ, actorName(a), func(it *domain.Item) error {
 		if it.Status.Terminal() {
 			return fmt.Errorf("%w: %s is already %s", ErrConflict, it.ID, it.Status)
+		}
+		if agent && it.Status != domain.StatusDraft {
+			// Work under way is the owner's to stop; a draft no work started on is not.
+			return fmt.Errorf("%w: %s is %s: an agent closes only drafts", ErrConflict, it.ID, it.Status)
 		}
 		it.Status = domain.StatusClosed
 		it.ClosedReason = reason

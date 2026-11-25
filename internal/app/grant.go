@@ -48,6 +48,7 @@ var sessionProcedures = map[string]procRule{
 	"Deliver":         {scope: ScopeDeliver, bound: true},
 	"SubmitReview":    {scope: ScopeReview, bound: true},
 	"UpdateItem":      {scope: ScopeItemsWrite, bound: true, idIsItem: true},
+	"CloseItem":       {scope: ScopeItemsWrite, bound: true, idIsItem: true}, // a draft only, for an agent
 	"AskOwner":        {scope: ScopeAsk, bound: true, analystFree: true},
 	"SendMessage":     {scope: ScopeMessage, bound: true, analystFree: true},
 	"Propose":         {scope: ScopePropose},
