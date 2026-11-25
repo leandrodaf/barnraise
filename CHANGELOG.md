@@ -6,6 +6,7 @@ All notable changes to Barnraise are recorded here. The format follows [Keep a C
 
 ### Fixed
 
+- **machines:** Sessions, the advisor and checks write their temporary files in the daemon's data folder (`<data dir>/tmp`, the `TMPDIR` the daemon gives them), never in a small `/tmp`: a full `/tmp` had broken every command of every session on a machine. Each machine removes temporary leftovers untouched for a day (its own and Claude Code's `/tmp/claude-<uid>`), and holds new sessions while less than 1 GB is free there.
 - **owner:** The autopilot no longer gets stuck on an advisor that fails: the failure is said once in the conversation with its cause, the decision waits (5, 10, 20 minutes… two hours) while the others go on, and after three failures in a row the machine hands the autopilot (now a duty of its own) to another machine. A failed request to the advisor is no longer kept.
 
 ### Added

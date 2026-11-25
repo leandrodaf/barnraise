@@ -125,6 +125,11 @@ func runDaemon(ctx context.Context, opts cli.DaemonOptions) error {
 		df.Listen = opts.Listen
 	}
 	d := &daemon{log: log, df: df, dfMod: df.ModTime(), roots: map[string]string{}, runners: map[string]*checks.Runner{}, plugins: map[string]*plugin.Host{}, dataDir: paths.DataDir(), opts: opts}
+	// Sessions write their temporary files on the data disk, never on a
+	// small /tmp that, once full, breaks every command (see tempdir.go).
+	tempBefore, restoreTemp := useDataTemp(d.dataDir)
+	defer restoreTemp()
+	go keepTempTrimmed(ctx, log, tempBefore)
 	if err := os.MkdirAll(d.dataDir, 0o700); err != nil {
 		return err
 	}
@@ -1223,6 +1228,9 @@ func (d *daemon) probe() domain.Machine {
 		m.Load1 = float64(m.CPUs) * v / 100
 	}
 	m.Name = d.df.Machine
+	if free, _ := sysinfo.NewHost().Disk(os.TempDir()); free > 0 {
+		m.TmpFreeGB = float64(free) / (1 << 30)
+	}
 	m.AutoSlots, m.SlotsBy = sysinfo.SlotsWhy(m, 4, m.Emulators)
 	m.Slots = m.AutoSlots
 	if n := d.maxAgents(); n > 0 {

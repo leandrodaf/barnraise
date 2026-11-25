@@ -373,6 +373,10 @@ func (r *Runtime) fillSlots(ctx context.Context, p *Project, m domain.Machine) {
 // underPressure says why this machine should not start another session
 // right now ("" when it may). Only what is measured counts: a machine
 // that reports nothing is not held.
+// minFreeTmpGB is the free space of the temporary folder below which no
+// session starts.
+const minFreeTmpGB = 1.0
+
 func (r *Runtime) underPressure(m domain.Machine) string {
 	min := r.MinFreeMemGB
 	if min == 0 {
@@ -380,6 +384,10 @@ func (r *Runtime) underPressure(m domain.Machine) string {
 	}
 	if min > 0 && m.FreeMemGB > 0 && m.FreeMemGB < min {
 		return fmt.Sprintf("%.1f GB of memory available, under the %.0f GB kept free for the work in progress", m.FreeMemGB, min)
+	}
+	if m.TmpFreeGB > 0 && m.TmpFreeGB < minFreeTmpGB {
+		// A full temporary folder fails every command of every session.
+		return fmt.Sprintf("%.2f GB free in the temporary folder, under the %.0f GB sessions need", m.TmpFreeGB, minFreeTmpGB)
 	}
 	r.mu.Lock()
 	running := len(r.running)

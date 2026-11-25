@@ -777,6 +777,15 @@ func TestRuntimeHoldsNewSessionsUnderMemoryPressure(t *testing.T) {
 	if why := r.underPressure(m); why != "" {
 		t.Fatalf("floor off: %q", why)
 	}
+	// A temporary folder nearly full stops new sessions; unknown does not.
+	m.TmpFreeGB = 0.3
+	if why := r.underPressure(m); !strings.Contains(why, "temporary folder") {
+		t.Fatalf("full temporary folder: %q", why)
+	}
+	m.TmpFreeGB = 0
+	if why := r.underPressure(m); why != "" {
+		t.Fatalf("unknown temporary space: %q", why)
+	}
 }
 
 // Gemini cannot change files outside a container, so an implementer step

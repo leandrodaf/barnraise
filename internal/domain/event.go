@@ -180,6 +180,9 @@ type Machine struct {
 	MemGB     float64   `json:"mem_gb"`
 	FreeCPU   float64   `json:"free_cpu"`
 	FreeMemGB float64   `json:"free_mem_gb,omitempty"` // memory available right now; 0 = unknown
+	// TmpFreeGB is the free space of the daemon's temporary folder, where
+	// sessions write; 0 = unknown.
+	TmpFreeGB float64 `json:"tmp_free_gb,omitempty"`
 	// Live readings, refreshed with every heartbeat. Zero means the machine
 	// does not report that reading.
 	Load1     float64   `json:"load1,omitempty"`  // 1-minute load average
