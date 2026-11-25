@@ -2,8 +2,10 @@ package app
 
 import (
 	"slices"
+	"strconv"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/leandrodaf/barnraise/internal/domain"
 )
@@ -71,4 +73,33 @@ func overviewItem(t *testing.T, e *env, id string) *ItemOverview {
 		t.Fatalf("overview of %s: %+v %v", id, o, err)
 	}
 	return o.Projects[0].Items[0]
+}
+
+// An idle item says whether it waits for an account, for a busy agent, or
+// starts at the next pass.
+func TestIdleSaysWhy(t *testing.T) {
+	e := newEnv(t)
+	it := e.ready("simple", "Cards screen", "x")
+	e.start(it.ID)
+	cur := e.item(it.ID)
+	cur.Claim = &domain.Claim{Machine: "m1"}
+	now := e.clock.Now()
+	snap := &domain.State{Accounts: map[string]*domain.Account{}}
+	if got := idleWhy(e.p, snap, cur, now); got.Kind != "next_pass" {
+		t.Fatalf("no accounts known: %+v", got)
+	}
+	reset := now.Add(90 * time.Minute)
+	snap.Accounts["a"] = &domain.Account{ID: "a", Status: domain.AccountLimited, Usage: domain.Usage{FiveHourPct: 100, FiveHourResets: reset}}
+	if got := idleWhy(e.p, snap, cur, now); got.Kind != "no_account" || !strings.Contains(got.Arg, reset.Local().Format("15:04")) {
+		t.Fatalf("every account limited: %+v", got)
+	}
+	snap.Accounts["b"] = &domain.Account{ID: "b", Status: domain.AccountOK}
+	role := e.p.Cfg().Roles["implementer"]
+	snap.Sessions = map[string]*domain.SessionInfo{}
+	for i := range role.Count {
+		snap.Sessions[strconv.Itoa(i)] = &domain.SessionInfo{Agent: strconv.Itoa(i), Role: "implementer", Machine: "m1", State: "working", At: now}
+	}
+	if got := idleWhy(e.p, snap, cur, now); got.Kind != "slots_busy" {
+		t.Fatalf("every implementer busy: %+v", got)
+	}
 }

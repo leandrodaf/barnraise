@@ -659,7 +659,7 @@ Object.assign(en, {
   sig_approve: 'Approve the {0}', sig_question: 'Waiting for your answer · {0}', sig_check_failed: '{0} failed', sig_changes_requested: 'Changes requested · {0} findings',
   sig_waits_for: 'Waits for {0}', sig_stalled: 'Machine {0} is out', sig_working: 'Working · {0}', sig_running: '{0} processes, no agent',
   sig_queued: 'In the merge queue', sig_paused: 'Paused', sig_parked: 'Waits for the focus to end', sig_draft: 'Draft · {0} open clarifications',
-  sig_ready: 'Ready · after {0}', sig_idle: 'Nothing runs · {0}', sig_integrated: 'Integrated', sig_closed: 'Closed · {0}',
+  sig_ready: 'Ready · after {0}', sig_idle: 'Nothing runs · {0}', sig_next_pass: 'Starts now · {0}', sig_slots_busy: 'Next in line · {0}', sig_no_account: 'Waits for an account with room · {0}', sig_integrated: 'Integrated', sig_closed: 'Closed · {0}',
 });
 
 Object.assign(pt, {
@@ -668,7 +668,7 @@ Object.assign(pt, {
   sig_approve: 'Aprovar {0}', sig_question: 'Esperando sua resposta · {0}', sig_check_failed: '{0} falhou', sig_changes_requested: 'Mudanças pedidas · {0} apontamentos',
   sig_waits_for: 'Espera {0}', sig_stalled: 'A máquina {0} está fora', sig_working: 'Trabalhando · {0}', sig_running: '{0} processos, sem agente',
   sig_queued: 'Na fila de integração', sig_paused: 'Pausado', sig_parked: 'Espera o foco acabar', sig_draft: 'Rascunho · {0} esclarecimentos abertos',
-  sig_ready: 'Pronto · depois de {0}', sig_idle: 'Nada rodando · {0}', sig_integrated: 'Integrado', sig_closed: 'Fechado · {0}',
+  sig_ready: 'Pronto · depois de {0}', sig_idle: 'Nada rodando · {0}', sig_next_pass: 'Começa agora · {0}', sig_slots_busy: 'Próximo da vez · {0}', sig_no_account: 'Espera uma conta com limite · {0}', sig_integrated: 'Integrado', sig_closed: 'Fechado · {0}',
 });
 
 
