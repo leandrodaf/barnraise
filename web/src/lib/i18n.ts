@@ -639,7 +639,7 @@ Object.assign(en, {
   kpiLimited: 'Limited', kpiNoneLimited: 'none', kpiFree5h: 'Free in the 5-hour window', kpiFree5hHint: 'average of the accounts', kpiNextReset: 'Next reset',
   nextResets: 'Next resets', byMachine: 'By machine', byProvider: 'By provider', byArea: 'By area', byAuthor: 'By author',
   machinesN: '{0} machines', standbyN: '{0} in standby', machinesHelp: 'Every machine of the cluster, whatever the project: health, load over the last two hours and the standby switch.',
-  openN: '{0} open', proposalsHelp: 'Ideas the agents brought: approve one and it becomes an item.', windowN: 'window {0}', showMore: 'Show all', showLess: 'Show less', queueSearch: 'Search by title, id, branch or area', language: 'Language', menu: 'Menu', owner: 'Owner', themeLabel: 'Theme', themeShort_system: 'System', themeShort_light: 'Light', themeShort_dark: 'Dark', allPriorities: 'All priorities', clearFilters: 'Clear filters', hideEmpty: 'Hide empty columns', shownN: '{0} shown', scrollLeft: 'Previous columns', scrollRight: 'Next columns',
+  openN: '{0} open', laterShow: 'Show the {0} put off', laterHide: 'Hide the ones put off', proposalsHelp: 'Ideas the agents brought: approve one and it becomes an item.', windowN: 'window {0}', showMore: 'Show all', showLess: 'Show less', queueSearch: 'Search by title, id, branch or area', language: 'Language', menu: 'Menu', owner: 'Owner', themeLabel: 'Theme', themeShort_system: 'System', themeShort_light: 'Light', themeShort_dark: 'Dark', allPriorities: 'All priorities', clearFilters: 'Clear filters', hideEmpty: 'Hide empty columns', shownN: '{0} shown', scrollLeft: 'Previous columns', scrollRight: 'Next columns',
 });
 
 Object.assign(pt, {
@@ -649,7 +649,7 @@ Object.assign(pt, {
   kpiLimited: 'Limitadas', kpiNoneLimited: 'nenhuma', kpiFree5h: 'Livre na janela de 5 horas', kpiFree5hHint: 'média das contas', kpiNextReset: 'Próxima renovação',
   nextResets: 'Próximas renovações', byMachine: 'Por máquina', byProvider: 'Por provedor', byArea: 'Por área', byAuthor: 'Por autor',
   machinesN: '{0} máquinas', standbyN: '{0} em standby', machinesHelp: 'Todas as máquinas do cluster, de qualquer projeto: saúde, carga nas últimas duas horas e a chave de standby.',
-  openN: '{0} abertas', proposalsHelp: 'Ideias que os agentes trouxeram: aprovada, a proposta vira item.', windowN: 'janela {0}', showMore: 'Mostrar tudo', showLess: 'Mostrar menos', queueSearch: 'Buscar por título, id, branch ou área', language: 'Idioma', menu: 'Menu', owner: 'Dono', themeLabel: 'Tema', themeShort_system: 'Sistema', themeShort_light: 'Claro', themeShort_dark: 'Escuro', allPriorities: 'Todas as prioridades', clearFilters: 'Limpar filtros', hideEmpty: 'Esconder colunas vazias', shownN: '{0} na tela', scrollLeft: 'Colunas anteriores', scrollRight: 'Próximas colunas',
+  openN: '{0} abertas', laterShow: 'Mostrar as {0} adiadas', laterHide: 'Esconder as adiadas', proposalsHelp: 'Ideias que os agentes trouxeram: aprovada, a proposta vira item.', windowN: 'janela {0}', showMore: 'Mostrar tudo', showLess: 'Mostrar menos', queueSearch: 'Buscar por título, id, branch ou área', language: 'Idioma', menu: 'Menu', owner: 'Dono', themeLabel: 'Tema', themeShort_system: 'Sistema', themeShort_light: 'Claro', themeShort_dark: 'Escuro', allPriorities: 'Todas as prioridades', clearFilters: 'Limpar filtros', hideEmpty: 'Esconder colunas vazias', shownN: '{0} na tela', scrollLeft: 'Colunas anteriores', scrollRight: 'Próximas colunas',
 });
 
 

@@ -183,20 +183,19 @@ func (s *Service) autopilotWork(ctx context.Context, p *Project) (decisions []au
 		}
 	}
 	sort.Slice(decisions, func(i, j int) bool { return decisions[i].since.Before(decisions[j].since) })
-	for _, pr := range snap.Proposals {
-		if pr.Status == domain.ProposalOpen {
-			proposals = true
-			break
-		}
-	}
-	return decisions, proposals
+	return decisions, hasOpenProposal(snap)
 }
 
 // autopilotDue reports whether the autopilot should run for the project now,
 // and marks the start when it should.
 func (s *Service) autopilotDue(p *Project, now time.Time) bool {
 	snap := p.Snapshot()
-	if !snap.Autopilot || snap.Paused || p.Ports().Advisor == nil {
+	if !snap.Autopilot || p.Ports().Advisor == nil {
+		return false
+	}
+	if snap.Paused && !hasOpenProposal(snap) {
+		// A pause starts nothing; the open proposals are still weighed, so
+		// they do not pile up on the owner while the project rests.
 		return false
 	}
 	st := s.autopilotState(p.Name)
@@ -216,6 +215,23 @@ func autopilotOn(p *Project) bool {
 	return snap.Autopilot && !snap.Paused
 }
 
+// autopilotWeighs reports whether the autopilot may still decide proposals:
+// a pause holds the questions and approvals, which move items, but not the
+// proposals, which only become items that wait for the pause to end.
+func autopilotWeighs(p *Project) bool {
+	return p.Snapshot().Autopilot
+}
+
+// hasOpenProposal reports whether a proposal waits for a decision.
+func hasOpenProposal(snap *domain.State) bool {
+	for _, pr := range snap.Proposals {
+		if pr.Status == domain.ProposalOpen {
+			return true
+		}
+	}
+	return false
+}
+
 // runAutopilot takes every decision that waits, then weighs the open
 // proposals. It returns how many decisions were applied.
 func (s *Service) runAutopilot(ctx context.Context, p *Project) int {
@@ -225,7 +241,7 @@ func (s *Service) runAutopilot(ctx context.Context, p *Project) int {
 	applied := 0
 	for _, d := range decisions {
 		if !autopilotOn(p) {
-			return applied
+			break
 		}
 		now := s.d.Clock.Now()
 		if st.waiting(d.thread, now) {
@@ -258,7 +274,7 @@ func (s *Service) runAutopilot(ctx context.Context, p *Project) int {
 			applied++
 		}
 	}
-	if proposals && autopilotOn(p) {
+	if proposals && autopilotWeighs(p) {
 		s.autopilotStep(p, "proposals", true)
 		defer s.autopilotStep(p, "proposals", false)
 		verdicts, err := s.triage(ctx, p, func(pr *domain.Proposal) bool { return pr.Status == domain.ProposalOpen })
@@ -266,7 +282,7 @@ func (s *Service) runAutopilot(ctx context.Context, p *Project) int {
 			s.d.Log.Warn("autopilot: the advisor gave no verdict on the proposals", "project", p.Name, "err", err)
 		}
 		for _, v := range verdicts {
-			if !autopilotOn(p) {
+			if !autopilotWeighs(p) {
 				break
 			}
 			if _, err := s.DecideProposal(ctx, p.Name, advisorActor, v.ID, v.Decision, ot(p, "autopilot.reason", v.Reason)); err != nil {

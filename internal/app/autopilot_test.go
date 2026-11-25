@@ -127,6 +127,46 @@ func TestAutopilotApprovesAndDecidesProposals(t *testing.T) {
 	}
 }
 
+// A paused project holds the questions and approvals, but its open
+// proposals are still decided, so they do not pile up on the owner.
+func TestAutopilotDecidesProposalsWhilePaused(t *testing.T) {
+	asked := 0
+	e, _ := autopilotEnv(t, func(r AdviceRequest) string {
+		if strings.Contains(r.Prompt, "UNTRUSTED proposals") {
+			start := strings.Index(r.Prompt, `"ID":"`) + 6
+			id := r.Prompt[start : start+strings.Index(r.Prompt[start:], `"`)]
+			return `{"verdicts":[{"id":"` + id + `","decision":"later","reason":"after the pause"}]}`
+		}
+		asked++
+		return suggestion("approve", "The plan covers every criterion.")
+	})
+	e.account("fake-1")
+	e.heartbeat("m1")
+	it := e.ready("planned", "Big change", "core")
+	e.next("implementer", it.ID)
+	e.mustDeliver(it.ID, domain.Delivery{})
+	e.drive(it.ID)
+	res, err := e.svc.Propose(e.ctx, "demo", owner(), prop("A faster list", "cards"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := e.svc.Pause(e.ctx, "demo", owner(), "night"); err != nil {
+		t.Fatal(err)
+	}
+	if n := e.svc.runAutopilot(e.ctx, e.p); n != 1 {
+		t.Fatalf("%d decisions applied", n)
+	}
+	if asked != 0 {
+		t.Fatal("the plan was decided during the pause")
+	}
+	if io := e.overviewItem(it.ID); io.Awaits != "plan" {
+		t.Fatalf("awaits %q", io.Awaits)
+	}
+	if pr := e.p.Snapshot().Proposals[res.Proposal.ID]; pr.Status != domain.ProposalLater || pr.DecidedBy != "advisor" {
+		t.Fatalf("proposal %+v", pr)
+	}
+}
+
 // The switch: the owner turns it on and off, it needs an advisor and the
 // approve scope; a paused project, or a run that just started, waits.
 func TestAutopilotSwitch(t *testing.T) {
@@ -157,8 +197,15 @@ func TestAutopilotSwitch(t *testing.T) {
 		t.Fatal(err)
 	}
 	if e.svc.autopilotDue(e.p, now.Add(time.Hour)) {
-		t.Fatal("due on a paused project")
+		t.Fatal("due on a paused project with no proposal")
 	}
+	if _, err := e.svc.Propose(e.ctx, "demo", owner(), prop("A faster list", "cards")); err != nil {
+		t.Fatal(err)
+	}
+	if !e.svc.autopilotDue(e.p, now.Add(2*time.Hour)) {
+		t.Fatal("a paused project's open proposal is never weighed")
+	}
+	e.svc.autopilotState("demo").running.Store(false)
 	if err := e.svc.SetAutopilot(e.ctx, "demo", owner(), false); err != nil || e.p.Snapshot().Autopilot {
 		t.Fatalf("off: %v", err)
 	}

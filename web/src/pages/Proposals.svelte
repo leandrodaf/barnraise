@@ -32,12 +32,17 @@
 	type Open = { project: string; p: Proposal };
 	// Open proposals of the projects in scope, grouped by project and area.
 	const r = loader((projects) => Promise.all(projects.map((project) => api.listProposals({ project }).then((x) => ({ project, x })))));
-	const open = $derived(
+	// Proposals put off (by the owner or the autopilot) wait out of sight
+	// until their date; the owner can still show them.
+	let showLater = $state(false);
+	const waiting = $derived(
 		(r.data || []).flatMap(({ project, x }) => {
 			const all = x.proposals.length ? x.proposals : x.groups.flatMap((g) => g.proposals);
 			return all.filter((p) => !p.status || p.status === 'open' || p.status === 'later').map((p) => ({ project, p }));
 		})
 	);
+	const laterN = $derived(waiting.filter((o) => o.p.status === 'later').length);
+	const open = $derived(showLater ? waiting : waiting.filter((o) => o.p.status !== 'later'));
 	const groups = $derived.by(() => {
 		const by = new Map<string, Open[]>();
 		for (const o of open) {
@@ -130,8 +135,9 @@
 	}
 </script>
 
-<PageHeader title={t('proposals')} icon={LightbulbIcon} meta={[session.scope || t('allProjects'), t('openN', open.length)]} subtitle={t('proposalsHelp')}>
+<PageHeader title={t('proposals')} icon={LightbulbIcon} meta={[session.scope || t('allProjects'), t('openN', waiting.length - laterN)]} subtitle={t('proposalsHelp')}>
 	{#snippet actions()}
+		{#if laterN}<Button size="sm" variant="ghost" onclick={() => (showLater = !showLater)}>{showLater ? t('laterHide') : t('laterShow', laterN)}</Button>{/if}
 		<Button size="sm" variant="outline" onclick={() => addTweak()} title={t('tweakHelp', session.project)}><WandIcon />{t('tweakTitle')}</Button>
 		<Button size="sm" variant="outline" onclick={() => propose()}><PlusIcon />{t('proposeShort')}</Button>
 		{#if open.length}
