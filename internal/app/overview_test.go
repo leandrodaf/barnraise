@@ -2,6 +2,7 @@ package app
 
 import (
 	"fmt"
+	"strings"
 	"testing"
 	"time"
 
@@ -163,6 +164,10 @@ func TestOverviewJoinsEveryMachine(t *testing.T) {
 		if got := o.item(t, id); got.Activity != act {
 			t.Errorf("%s (%s) is %s, want %s (%s)", id, got.Title, got.Activity, act, got.Detail)
 		}
+	}
+	// An item a machine holds without a session says why.
+	if d := o.item(t, idle.ID).Detail; !strings.Contains(d, "takes it at the next pass") && !strings.Contains(d, "busy") {
+		t.Errorf("idle detail %q", d)
 	}
 	if p.ItemsTotal != 12 || p.ItemsMatched != 11 || len(p.Items) != 11 || p.Truncated {
 		t.Fatalf("an item finished 8 days ago is counted, not listed: total %d matched %d", p.ItemsTotal, p.ItemsMatched)

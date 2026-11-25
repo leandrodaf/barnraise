@@ -567,6 +567,11 @@ func itemOverview(p *Project, snap *domain.State, it *domain.Item, now time.Time
 		io.PR = &PRView{Number: pr.Number, URL: pr.URL, State: prState(p, it)}
 	}
 	io.Activity, io.Detail = itemActivity(snap, it, io, up)
+	if io.Activity == ActIdle && it.Claim != nil {
+		if why := idleWhy(p, snap, it, now); why != "" {
+			io.Detail = why
+		}
+	}
 	boardFacts(p, it, io)
 	return io
 }
@@ -637,6 +642,9 @@ func itemActivity(snap *domain.State, it *domain.Item, io *ItemOverview, up func
 	switch {
 	case len(io.Sessions) > 0:
 		return ActWorking, io.Sessions[0].Agent + " on " + io.Sessions[0].Machine
+	case len(io.BlockedBy) > 0:
+		// Its step waits for other items to land, and starts again by itself.
+		return ActBlocked, "waits for " + strings.Join(io.BlockedBy, ", ")
 	case it.Claim != nil && !up(it.Claim.Machine):
 		return ActStalled, "machine " + it.Claim.Machine + " is out"
 	case running:
@@ -645,4 +653,32 @@ func itemActivity(snap *domain.State, it *domain.Item, io *ItemOverview, up func
 		return ActIdle, "no machine holds it"
 	}
 	return ActIdle, "held by " + it.Claim.Machine + ", nothing runs"
+}
+
+// idleWhy says why an item a machine holds has no session: the agents of
+// its step's role on that machine are all busy, or the step starts at the
+// next pass. "" when the step has no agent role.
+func idleWhy(p *Project, snap *domain.State, it *domain.Item, now time.Time) string {
+	f, err := p.Cfg().FlowOf(it.Kind, it.Area)
+	if err != nil {
+		return ""
+	}
+	st, ok := f.Step(it.Step)
+	if !ok {
+		return ""
+	}
+	role := stepRole(st)
+	if role == "" {
+		return ""
+	}
+	busy := 0
+	for _, si := range snap.Sessions {
+		if si.Live() && now.Sub(si.At) <= sessionFresh && si.Role == role && si.Machine == it.Claim.Machine {
+			busy++
+		}
+	}
+	if n := p.Cfg().Roles[role].Count; n > 0 && busy >= n {
+		return fmt.Sprintf("next for the %s on %s: %d of %d busy", role, it.Claim.Machine, busy, n)
+	}
+	return "the " + role + " on " + it.Claim.Machine + " takes it at the next pass"
 }

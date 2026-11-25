@@ -44,7 +44,7 @@ export const toneOfItem = (r: Board): Tone => COLUMN_TONE[(r.column || 'backlog'
 
 // The signal's own color: a failed check is red even in the working column.
 const SIGNAL_TONE: Record<string, Tone> = {
-	approve: 'needs', question: 'needs', check_failed: 'fail', changes_requested: 'fail', waits_for: 'fail', stalled: 'fail',
+	approve: 'needs', question: 'needs', check_failed: 'fail', changes_requested: 'fail', waits_for: 'idle', stalled: 'fail',
 	working: 'work', running: 'work', queued: 'queue', integrated: 'done'
 };
 export const signalTone = (r: Board): Tone => SIGNAL_TONE[r.signal?.kind || ''] || toneOfItem(r);

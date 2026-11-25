@@ -88,6 +88,9 @@ func boardFacts(p *Project, it *domain.Item, io *ItemOverview) {
 		io.Column = ColNeeds
 	case it.Status == domain.StatusQueued:
 		io.Column = ColQueue
+	case it.Status == domain.StatusInProgress && io.Activity == ActBlocked:
+		// Its step waits for other items: planned, and it starts by itself.
+		io.Column = ColBacklog
 	case it.Status == domain.StatusBlocked, io.Activity == ActBlocked, io.Activity == ActStalled:
 		io.Column = ColBlocked
 	case it.Status == domain.StatusInProgress && hasCur && cur.Type == domain.StepAgent && cur.Review:
