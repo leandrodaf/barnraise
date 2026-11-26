@@ -50,6 +50,77 @@ var (
 	notEnglish = regexp.MustCompile(`(?i)(^|[^a-z])(para|uma|que|dos|das|pelo|pela|quando|nao|esta|sao|corrige|corrigir|adiciona|adicionar|ajusta|ajustar|altera|alterar|tela|botao|usuario|erro ao|ao abrir|e o|e a|da|na|um)([^a-z]|$)`)
 )
 
+// changeTypeAliases are the words agents write for a type, mapped to it.
+var changeTypeAliases = map[string]string{
+	"feature": "feat", "features": "feat", "add": "feat", "new": "feat",
+	"bugfix": "fix", "bug": "fix", "hotfix": "fix", "fixes": "fix", "bug-fix": "fix",
+	"doc": "docs", "documentation": "docs",
+	"tests": "test", "testing": "test",
+	"refactoring": "refactor", "performance": "perf",
+	"dependencies": "build", "deps": "build",
+	"chores": "chore", "maintenance": "chore",
+	"formatting": "style", "format": "style",
+}
+
+var (
+	spacesRe     = regexp.MustCompile(`\s+`)
+	notScopeRe   = regexp.MustCompile(`[^a-z0-9._/-]+`)
+	typePrefixRe = regexp.MustCompile(`^(?i)(feat|fix|perf|refactor|docs|test|build|ci|chore|style|revert)(\([^)]*\))?!?:\s*`)
+)
+
+// Normalize fixes what can be fixed in a change without guessing what it
+// says: the type's usual synonyms and case, a scope with capitals or
+// spaces, the subject's spaces, line breaks, final period, first capital
+// and a repeated "type:" prefix. A header over HeaderMax is cut at a word
+// and the whole subject opens the body. What needs judgment (a text not in
+// English, an empty subject, an unknown type) is left to Validate.
+func (c ChangeNote) Normalize() ChangeNote {
+	c.Type = strings.ToLower(strings.TrimSpace(c.Type))
+	if t, ok := changeTypeAliases[c.Type]; ok {
+		c.Type = t
+	}
+	c.Scope = strings.Trim(notScopeRe.ReplaceAllString(strings.ToLower(strings.TrimSpace(c.Scope)), "-"), "-._/")
+	if c.Scope != "" && !scopeRe.MatchString(c.Scope) {
+		c.Scope = ""
+	}
+	s := strings.TrimSpace(spacesRe.ReplaceAllString(c.Subject, " "))
+	for {
+		t := typePrefixRe.ReplaceAllString(s, "")
+		if t == s {
+			break
+		}
+		s = strings.TrimSpace(t)
+	}
+	s = strings.TrimRight(s, ". ")
+	if len(s) > 1 && s[0] >= 'A' && s[0] <= 'Z' && !(s[1] >= 'A' && s[1] <= 'Z') {
+		s = string(s[0]+'a'-'A') + s[1:]
+	}
+	c.Subject = s
+	c.Body, c.Breaking = strings.TrimSpace(c.Body), strings.TrimSpace(c.Breaking)
+	if over := len(c.Header()) - HeaderMax; over > 0 && s != "" {
+		full := s
+		room := len(s) - over
+		cut := strings.LastIndex(s[:max(room, 0)+1], " ")
+		if cut <= 0 {
+			cut = max(room, 1)
+		}
+		c.Subject = strings.TrimRight(s[:cut], " ,;:-")
+		if c.Body == "" {
+			c.Body = upperFirst(full) + "."
+		} else if !strings.Contains(c.Body, full) {
+			c.Body = upperFirst(full) + ".\n\n" + c.Body
+		}
+	}
+	return c
+}
+
+func upperFirst(s string) string {
+	if s == "" || s[0] < 'a' || s[0] > 'z' {
+		return s
+	}
+	return string(s[0]-'a'+'A') + s[1:]
+}
+
 // Validate checks the shape of a change: a known type, a simple scope, and
 // a subject in the form every tool and reader expects.
 func (c ChangeNote) Validate() error {

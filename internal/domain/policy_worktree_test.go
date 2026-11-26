@@ -71,12 +71,20 @@ func TestPolicyRelativePathsFromTheAgentsFolder(t *testing.T) {
 	}
 }
 
-// On the machine itself /tmp is shared with the owner: scratch writes there
-// stay outside the worktree and refused.
-func TestPolicySharedTmpStaysClosed(t *testing.T) {
+// /tmp and /var/tmp are scratch space everywhere: agents keep a backup
+// copy, a probe script or a query there. /tmp itself and a way out of it
+// stay closed.
+func TestPolicyTmpIsScratch(t *testing.T) {
 	p := DefaultPolicy()
 	p.Worktree = "/w/I-1"
-	if d := p.Decide(ToolCall{Tool: "Write", Paths: []string{"/tmp/x"}, Write: true}, nil); d.Allow {
-		t.Fatal("/tmp on the machine must stay closed")
+	for _, ok := range []string{"/tmp/x", "/tmp/i6-bastion.bak", "/var/tmp/barnraise-1000/claude-1000/tmp.1Sd"} {
+		if d := p.Decide(ToolCall{Tool: "Write", Paths: []string{ok}, Write: true}, nil); !d.Allow {
+			t.Fatalf("%s: %+v", ok, d)
+		}
+	}
+	for _, bad := range []string{"/tmp", "/tmp/../home/u/.bashrc", "/var/tmp"} {
+		if d := p.Decide(ToolCall{Tool: "Write", Paths: []string{bad}, Write: true}, nil); d.Allow {
+			t.Fatalf("%s must stay closed", bad)
+		}
 	}
 }

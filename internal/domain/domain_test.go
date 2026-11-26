@@ -713,3 +713,46 @@ func TestCheckProposalLimitCountsPerItem(t *testing.T) {
 		t.Fatalf("outside an item, one is the limit: %v", err)
 	}
 }
+
+// What is only shape in a change is fixed, not refused: the agent would
+// spend a turn on it. What needs judgment stays for Validate.
+func TestChangeNoteNormalize(t *testing.T) {
+	// The delivery refused on 2026-11-26: a 76-character header.
+	c := ChangeNote{Type: "fix", Scope: "tests", Subject: "move the journey test's shove wall out of the trail chest pocket zone"}.Normalize()
+	if err := c.Validate(); err != nil {
+		t.Fatalf("normalized: %v (%q)", err, c.Header())
+	}
+	if len(c.Header()) > HeaderMax || strings.HasSuffix(c.Subject, " ") || !strings.HasPrefix(c.Body, "Move the journey test's shove wall out of the trail chest pocket zone.") {
+		t.Fatalf("header %q (%d), body %q", c.Header(), len(c.Header()), c.Body)
+	}
+	// The body the agent wrote stays, after the whole subject.
+	long := ChangeNote{Type: "feat", Subject: strings.Repeat("word ", 20) + "end", Body: "Why it matters."}.Normalize()
+	if long.Validate() != nil || !strings.HasSuffix(long.Body, "\n\nWhy it matters.") {
+		t.Fatalf("long %+v", long)
+	}
+	// One word longer than the header: cut, still valid.
+	one := ChangeNote{Type: "chore", Subject: strings.Repeat("x", 90)}.Normalize()
+	if one.Validate() != nil || len(one.Header()) > HeaderMax {
+		t.Fatalf("one word %q", one.Header())
+	}
+	for _, tc := range []struct{ in, want ChangeNote }{
+		{ChangeNote{Type: " Feature ", Scope: "Atlas UI", Subject: "Add  the\nplan book."}, ChangeNote{Type: "feat", Scope: "atlas-ui", Subject: "add the plan book"}},
+		{ChangeNote{Type: "bugfix", Scope: "  ", Subject: "fix: fix(atlas): keep saves loading..."}, ChangeNote{Type: "fix", Subject: "keep saves loading"}},
+		{ChangeNote{Type: "docs", Scope: "!!!", Subject: "README covers the Lodge"}, ChangeNote{Type: "docs", Subject: "README covers the Lodge"}},
+		{ChangeNote{Type: "tests", Subject: "Cover the permits"}, ChangeNote{Type: "test", Subject: "cover the permits"}},
+	} {
+		got := tc.in.Normalize()
+		if got.Type != tc.want.Type || got.Scope != tc.want.Scope || got.Subject != tc.want.Subject {
+			t.Fatalf("%+v → %+v, want %+v", tc.in, got, tc.want)
+		}
+		if err := got.Validate(); err != nil {
+			t.Fatalf("%+v: %v", got, err)
+		}
+	}
+	// Judgment stays with Validate: not English, empty, unknown type.
+	for _, bad := range []ChangeNote{{Type: "fix", Subject: "corrige o erro ao abrir"}, {Type: "fix", Subject: " . "}, {Type: "wip", Subject: "add x"}} {
+		if bad.Normalize().Validate() == nil {
+			t.Fatalf("%+v must still be refused", bad)
+		}
+	}
+}

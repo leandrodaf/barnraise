@@ -349,10 +349,12 @@ var ItemFiles = []string{"plan.md", "criteria.json"}
 // before descriptions existed, with a title that is not a valid header) it
 // is recorded as upkeep, so the history keeps one format.
 func changeNote(it *domain.Item) domain.ChangeNote {
-	if it.Change != nil && it.Change.Validate() == nil {
-		return *it.Change
+	if it.Change != nil {
+		if c := it.Change.Normalize(); c.Validate() == nil {
+			return c
+		}
 	}
-	if c := domain.DefaultChangeNote(it); c.Validate() == nil {
+	if c := domain.DefaultChangeNote(it).Normalize(); c.Validate() == nil {
 		return c
 	}
 	return domain.ChangeNote{Type: "chore", Scope: domain.Slug(it.Area, 20), Subject: "integrate " + it.ID}

@@ -49,6 +49,14 @@
 	let list: HTMLDivElement | undefined = $state();
 	let atBottom = $state(true);
 	let copied = $state('');
+	// What the owner opened stays open (and what they closed stays closed)
+	// while new messages arrive: the page keeps it, not the DOM.
+	let opened = $state<Record<string, boolean>>({});
+	const isOpen = (key: string, auto: boolean) => opened[key] ?? auto;
+	function toggled(key: string, e: Event) {
+		const now = (e.currentTarget as HTMLDetailsElement).open;
+		if (opened[key] !== now) opened = { ...opened, [key]: now };
+	}
 
 	const turns = $derived(toTurns(entries));
 	// The step that runs now: the last tool with no result, while busy.
@@ -132,7 +140,7 @@
 								{:else}
 									{@const fails = part.list.filter((x) => x.failed).length}
 									{@const running = part.list.some((x) => x === live)}
-									<details class="group/tools rounded-xl border bg-background/50 text-xs" open={running}>
+									<details class="group/tools rounded-xl border bg-background/50 text-xs" open={isOpen('g' + part.key, running)} ontoggle={(e) => toggled('g' + part.key, e)}>
 										<summary class="flex cursor-pointer list-none items-center gap-2 px-3 py-2 text-muted-foreground select-none hover:text-foreground">
 											<ChevronRightIcon class="size-3.5 shrink-0 transition-transform group-open/tools:rotate-90" />
 											{#if running}<Spinner class="size-3.5 text-st-review" />{:else if fails}<AlertIcon class="size-3.5 text-st-fail" />{:else}<CheckIcon class="size-3.5 text-st-done" />{/if}
@@ -153,7 +161,7 @@
 														{#if x === live}<Spinner class="ml-auto size-3 shrink-0" />{/if}
 													</p>
 													{#if x.result}
-														<details class="mt-1">
+														<details class="mt-1" open={isOpen('r' + x.key, false)} ontoggle={(e) => toggled('r' + x.key, e)}>
 															<summary class="cursor-pointer text-[11px] text-muted-foreground hover:text-foreground">{x.failed ? t('convFailed') : t('convOutput')}</summary>
 															<pre class="num mt-1 max-h-48 overflow-auto rounded-lg bg-muted/60 p-2 text-[11px] leading-snug whitespace-pre-wrap [overflow-wrap:anywhere]">{x.result}</pre>
 														</details>

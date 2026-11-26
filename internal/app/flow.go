@@ -359,8 +359,9 @@ func (s *Service) Deliver(ctx context.Context, project string, a Actor, d domain
 		d.Step = cur.Step
 	}
 	if d.Step != cur.Step || cur.Status != domain.StatusInProgress {
+		msg := lateMessage(p.state, cur, d.Step, "delivery")
 		p.mu.Unlock()
-		return nil, fmt.Errorf("%w: %s is at step %s (%s), not %s; this delivery is late", ErrConflict, cur.ID, cur.Step, cur.Status, d.Step)
+		return nil, fmt.Errorf("%w: %s", ErrConflict, msg)
 	}
 	if a.Kind == ActorAgent && a.Step != "" && a.Step != d.Step {
 		p.mu.Unlock()
@@ -435,8 +436,9 @@ func changeOf(it *domain.Item, st domain.StepDef, d domain.Delivery) (*domain.Ch
 		return nil, nil
 	}
 	if d.Change != nil {
-		c := *d.Change
-		c.Type, c.Scope, c.Subject = strings.TrimSpace(c.Type), strings.TrimSpace(c.Scope), strings.TrimSpace(c.Subject)
+		// What is only shape (a long header, a final period, a capital) is
+		// fixed here rather than sent back: the agent would spend a turn on it.
+		c := d.Change.Normalize()
 		if err := c.Validate(); err != nil {
 			return nil, fmt.Errorf("%w: %v", ErrInvalid, err)
 		}
@@ -445,7 +447,7 @@ func changeOf(it *domain.Item, st domain.StepDef, d domain.Delivery) (*domain.Ch
 	if it.Change != nil {
 		return it.Change, nil // an earlier round already described it
 	}
-	c := domain.DefaultChangeNote(it)
+	c := domain.DefaultChangeNote(it).Normalize()
 	if err := c.Validate(); err != nil {
 		return nil, fmt.Errorf("%w: describe the change in the delivery's `change` (type, scope, subject), in English, for the commit and the changelog; "+
 			"the item's title cannot be used as it is: %v", ErrInvalid, err)
@@ -530,8 +532,9 @@ func (s *Service) Review(ctx context.Context, project string, a Actor, r domain.
 		r.Step = cur.Step
 	}
 	if r.Step != cur.Step || cur.Status != domain.StatusInProgress {
+		msg := lateMessage(p.state, cur, r.Step, "review")
 		p.mu.Unlock()
-		return nil, fmt.Errorf("%w: %s is at step %s (%s), not %s; this review is late", ErrConflict, cur.ID, cur.Step, cur.Status, r.Step)
+		return nil, fmt.Errorf("%w: %s", ErrConflict, msg)
 	}
 	f, _ := p.Cfg().FlowOf(cur.Kind, cur.Area)
 	var st domain.StepDef
@@ -691,4 +694,23 @@ func aggregateChecks(names []string, results map[string]domain.CheckResult) (pas
 		}
 	}
 	return passed, strings.Join(reasons, "\n"), true
+}
+
+// lateMessage says why a delivery or a review cannot be taken now, and what
+// the agent does instead: an item waiting for the owner at this very step
+// gets the answer first (in the next session, as a message); an item that
+// moved on no longer needs it.
+func lateMessage(st *domain.State, cur *domain.Item, step, what string) string {
+	if step == cur.Step && cur.Status == domain.StatusWaitingOwner {
+		q := ""
+		for _, x := range st.Questions {
+			if x.ItemID == cur.ID && x.Answer == "" {
+				q = " (" + x.ID + ")"
+				break
+			}
+		}
+		return fmt.Sprintf("%s waits for the owner's answer%s at step %s, so this %s cannot be taken now. "+
+			"Stop here without delivering: the step resumes with the answer as a message, and you deliver then", cur.ID, q, step, what)
+	}
+	return fmt.Sprintf("%s moved on to step %s (%s); this %s for step %s is no longer needed: stop here", cur.ID, cur.Step, cur.Status, what, step)
 }

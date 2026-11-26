@@ -132,8 +132,11 @@ func (p *Policy) Decide(c ToolCall, exists func(string) bool) Decision {
 			continue
 		}
 		if p.Worktree != "" && rel == "" {
-			if p.PrivateTmp && scratch(abs) {
-				continue // temporary files: /tmp is the agent's scratch space
+			if scratch(abs) {
+				// Temporary files: /tmp and /var/tmp are the agent's scratch
+				// space (a backup copy, a probe script, a query). Blocking them
+				// cost agents turns and changed nothing of the project's.
+				continue
 			}
 			return deny("outside_worktree", "writing outside the item worktree is blocked: "+raw)
 		}
@@ -159,12 +162,12 @@ func (p *Policy) Decide(c ToolCall, exists func(string) bool) Decision {
 				return deny("deny_command", "command blocked by policy: "+rx)
 			}
 		}
-		for _, w := range shellWrites(cmd) {
+		for _, w := range shellWrites(c.Command) {
 			if d := p.Decide(ToolCall{Tool: "Write", Paths: []string{w}, Write: true}, exists); !d.Allow {
 				return d
 			}
 		}
-		for _, r := range shellReads(cmd) {
+		for _, r := range shellReads(c.Command) {
 			if d := p.Decide(ToolCall{Tool: "Read", Paths: []string{r}}, exists); !d.Allow {
 				return d
 			}
@@ -273,65 +276,321 @@ func inPlace(name string, args []string) bool {
 	return false
 }
 
-// shellWrites finds files a shell command writes (redirections, tee, rm, mv, cp, sed -i, touch).
-func shellWrites(cmd string) []string {
+// A command is read the way the shell reads it before its files are
+// checked: heredoc bodies are text, quoted text is one word and never
+// syntax (a sed script such as 's/=.*/=<set>/' redirects nothing), and a
+// cd changes where the next relative paths point.
+
+// heredocRe finds a heredoc's start: <<EOF, <<-'EOF', <<"EOF".
+var heredocRe = regexp.MustCompile(`<<-?\s*(?:'([^']+)'|"([^"]+)"|\\?([A-Za-z_][A-Za-z0-9_]*))`)
+
+// dropHeredocs removes heredoc bodies, which are data and not commands.
+func dropHeredocs(cmd string) string {
+	lines := strings.Split(cmd, "\n")
 	var out []string
-	for _, m := range redirRe.FindAllStringSubmatch(cmd, -1) {
-		if !notAFile[m[1]] && !strings.HasPrefix(m[1], "&") {
-			out = append(out, m[1])
+	for i := 0; i < len(lines); i++ {
+		out = append(out, lines[i])
+		var ends []string
+		for _, m := range heredocRe.FindAllStringSubmatchIndex(lines[i], -1) {
+			if mask(lines[i])[m[0]] != '<' {
+				continue // inside quotes
+			}
+			for g := 1; g <= 3; g++ {
+				if m[2*g] >= 0 {
+					ends = append(ends, lines[i][m[2*g]:m[2*g+1]])
+				}
+			}
+		}
+		for _, end := range ends {
+			for i+1 < len(lines) && strings.TrimSpace(lines[i+1]) != end {
+				i++
+			}
+			if i+1 < len(lines) {
+				i++
+			}
 		}
 	}
+	return strings.Join(out, "\n")
+}
+
+// mask hides what quotes hold: every byte inside '…' or "…" (and an
+// escaped byte) becomes 'q', so the shell's syntax is found only where the
+// shell sees it; positions do not move.
+func mask(cmd string) string {
+	b := []byte(cmd)
+	var quote byte
+	for i := 0; i < len(b); i++ {
+		c := b[i]
+		switch {
+		case quote == 0 && c == '\\' && i+1 < len(b):
+			b[i+1] = 'q'
+			i++
+		case quote == 0 && (c == '\'' || c == '"'):
+			quote = c
+		case quote != 0 && c == quote:
+			quote = 0
+		case quote == '"' && c == '\\' && i+1 < len(b):
+			b[i], b[i+1] = 'q', 'q'
+			i++
+		case quote != 0:
+			b[i] = 'q'
+		}
+	}
+	return string(b)
+}
+
+// words splits a segment into the shell's words, quotes removed.
+func words(seg string) []string {
+	var out []string
+	var cur strings.Builder
+	var quote byte
+	in := false
+	for i := 0; i < len(seg); i++ {
+		c := seg[i]
+		switch {
+		case quote == 0 && (c == ' ' || c == '\t'):
+			if in {
+				out = append(out, cur.String())
+				cur.Reset()
+				in = false
+			}
+		case quote == 0 && c == '\\' && i+1 < len(seg):
+			cur.WriteByte(seg[i+1])
+			i++
+			in = true
+		case quote == 0 && (c == '\'' || c == '"'):
+			quote, in = c, true
+		case quote != 0 && c == quote:
+			quote = 0
+		default:
+			cur.WriteByte(c)
+			in = true
+		}
+	}
+	if in {
+		out = append(out, cur.String())
+	}
+	return out
+}
+
+// prepared is a command ready to read: heredoc bodies out, lines joined.
+func prepared(cmd string) string {
+	cmd = dropHeredocs(cmd)
+	return strings.NewReplacer("\\\n", " ", "\n", " ; ", "\t", " ").Replace(cmd)
+}
+
+// segments are the simple commands of a command line, in order, with the
+// folder each one runs in after the cd before it ("" for the start).
+type segment struct {
+	words []string
+	dir   string
+}
+
+func splitSegments(cmd string) []string {
+	// ">|" writes a file; its bar is not a pipe.
+	m := strings.ReplaceAll(mask(cmd), ">|", ">q")
+	var out []string
+	last := 0
+	for _, ix := range segmentRe.FindAllStringIndex(m, -1) {
+		out = append(out, cmd[last:ix[0]])
+		last = ix[1]
+	}
+	return append(out, cmd[last:])
+}
+
+func segmentsOf(cmd string) []segment {
+	var out []segment
+	dir := ""
 	for _, seg := range splitSegments(cmd) {
-		f := commandWords(seg)
+		// Redirections are not arguments.
+		seg = cutRedirections(seg)
+		f := commandWords(strings.Join(quoteWords(words(seg)), " "))
+		f = unquoteAll(f)
 		if len(f) == 0 {
 			continue
 		}
+		if f[0] == "cd" {
+			switch {
+			case len(f) < 2 || f[1] == "~":
+				dir = "~"
+			case strings.HasPrefix(f[1], "$") || f[1] == "-":
+				// unknown: paths stay relative to where the command started
+			default:
+				dir = joinDir(dir, f[1])
+			}
+			continue
+		}
+		out = append(out, segment{words: f, dir: dir})
+	}
+	return out
+}
+
+// quoteWords keeps each word one word for commandWords, which splits on spaces.
+func quoteWords(w []string) []string {
+	out := make([]string, len(w))
+	for i, x := range w {
+		out[i] = strings.ReplaceAll(x, " ", "\x00")
+	}
+	return out
+}
+
+func unquoteAll(w []string) []string {
+	for i := range w {
+		w[i] = strings.ReplaceAll(w[i], "\x00", " ")
+	}
+	return w
+}
+
+func joinDir(dir, to string) string {
+	if strings.HasPrefix(to, "/") || strings.HasPrefix(to, "~") || dir == "" {
+		return to
+	}
+	return path.Join(dir, to)
+}
+
+// at resolves a path a segment names against the folder it runs in.
+func (s segment) at(p string) string {
+	if s.dir == "" || strings.HasPrefix(p, "/") || strings.HasPrefix(p, "~") {
+		return p
+	}
+	return path.Join(s.dir, p)
+}
+
+// cutRedirections removes "> file" and "< file" from a segment.
+func cutRedirections(seg string) string {
+	m := mask(seg)
+	var b strings.Builder
+	last := 0
+	for _, ix := range redirAnyRe.FindAllStringIndex(m, -1) {
+		b.WriteString(seg[last:ix[0]])
+		b.WriteByte(' ')
+		last = ix[1]
+	}
+	b.WriteString(seg[last:])
+	return b.String()
+}
+
+var redirAnyRe = regexp.MustCompile(`\d*(?:>>?\|?|&>>?|<)\s*(?:&\d+|[^\s;|&<>()]+)`)
+
+// redirTargets finds the files the segments' output redirections write,
+// each against the folder its segment runs in.
+func redirTargets(cmd string, re *regexp.Regexp) []string {
+	var out []string
+	dir := ""
+	for _, seg := range splitSegments(cmd) {
+		if f := words(cutRedirections(seg)); len(f) > 0 && f[0] == "cd" {
+			if len(f) > 1 && !strings.HasPrefix(f[1], "$") && f[1] != "-" {
+				dir = joinDir(dir, f[1])
+			}
+			continue
+		}
+		m := mask(seg)
+		for _, ix := range re.FindAllStringSubmatchIndex(m, -1) {
+			t := words(seg[ix[2]:ix[3]])
+			if len(t) == 0 {
+				continue
+			}
+			target := t[0]
+			if notAFile[target] || strings.HasPrefix(target, "&") {
+				continue
+			}
+			out = append(out, segment{dir: dir}.at(target))
+		}
+	}
+	return out
+}
+
+// shellWrites finds files a shell command writes (redirections, tee, rm, mv, cp, sed -i, touch).
+func shellWrites(raw string) []string {
+	cmd := prepared(raw)
+	out := redirTargets(cmd, redirRe)
+	for _, sg := range segmentsOf(cmd) {
+		f := sg.words
 		name := path.Base(f[0])
 		args := nonFlags(f[1:])
+		var hit []string
 		switch name {
-		case "tee", "rm", "touch", "truncate", "chmod", "chown", "unlink", "shred":
-			out = append(out, args...)
+		case "tee", "rm", "touch", "truncate", "chmod", "chown", "unlink", "shred", "mkdir", "rmdir":
+			hit = args
 		case "mv", "cp", "install", "ln", "rsync":
-			out = append(out, args...) // sources of mv change too
+			hit = args // sources of mv change too
 		case "sed", "perl":
-			if inPlace(name, f[1:]) {
-				if len(args) > 0 {
-					out = append(out, args[1:]...)
-				}
+			if inPlace(name, f[1:]) && len(args) > 0 {
+				hit = args[1:]
 			}
+		}
+		for _, a := range hit {
+			out = append(out, sg.at(a))
 		}
 	}
 	return out
 }
 
 // shellReads finds files a shell command reads with common readers.
-func shellReads(cmd string) []string {
+func shellReads(raw string) []string {
+	cmd := prepared(raw)
 	var out []string
-	for _, m := range inputRe.FindAllStringSubmatch(cmd, -1) {
-		if a := m[1]; strings.Contains(a, "/") || strings.HasPrefix(a, "~") || strings.HasPrefix(a, ".") {
+	pathish := func(a string) bool {
+		return strings.Contains(a, "/") || strings.HasPrefix(a, "~") || strings.HasPrefix(a, ".")
+	}
+	for _, a := range redirTargets(cmd, inputRe) {
+		if pathish(a) {
 			out = append(out, a)
 		}
 	}
-	for _, seg := range splitSegments(cmd) {
-		f := commandWords(seg)
-		if len(f) == 0 {
-			continue
+	for _, sg := range segmentsOf(cmd) {
+		f := sg.words
+		var args []string
+		switch name := path.Base(f[0]); name {
+		case "grep", "egrep", "fgrep", "rg":
+			args = searchFiles(f[1:])
+		case "cat", "less", "more", "head", "tail", "strings", "xxd", "base64", "od", "cp", "scp", "tar", "zip", "source", ".":
+			args = nonFlags(f[1:])
 		}
-		switch path.Base(f[0]) {
-		case "cat", "less", "more", "head", "tail", "strings", "xxd", "base64", "od", "grep", "rg", "cp", "scp", "tar", "zip", "source", ".":
-			for _, a := range nonFlags(f[1:]) {
-				if strings.Contains(a, "/") || strings.HasPrefix(a, "~") || strings.HasPrefix(a, ".") {
-					out = append(out, a)
-				}
+		for _, a := range args {
+			if pathish(a) {
+				out = append(out, sg.at(a))
 			}
 		}
 	}
 	return out
 }
 
-var segmentRe = regexp.MustCompile("\\s*(?:&&|\\|\\||;|\\||&|\\$\\(|\\(|\\)|`)\\s*")
+// searchFiles are the files grep or rg reads: not the pattern (the first
+// word that is not a flag, unless -e or -f gives it), and -f's file.
+func searchFiles(args []string) []string {
+	var out []string
+	given := false
+	for i := 0; i < len(args); i++ {
+		a := args[i]
+		switch {
+		case a == "-e" || a == "--regexp":
+			given = true
+			i++
+		case a == "-f" || a == "--file":
+			given = true
+			if i+1 < len(args) {
+				out = append(out, args[i+1])
+			}
+			i++
+		case strings.HasPrefix(a, "--regexp=") || (strings.HasPrefix(a, "-e") && len(a) > 2 && !strings.HasPrefix(a, "--")):
+			given = true
+		case strings.HasPrefix(a, "--file="):
+			given = true
+			out = append(out, strings.TrimPrefix(a, "--file="))
+		case a == "-A" || a == "-B" || a == "-C" || a == "-m" || a == "--max-count" || a == "-g" || a == "--glob" || a == "-t" || a == "--type" || a == "-T":
+			i++ // a flag with a value
+		case strings.HasPrefix(a, "-"):
+		case !given:
+			given = true // the pattern
+		default:
+			out = append(out, a)
+		}
+	}
+	return out
+}
 
-func splitSegments(cmd string) []string { return segmentRe.Split(cmd, -1) }
+var segmentRe = regexp.MustCompile("\\s*(?:&&|\\|\\||;|\\||&|\\$\\(|\\(|\\)|`)\\s*")
 
 var reCache sync.Map // pattern -> *regexp.Regexp (nil for invalid)
 

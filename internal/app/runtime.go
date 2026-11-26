@@ -1002,10 +1002,36 @@ func (r *Runtime) writeSessionFiles(p *Project, sessDir, worktree string, env ma
 		"permissions": map[string]any{"defaultMode": "bypassPermissions", "deny": []string{"Read(~/.ssh/**)", "Read(~/.config/gh/**)", "Read(~/.aws/**)", "Edit(.github/workflows/**)", "Edit(.barnraise/**)", "Edit(barnraise.yaml)", "Edit(criteria.json)", "Edit(.barnraise-session/*.json)"}},
 		"env":         map[string]string{"DISABLE_AUTOUPDATER": "1"},
 	}
+	gitCfg := [][2]string{{"commit.gpgsign", "false"}, {"tag.gpgsign", "false"}}
 	// Inside a container the container is the sandbox (bubblewrap cannot nest there).
 	if r.Sandbox && p.Cfg().Container.Image == "" && !r.microVMSessions() {
 		settings["sandbox"] = map[string]any{"enabled": true, "failIfUnavailable": true, "allowUnsandboxedCommands": false,
 			"network": map[string]any{"allowedDomains": domain.AllowHostNames(pol.AllowHosts)}}
+		// The sandbox guards files such as .bashrc and .mcp.json by mounting
+		// placeholders over them in the working folder; the agent's git
+		// would list them as new files and fail to read or add them. Its git
+		// ignores them; the worktree and the owner's checkout do not change.
+		if ex, err := sandboxExcludes(sessDir); err == nil {
+			gitCfg = append(gitCfg, [2]string{"core.excludesFile", ex})
+		}
+	}
+	// The agent's git, set through the environment for every provider:
+	// it does not sign (the owner's key needs a passphrase nobody can type
+	// in a headless session, and the sandbox keeps ~/.gnupg read-only, so
+	// every commit failed); and inside the sandbox it ignores the sandbox's
+	// placeholder files. The owner's own git and Barnraise's commits keep
+	// the owner's settings.
+	n := 0
+	for _, kv := range gitCfg {
+		env[fmt.Sprintf("GIT_CONFIG_KEY_%d", n)], env[fmt.Sprintf("GIT_CONFIG_VALUE_%d", n)] = kv[0], kv[1]
+		n++
+	}
+	env["GIT_CONFIG_COUNT"] = fmt.Sprint(n)
+	settings["env"] = map[string]string{"DISABLE_AUTOUPDATER": "1"}
+	for k, v := range env {
+		if strings.HasPrefix(k, "GIT_CONFIG_") {
+			settings["env"].(map[string]string)[k] = v
+		}
 	}
 	setData, _ := json.MarshalIndent(settings, "", "  ")
 	setPath := filepath.Join(sessDir, "settings.json")
@@ -1015,6 +1041,33 @@ func (r *Runtime) writeSessionFiles(p *Project, sessDir, worktree string, env ma
 	meta, _ := json.MarshalIndent(map[string]any{"agent": a.Name, "role": a.Role, "item": a.ItemID, "step": a.Step, "project": a.Project}, "", "  ")
 	_ = os.WriteFile(filepath.Join(sessDir, "session.json"), meta, 0o600)
 	return mcpPath, setPath, nil
+}
+
+// sandboxPlaceholders are the files Claude Code's sandbox mounts over in the
+// working folder to keep commands from writing them.
+var sandboxPlaceholders = []string{".bashrc", ".bash_profile", ".bash_login", ".profile", ".zshrc", ".zshenv", ".zprofile", ".zlogin",
+	".gitconfig", ".gitmodules", ".ripgreprc", ".mcp.json", ".claude/", ".idea/", ".vscode/", ".idea", ".vscode", ".claude"}
+
+// sandboxExcludes writes the ignore file of a sandboxed session's git: the
+// owner's own global ignores, then the sandbox's placeholders, which match
+// only when untracked (a project's own .gitmodules stays tracked).
+func sandboxExcludes(sessDir string) (string, error) {
+	var b strings.Builder
+	home, _ := os.UserHomeDir()
+	global := filepath.Join(home, ".config", "git", "ignore")
+	if x := os.Getenv("XDG_CONFIG_HOME"); x != "" {
+		global = filepath.Join(x, "git", "ignore")
+	}
+	if own, err := os.ReadFile(global); err == nil {
+		b.Write(own)
+		b.WriteString("\n")
+	}
+	b.WriteString("# Claude Code's sandbox placeholders (barnraise)\n")
+	for _, f := range sandboxPlaceholders {
+		b.WriteString("/" + f + "\n")
+	}
+	path := filepath.Join(sessDir, "git-ignore")
+	return path, os.WriteFile(path, []byte(b.String()), 0o600)
 }
 
 // watch follows a session's events until it ends, then decides what the end means.

@@ -18,7 +18,9 @@
 	// running: who runs on the item now (agent names), so a new session reopens the stream.
 	let { project, id, running = '' }: { project: string; id: string; running?: string } = $props();
 
-	type Line = { at: string; kind: string; tool?: string; text?: string; error?: boolean; since?: string; last?: string };
+	// n: the line's place since the stream opened, a key that does not move
+	// when the oldest lines are dropped.
+	type Line = { n: number; at: string; kind: string; tool?: string; text?: string; error?: boolean; since?: string; last?: string };
 	type Info = { agent: string; role: string; step: string; provider: string; model: string; machine: string; since?: string };
 	type Msg = { id: string; from: string; to: string; text: string; at: string };
 
@@ -33,6 +35,7 @@
 	let sending = $state(false);
 	let pending = $state('');
 	let ctrl: AbortController | null = null;
+	let seq = 0;
 	const MAX_LINES = 400;
 
 	function handle(event: string, data: any) {
@@ -46,6 +49,7 @@
 					pulse = data;
 					break;
 				}
+				data.n = seq++;
 				lines = lines.length >= MAX_LINES ? [...lines.slice(-MAX_LINES + 1), data] : [...lines, data];
 				if (data.kind === 'end') pulse = null;
 				break;
@@ -73,6 +77,7 @@
 		ctrl = c;
 		phase = 'connecting';
 		lines = [];
+		seq = 0;
 		info = null;
 		pulse = null;
 		failure = '';
@@ -138,8 +143,8 @@
 		const out: Timed[] = [];
 		const ms = (s?: string) => (s ? Date.parse(s) || 0 : 0);
 		let lastTool: ChatEntry | null = null;
-		lines.forEach((l, i) => {
-			const key = 'l' + i;
+		lines.forEach((l) => {
+			const key = 'l' + l.n;
 			switch (l.kind) {
 				case 'text':
 					out.push({ at: ms(l.at), e: { key, role: 'assistant', text: l.text, at: l.at } });
