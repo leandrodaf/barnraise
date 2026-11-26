@@ -3,6 +3,7 @@ package app
 import (
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/leandrodaf/barnraise/internal/domain"
 )
@@ -528,5 +529,57 @@ func TestOwnerQuestionsInTheProjectsLanguage(t *testing.T) {
 	}
 	if got := e.item(it.ID); got.Status != domain.StatusClosed {
 		t.Fatalf("Desistir do item must close it: %s", got.Status)
+	}
+}
+
+// A step that blocks again after a retry, with nothing to wait for, is the
+// owner's: the autopilot no longer answers it, so a wall does not turn into
+// a session every few minutes.
+func TestBlockedAgainIsTheOwners(t *testing.T) {
+	e := newEnv(t)
+	it := e.ready("simple", "Report the review", "x")
+	e.next("implementer", it.ID)
+	e.mustDeliver(it.ID, domain.Delivery{Status: domain.DeliveryBlocked, Reason: "the fix for D2 is not filed yet"})
+	q := e.question(it.ID)
+	if q.OwnerOnly || q.Topic != "blocked:implement" || q.Recommended() != "Retry the step" {
+		t.Fatalf("first block: %+v", q)
+	}
+	inWork := func(id string) bool {
+		ds, _ := e.svc.autopilotWork(e.ctx, e.p)
+		for _, d := range ds {
+			if d.thread == id {
+				return true
+			}
+		}
+		return false
+	}
+	if !inWork(q.ID) {
+		t.Fatal("the autopilot may answer a first block")
+	}
+	if _, err := e.svc.Answer(e.ctx, "demo", owner(), q.ID, "retry", ""); err != nil {
+		t.Fatal(err)
+	}
+
+	e.next("implementer", it.ID)
+	e.mustDeliver(it.ID, domain.Delivery{Status: domain.DeliveryBlocked, Reason: "still not filed"})
+	q2 := e.question(it.ID)
+	if q2.ID == q.ID || !q2.OwnerOnly || !strings.Contains(q2.Context, "attempt 2") || !strings.Contains(q2.IfNoAnswer, "no session") {
+		t.Fatalf("second block: %+v", q2)
+	}
+	if inWork(q2.ID) {
+		t.Fatal("the autopilot must leave a repeated block to the owner")
+	}
+	// The owner can still send it back to work.
+	if _, err := e.svc.Answer(e.ctx, "demo", owner(), q2.ID, "retry", ""); err != nil {
+		t.Fatal(err)
+	}
+	e.wantStatus(it.ID, domain.StatusInProgress, "implement")
+
+	// Another step's block, or the same step a day later, starts over.
+	if n := blockedRetries(e.p.Snapshot(), it.ID, "blocked:check", e.clock.Now()); n != 0 {
+		t.Fatalf("another step: %d", n)
+	}
+	if n := blockedRetries(e.p.Snapshot(), it.ID, "blocked:implement", e.clock.Now().Add(25*time.Hour)); n != 0 {
+		t.Fatalf("a day later: %d", n)
 	}
 }

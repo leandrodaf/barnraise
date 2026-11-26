@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/leandrodaf/barnraise/internal/domain"
 )
@@ -192,12 +193,14 @@ func (s *Service) finishStep(ctx context.Context, p *Project, o stepOutcome) (*d
 			Text: "This item waits for " + strings.Join(waits, ", ") + ". The step starts again by itself once they are integrated.",
 		}})
 	}
+	stuck := false
 	switch {
 	case tr.Kind == domain.TransOwner || (tr.Kind == domain.TransBlocked && len(waits) == 0):
 		if tr.Kind == domain.TransBlocked {
 			_, _ = s.emitLocked(ctx, p, domain.EvItemBlocked, it.ID, o.Actor, domain.Payload{Note: o.Reason})
 		}
 		q := s.ownerQuestionFor(p, it, o, tr)
+		stuck = q.OwnerOnly
 		qid, err := s.askLocked(ctx, p, q, "barnraise")
 		if err != nil {
 			s.d.Log.Warn("owner question", "item", it.ID, "err", err)
@@ -216,6 +219,9 @@ func (s *Service) finishStep(ctx context.Context, p *Project, o stepOutcome) (*d
 	if tr.Kind == domain.TransComplete {
 		s.releaseLease(ctx, p, it.ID)
 	}
+	if stuck {
+		s.notifyOwner(ctx, p, "blocked_again", fmt.Sprintf("%s is stuck and needs you", it.ID), it.Title+": "+truncate(o.Reason, 300))
+	}
 	if tr.Kind == domain.TransOwner {
 		s.notifyOwner(ctx, p, "rework_exhausted", fmt.Sprintf("%s needs you", it.ID), it.Title+": "+truncate(o.Reason, 300))
 		if len(it.Rework) > 0 && o.Outcome != domain.OutcomeNeedsContext {
@@ -228,14 +234,39 @@ func (s *Service) finishStep(ctx context.Context, p *Project, o stepOutcome) (*d
 	return it, tr, nil
 }
 
+// blockedRetryLimit is how many times a step blocked without anything to
+// wait for is retried by an answer before only the owner may answer.
+const blockedRetryLimit = 1
+
+// blockedRetries counts the answered questions about the same blocked step
+// of the item in the last day: each one sent the step to another attempt.
+func blockedRetries(st *domain.State, itemID, topic string, now time.Time) int {
+	n := 0
+	for _, q := range st.Questions {
+		if q.ItemID == itemID && q.Topic == topic && !q.Open() && now.Sub(q.AskedAt) < 24*time.Hour {
+			n++
+		}
+	}
+	return n
+}
+
 func (s *Service) ownerQuestionFor(p *Project, it *domain.Item, o stepOutcome, tr domain.Transition) *domain.Question {
 	q := &domain.Question{ItemID: it.ID, Urgent: true}
 	switch {
 	case tr.Kind == domain.TransBlocked:
+		q.Topic = "blocked:" + o.Step
 		q.Context = ot(p, "blocked.context", it.ID, it.Title, o.Step, truncate(o.Reason, 500))
 		q.Decision = ot(p, "continue.decision")
 		q.Options = []domain.Option{ownerOpt(p, "retry", true), ownerOpt(p, "abandon", false)}
 		q.IfNoAnswer = ot(p, "if.blocked")
+		if n := blockedRetries(p.state, it.ID, q.Topic, s.d.Clock.Now()); n >= blockedRetryLimit {
+			// The step was retried and blocked again: retrying once more
+			// only spends another session on the same wall. The owner
+			// decides; the autopilot keeps off it.
+			q.OwnerOnly = true
+			q.Context = ot(p, "blocked.again", it.ID, it.Title, o.Step, n+1, truncate(o.Reason, 500))
+			q.IfNoAnswer = ot(p, "if.blocked.again")
+		}
 	case o.Outcome == domain.OutcomeNeedsContext:
 		q.Context = ot(p, "needs.context", it.ID, it.Title, o.Step)
 		q.Decision = truncate(o.Reason, 800)

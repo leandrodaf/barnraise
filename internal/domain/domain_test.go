@@ -1,6 +1,7 @@
 package domain
 
 import (
+	"errors"
 	"strings"
 	"testing"
 	"time"
@@ -681,5 +682,34 @@ func TestMachineHealth(t *testing.T) {
 	m.LastSeen = now.Add(-3 * time.Minute)
 	if m.Health(now, 2*time.Minute) != "red" {
 		t.Fatal("red")
+	}
+}
+
+// An item's findings count together, whichever agent name filed them, and
+// apart from what the same agent name filed for another item.
+func TestCheckProposalLimitCountsPerItem(t *testing.T) {
+	now := time.Now()
+	recent := now.Add(-time.Hour)
+	existing := []*Proposal{
+		{By: "implementer-dma-1", FromItem: "I-7", CreatedAt: recent},
+		{By: "implementer-dma-1", FromItem: "I-7", CreatedAt: recent},
+		{By: "implementer-dma-1", FromItem: "I-8", CreatedAt: recent},
+		{By: "implementer-dma-1", CreatedAt: recent},
+		{By: "implementer-dma-1", FromItem: "I-9", CreatedAt: now.Add(-25 * time.Hour)},
+	}
+	if err := CheckProposalLimit(existing, "implementer-dma-1", "I-9", now, 2); err != nil {
+		t.Fatalf("I-9 has no finding today: %v", err)
+	}
+	if err := CheckProposalLimit(existing, "reviewer-m1-1", "I-7", now, 2); !errors.Is(err, ErrProposalLimit) {
+		t.Fatalf("I-7 already has two findings today: %v", err)
+	}
+	if err := CheckProposalLimit(existing, "implementer-dma-1", "I-8", now, 2); err != nil {
+		t.Fatalf("I-8 has one: %v", err)
+	}
+	if err := CheckProposalLimit(existing, "implementer-dma-1", "", now, 2); err != nil {
+		t.Fatalf("outside an item, the agent filed one: %v", err)
+	}
+	if err := CheckProposalLimit(existing, "implementer-dma-1", "", now, 1); !errors.Is(err, ErrProposalLimit) {
+		t.Fatalf("outside an item, one is the limit: %v", err)
 	}
 }

@@ -164,7 +164,7 @@ func (s *Service) autopilotWork(ctx context.Context, p *Project) (decisions []au
 		return false
 	}
 	for _, q := range snap.Questions {
-		if q.Open() && !left(q.ID, q.AskedAt) {
+		if q.Open() && !q.OwnerOnly && !left(q.ID, q.AskedAt) {
 			decisions = append(decisions, autopilotDecision{thread: q.ID, since: q.AskedAt})
 		}
 	}

@@ -45,7 +45,8 @@ func (s *Service) Propose(ctx context.Context, project string, a Actor, in domai
 	defer p.mu.Unlock()
 	props := p.state.ProposalList()
 	if a.Kind == ActorAgent {
-		if err := domain.CheckDailyLimit(props, in.By, now, p.Cfg().Proposals.PerAgentPerDay); err != nil {
+		in.FromItem = a.ItemID
+		if err := domain.CheckProposalLimit(props, in.By, in.FromItem, now, p.Cfg().Proposals.PerAgentPerDay); err != nil {
 			return ProposeResult{}, fmt.Errorf("%w: %v", ErrConflict, err)
 		}
 	}

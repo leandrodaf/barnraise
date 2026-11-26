@@ -23,26 +23,29 @@ const (
 
 // Proposal is an item suggested by an agent or a person, in a fixed shape.
 type Proposal struct {
-	ID         string         `json:"id"`
-	Version    int            `json:"version"`
-	Title      string         `json:"title"`
-	Problem    string         `json:"problem"`
-	Evidence   string         `json:"evidence"` // print, log, line
-	Impact     string         `json:"impact"`
-	Size       string         `json:"size"`
-	Area       string         `json:"area"`
-	GoalLink   string         `json:"goal_link"` // relation to the goal
-	Kind       string         `json:"kind"`      // feature, improvement, bug, self_improvement
-	Priority   Priority       `json:"priority"`
-	By         string         `json:"by"`
-	Status     ProposalStatus `json:"status"`
-	Comments   []string       `json:"comments,omitempty"`
-	Reason     string         `json:"reason,omitempty"`
-	ItemID     string         `json:"item_id,omitempty"` // item created on approval
-	CreatedAt  time.Time      `json:"created_at,omitzero"`
-	DecidedAt  time.Time      `json:"decided_at,omitzero"`
-	DecidedBy  string         `json:"decided_by,omitempty"`
-	LaterUntil time.Time      `json:"later_until,omitzero"`
+	ID       string         `json:"id"`
+	Version  int            `json:"version"`
+	Title    string         `json:"title"`
+	Problem  string         `json:"problem"`
+	Evidence string         `json:"evidence"` // print, log, line
+	Impact   string         `json:"impact"`
+	Size     string         `json:"size"`
+	Area     string         `json:"area"`
+	GoalLink string         `json:"goal_link"` // relation to the goal
+	Kind     string         `json:"kind"`      // feature, improvement, bug, self_improvement
+	Priority Priority       `json:"priority"`
+	By       string         `json:"by"`
+	Status   ProposalStatus `json:"status"`
+	Comments []string       `json:"comments,omitempty"`
+	Reason   string         `json:"reason,omitempty"`
+	ItemID   string         `json:"item_id,omitempty"` // item created on approval
+	// FromItem is the item whose work found it (the proposing session's
+	// item); the daily limit counts the findings of that item.
+	FromItem   string    `json:"from_item,omitempty"`
+	CreatedAt  time.Time `json:"created_at,omitzero"`
+	DecidedAt  time.Time `json:"decided_at,omitzero"`
+	DecidedBy  string    `json:"decided_by,omitempty"`
+	LaterUntil time.Time `json:"later_until,omitzero"`
 }
 
 // ProposalRules come from `proposals:` in barnraise.yaml.
@@ -57,7 +60,7 @@ var DefaultProposalRules = ProposalRules{PerAgentPerDay: 3, Expire: 14 * 24 * ti
 
 // Proposal validation errors.
 var (
-	ErrProposalLimit   = errors.New("daily proposal limit reached for this agent")
+	ErrProposalLimit   = errors.New("daily proposal limit reached (for this item's findings, or for this agent outside an item)")
 	ErrProposalInvalid = errors.New("proposal is missing required fields")
 )
 
@@ -98,12 +101,24 @@ func (p *Proposal) Validate() error {
 
 // CheckDailyLimit counts proposals by the same author in the last 24 hours.
 func CheckDailyLimit(existing []*Proposal, by string, now time.Time, limit int) error {
+	return CheckProposalLimit(existing, by, "", now, limit)
+}
+
+// CheckProposalLimit applies the daily limit to a new proposal. One made
+// from an item's session counts with that item's other findings: an agent
+// name (implementer-dma-1) works on many items, and the findings of one
+// must not use up the room another needs to report what blocks it. One
+// made outside an item counts by its author, as before.
+func CheckProposalLimit(existing []*Proposal, by, fromItem string, now time.Time, limit int) error {
 	if limit <= 0 || by == "" || by == "owner" {
 		return nil
 	}
 	n := 0
 	for _, p := range existing {
-		if p.By == by && now.Sub(p.CreatedAt) < 24*time.Hour {
+		if now.Sub(p.CreatedAt) >= 24*time.Hour {
+			continue
+		}
+		if (fromItem != "" && p.FromItem == fromItem) || (fromItem == "" && p.FromItem == "" && p.By == by) {
 			n++
 		}
 	}
@@ -269,6 +284,11 @@ type Question struct {
 	AnsweredBy string    `json:"answered_by,omitempty"`
 	AnsweredAt time.Time `json:"answered_at,omitzero"`
 	Urgent     bool      `json:"urgent,omitempty"`
+	// Topic names what Barnraise asked about ("blocked:implement"), to tell
+	// a question asked again from a new one. Empty for an agent's question.
+	Topic string `json:"topic,omitempty"`
+	// OwnerOnly keeps the autopilot off the question: the owner answers.
+	OwnerOnly bool `json:"owner_only,omitempty"`
 }
 
 // Option is one answer choice.
