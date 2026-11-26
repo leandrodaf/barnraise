@@ -1015,3 +1015,17 @@ Object.assign(pt, {
   relLinks: 'Ligado a', relKind_decision: 'decisão', relKind_proposal: 'da proposta', relKind_area: 'área', relKind_item: 'item', relKind_doc: 'documento',
   relCommits: 'Commits deste item', relSameArea: 'Mesma área', relTracker: 'No tracker {0}',
 });
+
+// The Agent tab of an item: the running session, live, and a conversation with its agent.
+Object.assign(en, {
+  tabAgent: 'Agent', agentLive: 'What the agent does', agentLiveHelp: 'Live while this tab is open: the agent’s text, the tools it calls and their results, in short.',
+  agentEnded: 'session ended', agentIdle: 'No agent runs on this item now. Its messages stay below.', agentElsewhere: 'Running on {0}: open the panel of that machine.',
+  agentWaiting: 'Waiting for the agent…', agentTalk: 'Talk to the agent', agentTalkHelp: 'Your messages and the agents’ answers about this item.',
+  agentNoMessages: 'No messages about this item yet.', agentPlaceholder: 'Ask or tell the agent something… (Ctrl+Enter sends)', agentReadsNext: 'The agent reads it at its next tool call, while it works.', agentSent: 'Sent: the agent reads it at its next tool call.',
+});
+Object.assign(pt, {
+  tabAgent: 'Agente', agentLive: 'O que o agente faz', agentLiveHelp: 'Ao vivo enquanto esta aba está aberta: o texto do agente, as ferramentas que ele chama e os resultados, resumidos.',
+  agentEnded: 'sessão terminada', agentIdle: 'Nenhum agente roda neste item agora. As mensagens dele ficam abaixo.', agentElsewhere: 'Rodando em {0}: abra o painel dessa máquina.',
+  agentWaiting: 'Esperando o agente…', agentTalk: 'Conversar com o agente', agentTalkHelp: 'Suas mensagens e as respostas dos agentes sobre este item.',
+  agentNoMessages: 'Nenhuma mensagem sobre este item ainda.', agentPlaceholder: 'Pergunte ou diga algo ao agente… (Ctrl+Enter envia)', agentReadsNext: 'O agente lê na próxima chamada de ferramenta, enquanto trabalha.', agentSent: 'Enviada: o agente lê na próxima chamada de ferramenta.',
+});

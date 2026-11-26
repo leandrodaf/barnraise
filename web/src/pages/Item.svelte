@@ -34,6 +34,7 @@
 	import Empty from '$lib/app/Empty.svelte';
 	import Markdown from '$lib/app/Markdown.svelte';
 	import ItemDocuments from '$lib/app/ItemDocuments.svelte';
+	import AgentLive from '$lib/app/AgentLive.svelte';
 	import QuestionCard from '$lib/app/QuestionCard.svelte';
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
 	import PencilIcon from '@lucide/svelte/icons/pencil';
@@ -200,6 +201,7 @@
 				{#if row?.worktrees.length || row?.procs?.count || row?.sessions.length}<Tabs.Trigger value="resources">{t('tabResources')}{#if row?.procs?.count} <span class="num ml-1 text-[11px] text-st-work">{row.procs.count}</span>{/if}</Tabs.Trigger>{/if}
 				{#if row?.usage && Number(row.usage.tokens)}<Tabs.Trigger value="cost">{t('ovCost')}</Tabs.Trigger>{/if}
 				{#if it.deps.length || depRows.some((r) => r.deps?.includes(id))}<Tabs.Trigger value="deps">{t('tabDeps')}</Tabs.Trigger>{/if}
+				{#if !finished(it.status) || row?.sessions.length}<Tabs.Trigger value="agent">{t('tabAgent')}{#if row?.sessions.length} <span class="ml-1 size-1.5 rounded-full bg-st-work" aria-hidden="true"></span>{/if}</Tabs.Trigger>{/if}
 				<Tabs.Trigger value="documents">{t('tabDocuments')}</Tabs.Trigger>
 				<Tabs.Trigger value="related">{t('tabRelated')}</Tabs.Trigger>
 			</Tabs.List>
@@ -293,6 +295,8 @@
 					{/if}
 				{/if}</Tabs.Content>
 			{/if}
+			<!-- The live view streams only while this tab is open (ADR-0048). -->
+			<Tabs.Content value="agent" class="mt-3">{#if tab === 'agent'}<AgentLive {project} id={it.id} running={(row?.sessions || []).map((s) => s.agent + '/' + s.step).join(',')} />{/if}</Tabs.Content>
 			<Tabs.Content value="documents" class="mt-3">{#if tab === 'documents'}<ItemDocuments {project} id={it.id} />{/if}</Tabs.Content>
 			<Tabs.Content value="related" class="mt-3">{#if tab === 'related'}
 				<Section title={t('tabRelated')} sub={t('relatedHelp')}>
