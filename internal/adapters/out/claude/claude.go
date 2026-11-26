@@ -161,6 +161,11 @@ func (p *Provider) flagKnown(flag string) bool {
 // Args builds the command line of a session (without the binary).
 func (p *Provider) Args(spec ports.SessionSpec) []string {
 	args := []string{"-p", "--output-format", "stream-json", "--verbose"}
+	if p.flagKnown("--include-partial-messages") {
+		// Signs of life while a block is written: without them a long
+		// answer or thought looks like a stuck session.
+		args = append(args, "--include-partial-messages")
+	}
 	if spec.Model != "" {
 		args = append(args, "--model", spec.Model)
 	}

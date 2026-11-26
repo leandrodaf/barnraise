@@ -1,50 +1,38 @@
 <script lang="ts">
 	// The conversation: one AI session per machine, about every project. The
-	// panel, `barnraise chat` and the Claude app on the phone (Remote Control)
-	// show the same one; leaving the page leaves it running.
-	import { onDestroy, onMount, tick } from 'svelte';
+	// panel, `barnraise chat` and the phone (the Claude app by its link, the
+	// ChatGPT app once paired) show the same one; leaving the page leaves it
+	// running.
+	import { onDestroy, onMount } from 'svelte';
 	import { toast } from 'svelte-sonner';
 	import qrcode from 'qrcode-generator';
-	import { conversation, type Conversation, type ConversationAccount, type ConversationEntry } from '$lib/rest';
+	import { conversation, type Conversation, type ConversationAccount } from '$lib/rest';
 	import { t, tm } from '$lib/i18n';
-	import { ago, when } from '$lib/format';
+	import { when } from '$lib/format';
 	import { dialog } from '$lib/app/dialog.svelte';
 	import PageHeader from '$lib/app/PageHeader.svelte';
-	import Markdown from '$lib/app/Markdown.svelte';
+	import ChatThread from '$lib/app/chat/ChatThread.svelte';
+	import ChatComposer from '$lib/app/chat/ChatComposer.svelte';
+	import type { ChatEntry } from '$lib/app/chat/chat';
 	import { Button } from '$lib/components/ui/button';
 	import { Switch } from '$lib/components/ui/switch';
 	import { Spinner } from '$lib/components/ui/spinner';
 	import MessagesIcon from '@lucide/svelte/icons/messages-square';
 	import SparklesIcon from '@lucide/svelte/icons/sparkles';
-	import SendIcon from '@lucide/svelte/icons/arrow-up';
-	import SquareIcon from '@lucide/svelte/icons/square';
 	import SmartphoneIcon from '@lucide/svelte/icons/smartphone';
 	import CopyIcon from '@lucide/svelte/icons/copy';
-	import CheckIcon from '@lucide/svelte/icons/check';
 	import ExternalLinkIcon from '@lucide/svelte/icons/external-link';
 	import PowerIcon from '@lucide/svelte/icons/power';
 	import PlusIcon from '@lucide/svelte/icons/plus';
-	import ChevronRightIcon from '@lucide/svelte/icons/chevron-right';
-	import ArrowDownIcon from '@lucide/svelte/icons/arrow-down';
-	import TerminalIcon from '@lucide/svelte/icons/square-terminal';
-	import FileIcon from '@lucide/svelte/icons/file-text';
-	import SearchIcon from '@lucide/svelte/icons/search';
-	import GlobeIcon from '@lucide/svelte/icons/globe';
-	import PlugIcon from '@lucide/svelte/icons/plug';
-	import ListChecksIcon from '@lucide/svelte/icons/list-checks';
-	import WrenchIcon from '@lucide/svelte/icons/wrench';
 	import XIcon from '@lucide/svelte/icons/x';
-	import AlertIcon from '@lucide/svelte/icons/triangle-alert';
 	import CrosshairIcon from '@lucide/svelte/icons/crosshair';
 	import TargetIcon from '@lucide/svelte/icons/target';
 	import PackageIcon from '@lucide/svelte/icons/package-check';
 	import OctagonIcon from '@lucide/svelte/icons/octagon-alert';
 	import UserIcon from '@lucide/svelte/icons/circle-user-round';
-	import MicIcon from '@lucide/svelte/icons/mic';
-	import MicOffIcon from '@lucide/svelte/icons/mic-off';
 
 	let view = $state<Conversation | null>(null);
-	let entries = $state<ConversationEntry[]>([]);
+	let raw = $state<Conversation['entries']>([]);
 	let text = $state('');
 	// The message sent and not yet in the transcript: shown at once.
 	let pending = $state('');
@@ -52,15 +40,11 @@
 	let starting = $state(false);
 	let switching = $state('');
 	let failed = $state('');
-	let copied = $state(-1);
-	let list: HTMLDivElement | undefined = $state();
-	let box: HTMLTextAreaElement | undefined = $state();
-	let atBottom = $state(true);
 	let timer: ReturnType<typeof setTimeout> | undefined;
 	let alive = true;
 
 	const running = $derived(!!view?.status.running);
-	const busy = $derived(!!view?.status.busy || sending || !!pending);
+	const busy = $derived(!!view?.status.busy || sending || !!pending || starting || !!switching);
 	const remote = $derived(view?.status.remote_url || '');
 	const accounts = $derived(view?.accounts || []);
 	const current = $derived(accounts.find((a) => a.id === (view?.account || '')));
@@ -69,7 +53,6 @@
 	let pairBusy = $state(false);
 	// What the QR code carries: the Claude link, or the ChatGPT pairing code.
 	const qrText = $derived(codex ? pairing?.code || '' : remote);
-	// The phone link as a QR code: one path of dark squares, drawn here.
 	const qr = $derived.by(() => {
 		if (!qrText) return { size: 0, d: '' };
 		const q = qrcode(0, 'M');
@@ -80,60 +63,41 @@
 		for (let r = 0; r < n; r++) for (let c = 0; c < n; c++) if (q.isDark(r, c)) d += `M${c + 2} ${r + 2}h1v1h-1z`;
 		return { size: n + 4, d };
 	});
+	const entries = $derived<ChatEntry[]>(raw.map((e) => ({ ...e, key: String(e.seq) })));
+	const working = $derived(starting || switching ? t('convStarting') : '');
+	const draft = $derived(view?.status.busy ? view?.status.draft || '' : '');
 
-	// Turns: the owner's message, then everything the assistant did and said
-	// until the next one. Tool runs between two texts fold into one group.
-	type Part = { kind: 'text'; e: ConversationEntry } | { kind: 'tools'; list: ConversationEntry[]; key: number };
-	type Turn = { kind: 'user'; e: ConversationEntry } | { kind: 'assistant'; parts: Part[]; key: number; at?: string };
-	const turns = $derived.by(() => {
-		const out: Turn[] = [];
-		for (const e of entries) {
-			if (e.role === 'user') {
-				out.push({ kind: 'user', e });
-				continue;
+	const SUGGEST = [
+		{ k: 'convS1', icon: OctagonIcon },
+		{ k: 'convS2', icon: PackageIcon },
+		{ k: 'convS3', icon: CrosshairIcon },
+		{ k: 'convS4', icon: TargetIcon }
+	];
+	const accountName = (a?: ConversationAccount) => (!a ? '' : a.email || (a.id && a.id !== 'codex' ? a.id : t('convOwnLogin')));
+
+	async function load() {
+		try {
+			const v = await conversation.get(raw.length);
+			if (!alive) return;
+			failed = '';
+			const switched = view && v.session_id !== view.session_id;
+			view = v;
+			if (switched) raw = (await conversation.get(0)).entries;
+			else if (v.entries.length) {
+				// A shorter transcript (a new session) starts the list over.
+				if (v.entries[0].seq !== raw.length) raw = (await conversation.get(0)).entries;
+				else raw = [...raw, ...v.entries];
 			}
-			let turn = out[out.length - 1];
-			if (turn?.kind !== 'assistant') out.push((turn = { kind: 'assistant', parts: [], key: e.seq, at: e.at }));
-			if (e.role === 'tool') {
-				const last = turn.parts[turn.parts.length - 1];
-				if (last?.kind === 'tools') last.list.push(e);
-				else turn.parts.push({ kind: 'tools', list: [e], key: e.seq });
-			} else turn.parts.push({ kind: 'text', e });
+			if (pending && raw.some((e) => e.role === 'user' && e.text === pending)) pending = '';
+		} catch (e) {
+			failed = String((e as Error).message || e);
 		}
-		return out;
-	});
-	// What it is doing now: the last tool without a result, while busy.
-	const now = $derived.by(() => {
-		if (!busy) return null;
-		const last = entries[entries.length - 1];
-		return last?.role === 'tool' && !last.result ? last : null;
-	});
-
-	// The answer being written (providers that stream it).
-	const draft = $derived(busy ? view?.status.draft || '' : '');
-	// The last answer asks the owner something: offer the usual replies.
-	const asks = $derived.by(() => {
-		if (busy || !turns.length) return false;
-		const last = turns[turns.length - 1];
-		if (last.kind !== 'assistant') return false;
-		const txt = turnText(last).trim();
-		return /\?\s*(\*\*)?\s*$/.test(txt);
-	});
-	const REPLIES = ['convYes', 'convNo', 'convExplain'];
-
-	// How long the answer under way has taken.
-	let since = $state(0);
-	let tickNow = $state(Date.now());
-	$effect(() => {
-		if (!busy) {
-			since = 0;
-			return;
-		}
-		if (!since) since = Date.now();
-		const iv = setInterval(() => (tickNow = Date.now()), 1000);
-		return () => clearInterval(iv);
-	});
-	const elapsed = $derived(since ? Math.max(0, Math.round((tickNow - since) / 1000)) : 0);
+		if (alive) timer = setTimeout(load, busy ? 900 : 3000);
+	}
+	function reload() {
+		clearTimeout(timer);
+		load();
+	}
 
 	// Tell the owner the answer arrived when they looked away.
 	let wasBusy = false;
@@ -149,97 +113,13 @@
 		if (!document.hidden && document.title.startsWith('● ')) document.title = t('convTitle') + ' · Barnraise';
 	}
 
-	// Dictation, where the browser has speech recognition.
-	type Recognition = { lang: string; interimResults: boolean; continuous: boolean; start(): void; stop(): void; onresult: ((e: any) => void) | null; onend: (() => void) | null };
-	const SR = typeof window !== 'undefined' ? ((window as any).SpeechRecognition || (window as any).webkitSpeechRecognition) : undefined;
-	let rec: Recognition | null = null;
-	let listening = $state(false);
-	function dictate() {
-		if (!SR) return;
-		if (listening) {
-			rec?.stop();
-			return;
-		}
-		const base = text ? text.trimEnd() + ' ' : '';
-		rec = new SR() as Recognition;
-		rec.lang = document.documentElement.lang || navigator.language || 'pt-BR';
-		rec.interimResults = true;
-		rec.continuous = true;
-		rec.onresult = (e: any) => {
-			let said = '';
-			for (let i = 0; i < e.results.length; i++) said += e.results[i][0].transcript;
-			text = base + said;
-		};
-		rec.onend = () => (listening = false);
-		listening = true;
-		rec.start();
-	}
-
-	const SUGGEST = [
-		{ k: 'convS1', icon: OctagonIcon },
-		{ k: 'convS2', icon: PackageIcon },
-		{ k: 'convS3', icon: CrosshairIcon },
-		{ k: 'convS4', icon: TargetIcon }
-	];
-
-	// The tool's kind picks its icon and how it reads.
-	function toolLook(name = '') {
-		if (name === 'Bash') return { icon: TerminalIcon, label: 'Terminal' };
-		if (name === 'Read' || name === 'LS') return { icon: FileIcon, label: t('convToolRead') };
-		if (name === 'Grep' || name === 'Glob') return { icon: SearchIcon, label: t('convToolSearch') };
-		if (name.startsWith('Web')) return { icon: GlobeIcon, label: 'Web' };
-		if (name === 'TodoWrite') return { icon: ListChecksIcon, label: t('convToolPlan') };
-		if (name.startsWith('mcp__')) return { icon: PlugIcon, label: name.split('__').slice(1).join(' · ') };
-		return { icon: WrenchIcon, label: name };
-	}
-	const shortPath = (s = '') => s.replace(/^\/home\/[^/]+\//, '~/');
-	const accountName = (a?: ConversationAccount) => (!a ? '' : a.email || (a.id ? a.id : t('convOwnLogin')));
-
-	async function load() {
-		try {
-			const v = await conversation.get(entries.length);
-			if (!alive) return;
-			failed = '';
-			const switched = view && v.session_id !== view.session_id;
-			view = v;
-			if (switched) entries = (await conversation.get(0)).entries;
-			else if (v.entries.length) {
-				// A shorter transcript (a new session) starts the list over.
-				if (v.entries[0].seq !== entries.length) entries = (await conversation.get(0)).entries;
-				else entries = [...entries, ...v.entries];
-			}
-			if (pending && entries.some((e) => e.role === 'user' && e.text === pending)) pending = '';
-			if (atBottom) await bottom();
-		} catch (e) {
-			failed = String((e as Error).message || e);
-		}
-		if (alive) timer = setTimeout(load, busy ? 900 : 3000);
-	}
-
-	async function bottom(smooth = true) {
-		await tick();
-		list?.scrollTo({ top: list.scrollHeight, behavior: smooth ? 'smooth' : 'auto' });
-	}
-
-	function onScroll() {
-		if (list) atBottom = list.scrollHeight - list.scrollTop - list.clientHeight < 80;
-	}
-
-	function reload() {
-		clearTimeout(timer);
-		load();
-	}
-
-	async function send(msg = text) {
+	async function send(msg: string) {
 		msg = msg.trim();
 		if (!msg || sending) return;
 		sending = true;
 		pending = msg;
-		if ('Notification' in window && Notification.permission === 'default') Notification.requestPermission().catch(() => {});
-		rec?.stop();
 		text = '';
-		atBottom = true;
-		bottom();
+		if ('Notification' in window && Notification.permission === 'default') Notification.requestPermission().catch(() => {});
 		try {
 			if (!running) starting = true;
 			await conversation.send(msg);
@@ -283,7 +163,7 @@
 		switching = a.id || '-';
 		try {
 			await conversation.use(a.id);
-			entries = [];
+			raw = [];
 			pending = '';
 			pairing = null;
 			toast.success(t('convSwitched', accountName(a)));
@@ -303,52 +183,25 @@
 			submit: t('convNew'),
 			onSubmit: async () => {
 				await conversation.act('new');
-				entries = [];
+				raw = [];
 				pending = '';
 				reload();
 			}
 		});
 	}
 
-	async function copy(value: string, seq = -2) {
+	async function copy(value: string) {
 		await navigator.clipboard?.writeText(value);
-		copied = seq;
-		setTimeout(() => copied === seq && (copied = -1), 1500);
-		if (seq === -2) toast.success(t('convCopied'));
-	}
-	const turnText = (turn: Turn) =>
-		turn.kind === 'assistant' ? turn.parts.map((p) => (p.kind === 'text' ? p.e.text || '' : '')).filter(Boolean).join('\n\n') : '';
-
-	function key(e: KeyboardEvent) {
-		if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) {
-			e.preventDefault();
-			send();
-		} else if (e.key === 'Escape' && view?.status.busy) {
-			e.preventDefault();
-			act('interrupt');
-		}
+		toast.success(t('convCopied'));
 	}
 
-	// "/" anywhere puts the cursor in the message box.
-	function onWindowKey(e: KeyboardEvent) {
-		const el = e.target as HTMLElement;
-		if (e.key === '/' && !e.metaKey && !e.ctrlKey && !/INPUT|TEXTAREA|SELECT/.test(el.tagName) && !el.isContentEditable) {
-			e.preventDefault();
-			box?.focus();
-		}
-	}
-
-	onMount(() => {
-		load().then(() => bottom(false));
-		box?.focus();
-	});
+	onMount(load);
 	onDestroy(() => {
 		alive = false;
 		clearTimeout(timer);
 	});
 </script>
 
-<svelte:window onkeydown={onWindowKey} />
 <svelte:document onvisibilitychange={onVisible} />
 
 <PageHeader title={t('convTitle')} icon={MessagesIcon} meta={[view?.name, accountName(current)]} subtitle={t('convSub')}>
@@ -371,146 +224,40 @@
 {:else}
 	<div class="grid min-h-0 gap-4 xl:grid-cols-[minmax(0,1fr)_18rem]">
 		<section class="relative flex h-[calc(100dvh-12.5rem)] min-h-[30rem] flex-col overflow-hidden rounded-2xl border bg-card/30">
-			<div bind:this={list} onscroll={onScroll} class="min-h-0 flex-1 overflow-y-auto" aria-live="polite">
-				<div class="mx-auto w-full max-w-3xl space-y-7 px-4 pt-8 pb-6 sm:px-8">
-					{#if !entries.length && !pending}
-						<div class="flex flex-col items-center gap-6 py-10 text-center">
-							<span class="grid size-14 place-items-center rounded-2xl bg-gradient-to-br from-st-review/25 to-st-work/20 text-st-review shadow-sm ring-1 ring-st-review/20"><SparklesIcon class="size-7" /></span>
-							<div class="space-y-1.5">
-								<p class="text-lg font-semibold tracking-tight">{t('convHello')}</p>
-								<p class="max-w-md text-sm text-muted-foreground">{t('convEmpty')}</p>
-							</div>
-							<div class="grid w-full max-w-xl gap-2 sm:grid-cols-2">
-								{#each SUGGEST as s (s.k)}
-									<button class="group flex items-start gap-3 rounded-xl border bg-card p-3 text-left text-sm transition hover:-translate-y-px hover:border-st-review/40 hover:shadow-sm disabled:opacity-60" onclick={() => send(t(s.k))} disabled={sending}>
-										<s.icon class="mt-0.5 size-4 shrink-0 text-muted-foreground group-hover:text-st-review" />
-										<span>{t(s.k)}</span>
-									</button>
-								{/each}
-							</div>
+			<ChatThread {entries} {busy} {working} {draft} {pending} onreply={send}>
+				{#snippet empty()}
+					<div class="flex flex-col items-center gap-6 py-10 text-center">
+						<span class="grid size-14 place-items-center rounded-2xl bg-gradient-to-br from-st-review/25 to-st-work/20 text-st-review shadow-sm ring-1 ring-st-review/20"><SparklesIcon class="size-7" /></span>
+						<div class="space-y-1.5">
+							<p class="text-lg font-semibold tracking-tight">{t('convHello')}</p>
+							<p class="max-w-md text-sm text-muted-foreground">{t('convEmpty')}</p>
 						</div>
-					{/if}
-
-					{#each turns as turn, ti (turn.kind === 'user' ? 'u' + turn.e.seq : 'a' + turn.key)}
-						{#if turn.kind === 'user'}
-							<div class="group flex animate-[fade-in_.2s_ease-out] flex-col items-end gap-1">
-								<div class="max-w-[85%] rounded-3xl rounded-br-lg bg-muted px-4 py-2.5 text-sm leading-relaxed whitespace-pre-wrap [overflow-wrap:anywhere]">{turn.e.text}</div>
-								{#if turn.e.at}<span class="num px-2 text-[11px] text-muted-foreground opacity-0 transition group-hover:opacity-100" title={when(turn.e.at)}>{ago(turn.e.at)}</span>{/if}
-							</div>
-						{:else}
-							<article class="group flex gap-3">
-								<span class="mt-0.5 grid size-7 shrink-0 place-items-center rounded-full bg-st-review/15 text-st-review ring-1 ring-st-review/20"><SparklesIcon class="size-3.5" /></span>
-								<div class="min-w-0 flex-1 space-y-3">
-									{#each turn.parts as part (part.kind === 'text' ? 't' + part.e.seq : 'g' + part.key)}
-										{#if part.kind === 'text'}
-											<div class="text-sm leading-relaxed [&_pre]:max-h-96 [&_pre]:overflow-auto"><Markdown text={part.e.text || ''} /></div>
-										{:else}
-											{@const fails = part.list.filter((x) => x.failed).length}
-											{@const live = part.list.some((x) => x === now)}
-											<details class="group/tools rounded-xl border bg-background/50 text-xs" open={live}>
-												<summary class="flex cursor-pointer list-none items-center gap-2 px-3 py-2 text-muted-foreground select-none hover:text-foreground">
-													<ChevronRightIcon class="size-3.5 shrink-0 transition-transform group-open/tools:rotate-90" />
-													{#if live}<Spinner class="size-3.5 text-st-review" />{:else if fails}<AlertIcon class="size-3.5 text-st-fail" />{:else}<CheckIcon class="size-3.5 text-st-done" />{/if}
-													<span class="font-medium">{part.list.length === 1 ? t('convStep1') : t('convSteps', part.list.length)}</span>
-													<span class="flex min-w-0 items-center gap-1 overflow-hidden">
-														{#each part.list.slice(0, 8) as x (x.seq)}{@const L = toolLook(x.tool)}<L.icon class="size-3 shrink-0 opacity-70" />{/each}
-													</span>
-													{#if fails}<span class="ml-auto shrink-0 text-st-fail">{t('convFailedN', fails)}</span>{/if}
-												</summary>
-												<ol class="space-y-2.5 border-t px-3 py-3">
-													{#each part.list as x (x.seq)}
-														{@const L = toolLook(x.tool)}
-														<li class="relative pl-6">
-															<span class="absolute top-0 left-0 grid size-4 place-items-center {x.failed ? 'text-st-fail' : 'text-muted-foreground'}"><L.icon class="size-3.5" /></span>
-															<p class="flex items-baseline gap-2">
-																<span class="shrink-0 font-medium {x.failed ? 'text-st-fail' : 'text-foreground'}">{L.label}</span>
-																<code class="num min-w-0 truncate text-muted-foreground" title={x.input}>{shortPath(x.input)}</code>
-																{#if x === now}<Spinner class="ml-auto size-3 shrink-0" />{/if}
-															</p>
-															{#if x.result}
-																<details class="mt-1">
-																	<summary class="cursor-pointer text-[11px] text-muted-foreground hover:text-foreground">{x.failed ? t('convFailed') : t('convOutput')}</summary>
-																	<pre class="num mt-1 max-h-48 overflow-auto rounded-lg bg-muted/60 p-2 text-[11px] leading-snug whitespace-pre-wrap [overflow-wrap:anywhere]">{x.result}</pre>
-																</details>
-															{/if}
-														</li>
-													{/each}
-												</ol>
-											</details>
-										{/if}
-									{/each}
-									{#if turnText(turn) && !(busy && ti === turns.length - 1)}
-										<div class="flex items-center gap-1 text-muted-foreground opacity-0 transition group-hover:opacity-100 focus-within:opacity-100">
-											<Button size="icon" variant="ghost" class="size-7" onclick={() => copy(turnText(turn), turn.key)} aria-label={t('convCopyAnswer')} title={t('convCopyAnswer')}>
-												{#if copied === turn.key}<CheckIcon class="size-3.5 text-st-done" />{:else}<CopyIcon class="size-3.5" />{/if}
-											</Button>
-											{#if turn.at}<span class="num text-[11px]" title={when(turn.at)}>{ago(turn.at)}</span>{/if}
-										</div>
-									{/if}
-								</div>
-							</article>
-						{/if}
-					{/each}
-
-					{#if draft}
-						<article class="flex gap-3">
-							<span class="mt-0.5 grid size-7 shrink-0 place-items-center rounded-full bg-st-review/15 text-st-review ring-1 ring-st-review/20"><SparklesIcon class="size-3.5" /></span>
-							<div class="min-w-0 flex-1 text-sm leading-relaxed after:ml-0.5 after:inline-block after:h-4 after:w-1.5 after:animate-pulse after:rounded-sm after:bg-st-review after:align-middle after:content-['']"><Markdown text={draft} /></div>
-						</article>
-					{/if}
-					{#if asks}
-						<div class="flex flex-wrap gap-2 pl-10">
-							{#each REPLIES as k (k)}
-								<button class="rounded-full border bg-card px-3 py-1.5 text-xs transition hover:-translate-y-px hover:border-st-review/40 hover:bg-st-review/10" onclick={() => send(t(k))}>{t(k)}</button>
+						<div class="grid w-full max-w-xl gap-2 sm:grid-cols-2">
+							{#each SUGGEST as s (s.k)}
+								<button class="group flex items-start gap-3 rounded-xl border bg-card p-3 text-left text-sm transition hover:-translate-y-px hover:border-st-review/40 hover:shadow-sm disabled:opacity-60" onclick={() => send(t(s.k))} disabled={sending}>
+									<s.icon class="mt-0.5 size-4 shrink-0 text-muted-foreground group-hover:text-st-review" />
+									<span>{t(s.k)}</span>
+								</button>
 							{/each}
 						</div>
-					{/if}
-					{#if pending && !entries.some((e) => e.role === 'user' && e.text === pending)}
-						<div class="flex justify-end"><div class="max-w-[85%] rounded-3xl rounded-br-lg bg-muted px-4 py-2.5 text-sm whitespace-pre-wrap opacity-70 [overflow-wrap:anywhere]">{pending}</div></div>
-					{/if}
-					{#if busy || starting || switching}
-						<div class="flex items-center gap-3 text-sm" role="status">
-							<span class="grid size-7 place-items-center rounded-full bg-st-review/15 text-st-review"><SparklesIcon class="size-3.5 animate-pulse" /></span>
-							<span class="truncate bg-gradient-to-r from-muted-foreground via-foreground to-muted-foreground bg-[length:200%_100%] bg-clip-text text-transparent [animation:shimmer_2.2s_linear_infinite]">
-								{starting || switching ? t('convStarting') : now ? toolLook(now.tool).label + ' · ' + shortPath(now.input) : draft ? t('convWriting') : t('convThinking')}
-							</span>
-							{#if elapsed > 2}<span class="num shrink-0 text-xs text-muted-foreground">{elapsed}s</span>{/if}
-						</div>
-					{:else if !running && view?.status.error}
+					</div>
+				{/snippet}
+				{#snippet after()}
+					{#if !busy && !running && view?.status.error}
 						<p class="flex items-start gap-2 rounded-xl bg-st-fail/10 px-3 py-2 text-xs text-st-fail [overflow-wrap:anywhere]"><XIcon class="mt-px size-3.5 shrink-0" />{t('convEnded')}: {view.status.error}</p>
 					{/if}
-				</div>
-			</div>
-
-			{#if !atBottom}
-				<button class="absolute bottom-32 left-1/2 grid size-8 -translate-x-1/2 place-items-center rounded-full border bg-background shadow-md transition hover:bg-muted" onclick={() => { atBottom = true; bottom(); }} aria-label={t('convToBottom')} title={t('convToBottom')}><ArrowDownIcon class="size-4" /></button>
-			{/if}
-
-			<form class="px-3 pb-3 sm:px-6" onsubmit={(e) => { e.preventDefault(); send(); }}>
-				<div class="mx-auto max-w-3xl rounded-2xl border bg-background shadow-sm transition focus-within:border-st-review/40 focus-within:shadow-md focus-within:ring-2 focus-within:ring-st-review/10">
-					<textarea bind:this={box} bind:value={text} onkeydown={key} rows="1" placeholder={t('convPlaceholder')} aria-label={t('convPlaceholder')}
-						class="block max-h-56 min-h-12 w-full resize-none bg-transparent px-4 pt-3.5 pb-1 text-sm outline-none [field-sizing:content] placeholder:text-muted-foreground"></textarea>
-					<div class="flex items-center gap-2 px-2 pb-2">
-						{#if current}
-							<span class="inline-flex max-w-[60%] items-center gap-1.5 truncate rounded-full bg-muted px-2.5 py-1 text-[11px] text-muted-foreground" title={t('convAccountHelp')}><UserIcon class="size-3 shrink-0" /><span class="truncate">{accountName(current)}</span></span>
-						{/if}
-						<span class="hidden truncate pl-1 text-[11px] text-muted-foreground lg:block">{t('convKeys')}</span>
-						<span class="ml-auto"></span>
-						{#if SR}
-							<Button type="button" size="icon" variant={listening ? 'default' : 'ghost'} class="size-8 rounded-full {listening ? 'animate-pulse bg-st-fail text-white hover:bg-st-fail' : ''}" onclick={dictate} title={listening ? t('convDictateStop') : t('convDictate')} aria-label={listening ? t('convDictateStop') : t('convDictate')} aria-pressed={listening}>
-								{#if listening}<MicOffIcon class="size-4" />{:else}<MicIcon class="size-4" />{/if}
-							</Button>
-						{/if}
-						{#if view?.status.busy}
-							<Button type="button" size="icon" variant="outline" class="size-8 rounded-full" onclick={() => act('interrupt')} title={t('convStop')} aria-label={t('convStop')}><SquareIcon class="size-3 fill-current" /></Button>
-						{/if}
-						<Button type="submit" size="icon" class="size-8 rounded-full" disabled={!text.trim() || sending} title={t('convSend')} aria-label={t('convSend')}>
-							{#if sending}<Spinner class="size-4" />{:else}<SendIcon class="size-4" />{/if}
-						</Button>
-					</div>
-				</div>
-				<p class="mx-auto mt-2 max-w-3xl text-center text-[11px] text-muted-foreground">{t('convPolicy')}</p>
-			</form>
+				{/snippet}
+			</ChatThread>
+			<ChatComposer bind:text onsend={send} onstop={() => act('interrupt')} busy={!!view?.status.busy} {sending} placeholder={t('convPlaceholder')}>
+				{#snippet chip()}
+					{#if current}
+						<span class="inline-flex max-w-[60%] items-center gap-1.5 truncate rounded-full bg-muted px-2.5 py-1 text-[11px] text-muted-foreground" title={t('convAccountHelp')}><UserIcon class="size-3 shrink-0" /><span class="truncate">{accountName(current)}</span></span>
+					{/if}
+				{/snippet}
+				{#snippet footer()}
+					<p class="mx-auto mt-2 max-w-3xl text-center text-[11px] text-muted-foreground">{t('convPolicy')}</p>
+				{/snippet}
+			</ChatComposer>
 		</section>
 
 		<aside class="space-y-4">

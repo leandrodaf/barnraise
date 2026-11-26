@@ -35,13 +35,23 @@ const liveSubBuffer = 128
 // LiveLine is one line of a running session, as the panel shows it.
 type LiveLine struct {
 	At time.Time `json:"at"`
-	// Kind: text (what the agent writes), tool (a tool call), result (what
-	// the tool answered), error, limit, end (the session ended).
+	// Kind: text (what the agent writes), thinking (what it shows of its
+	// reasoning), tool (a tool call), result (what the tool answered),
+	// error, limit, end (the session ended), pulse (see below).
 	Kind  string `json:"kind"`
 	Tool  string `json:"tool,omitempty"`
 	Text  string `json:"text,omitempty"`
 	Error bool   `json:"error,omitempty"`
+	// A pulse says what the session does now, while nothing lands: Text is
+	// thinking, writing, tool or waiting, Tool the tool running; Since is
+	// when that began and Last the session's last sign of life. Pulses go
+	// to watchers only, every few seconds, never into the kept lines.
+	Since time.Time `json:"since,omitzero"`
+	Last  time.Time `json:"last,omitzero"`
 }
+
+// pulseEvery is how often a watched session says what it does.
+const pulseEvery = 3 * time.Second
 
 // LiveSession says which session a watcher follows.
 type LiveSession struct {
@@ -87,15 +97,85 @@ type LivePeer func(ctx context.Context, machine, project, itemID, agent string) 
 
 // liveFeed is the ring and the watchers of one session.
 type liveFeed struct {
-	mu     sync.Mutex
-	ring   []LiveLine // circular once full
-	next   int
-	subs   map[int]chan LiveLine
-	nextID int
-	closed bool
+	mu sync.Mutex
+	// What the session does now, for the pulse.
+	state, tool, input string
+	stateAt, lastAt    time.Time
+	ring               []LiveLine // circular once full
+	next               int
+	subs               map[int]chan LiveLine
+	nextID             int
+	closed             bool
 }
 
 func newLiveFeed() *liveFeed { return &liveFeed{ring: make([]LiveLine, 0, 16)} }
+
+// touch notes what a provider event says the session does now.
+func (f *liveFeed) touch(ev ports.ProviderEvent, at time.Time) {
+	if f == nil {
+		return
+	}
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.lastAt = at
+	next, tool, input := f.state, f.tool, f.input
+	switch ev.Kind {
+	case ports.PEActivity:
+		if f.state == "tool" && f.tool != "" {
+			return // a tool runs; the model's next words come after it
+		}
+		next = ev.Text
+	case ports.PEThinking:
+		next = "thinking"
+	case ports.PEMessage:
+		if strings.TrimSpace(ev.Text) != "" {
+			next = "thinking" // the text landed; what comes next is not known yet
+		}
+	case ports.PEToolUse:
+		next, tool, input = "tool", ev.Tool, inputSummary(ev.Input)
+	case ports.PEToolResult:
+		next, tool, input = "thinking", "", ""
+	case ports.PEInit:
+		next = "thinking"
+	default:
+		return
+	}
+	if next != f.state || tool != f.tool {
+		f.state, f.tool, f.input, f.stateAt = next, tool, input, at
+	}
+}
+
+// pulseLine is what the session does now ("waiting" before any sign).
+func (f *liveFeed) pulseLine(at time.Time) LiveLine {
+	state := f.state
+	if state == "" {
+		state = "waiting"
+	}
+	l := LiveLine{At: at.UTC(), Kind: "pulse", Text: state, Tool: f.tool, Since: f.stateAt.UTC(), Last: f.lastAt.UTC()}
+	if f.tool != "" && f.input != "" {
+		l.Text = state + ": " + f.input
+	}
+	return l
+}
+
+// beat hands every watcher the session's pulse (never kept in the ring).
+func (f *liveFeed) beat(at time.Time) {
+	if f == nil {
+		return
+	}
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if f.closed || len(f.subs) == 0 {
+		return
+	}
+	l := f.pulseLine(at)
+	for _, ch := range f.subs {
+		select {
+		case ch <- l:
+		default:
+		}
+	}
+}
 
 // publish keeps the line and hands it to the watchers, never waiting for one.
 func (f *liveFeed) publish(l LiveLine) {
@@ -144,6 +224,8 @@ func (f *liveFeed) subscribe() ([]LiveLine, <-chan LiveLine, func()) {
 	id := f.nextID
 	f.nextID++
 	f.subs[id] = ch
+	// A new watcher learns at once what the session does now.
+	ch <- f.pulseLine(time.Now())
 	return back, ch, func() {
 		f.mu.Lock()
 		defer f.mu.Unlock()
@@ -190,6 +272,11 @@ func liveLineOf(ev ports.ProviderEvent, at time.Time) (LiveLine, bool) {
 	switch ev.Kind {
 	case ports.PEMessage:
 		l.Kind, l.Text = "text", strings.TrimSpace(ev.Text)
+		if l.Text == "" {
+			return l, false
+		}
+	case ports.PEThinking:
+		l.Kind, l.Text = "thinking", strings.TrimSpace(ev.Text)
 		if l.Text == "" {
 			return l, false
 		}

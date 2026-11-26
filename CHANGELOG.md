@@ -4,6 +4,14 @@ All notable changes to Barnraise are recorded here. The format follows [Keep a C
 
 ## [Unreleased]
 
+### Added
+
+- **agents:** Whether an agent works or is stuck, at a glance. A watched session now sends a pulse every few seconds: what it does now (thinking, writing, running a tool and which command) and since when, and its last sign of life; the Agent tab shows it, warns after three minutes without a sign (not while a tool runs: tests and builds take long) and says it is probably stuck after ten. Claude sessions run with partial messages, so a long answer or thought gives signs of life before it lands instead of arriving all at once, and what the model shows of its reasoning appears as a step. Pulses reach watchers on other machines too and are never kept.
+
+### Changed
+
+- **panel:** Every conversation with an AI looks and behaves the same: the owner's conversation, an item's agent and the advisor share one thread (steps folded and live, links and tables, item links, copy) and one message box (it grows, Enter sends, Esc stops, dictation). The Agent tab shows the agent's work and its messages with the owner as one conversation.
+
 ## [0.5.0] - 2026-11-26
 
 ### Added

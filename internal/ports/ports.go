@@ -227,6 +227,11 @@ const (
 	PEPermission ProviderEventKind = "permission"
 	PEDone       ProviderEventKind = "done"
 	PEError      ProviderEventKind = "error"
+	// PEThinking: the model reasons (Text: what it shows of it, if anything).
+	PEThinking ProviderEventKind = "thinking"
+	// PEActivity: a sign of life while the model writes (Text: thinking,
+	// writing or tool, what it is producing), before the block lands.
+	PEActivity ProviderEventKind = "activity"
 )
 
 // ProviderEvent is normalized; the original rides along untouched.

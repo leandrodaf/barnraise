@@ -306,7 +306,7 @@ func TestOpenReplaysAndBuildsCommand(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	wantArgs := []string{"claude", "-p", "--output-format", "stream-json", "--verbose",
+	wantArgs := []string{"claude", "-p", "--output-format", "stream-json", "--verbose", "--include-partial-messages",
 		"--model", "haiku", "--effort", "low", "--append-system-prompt", "be brief",
 		"--mcp-config", "/m.json", "--strict-mcp-config", "--settings", "/s.json", "--setting-sources", "project,local", "--resume", "r-1",
 		"--max-turns", "3", "--json-schema", `{"type":"object"}`}
@@ -475,5 +475,32 @@ func TestContract(t *testing.T) {
 	}
 	if !res.Limited && (!strings.Contains(strings.ToLower(res.Text), "pong") || res.Usage.Output == 0) {
 		t.Fatalf("result = %+v", res)
+	}
+}
+
+// Partial messages are signs of life, at most one a second per kind;
+// thinking blocks show as thinking.
+func TestParserSignsOfLife(t *testing.T) {
+	p := NewParser(domain.TokenUsage{})
+	now := time.Date(2026, 11, 26, 12, 0, 0, 0, time.UTC)
+	_ = now
+	lines := []string{
+		`{"type":"stream_event","event":{"type":"content_block_start","content_block":{"type":"thinking"}}}`,
+		`{"type":"stream_event","event":{"type":"content_block_delta","delta":{"type":"thinking_delta"}}}`,
+		`{"type":"stream_event","event":{"type":"content_block_delta","delta":{"type":"text_delta"}}}`,
+		`{"type":"stream_event","event":{"type":"content_block_delta","delta":{"type":"input_json_delta"}}}`,
+		`{"type":"stream_event","event":{"type":"message_stop"}}`,
+		`{"type":"stream_event"}`,
+		`{"type":"assistant","message":{"content":[{"type":"thinking","thinking":" weighing the plan "},{"type":"redacted_thinking"}]}}`,
+	}
+	var got []string
+	for _, l := range lines {
+		for _, e := range p.Parse([]byte(l)) {
+			got = append(got, string(e.Kind)+":"+e.Text)
+		}
+	}
+	want := []string{"activity:thinking", "activity:writing", "activity:tool", "thinking:weighing the plan", "thinking:"}
+	if !slices.Equal(got, want) {
+		t.Fatalf("got %q", got)
 	}
 }

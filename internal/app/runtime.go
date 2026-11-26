@@ -1046,6 +1046,8 @@ func (r *Runtime) watch(p *Project, slot Slot, a *Assignment, ls *liveSession, a
 	lastState := time.Time{}
 	safety := time.NewTicker(maxDur(p.Cfg().SafetyCommit, time.Minute))
 	defer safety.Stop()
+	pulse := time.NewTicker(pulseEvery)
+	defer pulse.Stop()
 	events := ls.sess.Events()
 loop:
 	for {
@@ -1054,6 +1056,7 @@ loop:
 			if !ok {
 				break loop
 			}
+			ls.feed.touch(ev, s.d.Clock.Now())
 			if l, show := liveLineOf(ev, s.d.Clock.Now()); show {
 				ls.feed.publish(l)
 			}
@@ -1084,6 +1087,8 @@ loop:
 					s.sessionState(ctx, p, slot, a, "working", ev.Tool, acc.ID, choice.Provider, choice.String(), usage)
 				}
 			}
+		case <-pulse.C:
+			ls.feed.beat(s.d.Clock.Now())
 		case <-safety.C:
 			// Safety commit of pending changes.
 			// Not while a rebase Barnraise started waits for this session.

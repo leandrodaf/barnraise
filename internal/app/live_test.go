@@ -29,6 +29,9 @@ func TestLiveFeedWithoutWatchersOnlyKeepsTheRing(t *testing.T) {
 	if len(back) != 1 || back[0].Text != "line 1" {
 		t.Fatalf("backlog %+v", back)
 	}
+	if l := <-ch; l.Kind != "pulse" {
+		t.Fatalf("a new watcher hears the pulse first: %+v", l)
+	}
 	select {
 	case l := <-ch:
 		t.Fatalf("a line kept before the watch came live: %+v", l)
@@ -46,7 +49,7 @@ func TestLiveFeedBacklogThenLiveThenStop(t *testing.T) {
 		t.Fatalf("backlog %+v", back)
 	}
 	f.publish(line(3))
-	if l := <-ch; l.Text != "line 3" {
+	if l := nextLine(ch); l.Text != "line 3" {
 		t.Fatalf("live %+v", l)
 	}
 	if f.watchers() != 1 {
@@ -89,7 +92,7 @@ func TestLiveFeedClose(t *testing.T) {
 	f.publish(line(1))
 	_, ch, _ := f.subscribe()
 	f.close(time.Now(), "done")
-	if l := <-ch; l.Kind != "end" {
+	if l := nextLine(ch); l.Kind != "end" {
 		t.Fatalf("end %+v", l)
 	}
 	if _, ok := <-ch; ok {
@@ -195,14 +198,14 @@ func TestWatchSessionOfARunningItem(t *testing.T) {
 		t.Fatalf("backlog %+v", w.Backlog)
 	}
 	close(more)
-	if l := <-w.Lines; l.Kind != "result" || l.Text != "package main" {
+	if l := nextLine(w.Lines); l.Kind != "result" || l.Text != "package main" {
 		t.Fatalf("live %+v", l)
 	}
 	if _, err := e.svc.WatchLocalSession(owner(), "demo", "I-999", ""); !errors.Is(err, ErrNotFound) {
 		t.Fatalf("no session: %v", err)
 	}
 	close(release)
-	got := <-w.Lines
+	got := nextLine(w.Lines)
 	if got.Kind != "end" {
 		t.Fatalf("end %+v", got)
 	}
@@ -328,4 +331,70 @@ func TestMessageReachesARunningSession(t *testing.T) {
 	}
 	release()
 	e.idle()
+}
+
+// nextLine is the next line that is not a pulse.
+func nextLine(ch <-chan LiveLine) LiveLine {
+	for l := range ch {
+		if l.Kind != "pulse" {
+			return l
+		}
+	}
+	return LiveLine{}
+}
+
+// The pulse says what the session does now, from the events it saw: a
+// tool and since when, thinking, writing; watchers alone hear it.
+func TestLivePulse(t *testing.T) {
+	f := newLiveFeed()
+	t0 := time.Date(2026, 11, 26, 12, 0, 0, 0, time.UTC)
+	if l := f.pulseLine(t0); l.Kind != "pulse" || l.Text != "waiting" {
+		t.Fatalf("before any sign: %+v", l)
+	}
+	f.touch(ports.ProviderEvent{Kind: ports.PEInit}, t0)
+	f.touch(ports.ProviderEvent{Kind: ports.PEActivity, Text: "writing"}, t0.Add(time.Second))
+	if l := f.pulseLine(t0); l.Text != "writing" || !l.Since.Equal(t0.Add(time.Second)) {
+		t.Fatalf("writing: %+v", l)
+	}
+	f.touch(ports.ProviderEvent{Kind: ports.PEToolUse, Tool: "Bash", Input: []byte(`{"command":"make test"}`)}, t0.Add(2*time.Second))
+	f.touch(ports.ProviderEvent{Kind: ports.PEActivity, Text: "writing"}, t0.Add(3*time.Second))
+	f.touch(ports.ProviderEvent{Kind: ports.PEUsage}, t0.Add(4*time.Second))
+	l := f.pulseLine(t0)
+	if l.Text != "tool: command: make test" || l.Tool != "Bash" || !l.Since.Equal(t0.Add(2*time.Second)) || !l.Last.Equal(t0.Add(4*time.Second)) {
+		t.Fatalf("a tool runs, since it started: %+v", l)
+	}
+	f.touch(ports.ProviderEvent{Kind: ports.PEToolResult}, t0.Add(5*time.Second))
+	if l := f.pulseLine(t0); l.Text != "thinking" || l.Tool != "" {
+		t.Fatalf("after the tool: %+v", l)
+	}
+	f.touch(ports.ProviderEvent{Kind: ports.PEThinking}, t0.Add(6*time.Second))
+	f.touch(ports.ProviderEvent{Kind: ports.PEMessage, Text: "done"}, t0.Add(7*time.Second))
+	if l := f.pulseLine(t0); l.Text != "thinking" || !l.Since.Equal(t0.Add(5*time.Second)) {
+		t.Fatalf("the state holds while it does not change: %+v", l)
+	}
+	f.beat(t0) // nobody watching: nothing to do
+	f.publish(line(1))
+	_, ch, stop := f.subscribe()
+	if l := <-ch; l.Kind != "pulse" {
+		t.Fatalf("first a pulse: %+v", l)
+	}
+	f.beat(t0)
+	if l := <-ch; l.Kind != "pulse" || l.Text != "thinking" {
+		t.Fatalf("beat: %+v", l)
+	}
+	if len(f.backlog()) != 1 {
+		t.Fatal("pulses are not kept")
+	}
+	stop()
+	f.close(t0, "done")
+	f.beat(t0)
+	var nilFeed *liveFeed
+	nilFeed.touch(ports.ProviderEvent{}, t0)
+	nilFeed.beat(t0)
+	if l, ok := liveLineOf(ports.ProviderEvent{Kind: ports.PEThinking, Text: " weighing "}, t0); !ok || l.Kind != "thinking" || l.Text != "weighing" {
+		t.Fatalf("thinking line: %+v", l)
+	}
+	if _, ok := liveLineOf(ports.ProviderEvent{Kind: ports.PEThinking}, t0); ok {
+		t.Fatal("empty thinking shows nothing")
+	}
 }

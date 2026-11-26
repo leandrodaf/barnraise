@@ -25,8 +25,11 @@ type Parser struct {
 	model     string
 	toolNames map[string]string
 	lastText  string
-	done      bool
-	res       ports.SessionResult
+	// lastActivity paces the signs of life of partial messages.
+	lastActivity   string
+	lastActivityAt time.Time
+	done           bool
+	res            ports.SessionResult
 }
 
 // NewParser returns a parser whose usage records carry base.
@@ -43,6 +46,7 @@ func (p *Parser) ParseLine(line string) []ports.ProviderEvent { return p.Parse([
 type contentBlock struct {
 	Type      string          `json:"type"`
 	Text      string          `json:"text"`
+	Thinking  string          `json:"thinking"`
 	ID        string          `json:"id"`
 	Name      string          `json:"name"`
 	Input     json.RawMessage `json:"input"`
@@ -77,7 +81,17 @@ type RateLimitInfo struct {
 }
 
 type line struct {
-	Type      string          `json:"type"`
+	Type string `json:"type"`
+	// stream_event (--include-partial-messages): a piece of the block being written.
+	Event *struct {
+		Type  string `json:"type"`
+		Delta struct {
+			Type string `json:"type"`
+		} `json:"delta"`
+		ContentBlock struct {
+			Type string `json:"type"`
+		} `json:"content_block"`
+	} `json:"event"`
 	Subtype   string          `json:"subtype"`
 	SessionID string          `json:"session_id"`
 	Model     string          `json:"model"`
@@ -183,6 +197,34 @@ func (p *Parser) Parse(b []byte) []ports.ProviderEvent {
 	var out []ports.ProviderEvent
 
 	switch l.Type {
+	case "stream_event":
+		// Partial messages: only a sign of life, at most one a second; the
+		// whole block still lands as its own message.
+		if l.Event == nil {
+			break
+		}
+		what := ""
+		switch {
+		case l.Event.Delta.Type == "thinking_delta" || l.Event.ContentBlock.Type == "thinking":
+			what = "thinking"
+		case l.Event.Delta.Type == "text_delta" || l.Event.ContentBlock.Type == "text":
+			what = "writing"
+		case l.Event.Delta.Type == "input_json_delta" || l.Event.ContentBlock.Type == "tool_use":
+			what = "tool"
+		default:
+			break
+		}
+		if what == "" {
+			break
+		}
+		now := time.Now()
+		if what == p.lastActivity && now.Sub(p.lastActivityAt) < time.Second {
+			break
+		}
+		p.lastActivity, p.lastActivityAt = what, now
+		e := ev(ports.PEActivity)
+		e.Text = what
+		out = append(out, e)
 	case "system":
 		if l.Subtype == "init" {
 			if l.Model != "" {
@@ -222,6 +264,10 @@ func (p *Parser) Parse(b []byte) []ports.ProviderEvent {
 				p.lastText = bl.Text
 				e := ev(ports.PEMessage)
 				e.Text = bl.Text
+				out = append(out, e)
+			case "thinking", "redacted_thinking":
+				e := ev(ports.PEThinking)
+				e.Text = strings.TrimSpace(bl.Thinking)
 				out = append(out, e)
 			case "tool_use", "server_tool_use", "mcp_tool_use":
 				p.toolNames[bl.ID] = bl.Name
@@ -266,6 +312,11 @@ func (p *Parser) Parse(b []byte) []ports.ProviderEvent {
 		out = append(out, p.result(l, raw)...)
 	}
 	if len(out) == 0 {
+		if l.Type == "stream_event" {
+			// A piece of a block that says nothing new: dropped here, or
+			// partial messages would flood the session's events.
+			return nil
+		}
 		out = append(out, ev(ports.PEMessage))
 	}
 	return out

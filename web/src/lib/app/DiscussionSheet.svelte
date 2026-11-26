@@ -3,17 +3,12 @@
 	import { Button } from '$lib/components/ui/button';
 	import { Textarea } from '$lib/components/ui/textarea';
 	import { Spinner } from '$lib/components/ui/spinner';
-	import SendIcon from '@lucide/svelte/icons/send-horizontal';
 	import SparklesIcon from '@lucide/svelte/icons/sparkles';
 	import MaximizeIcon from '@lucide/svelte/icons/maximize-2';
 	import MinimizeIcon from '@lucide/svelte/icons/minimize-2';
 	import XIcon from '@lucide/svelte/icons/x';
-	import CopyIcon from '@lucide/svelte/icons/copy';
 	import CheckIcon from '@lucide/svelte/icons/check';
 	import StarIcon from '@lucide/svelte/icons/star';
-	import FileTextIcon from '@lucide/svelte/icons/file-text';
-	import SearchIcon from '@lucide/svelte/icons/search';
-	import FolderSearchIcon from '@lucide/svelte/icons/folder-search';
 	import ChevronDownIcon from '@lucide/svelte/icons/chevron-down';
 	import WandIcon from '@lucide/svelte/icons/wand-sparkles';
 	import PencilIcon from '@lucide/svelte/icons/pencil';
@@ -31,7 +26,9 @@
 	import { setFocus, setGoal } from './ownerActions';
 	import { openItem } from './open';
 	import PlusIcon from '@lucide/svelte/icons/plus';
-	import Markdown from './Markdown.svelte';
+	import ChatThread from './chat/ChatThread.svelte';
+	import ChatComposer from './chat/ChatComposer.svelte';
+	import type { ChatEntry } from './chat/chat';
 
 	// The owner talks a decision over with the advisor. The daemon runs the
 	// advisor (read-only, the strongest model), keeps the conversation and
@@ -39,7 +36,7 @@
 	let messages = $state<DiscussionMessage[]>([]);
 	let question = $state<Question | null>(null);
 	let proposal = $state<Proposal | null>(null);
-	let input = $state<HTMLTextAreaElement | null>(null);
+	let composer = $state<ReturnType<typeof ChatComposer> | undefined>();
 	let editing = $state(false);
 	let editOption = $state('');
 	let editNote = $state('');
@@ -109,6 +106,27 @@
 	// The advisor's actions for this conversation since the owner sent.
 	const steps = $derived(busy ? session.advisorSteps.filter((s) => s.thread === discussion.thread && Date.parse(s.at) >= started - 2000) : []);
 
+	// The conversation as every chat in the panel shows it: the owner's
+	// messages, the advisor's answers (model, tokens, delegated), the checks'
+	// reports, and while it works what it reads and searches.
+	const entries = $derived.by((): ChatEntry[] => {
+		const out: ChatEntry[] = [];
+		messages.forEach((m, i) => {
+			const key = 'm' + i;
+			if (m.role === 'owner') out.push({ key, role: 'user', text: m.text, at: m.at });
+			else if (m.role === 'checks') out.push({ key, role: 'assistant', text: m.text, at: m.at, author: t('chatChecksBy') });
+			else {
+				const badges: ChatEntry['badges'] = [];
+				if (m.delegated) badges.push({ label: t('delegatedBadge'), tone: 'review' });
+				if (m.leftToOwner) badges.push({ label: t('leftToOwnerBadge'), tone: 'needs' });
+				out.push({ key, role: 'assistant', text: m.text, at: m.at, author: t('discussAdvisor'), meta: m.model + (m.tokens && !m.delegated ? ' · ' + compact(m.tokens) + ' tokens' : ''), badges });
+				if (m.delegated && m.suggestNote) out.push({ key: key + 'n', role: 'note', tone: 'muted', text: m.suggestNote, at: m.at });
+			}
+		});
+		steps.forEach((st, i) => out.push({ key: 's' + i, role: 'tool', tool: st.tool, input: st.target, at: st.at }));
+		return out;
+	});
+
 	async function send(e?: Event) {
 		e?.preventDefault();
 		const v = text.trim();
@@ -128,9 +146,6 @@
 			busy = false;
 		}
 	}
-	const keydown = (e: KeyboardEvent) => {
-		if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) send(e);
-	};
 	// What can be answered from here: a question's options, or what the owner
 	// does with a proposal. Nothing when the decision is already taken.
 	const PROPOSAL = ['approve', 'reject', 'later'];
@@ -169,7 +184,7 @@
 	}
 	function askMore() {
 		text = '';
-		input?.focus();
+		composer?.focus();
 	}
 	// The advisor decides in the owner's place; the conversation keeps what
 	// it chose and why, and the panel stays open to show it.
@@ -273,7 +288,6 @@
 		else if (kind === 'focus') setFocus(project);
 		else newItemByHand();
 	}
-	const stepIcon = (tool: string) => (tool === 'read' ? FileTextIcon : tool === 'search' ? SearchIcon : FolderSearchIcon);
 </script>
 
 <Sheet.Root bind:open={discussion.open}>
@@ -318,45 +332,16 @@
 		{#if session.advisorDown[discussion.project]}
 			<p class="border-b bg-st-needs/10 px-4 py-2 text-sm text-st-needs" role="status">{t('advisorDown', session.advisorDown[discussion.project])}</p>
 		{/if}
-		<div bind:this={list} class="min-h-0 flex-1 overflow-y-auto">
-			<div class="mx-auto w-full max-w-3xl space-y-6 px-4 py-5 sm:px-6">
-				{#if !messages.length && !busy}
-					<div class="space-y-3 text-sm text-muted-foreground">
-						<p>{chat ? t(P + 'Intro', discussion.project) : t('discussIntro')}</p>
-						<div class="flex flex-wrap gap-2">
-							{#each SUGGEST as k (k)}<button class="rounded-full border bg-card px-3 py-1.5 text-xs text-foreground hover:bg-muted" onclick={() => (text = t(k))}>{t(k)}</button>{/each}
-						</div>
+		<ChatThread entries={entries} {busy} working={steps.length ? '' : t('discussThinking')} replies={false}>
+			{#snippet empty()}
+				<div class="space-y-3 text-sm text-muted-foreground">
+					<p>{chat ? t(P + 'Intro', discussion.project) : t('discussIntro')}</p>
+					<div class="flex flex-wrap gap-2">
+						{#each SUGGEST as k (k)}<button class="rounded-full border bg-card px-3 py-1.5 text-xs text-foreground hover:bg-muted" onclick={() => { text = t(k); composer?.focus(); }}>{t(k)}</button>{/each}
 					</div>
-				{/if}
-				{#each messages as m, i (i)}
-					{#if m.role === 'owner'}
-						<div class="flex justify-end">
-							<div class="max-w-[85%] rounded-2xl rounded-br-md bg-muted px-4 py-2.5 text-sm whitespace-pre-wrap [overflow-wrap:anywhere]">{m.text}</div>
-						</div>
-					{:else if m.role === 'checks'}
-						<article class="space-y-2 rounded-xl border bg-card/60 p-3">
-							<header class="flex items-center gap-2 text-xs text-muted-foreground">
-								<FlaskIcon class="size-3.5" /><span class="font-medium text-foreground">{t('chatChecksBy')}</span><span class="num">{ago(m.at)}</span>
-								{#if checksRunning && m === lastChecks}<Spinner class="size-3.5" />{/if}
-							</header>
-							<div class="text-sm [&_code]:[overflow-wrap:anywhere] [&_pre]:max-h-72 [&_pre]:overflow-auto"><Markdown text={m.text} /></div>
-						</article>
-					{:else}
-						<article class="group space-y-2">
-							<header class="flex items-center gap-2 text-xs text-muted-foreground">
-								<SparklesIcon class="size-3.5 text-st-review" /><span class="font-medium text-foreground">{t('discussAdvisor')}</span>
-								<span class="num">{m.model}{m.tokens && !m.delegated ? ' · ' + compact(m.tokens) + ' tokens' : ''} · {ago(m.at)}</span>
-								{#if m.delegated}<span class="rounded-full bg-st-review/15 px-2 py-0.5 font-medium text-st-review">{t('delegatedBadge')}</span>{/if}
-								{#if m.leftToOwner}<span class="rounded-full bg-st-needs/15 px-2 py-0.5 font-medium text-st-needs">{t('leftToOwnerBadge')}</span>{/if}
-								<button class="ml-auto inline-flex items-center gap-1 rounded px-1.5 py-0.5 opacity-0 transition-opacity group-hover:opacity-100 hover:bg-muted focus:opacity-100" onclick={() => copy(i, m.text)}>
-									{#if copied === i}<CheckIcon class="size-3" />{t('copied')}{:else}<CopyIcon class="size-3" />{t('copy')}{/if}
-								</button>
-							</header>
-							<div class="[&_code]:[overflow-wrap:anywhere] [&_p]:text-[0.925rem] [&_p]:leading-7"><Markdown text={m.text} /></div>
-							{#if m.delegated && m.suggestNote}<p class="rounded-md bg-muted/50 px-3 py-2 text-sm text-muted-foreground [overflow-wrap:anywhere]">{m.suggestNote}</p>{/if}
-						</article>
-					{/if}
-				{/each}
+				</div>
+			{/snippet}
+			{#snippet after()}
 				{#if (kind === 'goal' || kind === 'focus') && answered && !busy}
 					<!-- The goal or the focus is drafted by a button, never by the advisor: say so where the eye is. -->
 					<section class="flex flex-wrap items-center gap-3 rounded-xl border border-st-review/40 bg-st-review/[0.06] p-4">
@@ -394,49 +379,30 @@
 						{/if}
 					</section>
 				{/if}
-				{#if busy}
-					<div class="space-y-2 rounded-xl border border-dashed p-3">
-						<p class="flex items-center gap-2 text-sm"><Spinner class="size-4 text-st-review" />{t('discussWorking')}<span class="num ml-auto text-xs text-muted-foreground">{dur((now - started) / 1000)}</span></p>
-						{#if steps.length}
-							<ul class="num space-y-1 text-[11px] text-muted-foreground">
-								{#each steps.slice(-6) as s, i (i)}
-									{@const Icon = stepIcon(s.tool)}
-									<li class="flex min-w-0 items-center gap-1.5 {i === steps.slice(-6).length - 1 ? 'text-foreground' : ''}"><Icon class="size-3 shrink-0" /><span class="shrink-0">{t('step_' + s.tool)}</span><span class="truncate">{s.target}</span></li>
-								{/each}
-							</ul>
-						{:else}<p class="text-xs text-muted-foreground">{t('discussThinking')}</p>{/if}
-					</div>
-				{/if}
 				{#if error}<p class="rounded-md bg-st-fail/10 p-3 text-sm text-st-fail" role="alert">{t('error', error)}</p>{/if}
-			</div>
-		</div>
+			{/snippet}
+		</ChatThread>
 
-		<form class="border-t p-3" onsubmit={send}>
-			<div class="mx-auto w-full max-w-3xl space-y-2">
-				<Textarea bind:ref={input} bind:value={text} rows={3} placeholder={t('discussPlaceholder')} onkeydown={keydown} disabled={busy} class="resize-none" />
-				<div class="flex items-center justify-between gap-2">
-					{#if chat}
-						<button type="button" class="text-[11px] text-muted-foreground hover:text-foreground hover:underline" onclick={byHand}>{t('chatByHand')}</button>
-					{:else}<p class="text-[11px] text-muted-foreground">{t('discussFooter')}</p>{/if}
-					<div class="flex flex-wrap justify-end gap-2">
-						<Button type="button" size="sm" variant="outline" disabled={starting || checksRunning} title={t('chatChecksHelp')} onclick={runChecks}>
-							{#if starting || checksRunning}<Spinner class="size-3.5" />{:else}<FlaskIcon />{/if}{checksRunning ? t('chatChecksRunning') : t('chatChecksRun')}
+		<ChatComposer bind:this={composer} bind:text onsend={() => send()} {busy} sending={busy} disabled={busy || !!session.advisorDown[discussion.project]} placeholder={t('discussPlaceholder')} hint={chat ? '' : t('discussFooter')} focusKey={false}>
+			{#snippet chip()}
+				{#if chat}<button type="button" class="shrink-0 rounded-full px-2 py-1 text-[11px] text-muted-foreground hover:bg-muted hover:text-foreground" onclick={byHand}>{t('chatByHand')}</button>{/if}
+			{/snippet}
+			{#snippet actions()}
+				<Button type="button" size="sm" variant="ghost" class="h-8 rounded-full" disabled={starting || checksRunning} title={t('chatChecksHelp')} onclick={runChecks}>
+					{#if starting || checksRunning}<Spinner class="size-3.5" />{:else}<FlaskIcon />{/if}<span class="hidden sm:inline">{checksRunning ? t('chatChecksRunning') : t('chatChecksRun')}</span>
+				</Button>
+				{#if chat}
+					{#if kind === 'item'}
+						<Button type="button" size="sm" variant="secondary" class="h-8 rounded-full" disabled={busy || creating || !answered || !!session.advisorDown[discussion.project]} title={answered ? t('chatCreateHelp') : t('chatCreateFirst')} onclick={createItem}>
+							{#if creating}<Spinner class="size-3.5" />{:else}<PlusIcon />{/if}{t('chatCreate')}
 						</Button>
-						{#if chat}
-							{#if kind === 'item'}
-								<Button type="button" size="sm" variant="secondary" disabled={busy || creating || !answered || !!session.advisorDown[discussion.project]} title={answered ? t('chatCreateHelp') : t('chatCreateFirst')} onclick={createItem}>
-									{#if creating}<Spinner class="size-3.5" />{:else}<PlusIcon />{/if}{t('chatCreate')}
-								</Button>
-							{:else}
-								<Button type="button" size="sm" variant={answered ? 'default' : 'secondary'} disabled={busy || creating || !answered || !!session.advisorDown[discussion.project]} title={answered ? t('chatDraftHelp') : t('chatDraftFirst')} onclick={draft}>
-									{#if creating}<Spinner class="size-3.5" />{:else}<PencilIcon />{/if}{t(P + 'Draft')}
-								</Button>
-							{/if}
-						{/if}
-						<Button type="submit" size="sm" disabled={busy || !text.trim() || !!session.advisorDown[discussion.project]}><SendIcon />{t('send')}</Button>
-					</div>
-				</div>
-			</div>
-		</form>
+					{:else}
+						<Button type="button" size="sm" variant={answered ? 'default' : 'secondary'} class="h-8 rounded-full" disabled={busy || creating || !answered || !!session.advisorDown[discussion.project]} title={answered ? t('chatDraftHelp') : t('chatDraftFirst')} onclick={draft}>
+							{#if creating}<Spinner class="size-3.5" />{:else}<PencilIcon />{/if}{t(P + 'Draft')}
+						</Button>
+					{/if}
+				{/if}
+			{/snippet}
+		</ChatComposer>
 	</Sheet.Content>
 </Sheet.Root>
