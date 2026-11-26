@@ -4,6 +4,11 @@ All notable changes to Barnraise are recorded here. The format follows [Keep a C
 
 ## [Unreleased]
 
+### Fixed
+
+- **desktop:** Links that leave the panel (the pull request, a commit, the issue) open in the system's browser from the desktop app. Its webview opens no new window, so a click did nothing: inside the app the panel now hands such a link to the app, which allows this machine's daemon on any port and each other machine's daemon it connected to before.
+- **cluster:** A machine updates from a peer again. Fetching the peer's binary had the JetStream client's 5-second timeout for the whole read, so a 100 MB binary over a tailnet never arrived and every update failed with "blob not found"; a blob read now has 30 minutes, the failure says what each peer answered, and a peer known to replication is also asked for blobs. A machine still on an older version must be updated by hand once (`install.sh`).
+
 ### Added
 
 - **projects:** Which projects run, at a glance. The header's projects button (`1/3 projects`) lists each project, running or paused and why, and pauses or resumes it with a click; *Run only…* runs one project and pauses every other; and all of them resume or pause at once. On the command line, `barnraise projects` shows the same and `barnraise projects only <name>…` runs only those. Several paused projects share one banner instead of one each.

@@ -45,7 +45,9 @@ func main() {
 		BackgroundColour: &options.RGBA{R: 9, G: 9, B: 11, A: 1},
 		OnStartup:        app.startup,
 		Bind:             []any{app},
-		Linux:            &linux.Options{ProgramName: appID, Icon: icon, WebviewGpuPolicy: linux.WebviewGpuPolicyOnDemand},
+		// The daemon's panel asks the app to open links outside it (origins.go).
+		BindingsAllowedOrigins: allowedOrigins(),
+		Linux:                  &linux.Options{ProgramName: appID, Icon: icon, WebviewGpuPolicy: linux.WebviewGpuPolicyOnDemand},
 	})
 	if err != nil {
 		log.Fatal(err)

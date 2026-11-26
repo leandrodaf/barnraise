@@ -9,6 +9,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"time"
 
@@ -26,6 +27,12 @@ const (
 
 // ErrBlobNotFound means no local copy and no peer had it.
 var ErrBlobNotFound = errors.New("blob not found")
+
+// blobFetchTimeout bounds one blob read from a bucket. Without a deadline of
+// its own the JetStream client gives the whole read its 5 s API timeout: a
+// binary of 100 MB over a tailnet at a few MB/s never arrived, and every
+// machine failed to update with "blob not found".
+const blobFetchTimeout = 30 * time.Minute
 
 // ObjectStore keeps blobs by sha256 on the local disk, optionally mirrored
 // into the local JetStream bucket so peers can fetch them. Get falls back to
@@ -171,7 +178,9 @@ func (s *ObjectStore) Get(ctx context.Context, hash string) (io.ReadCloser, erro
 		return f, nil
 	}
 	if s.obj != nil {
-		if r, err := s.obj.Get(ctx, hash); err == nil {
+		lctx, cancel := context.WithTimeout(ctx, blobFetchTimeout)
+		defer cancel()
+		if r, err := s.obj.Get(lctx, hash); err == nil {
 			_, err := s.writeLocal(r, hash)
 			r.Close()
 			if err == nil {
@@ -185,12 +194,18 @@ func (s *ObjectStore) Get(ctx context.Context, hash string) (io.ReadCloser, erro
 		peers = append(peers, p)
 	}
 	s.mu.Unlock()
+	var why []string
 	for _, p := range peers {
-		if err := s.FetchFrom(ctx, p.url, hash, p.opts...); err == nil {
+		err := s.FetchFrom(ctx, p.url, hash, p.opts...)
+		if err == nil {
 			return os.Open(s.Path(hash))
 		}
+		why = append(why, p.url+": "+err.Error())
 	}
-	return nil, fmt.Errorf("%w: %s", ErrBlobNotFound, hash)
+	if len(peers) == 0 {
+		why = append(why, "no peer to ask")
+	}
+	return nil, fmt.Errorf("%w: %s (%s)", ErrBlobNotFound, hash, strings.Join(why, "; "))
 }
 
 // FetchFrom downloads a blob from a peer's bucket into the local store
@@ -212,7 +227,9 @@ func (s *ObjectStore) FetchFrom(ctx context.Context, peerURL, hash string, opts 
 	if err != nil {
 		return err
 	}
-	r, err := obj.Get(ctx, hash)
+	gctx, cancel := context.WithTimeout(ctx, blobFetchTimeout)
+	defer cancel()
+	r, err := obj.Get(gctx, hash)
 	if err != nil {
 		return err
 	}
@@ -221,7 +238,9 @@ func (s *ObjectStore) FetchFrom(ctx context.Context, peerURL, hash string, opts 
 		return err
 	}
 	if s.obj != nil {
-		return s.mirror(ctx, hash)
+		// The local copy is what Get serves: a mirror that fails (a NATS
+		// restarted under this store) does not undo the fetch.
+		_ = s.mirror(gctx, hash)
 	}
 	return nil
 }

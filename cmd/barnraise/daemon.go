@@ -475,14 +475,17 @@ func (d *daemon) connectPeers() {
 		known[st.Name] = true
 	}
 	for _, p := range d.df.Peers {
+		// The blob store learns every peer, also one replication already
+		// knows: a peer added before the store existed was never asked for a
+		// blob, and a binary on it could not be fetched for an update.
+		if d.blobs != nil {
+			d.blobs.AddPeer(p.Name, p.URL, opts...)
+		}
 		if known[p.Name] {
 			continue
 		}
 		if err := d.repl.AddPeer(p.Name, p.URL, opts...); err != nil {
 			d.log.Warn("peer", "name", p.Name, "err", err)
-		}
-		if d.blobs != nil {
-			d.blobs.AddPeer(p.Name, p.URL, opts...)
 		}
 	}
 }

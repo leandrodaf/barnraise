@@ -132,6 +132,7 @@ func (a *App) Remote(base, token string) (string, error) {
 	if _, err := health(u.String()); err != nil {
 		return "", fmt.Errorf("%s does not answer as a Barnraise daemon: %v", u, err)
 	}
+	rememberRemote(u)
 	p, _ := panelURL(u.String(), strings.TrimSpace(token))
 	return p, nil
 }
