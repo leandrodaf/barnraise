@@ -292,8 +292,10 @@ type Question struct {
 	// Topic names what Barnraise asked about ("blocked:implement"), to tell
 	// a question asked again from a new one. Empty for an agent's question.
 	Topic string `json:"topic,omitempty"`
-	// OwnerOnly keeps the autopilot off the question: the owner answers.
-	OwnerOnly bool `json:"owner_only,omitempty"`
+	// NotBefore holds the autopilot off the question until then, unless
+	// something lands on main first: a step blocked again is not retried at
+	// once against the same wall.
+	NotBefore time.Time `json:"not_before,omitzero"`
 }
 
 // Option is one answer choice.

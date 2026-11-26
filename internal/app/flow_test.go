@@ -532,16 +532,17 @@ func TestOwnerQuestionsInTheProjectsLanguage(t *testing.T) {
 	}
 }
 
-// A step that blocks again after a retry, with nothing to wait for, is the
-// owner's: the autopilot no longer answers it, so a wall does not turn into
-// a session every few minutes.
-func TestBlockedAgainIsTheOwners(t *testing.T) {
+// A step that blocks again after a retry, with nothing to wait for, is not
+// retried at once against the same wall: the autopilot still decides it, on
+// its own, after a pause that grows with each attempt. Nothing goes to the
+// owner that only a person could do.
+func TestBlockedAgainWaitsBeforeTheAutopilot(t *testing.T) {
 	e := newEnv(t)
 	it := e.ready("simple", "Report the review", "x")
 	e.next("implementer", it.ID)
 	e.mustDeliver(it.ID, domain.Delivery{Status: domain.DeliveryBlocked, Reason: "the fix for D2 is not filed yet"})
 	q := e.question(it.ID)
-	if q.OwnerOnly || q.Topic != "blocked:implement" || q.Recommended() != "Retry the step" {
+	if !q.NotBefore.IsZero() || q.Topic != "blocked:implement" || q.Recommended() != "Retry the step" {
 		t.Fatalf("first block: %+v", q)
 	}
 	inWork := func(id string) bool {
@@ -554,7 +555,7 @@ func TestBlockedAgainIsTheOwners(t *testing.T) {
 		return false
 	}
 	if !inWork(q.ID) {
-		t.Fatal("the autopilot may answer a first block")
+		t.Fatal("the autopilot answers a first block at once")
 	}
 	if _, err := e.svc.Answer(e.ctx, "demo", owner(), q.ID, "retry", ""); err != nil {
 		t.Fatal(err)
@@ -563,18 +564,20 @@ func TestBlockedAgainIsTheOwners(t *testing.T) {
 	e.next("implementer", it.ID)
 	e.mustDeliver(it.ID, domain.Delivery{Status: domain.DeliveryBlocked, Reason: "still not filed"})
 	q2 := e.question(it.ID)
-	if q2.ID == q.ID || !q2.OwnerOnly || !strings.Contains(q2.Context, "attempt 2") || !strings.Contains(q2.IfNoAnswer, "no session") {
+	if q2.ID == q.ID || !q2.NotBefore.Equal(e.clock.Now().UTC().Add(30*time.Minute)) || !strings.Contains(q2.Context, "attempt 2") || !strings.Contains(q2.IfNoAnswer, "no session") {
 		t.Fatalf("second block: %+v", q2)
 	}
 	if inWork(q2.ID) {
-		t.Fatal("the autopilot must leave a repeated block to the owner")
+		t.Fatal("a repeated block waits before the autopilot answers it")
 	}
-	// The owner can still send it back to work.
-	if _, err := e.svc.Answer(e.ctx, "demo", owner(), q2.ID, "retry", ""); err != nil {
-		t.Fatal(err)
+	e.clock.Advance(31 * time.Minute)
+	if !inWork(q2.ID) {
+		t.Fatal("after the pause the autopilot decides it, not the owner")
 	}
-	e.wantStatus(it.ID, domain.StatusInProgress, "implement")
 
+	if blockedBackoff(1) != 30*time.Minute || blockedBackoff(2) != 2*time.Hour || blockedBackoff(5) != 8*time.Hour {
+		t.Fatal("backoff")
+	}
 	// Another step's block, or the same step a day later, starts over.
 	if n := blockedRetries(e.p.Snapshot(), it.ID, "blocked:check", e.clock.Now()); n != 0 {
 		t.Fatalf("another step: %d", n)

@@ -34,13 +34,11 @@ const (
 	KindSigningKey        = "signing_key"
 	KindPolicyViolation   = "policy_violation"
 	KindAccountsExhausted = "accounts_exhausted"
-	// KindBlockedAgain: a step blocked again after a retry; only the owner answers.
-	KindBlockedAgain = "blocked_again"
 )
 
 var interrupting = map[string]bool{
 	KindReworkExhausted: true, KindOwnerApproval: true, KindSecret: true, KindDeploy: true,
-	KindStore: true, KindSigningKey: true, KindPolicyViolation: true, KindAccountsExhausted: true, KindBlockedAgain: true,
+	KindStore: true, KindSigningKey: true, KindPolicyViolation: true, KindAccountsExhausted: true,
 }
 
 // ShouldInterrupt reports whether a notification kind goes to the owner
