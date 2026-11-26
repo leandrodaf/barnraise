@@ -638,7 +638,13 @@ func itemActivity(snap *domain.State, it *domain.Item, io *ItemOverview, up func
 	case domain.StatusBlocked:
 		return ActBlocked, strings.Join(io.BlockedBy, ", ")
 	case domain.StatusQueued:
-		return ActQueued, ""
+		// The merge queue's worker says what it does now (queuestate.go).
+		for _, si := range io.Sessions {
+			if si.Role == "merge-queue" && si.Live() {
+				return ActQueued, si.Detail + " on " + si.Machine
+			}
+		}
+		return ActQueued, "waits for the merge queue"
 	}
 	if it.Parked {
 		return ActParked, "waits for the focus to end"

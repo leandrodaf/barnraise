@@ -91,6 +91,8 @@ func (s *Service) ProcessQueue(ctx context.Context, project string) (int, error)
 // until the culprit is found.
 func (s *Service) integrateBatch(ctx context.Context, p *Project, items []*domain.Item) (int, error) {
 	var lastErr error
+	s.queueState(p, items, "working", "rebasing on main")
+	defer s.queueState(p, items, "done", "")
 	for range 3 {
 		ok, failed, reason, err := s.tryIntegrate(ctx, p, items)
 		if errors.Is(err, errHostWait) {
@@ -255,6 +257,7 @@ func (s *Service) tryIntegrate(ctx context.Context, p *Project, items []*domain.
 		shas[i] = b.sha
 	}
 	if viaPR {
+		s.queueState(p, items, "working", "waiting for the pull request's checks")
 		// The commit that would land goes to the pull request first: people
 		// see the change there, and the repository's own CI runs on it.
 		it := items[0]
@@ -294,6 +297,7 @@ func (s *Service) tryIntegrate(ctx context.Context, p *Project, items []*domain.
 // (a protected branch) is moved by merging the item's pull request.
 func (s *Service) land(ctx context.Context, p *Project, main, head string, items []*domain.Item, shas []string, viaPR bool) (bool, *domain.Item, string, error) {
 	g := p.Ports().Git
+	s.queueState(p, items, "working", "moving main")
 	if err := p.Ports().Arbiter.Integrate(ctx, main, head); err != nil {
 		if !viaPR || errors.Is(err, ports.ErrStaleMain) {
 			s.forgetHostWait(p, items)
@@ -474,6 +478,7 @@ func (s *Service) runQueueChecksWith(ctx context.Context, p *Project, dir, head 
 			continue // remote checks already ran in the item flow; the others do not concern this batch
 		}
 		def.Scope = "all" // the selection above already decided
+		s.queueState(p, items, "working", "running check "+name+" on the combined result")
 		res, pending, err := s.d.Checks.Run(ctx, ports.CheckSpec{Def: def, ItemID: items[0].ID, Commit: head, Dir: dir, Touched: touched,
 			Env: s.worktreeCmdEnv(p, items[0].ID, dir)})
 		if err != nil {

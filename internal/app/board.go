@@ -144,7 +144,7 @@ func itemSignal(it *domain.Item, io *ItemOverview, il *domain.ItemLedger) Signal
 		}
 		return Signal{Kind: "running"}
 	case ActQueued:
-		return Signal{Kind: "queued"}
+		return queueSignal(io)
 	case ActPaused:
 		return Signal{Kind: "paused"}
 	case ActParked:
@@ -161,4 +161,28 @@ func itemSignal(it *domain.Item, io *ItemOverview, il *domain.ItemLedger) Signal
 		return io.idle
 	}
 	return Signal{Kind: "idle", Arg: io.Machine}
+}
+
+// queueSignal says what the merge queue does with a queued item now: the
+// check it runs on the combined result, rebasing, moving main, waiting for
+// the pull request's checks, or only waiting for its turn.
+func queueSignal(io *ItemOverview) Signal {
+	for _, si := range io.Sessions {
+		if si.Role != "merge-queue" || !si.Live() {
+			continue
+		}
+		d := si.Detail
+		switch {
+		case strings.HasPrefix(d, "running check "):
+			name, _, _ := strings.Cut(strings.TrimPrefix(d, "running check "), " ")
+			return Signal{Kind: "queue_check", Arg: name}
+		case strings.HasPrefix(d, "moving main"):
+			return Signal{Kind: "queue_landing"}
+		case strings.HasPrefix(d, "waiting for the pull request"):
+			return Signal{Kind: "queue_host"}
+		default:
+			return Signal{Kind: "queue_rebase"}
+		}
+	}
+	return Signal{Kind: "queued"}
 }
