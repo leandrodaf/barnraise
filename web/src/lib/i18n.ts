@@ -1036,14 +1036,14 @@ Object.assign(en, {
   workPr: 'Pull request #{0}', workPrDraft: 'draft', workPrReady: 'ready for review', workPrMerged: 'merged', workPrClosed: 'closed',
   workCompare: 'See the changes', workMerged: 'On main as {0}', workFiles: '{0} files', workFile: '1 file',
   workNone: 'No commit yet: the first is pushed when the implement step delivers.', workMore: 'Only the latest commits are listed; the branch has more.',
-  workStepCommit: 'delivery of {0}', workDelivered: '{0}/{1} deliveries pushed', workDeliveredHelp: 'Deliveries whose commit is among the commits listed here.', workOpenCommit: 'Open the commit', workCommits: 'Commits',
+  workStepCommit: 'delivery of {0}', workDelivered: '{0} deliveries on the branch', workDeliveredHelp: 'Deliveries whose commit is on the branch now. A rework that rewrote the branch (a rebase) leaves the earlier ones out of it: the timeline keeps each of them.', workOpenCommit: 'Open the commit', workCommits: 'Commits',
 });
 Object.assign(pt, {
   workTitle: 'Trabalho entregue', workHelp: 'Os commits enviados para este item e o pull request em que são revisados.',
   workPr: 'Pull request #{0}', workPrDraft: 'rascunho', workPrReady: 'pronto para revisão', workPrMerged: 'integrado', workPrClosed: 'fechado',
   workCompare: 'Ver as alterações', workMerged: 'Na main como {0}', workFiles: '{0} arquivos', workFile: '1 arquivo',
   workNone: 'Nenhum commit ainda: o primeiro é enviado quando a etapa de implementação entrega.', workMore: 'Só os commits mais recentes aparecem; a branch tem mais.',
-  workStepCommit: 'entrega de {0}', workDelivered: '{0}/{1} entregas enviadas', workDeliveredHelp: 'Entregas cujo commit está entre os commits listados aqui.', workOpenCommit: 'Abrir o commit', workCommits: 'Commits',
+  workStepCommit: 'entrega de {0}', workDelivered: '{0} entregas na branch', workDeliveredHelp: 'Entregas cujo commit está na branch agora. Um retrabalho que reescreveu a branch (rebase) deixa as anteriores de fora dela: a linha do tempo guarda cada uma.', workOpenCommit: 'Abrir o commit', workCommits: 'Commits',
 });
 
 // The projects' switch in the header: which run, one at a time or all.

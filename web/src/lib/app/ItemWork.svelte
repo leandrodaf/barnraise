@@ -47,7 +47,7 @@
 			{/if}
 			{#if work.compare}<a href={work.compare} target="_blank" rel="noreferrer" class="inline-flex items-center gap-1.5 rounded-full px-2 py-1 text-muted-foreground hover:text-foreground hover:underline"><GitCompareIcon class="size-3.5" />{t('workCompare')}</a>{/if}
 		{/if}
-		{#if delivered}<span class="ml-auto inline-flex shrink-0 items-center gap-1 text-st-done" title={t('workDeliveredHelp')}><ShieldCheckIcon class="size-3.5" />{t('workDelivered', delivered, work.steps.filter((s) => s.commit).length)}</span>{/if}
+		{#if delivered}<span class="ml-auto inline-flex shrink-0 items-center gap-1 text-st-done" title={t('workDeliveredHelp')}><ShieldCheckIcon class="size-3.5" />{t('workDelivered', delivered)}</span>{/if}
 	</div>
 	{#if work.commits.length}
 		<ol class="relative px-4 py-2">
