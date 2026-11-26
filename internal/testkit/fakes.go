@@ -148,9 +148,31 @@ type Tracker struct {
 	updated   []string
 	comments  []string
 	n         int
+	attempts  int
 	CreateErr error
 	UpdateErr error
 	ListErr   error
+}
+
+// SetCreateErr sets CreateErr while syncs may run.
+func (t *Tracker) SetCreateErr(err error) {
+	t.mu.Lock()
+	t.CreateErr = err
+	t.mu.Unlock()
+}
+
+// SetItems sets Items while syncs may run.
+func (t *Tracker) SetItems(items []ports.TrackerItem) {
+	t.mu.Lock()
+	t.Items = items
+	t.mu.Unlock()
+}
+
+// CreateAttempts counts the calls to Create, failed ones too.
+func (t *Tracker) CreateAttempts() int {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	return t.attempts
 }
 
 var _ ports.Tracker = (*Tracker)(nil)
@@ -185,6 +207,7 @@ func (t *Tracker) SetListErr(err error) {
 func (t *Tracker) Create(_ context.Context, it *domain.Item, _ string) (ports.TrackerItem, error) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
+	t.attempts++
 	if t.CreateErr != nil {
 		return ports.TrackerItem{}, t.CreateErr
 	}

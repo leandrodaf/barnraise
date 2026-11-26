@@ -64,14 +64,14 @@ func TestRepairLinksBackBarnraisesOwnIssueInsteadOfADuplicate(t *testing.T) {
 	e.tracker.CreateErr = errors.New("timeout")
 	a := e.create(NewItem{Title: "Iron", Kind: "feature", Area: "field", Priority: "P1"})
 	b := e.create(NewItem{Title: "Militia", Kind: "feature", Area: "field", Priority: "P1"})
-	eventually(t, "both creates failed", func() bool { return e.item(a.ID).Version > 0 && e.svc.TrackerErr("demo") != "" })
-	e.tracker.CreateErr = nil
-	e.tracker.Items = []ports.TrackerItem{
+	eventually(t, "both creates failed", func() bool { return e.tracker.CreateAttempts() >= 2 && e.svc.TrackerErr("demo") != "" })
+	e.tracker.SetCreateErr(nil)
+	e.tracker.SetItems([]ports.TrackerItem{
 		// Barnraise's own issue for a: its label proves it.
 		{Ref: "#7", Title: "[" + a.ID + "] Iron", Labels: []string{"barnraise", "status:" + string(e.item(a.ID).Status)}, Status: string(e.item(a.ID).Status)},
 		// Anyone can type a title: without the label it is not taken.
 		{Ref: "#8", Title: "[" + b.ID + "] Militia", Labels: []string{"bug"}},
-	}
+	})
 	e.clock.Advance(3 * time.Minute)
 	res, err := e.svc.RepairTracker(e.ctx, "demo")
 	if err != nil {
