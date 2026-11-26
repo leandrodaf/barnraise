@@ -9,7 +9,9 @@ Barnraise is one Go binary that drives a software project with AI coding agents,
 
 The name comes from "barn raising": neighbours building a barn together in a day.
 
-> Status: 0.1.0, the first release. See [CHANGELOG.md](CHANGELOG.md). Leia em português: [docs/README.pt-BR.md](docs/README.pt-BR.md).
+> Status: 0.2.1. See [CHANGELOG.md](CHANGELOG.md). Leia em português: [docs/README.pt-BR.md](docs/README.pt-BR.md).
+
+<picture><source media="(prefers-color-scheme: dark)" srcset="docs/img/screenshots/home-dark.webp"><img alt="Barnraise home: what needs the owner, what is working now, what was integrated and what is blocked, across two machines" src="docs/img/screenshots/home-light.webp"></picture>
 
 ![Topology: equal machines, each with its daemon, event log and agents, mirror events over Tailscale; the git server is the arbiter](docs/img/topology.svg)
 
@@ -21,6 +23,77 @@ The name comes from "barn raising": neighbours building a barn together in a day
 - **Your subscriptions, used well.** Several accounts per provider with their real limits, a cheap model for cheap steps, and only the context each step needs.
 - **Several machines without a server.** Every machine is equal. Git decides who holds an item; when a machine dies, another continues from the last pushed step.
 - **Safe by construction, so agents never ask for permission.** The barrier is the operating system and the daemon: a blocking hook, a sandbox or a container, a separate Linux user, a restricted network. Not a sentence in a prompt, and not a prompt on your screen.
+
+## See it run
+
+Screenshots from a real project (a Godot game built by agents on two machines) on the panel every daemon serves. They follow your light or dark theme.
+
+<table>
+<tr>
+<td width="50%" valign="top">
+
+<picture><source media="(prefers-color-scheme: dark)" srcset="docs/img/screenshots/item-dependencies-dark.webp"><img alt="Dependencies at a glance" src="docs/img/screenshots/item-dependencies-light.webp"></picture>
+
+**Dependencies at a glance.** What an item waits for and what is already on main: the dashed line is the one item still holding it back.
+
+</td>
+<td width="50%" valign="top">
+
+<picture><source media="(prefers-color-scheme: dark)" srcset="docs/img/screenshots/item-live-agent-dark.webp"><img alt="Watch the agent live" src="docs/img/screenshots/item-live-agent-light.webp"></picture>
+
+**Watch the agent live.** The text it writes, the tools it calls and their results, streamed while the tab is open; message it right there.
+
+</td>
+</tr>
+<tr>
+<td width="50%" valign="top">
+
+<picture><source media="(prefers-color-scheme: dark)" srcset="docs/img/screenshots/queue-graph-dark.webp"><img alt="The whole queue as a graph" src="docs/img/screenshots/queue-graph-light.webp"></picture>
+
+**The whole queue as a graph.** Every item stands to the right of what it waits for, with its state and the agent on it.
+
+</td>
+<td width="50%" valign="top">
+
+<picture><source media="(prefers-color-scheme: dark)" srcset="docs/img/screenshots/overview-dark.webp"><img alt="Where the money goes" src="docs/img/screenshots/overview-light.webp"></picture>
+
+**Where the money goes.** Spend per day, per item, per model, per account and per role, across every machine.
+
+</td>
+</tr>
+<tr>
+<td width="50%" valign="top">
+
+<picture><source media="(prefers-color-scheme: dark)" srcset="docs/img/screenshots/machines-dark.webp"><img alt="Every machine, one screen" src="docs/img/screenshots/machines-light.webp"></picture>
+
+**Every machine, one screen.** Load, agents at once, processes, worktrees, GPU and standby, for each machine of the cluster.
+
+</td>
+<td width="50%" valign="top">
+
+<picture><source media="(prefers-color-scheme: dark)" srcset="docs/img/screenshots/metrics-dark.webp"><img alt="Metrics that point at the fix" src="docs/img/screenshots/metrics-light.webp"></picture>
+
+**Metrics that point at the fix.** Throughput, rework and its causes, cache hit rate, blocked policy violations and alerts.
+
+</td>
+</tr>
+<tr>
+<td width="50%" valign="top">
+
+<picture><source media="(prefers-color-scheme: dark)" srcset="docs/img/screenshots/agents-dark.webp"><img alt="Who is working on what" src="docs/img/screenshots/agents-light.webp"></picture>
+
+**Who is working on what.** Each live session with its role, model, account, step and resource use.
+
+</td>
+<td width="50%" valign="top">
+
+<picture><source media="(prefers-color-scheme: dark)" srcset="docs/img/screenshots/capabilities-dark.webp"><img alt="What runs where" src="docs/img/screenshots/capabilities-light.webp"></picture>
+
+**What runs where.** Tools, providers and fallbacks per machine, with pinned, checksum-verified installs in one click.
+
+</td>
+</tr>
+</table>
 
 ## How it compares
 

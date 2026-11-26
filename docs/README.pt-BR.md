@@ -9,9 +9,11 @@ O Barnraise é um binário único em Go que toca um projeto de software com agen
 
 O nome vem de *barn raising*: os vizinhos levantando um celeiro juntos num dia.
 
-> Estado: 0.1.0, o primeiro lançamento. Veja o [CHANGELOG.md](../CHANGELOG.md). Read in English: [README.md](../README.md).
+> Estado: 0.2.1. Veja o [CHANGELOG.md](../CHANGELOG.md). Read in English: [README.md](../README.md).
 
 Este arquivo está em português porque a regra é a do próprio Barnraise: o que vai para pessoas sai na língua delas. Código, CLI, chaves do yaml, prompts internos e os diagramas ficam em inglês.
+
+<picture><source media="(prefers-color-scheme: dark)" srcset="img/screenshots/home-dark.webp"><img alt="Início do Barnraise: o que precisa do dono, o que está em andamento, o que foi integrado e o que está bloqueado, em duas máquinas" src="img/screenshots/home-light.webp"></picture>
 
 ![Topologia: máquinas iguais, cada uma com seu daemon, log de eventos e agentes, espelham eventos pelo Tailscale; o servidor git é o árbitro](img/topology.svg)
 
@@ -23,6 +25,77 @@ Este arquivo está em português porque a regra é a do próprio Barnraise: o qu
 - **Suas assinaturas, bem usadas.** Várias contas por provedor com os limites reais, modelo barato nas etapas baratas e só o contexto de que cada etapa precisa.
 - **Várias máquinas sem servidor.** Toda máquina é igual. O git decide quem fica com um item; se uma máquina cai, outra continua da última etapa enviada.
 - **Seguro por construção, então os agentes nunca pedem permissão.** A barreira é o sistema operacional e o daemon: hook que bloqueia, sandbox ou container, usuário Linux separado, rede restrita. Não é uma frase no prompt, nem uma pergunta na sua tela.
+
+## Veja funcionando
+
+Capturas de um projeto real (um jogo em Godot feito por agentes em duas máquinas), no painel que todo daemon serve. Seguem o tema claro ou escuro que você usa.
+
+<table>
+<tr>
+<td width="50%" valign="top">
+
+<picture><source media="(prefers-color-scheme: dark)" srcset="img/screenshots/item-dependencies-dark.webp"><img alt="Dependências num relance" src="img/screenshots/item-dependencies-light.webp"></picture>
+
+**Dependências num relance.** O que um item espera e o que já está na main: a linha tracejada é o único item que ainda o segura.
+
+</td>
+<td width="50%" valign="top">
+
+<picture><source media="(prefers-color-scheme: dark)" srcset="img/screenshots/item-live-agent-dark.webp"><img alt="Acompanhe o agente ao vivo" src="img/screenshots/item-live-agent-light.webp"></picture>
+
+**Acompanhe o agente ao vivo.** O texto que ele escreve, as ferramentas que chama e os resultados, enquanto a aba está aberta; mande mensagem ali mesmo.
+
+</td>
+</tr>
+<tr>
+<td width="50%" valign="top">
+
+<picture><source media="(prefers-color-scheme: dark)" srcset="img/screenshots/queue-graph-dark.webp"><img alt="A fila inteira como grafo" src="img/screenshots/queue-graph-light.webp"></picture>
+
+**A fila inteira como grafo.** Cada item fica à direita do que espera, com seu estado e o agente nele.
+
+</td>
+<td width="50%" valign="top">
+
+<picture><source media="(prefers-color-scheme: dark)" srcset="img/screenshots/overview-dark.webp"><img alt="Para onde vai o dinheiro" src="img/screenshots/overview-light.webp"></picture>
+
+**Para onde vai o dinheiro.** Gasto por dia, por item, por modelo, por conta e por papel, em todas as máquinas.
+
+</td>
+</tr>
+<tr>
+<td width="50%" valign="top">
+
+<picture><source media="(prefers-color-scheme: dark)" srcset="img/screenshots/machines-dark.webp"><img alt="Todas as máquinas numa tela" src="img/screenshots/machines-light.webp"></picture>
+
+**Todas as máquinas numa tela.** Carga, agentes simultâneos, processos, worktrees, GPU e standby de cada máquina do cluster.
+
+</td>
+<td width="50%" valign="top">
+
+<picture><source media="(prefers-color-scheme: dark)" srcset="img/screenshots/metrics-dark.webp"><img alt="Métricas que apontam a correção" src="img/screenshots/metrics-light.webp"></picture>
+
+**Métricas que apontam a correção.** Vazão, retrabalho e suas causas, acerto de cache, violações de política bloqueadas e alertas.
+
+</td>
+</tr>
+<tr>
+<td width="50%" valign="top">
+
+<picture><source media="(prefers-color-scheme: dark)" srcset="img/screenshots/agents-dark.webp"><img alt="Quem está trabalhando em quê" src="img/screenshots/agents-light.webp"></picture>
+
+**Quem está trabalhando em quê.** Cada sessão ao vivo com papel, modelo, conta, etapa e uso de recursos.
+
+</td>
+<td width="50%" valign="top">
+
+<picture><source media="(prefers-color-scheme: dark)" srcset="img/screenshots/capabilities-dark.webp"><img alt="O que roda onde" src="img/screenshots/capabilities-light.webp"></picture>
+
+**O que roda onde.** Ferramentas, provedores e alternativas por máquina, com instalação fixada e verificada por checksum em um clique.
+
+</td>
+</tr>
+</table>
 
 ## De/para: como se compara
 
