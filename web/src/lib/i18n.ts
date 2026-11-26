@@ -1045,3 +1045,21 @@ Object.assign(pt, {
   workNone: 'Nenhum commit ainda: o primeiro é enviado quando a etapa de implementação entrega.', workMore: 'Só os commits mais recentes aparecem; a branch tem mais.',
   workStepCommit: 'entrega de {0}', workDelivered: '{0}/{1} entregas enviadas', workDeliveredHelp: 'Entregas cujo commit está entre os commits listados aqui.', workOpenCommit: 'Abrir o commit', workCommits: 'Commits',
 });
+
+// The projects' switch in the header: which run, one at a time or all.
+Object.assign(en, {
+  pausedBannerN: '{0} projects paused:', resumeOne: 'Resume {0}', projectsTitle: 'Projects: which run', projectsRunning: 'projects', projectsLabel: '{0} of {1} projects running',
+  projectsHere: 'this one', projectsPaused: 'paused', projectsWorking: '{0} items being worked on', projectsIdle: 'running, nothing in progress',
+  projectsPause: 'Pause', projectsResume: 'Resume', projectsOnly: 'Run only…', projectsResumeAll: 'Resume every project', projectsPauseAll: 'Pause every project',
+  projectsHelp: 'A paused project starts no agent, check or merge on any machine. To stop one machine instead, use the machines button beside this one.',
+  projectsPausedHere: 'paused from the panel', projectsOnlyWhy: 'only {0} runs now',
+  projectsPausedOne: '{0} paused', projectsResumedOne: '{0} running again', projectsOnlyDone: 'Only {0} runs now', projectsAllResumed: 'Every project runs', projectsAllPaused: 'Every project is paused',
+});
+Object.assign(pt, {
+  pausedBannerN: '{0} projetos pausados:', resumeOne: 'Retomar {0}', projectsTitle: 'Projetos: quais rodam', projectsRunning: 'projetos', projectsLabel: '{0} de {1} projetos rodando',
+  projectsHere: 'este', projectsPaused: 'pausado', projectsWorking: '{0} itens em andamento', projectsIdle: 'rodando, nada em andamento',
+  projectsPause: 'Pausar', projectsResume: 'Retomar', projectsOnly: 'Rodar só…', projectsResumeAll: 'Retomar todos os projetos', projectsPauseAll: 'Pausar todos os projetos',
+  projectsHelp: 'Um projeto pausado não inicia agente, verificação nem merge em nenhuma máquina. Para parar uma máquina inteira, use o botão de máquinas ao lado.',
+  projectsPausedHere: 'pausado pelo painel', projectsOnlyWhy: 'só o {0} roda agora',
+  projectsPausedOne: '{0} pausado', projectsResumedOne: '{0} rodando de novo', projectsOnlyDone: 'Só o {0} roda agora', projectsAllResumed: 'Todos os projetos rodando', projectsAllPaused: 'Todos os projetos pausados',
+});

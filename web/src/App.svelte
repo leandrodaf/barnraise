@@ -26,6 +26,7 @@
 	import VersionNotice from '$lib/app/VersionNotice.svelte';
 	import AutopilotSwitch from '$lib/app/AutopilotSwitch.svelte';
 	import ClusterPower from '$lib/app/ClusterPower.svelte';
+	import ProjectPower from '$lib/app/ProjectPower.svelte';
 	import SignIn from './pages/SignIn.svelte';
 	import Home from './pages/Home.svelte';
 	import Overview from './pages/Overview.svelte';
@@ -79,6 +80,7 @@
 				<div class="ml-auto flex items-center gap-1.5">
 					<VersionNotice />
 					<AutopilotSwitch />
+					<ProjectPower />
 					<ClusterPower />
 					{#if session.standby}
 						<button onclick={() => standby(false)} class="inline-flex h-8 items-center gap-1.5 rounded-md border border-dashed border-st-needs/60 bg-st-needs/10 px-2 text-xs font-medium text-st-needs hover:bg-st-needs/20" title={session.standbyWhy}>
@@ -89,13 +91,21 @@
 				</div>
 			</header>
 			<div id="scroller" class="min-h-0 flex-1 overflow-y-auto overscroll-contain [scrollbar-gutter:stable]">
-				{#each paused as p (p.project)}
+				{#if paused.length}
+					<!-- One line for every paused project, each a click from running again;
+					     the projects' switch in the header runs one, some or all. -->
 					<div class="flex flex-wrap items-center gap-x-3 gap-y-2 border-b border-st-needs/30 bg-st-needs/10 px-4 py-2 text-sm">
 						<PauseIcon class="size-4 shrink-0 text-st-needs" />
-						<span class="min-w-0 flex-1"><strong>{t('pausedBanner', p.project)}</strong> {p.pausedWhy}</span>
-						<button class="rounded-md bg-foreground px-2.5 py-1 text-xs font-medium text-background" onclick={() => resumeProject(p.project)}>{t('resumeAll')}</button>
+						{#if paused.length === 1}
+							<span class="min-w-0 flex-1"><strong>{t('pausedBanner', paused[0].project)}</strong> {paused[0].pausedWhy}</span>
+						{:else}
+							<span class="min-w-0 flex-1"><strong>{t('pausedBannerN', paused.length)}</strong> {paused.map((p) => p.project).join(', ')}</span>
+						{/if}
+						{#each paused as p (p.project)}
+							<button class="rounded-md bg-foreground px-2.5 py-1 text-xs font-medium text-background" onclick={() => resumeProject(p.project)}>{paused.length === 1 ? t('resumeAll') : t('resumeOne', p.project)}</button>
+						{/each}
 					</div>
-				{/each}
+				{/if}
 				<main id="view" class="w-full p-3 sm:p-4 lg:p-6 min-[1800px]:px-8" tabindex="-1">
 					{#if !session.projects.length}
 						<p class="text-muted-foreground">{t('noProject')}</p>
