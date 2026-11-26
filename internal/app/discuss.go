@@ -122,16 +122,25 @@ func (s *Service) Discuss(ctx context.Context, project string, a Actor, thread, 
 	// The owner's message is kept with the answer: an advisor that fails
 	// leaves nothing behind, so trying again does not pile the same request up.
 	mine := &domain.DiscussionMessage{Thread: thread, ItemID: itemID, Role: domain.DiscussOwner, Text: text, By: actorName(a), At: now}
-	workdir := p.Cfg().Root
+	workdir, onMain := p.Cfg().Root, true
 	if itemID != "" {
 		if d := s.WorktreeDir(p.Name, itemID); dirExists(d) {
+			workdir, onMain = d, false
+		}
+	}
+	if onMain {
+		// The owner's checkout of main may lag (others push, an editor holds
+		// it) or carry their edits: the advisor reads main as it is now.
+		if d, err := s.mainWorkspace(ctx, p); err == nil {
 			workdir = d
+		} else {
+			s.d.Log.Warn("advisor: main as it is now could not be checked out; reading the owner's checkout", "project", p.Name, "err", err)
 		}
 	}
 	actx, cancel := context.WithTimeout(ctx, adviceTimeout)
 	defer cancel()
 	ans, err := adv.Advise(actx, AdviceRequest{
-		System:  map[bool]string{true: advisorChatSystem(p, ChatKind(thread)), false: advisorSystem(p, workdir == p.Cfg().Root)}[IsChat(thread)],
+		System:  map[bool]string{true: advisorChatSystem(p, ChatKind(thread)), false: advisorSystem(p, onMain)}[IsChat(thread)],
 		Prompt:  advisorPrompt(qq, prop, it, timeline, msgs, append(history, mine)),
 		Workdir: workdir,
 		Progress: func(tool, target string) {

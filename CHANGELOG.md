@@ -4,6 +4,10 @@ All notable changes to Barnraise are recorded here. The format follows [Keep a C
 
 ## [Unreleased]
 
+### Fixed
+
+- **advisor:** The advisor reads the main branch as the remote has it now. It read the owner's checkout, which lags whenever someone else pushes to main (or an editor holds it), so in *Set goal* it read an old game design and told the owner to run `git pull`. Conversations that are not about one item now read a read-only checkout of main fetched just before (`_main`), and the owner's own checkout is left as it is.
+
 ## [0.4.0] - 2026-11-26
 
 ### Fixed

@@ -1197,6 +1197,31 @@ func (s *Service) refineWorkspace(ctx context.Context, p *Project, itemID string
 	return dir, nil
 }
 
+// mainWorkspace is a read-only checkout of the main branch as the remote has
+// it now: fetched first, so what others pushed is there, and apart from the
+// owner's own checkout, which may lag or hold their edits.
+func (s *Service) mainWorkspace(ctx context.Context, p *Project) (string, error) {
+	g := p.Ports().Git
+	if g == nil {
+		return p.Cfg().Root, nil
+	}
+	fctx, cancel := context.WithTimeout(ctx, 20*time.Second)
+	_ = g.Fetch(fctx) // offline: the last fetch still answers
+	cancel()
+	main, err := g.MainHead(ctx)
+	if err != nil {
+		return "", err
+	}
+	dir := s.WorktreeDir(p.Name, "_main")
+	if _, err := os.Stat(filepath.Join(dir, ".git")); err == nil {
+		return dir, g.Checkout(ctx, dir, main)
+	}
+	if err := g.AddDetachedWorktree(ctx, dir, main); err != nil {
+		return "", err
+	}
+	return dir, nil
+}
+
 // hasStepEvent is a cheap check that the step's run was recorded.
 func hasStepEvent(it *domain.Item, step string) bool {
 	_, ok := it.Runs[step]
