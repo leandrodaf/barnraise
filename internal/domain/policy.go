@@ -31,8 +31,12 @@ type Policy struct {
 	LockExisting []string `json:"lock_existing"` // globs: existing files cannot change (tests, references); new ones can
 	// Unlocked are the locked files this session's item may change, as the
 	// owner (or the autopilot) allowed.
-	Unlocked     []string `json:"unlocked,omitempty"`
-	DenyRead     []string `json:"deny_read"`      // absolute or ~ globs (credentials)
+	Unlocked []string `json:"unlocked,omitempty"`
+	DenyRead []string `json:"deny_read"` // absolute or ~ globs (credentials)
+	// ReadAlso are absolute globs the session may read inside the folders
+	// deny_read closes: its own item's check logs and its worktree's git
+	// state (a rebase in progress), which say why a step failed.
+	ReadAlso     []string `json:"read_also,omitempty"`
 	DenyCommands []string `json:"deny_commands"`  // regular expressions
 	AllowHosts   []string `json:"allow_hosts"`    // for the sandbox and proxy
 	Home         string   `json:"home,omitempty"` // to expand ~
@@ -122,7 +126,16 @@ func (p *Policy) Decide(c ToolCall, exists func(string) bool) Decision {
 				return deny("self", "agents cannot change Barnraise itself or its configuration: "+raw)
 			}
 		}
+		ownRead := false
+		for _, g := range p.ReadAlso {
+			if MatchGlob(p.expand(g), abs) {
+				ownRead = true
+			}
+		}
 		for _, g := range p.DenyRead {
+			if ownRead && !c.Write {
+				break
+			}
 			absRule := strings.HasPrefix(g, "/") || strings.HasPrefix(g, "~")
 			if (!inside || !absRule) && MatchGlob(p.expand(g), abs) || (rel != "" && !absRule && MatchGlob(g, rel)) {
 				return deny("deny_read", "access to credentials and secrets is blocked: "+raw)
@@ -233,6 +246,22 @@ var inputRe = regexp.MustCompile(`(?:^|[^<])<\s*([^\s;|&<>()]+)`)
 
 // notAFile are redirection targets that write nothing.
 var notAFile = map[string]bool{"/dev/null": true, "/dev/stdout": true, "/dev/stderr": true, "/dev/tty": true}
+
+// notAFilePrefix are bash's pseudo-files: a port probe (echo > /dev/tcp/…)
+// or a file descriptor writes no file.
+var notAFilePrefix = []string{"/dev/tcp/", "/dev/udp/", "/dev/fd/"}
+
+func pseudoFile(t string) bool {
+	if notAFile[t] {
+		return true
+	}
+	for _, pre := range notAFilePrefix {
+		if strings.HasPrefix(t, pre) {
+			return true
+		}
+	}
+	return false
+}
 
 // commandWords splits a segment into words without the leading wrappers
 // (env, command, exec, nohup, time, nice) and VAR=value assignments.
@@ -491,7 +520,7 @@ func redirTargets(cmd string, re *regexp.Regexp) []string {
 				continue
 			}
 			target := t[0]
-			if notAFile[target] || strings.HasPrefix(target, "&") {
+			if pseudoFile(target) || strings.HasPrefix(target, "&") {
 				continue
 			}
 			out = append(out, segment{dir: dir}.at(target))

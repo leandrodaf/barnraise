@@ -934,6 +934,11 @@ func (r *Runtime) writeSessionFiles(p *Project, sessDir, worktree string, env ma
 	pol := p.Cfg().Policy
 	pol.Home = home
 	pol.Worktree = worktree
+	// Its own check logs and its worktree's git state are the session's to
+	// read, though they sit in Barnraise's folders.
+	pol.ReadAlso = append(pol.ReadAlso,
+		filepath.Join(r.s.d.DataDir, "logs", p.Name, "*-"+a.ItemID+"-*"),
+		filepath.Join(repoGit(p), "worktrees", filepath.Base(worktree), "**"))
 	pol.MainBranch = p.Cfg().MainBranch
 	pol.PrivateTmp = p.Cfg().Container.Image != "" // the container's /tmp is in memory and its own
 	if it := p.Snapshot().Items[a.ItemID]; it != nil {

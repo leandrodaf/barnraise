@@ -67,3 +67,30 @@ func TestShellWords(t *testing.T) {
 		t.Fatalf("search %q", s)
 	}
 }
+
+// A session reads its own item's check logs and its worktree's git state,
+// nothing else of Barnraise's folders; a port probe writes no file.
+func TestPolicyOwnLogsAndProbes(t *testing.T) {
+	p := DefaultPolicy()
+	p.Home = "/home/u"
+	p.Worktree = "/home/u/.local/share/barnraise/worktrees/demo/I-36"
+	p.ReadAlso = []string{"/home/u/.local/share/barnraise/logs/demo/*-I-36-*", "/home/u/.local/share/barnraise/projects/demo/.git/worktrees/I-36/**"}
+	for _, c := range []string{
+		`grep -E "^(FAIL|ok)" /home/u/.local/share/barnraise/logs/demo/20261125T161820Z-I-36-main-branch-3.log`,
+		`cat /home/u/.local/share/barnraise/projects/demo/.git/worktrees/I-36/rebase-merge/git-rebase-todo`,
+		`(echo > /dev/tcp/127.0.0.1/5441) 2>/dev/null && echo open`,
+	} {
+		if d := p.Decide(ToolCall{Tool: "Bash", Command: c}, nil); !d.Allow {
+			t.Errorf("%q: %s", c, d.Reason)
+		}
+	}
+	for _, c := range []string{
+		`cat /home/u/.local/share/barnraise/logs/demo/20261125T161820Z-I-37-main-branch-3.log`,
+		`echo x > /home/u/.local/share/barnraise/logs/demo/20261125T161820Z-I-36-main.log`,
+		`cat /home/u/.local/share/barnraise/projects/demo/.git/worktrees/I-37/HEAD`,
+	} {
+		if d := p.Decide(ToolCall{Tool: "Bash", Command: c}, nil); d.Allow {
+			t.Errorf("%q must stay closed", c)
+		}
+	}
+}
