@@ -514,18 +514,55 @@ func (a *Arbiter) Integrate(ctx context.Context, expectedMain, next string) erro
 	}
 	if r.HasRemote() {
 		_, _ = r.git(ctx, "", "update-ref", r.TrackingRef(r.main), nxt)
-		cur, ok, err := r.resolve(ctx, "", mainRef)
-		if err == nil && ok && cur != nxt {
-			if anc, _ := r.isAncestor(ctx, cur, nxt); anc {
-				if _, err := r.git(ctx, "", "update-ref", mainRef, nxt, cur); err == nil {
-					r.syncCheckedOut(ctx, r.main, cur, nxt)
-				}
-			}
-		}
+		r.followMain(ctx, nxt)
 		return nil
 	}
 	r.syncCheckedOut(ctx, r.main, exp, nxt)
 	return nil
+}
+
+// followMain fast-forwards the local main branch to nxt after an integration
+// through the remote, which is the arbiter: the local branch is only a
+// convenience for the person working in the checkout. Where main is checked
+// out, its index and files move first (a two-way merge that keeps unrelated
+// local changes) and the branch only once they did. A checkout whose index
+// or files do not match its HEAD where the integration changed them (an
+// edit in progress, an editor that rewrote a file, someone else's work) is
+// left exactly as it is, behind the remote as after a fetch: moving the
+// branch under it would show every integrated change as a local edit undoing
+// it. The same holds when the local main has commits of its own.
+func (r *Repo) followMain(ctx context.Context, nxt string) {
+	mainRef := "refs/heads/" + r.main
+	cur, ok, err := r.resolve(ctx, "", mainRef)
+	if err != nil || !ok || cur == nxt {
+		return
+	}
+	if anc, _ := r.isAncestor(ctx, cur, nxt); !anc {
+		return
+	}
+	wts, err := r.worktreesOn(ctx, r.main)
+	if err != nil {
+		return
+	}
+	var moved []string
+	for _, wt := range wts {
+		if _, err := r.git(ctx, wt, "read-tree", "-m", "-u", cur, nxt); err != nil {
+			r.undoFollow(ctx, moved, cur, nxt)
+			return
+		}
+		moved = append(moved, wt)
+	}
+	if _, err := r.git(ctx, "", "update-ref", mainRef, nxt, cur); err != nil {
+		// Someone moved main meanwhile: put the files back with the branch.
+		r.undoFollow(ctx, moved, cur, nxt)
+	}
+}
+
+// undoFollow returns worktrees that followMain already moved to nxt back to cur.
+func (r *Repo) undoFollow(ctx context.Context, wts []string, cur, nxt string) {
+	for _, wt := range wts {
+		_, _ = r.git(ctx, wt, "read-tree", "-m", "-u", nxt, cur)
+	}
 }
 
 // syncCheckedOut fast-forwards the index and files of worktrees that have

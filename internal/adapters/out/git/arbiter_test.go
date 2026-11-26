@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"path/filepath"
 	"slices"
 	"sync"
 	"testing"
@@ -262,5 +263,72 @@ func BenchmarkClaimLocal(b *testing.B) {
 		if _, err := a.Claim(ctx, fmt.Sprintf("claims/I-%d", i), "m1"); err != nil {
 			b.Fatal(err)
 		}
+	}
+}
+
+// TestIntegrateLeavesABusyCheckout: the person's checkout of main follows an
+// integration only when its files can. One with an edit where the
+// integration changed the same file stays where it was, behind the remote,
+// instead of showing every integrated change as a local edit undoing it.
+func TestIntegrateLeavesABusyCheckout(t *testing.T) {
+	ctx := context.Background()
+	f := newFixture(t)
+	r := New(f.c1, "origin", "main")
+	a := NewArbiter(r, newFakeClock())
+	// commit writes files on top of parent in a scratch worktree, as an item would.
+	scratch := filepath.Join(t.TempDir(), "scratch")
+	g(t, f.c1, "worktree", "add", "-q", "--detach", scratch, "main")
+	commit := func(parent string, files map[string]string) string {
+		g(t, scratch, "checkout", "-q", "--detach", parent)
+		for name, body := range files {
+			write(t, scratch, name, body)
+		}
+		g(t, scratch, "add", "-A")
+		g(t, scratch, "commit", "-q", "-m", "item")
+		return g(t, scratch, "rev-parse", "HEAD")
+	}
+	head := func() string { return g(t, f.c1, "rev-parse", "refs/heads/main") }
+
+	// A clean checkout follows, files included.
+	main0 := head()
+	next1 := commit(main0, map[string]string{"a.txt": "one\ntwo\nthree\nfour\n"})
+	if err := a.Integrate(ctx, main0, next1); err != nil {
+		t.Fatal(err)
+	}
+	if head() != next1 || g(t, f.c1, "status", "--porcelain") != "" || read(t, filepath.Join(f.c1, "a.txt")) != "one\ntwo\nthree\nfour\n" {
+		t.Fatalf("clean checkout did not follow: head %s, status %q", head(), g(t, f.c1, "status", "--porcelain"))
+	}
+
+	// An unrelated local edit is kept, and the checkout still follows.
+	write(t, f.c1, "notes.txt", "mine\n")
+	next2 := commit(next1, map[string]string{"b.txt": "b\n"})
+	if err := a.Integrate(ctx, next1, next2); err != nil {
+		t.Fatal(err)
+	}
+	if head() != next2 || g(t, f.c1, "status", "--porcelain") != "?? notes.txt" {
+		t.Fatalf("unrelated edit: head %s, status %q", head(), g(t, f.c1, "status", "--porcelain"))
+	}
+
+	// An edit of a file the integration also changes: the checkout stays put,
+	// twice in a row, with nothing but that edit to show.
+	write(t, f.c1, "a.txt", "local edit\n")
+	next3 := commit(next2, map[string]string{"a.txt": "integrated\n"})
+	next4 := commit(next3, map[string]string{"c.txt": "c\n"})
+	for _, step := range [][2]string{{next2, next3}, {next3, next4}} {
+		if err := a.Integrate(ctx, step[0], step[1]); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if head() != next2 {
+		t.Fatalf("busy checkout moved to %s, want it left at %s", head(), next2)
+	}
+	if got := g(t, f.c1, "status", "--porcelain"); got != "M a.txt\n?? notes.txt" && got != " M a.txt\n?? notes.txt" {
+		t.Fatalf("busy checkout shows %q, want only its own edits", got)
+	}
+	if read(t, filepath.Join(f.c1, "a.txt")) != "local edit\n" {
+		t.Fatal("the local edit was lost")
+	}
+	if h, _ := r.MainHead(ctx); h != next4 {
+		t.Fatalf("main on the remote = %s, want %s", h, next4)
 	}
 }
