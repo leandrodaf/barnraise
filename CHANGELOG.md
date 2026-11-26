@@ -4,6 +4,10 @@ All notable changes to Barnraise are recorded here. The format follows [Keep a C
 
 ## [Unreleased]
 
+### Added
+
+- **panel:** *Delivered work* on the item's Summary: the pull request with its state, the branch and its changes, and every commit pushed for the item, newest first, each linked to the code host, with the step whose delivery it records marked (`delivery of implement`) and its author, age and files. Once integrated, the commit on main. Each delivery in the timeline links its commit too. Served by `GET /v1/items/{id}/work` (`ItemWork`), which fetches the branch when the commits were made on another machine.
+
 ## [0.3.0] - 2026-11-26
 
 ### Changed

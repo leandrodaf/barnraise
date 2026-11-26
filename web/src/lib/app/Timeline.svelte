@@ -7,8 +7,10 @@
 	import { compact, dur, when } from '$lib/format';
 	import { dialog } from './dialog.svelte';
 	import Empty from './Empty.svelte';
+	import GitCommitIcon from '@lucide/svelte/icons/git-commit-horizontal';
 
-	let { item, entries, project }: { item: Item; entries: TimelineEntry[]; project: string } = $props();
+	// commitUrls opens a delivery's commit on the code host, by sha.
+	let { item, entries, project, commitUrls = {} }: { item: Item; entries: TimelineEntry[]; project: string; commitUrls?: Record<string, string> } = $props();
 	const canRedo = $derived(item.status !== 'integrated' && item.status !== 'closed');
 
 	const failed = (e: TimelineEntry, p: any) =>
@@ -47,6 +49,13 @@
 				<div class="mt-1 space-y-1 text-sm">
 					{#if p.delivery}
 						<p><Badge variant="secondary" class={tone(/DONE$/.test(p.delivery.status || ''), false)}>{p.delivery.status}</Badge> {p.delivery.summary}</p>
+						{#if p.delivery.commit}
+							{@const sha = p.delivery.commit}
+							<p class="num flex items-center gap-1.5 text-[11px] text-muted-foreground">
+								<GitCommitIcon class="size-3.5" />
+								{#if commitUrls[sha]}<a href={commitUrls[sha]} target="_blank" rel="noreferrer" class="rounded bg-muted px-1.5 py-0.5 font-medium text-foreground hover:bg-foreground hover:text-background" title={t('workOpenCommit')}>{sha.slice(0, 7)}</a>{:else}<code class="rounded bg-muted px-1.5 py-0.5">{sha.slice(0, 7)}</code>{/if}
+							</p>
+						{/if}
 						{#if p.delivery.reason}<p class="text-muted-foreground">{p.delivery.reason}</p>{/if}
 						{#if p.delivery.concerns?.length}<p class="text-xs text-muted-foreground">{t('concerns')}</p><ul class="list-disc pl-5">{#each p.delivery.concerns as c, i (i)}<li>{c}</li>{/each}</ul>{/if}
 					{/if}

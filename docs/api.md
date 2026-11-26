@@ -11,6 +11,7 @@ Barnraise is API first. Everything the CLI, the MCP server, the hooks and the pa
 | Event chain check (`admin`) | `GET /v1/events/verify[?from=N]`: the report of `barnraise events verify` |
 | Trust of the files that steer agents (`admin`, never a session token) | `GET /v1/trust?project=&item=` (status), `POST /v1/trust?project=&item=` (re-trust, as `barnraise trust`) |
 | Live view of an item's running session and its messages (`admin`, never a session token) | `GET /v1/items/{id}/live?project=[&agent=]` |
+| Proof of an item's work: its commits, the commit of each delivery, its pull request and, once integrated, its commit on main (`items:read`, never a session token) | `GET /v1/items/{id}/work?project=` |
 | Health (no token) | `GET /healthz` |
 | Web panel | `GET /` |
 

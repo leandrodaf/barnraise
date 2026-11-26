@@ -1029,3 +1029,19 @@ Object.assign(pt, {
   agentWaiting: 'Esperando o agente…', agentTalk: 'Conversar com o agente', agentTalkHelp: 'Suas mensagens e as respostas dos agentes sobre este item.',
   agentNoMessages: 'Nenhuma mensagem sobre este item ainda.', agentPlaceholder: 'Pergunte ou diga algo ao agente… (Ctrl+Enter envia)', agentReadsNext: 'O agente lê na próxima chamada de ferramenta, enquanto trabalha.', agentSent: 'Enviada: o agente lê na próxima chamada de ferramenta.',
 });
+
+// The proof of an item's work on its page: the commits pushed and the pull request.
+Object.assign(en, {
+  workTitle: 'Delivered work', workHelp: 'The commits pushed for this item and the pull request they are reviewed in.',
+  workPr: 'Pull request #{0}', workPrDraft: 'draft', workPrReady: 'ready for review', workPrMerged: 'merged', workPrClosed: 'closed',
+  workCompare: 'See the changes', workMerged: 'On main as {0}', workFiles: '{0} files', workFile: '1 file',
+  workNone: 'No commit yet: the first is pushed when the implement step delivers.', workMore: 'Only the latest commits are listed; the branch has more.',
+  workStepCommit: 'delivery of {0}', workDelivered: '{0}/{1} deliveries pushed', workDeliveredHelp: 'Deliveries whose commit is among the commits listed here.', workOpenCommit: 'Open the commit', workCommits: 'Commits',
+});
+Object.assign(pt, {
+  workTitle: 'Trabalho entregue', workHelp: 'Os commits enviados para este item e o pull request em que são revisados.',
+  workPr: 'Pull request #{0}', workPrDraft: 'rascunho', workPrReady: 'pronto para revisão', workPrMerged: 'integrado', workPrClosed: 'fechado',
+  workCompare: 'Ver as alterações', workMerged: 'Na main como {0}', workFiles: '{0} arquivos', workFile: '1 arquivo',
+  workNone: 'Nenhum commit ainda: o primeiro é enviado quando a etapa de implementação entrega.', workMore: 'Só os commits mais recentes aparecem; a branch tem mais.',
+  workStepCommit: 'entrega de {0}', workDelivered: '{0}/{1} entregas enviadas', workDeliveredHelp: 'Entregas cujo commit está entre os commits listados aqui.', workOpenCommit: 'Abrir o commit', workCommits: 'Commits',
+});

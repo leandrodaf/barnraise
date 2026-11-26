@@ -34,6 +34,8 @@
 	import Empty from '$lib/app/Empty.svelte';
 	import Markdown from '$lib/app/Markdown.svelte';
 	import ItemDocuments from '$lib/app/ItemDocuments.svelte';
+	import ItemWorkCard from '$lib/app/ItemWork.svelte';
+	import { work as workApi, type ItemWork } from '$lib/rest';
 	import AgentLive from '$lib/app/AgentLive.svelte';
 	import QuestionCard from '$lib/app/QuestionCard.svelte';
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
@@ -109,6 +111,18 @@
 	});
 	// What the item's machines run changes in seconds: while something runs
 	// for it, read it again every few seconds.
+	// The proof of the item's work (its commits and pull request), read again
+	// whenever the timeline grows: a delivery is a new commit.
+	let work = $state<ItemWork | null>(null);
+	const timelineSize = $derived(data.data?.entries.length ?? 0);
+	$effect(() => {
+		void timelineSize;
+		workApi
+			.ofItem(project, id)
+			.then((v) => (work = v))
+			.catch(() => (work = null));
+	});
+	const commitUrls = $derived(Object.fromEntries((work?.steps || []).filter((s) => s.commit && s.url).map((s) => [s.commit!, s.url!])));
 	const live = $derived(!!(data.data?.row && (data.data.row.sessions.length || data.data.row.procs?.count)));
 	const timer = window.setInterval(() => {
 		if (live && !document.hidden) data.reload();
@@ -262,6 +276,7 @@
 				</DropdownMenu.Root>
 			</div>
 			<Tabs.Content value="summary" class="mt-3 space-y-4">
+				{#if work && (work.pr?.number || work.commits.length || work.merged)}<ItemWorkCard {work} />{/if}
 				{#if it.body}<Section title={t('body')}><Markdown text={it.body} /></Section>{/if}
 				{#each [['preserve', it.preserve], ['checklist', it.checklist], ['clarifications', it.clarifications], ['tweaks', it.tweaks]] as [k, arr] (k)}
 					{#if (arr as string[]).length}<Section title={t(k as string)}><ul class="list-disc space-y-1 pl-5 text-sm">{#each arr as string[] as x, i (i)}<li>{x}</li>{/each}</ul></Section>{/if}
@@ -280,7 +295,7 @@
 				{#if !it.body && !it.rework.length}<Empty />{/if}
 			</Tabs.Content>
 			<Tabs.Content value="deps" class="mt-3">{#if tab === 'deps'}<Section title={t('tabDeps')}><DepGraph rows={depRows} focus={project + '/' + id} compact /></Section>{/if}</Tabs.Content>
-			<Tabs.Content value="timeline" class="mt-3">{#if tab === 'timeline'}<Section title={t('timeline')} count={entries.length}><Timeline item={it} {entries} {project} /></Section>{/if}</Tabs.Content>
+			<Tabs.Content value="timeline" class="mt-3">{#if tab === 'timeline'}<Section title={t('timeline')} count={entries.length}><Timeline item={it} {entries} {project} {commitUrls} /></Section>{/if}</Tabs.Content>
 			<Tabs.Content value="criteria" class="mt-3">{#if tab === 'criteria'}
 				<Section title={t('criteria')} count={it.criteria.filter((c) => c.met).length + '/' + it.criteria.length} pad={false}>
 					{#if !it.criteria.length}<div class="p-4"><Empty /></div>{:else}

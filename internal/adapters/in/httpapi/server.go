@@ -96,6 +96,7 @@ func New(svc *app.Service, opts Options) *Server {
 	s.mux.Handle("GET /v1/events", s.auth(s.guardHTTP(app.ProcStreamEvents, http.HandlerFunc(s.handleSSE))))
 	s.routeLessons()
 	s.routeDocuments()
+	s.routeWork()
 	s.routeMachines()
 	s.routeLive()
 	s.trustRoutes()

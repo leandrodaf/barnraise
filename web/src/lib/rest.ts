@@ -37,3 +37,23 @@ export const documents = {
 		rest<DocumentPreview>('POST', '/v1/documents/' + encodeURIComponent(name) + '/preview', { project }, { text, area, kind }),
 	ofItem: (project: string, id: string) => rest<ItemDocuments>('GET', '/v1/items/' + encodeURIComponent(id) + '/documents', { project })
 };
+
+export type WorkCommit = { sha: string; subject: string; author?: string; at?: string; files: number; url?: string; step?: string };
+export type WorkStep = { step: string; agent: string; status: string; commit?: string; url?: string; at?: string };
+export type ItemWork = {
+	branch?: string;
+	branch_url?: string;
+	compare?: string;
+	pr?: { number: number; url?: string; state: string };
+	commits: WorkCommit[];
+	more?: boolean;
+	steps: WorkStep[];
+	merged?: string;
+	merged_url?: string;
+	warning?: string;
+};
+
+// The proof of an item's work: its commits, each delivery's commit and its pull request.
+export const work = {
+	ofItem: (project: string, id: string) => rest<ItemWork>('GET', '/v1/items/' + encodeURIComponent(id) + '/work', { project })
+};
