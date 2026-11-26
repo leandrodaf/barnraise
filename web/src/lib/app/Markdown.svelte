@@ -20,7 +20,7 @@
 	const H = ['', 'text-base', 'text-base', 'text-sm', 'text-sm', 'text-sm', 'text-sm'];
 </script>
 
-{#snippet parts(ps: Inline[])}{#each ps as p, i (i)}{#if p.t === 'bold'}<strong class="font-semibold">{p.v}</strong>{:else if p.t === 'code'}<code class="num rounded bg-muted px-1 py-0.5 text-[0.85em]">{p.v}</code>{:else if p.t === 'em'}<em>{p.v}</em>{:else}{p.v}{/if}{/each}{/snippet}
+{#snippet parts(ps: Inline[])}{#each ps as p, i (i)}{#if p.t === 'bold'}<strong class="font-semibold">{p.v}</strong>{:else if p.t === 'code'}<code class="num rounded bg-muted px-1 py-0.5 text-[0.85em]">{p.v}</code>{:else if p.t === 'em'}<em>{p.v}</em>{:else if p.t === 'link'}<a href={p.href} target="_blank" rel="noreferrer" class="font-medium text-st-work underline decoration-st-work/30 underline-offset-2 [overflow-wrap:anywhere] hover:decoration-st-work">{p.v}</a>{:else}{p.v}{/if}{/each}{/snippet}
 
 <div class="space-y-2.5 text-sm leading-relaxed">
 	{#each blocks as b, i (i)}
@@ -35,6 +35,13 @@
 			</div>
 		{:else if b.k === 'quote'}<p class="border-l-2 pl-3 text-muted-foreground">{@render parts(b.parts)}</p>
 		{:else if b.k === 'pre' && b.lang === 'mermaid'}{@const ttl = lastHeading(i)}<Mermaid source={b.v} title={ttl} tone={/\b(after|depois)\b/i.test(ttl) ? 'after' : /\b(before|antes)\b/i.test(ttl) ? 'before' : ''} />
+		{:else if b.k === 'table'}
+			<div class="overflow-x-auto rounded-lg border">
+				<table class="w-full text-xs">
+					<thead class="bg-muted/50"><tr>{#each b.head as c, j (j)}<th class="px-3 py-2 font-semibold whitespace-nowrap" style="text-align:{b.align[j] || 'left'}">{@render parts(c)}</th>{/each}</tr></thead>
+					<tbody>{#each b.rows as r, ri (ri)}<tr class="border-t">{#each r as c, j (j)}<td class="px-3 py-1.5 align-top" style="text-align:{b.align[j] || 'left'}">{@render parts(c)}</td>{/each}</tr>{/each}</tbody>
+				</table>
+			</div>
 		{:else if b.k === 'pre'}<pre class="num overflow-x-auto rounded-lg bg-muted/60 p-3 text-xs">{b.v}</pre>
 		{:else}<hr class="border-border" />{/if}
 	{/each}

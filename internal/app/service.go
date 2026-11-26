@@ -65,6 +65,10 @@ type Deps struct {
 	DataDir    string // worktrees, logs, policy files
 	SocketPath string
 	BinaryPath string // the barnraise binary, for hooks and MCP config
+	// Chat runs the owner's conversation session (conversation.go); nil: none.
+	Chat ports.ChatSession
+	// ChatCodex runs it on Codex, for ChatGPT accounts; nil: none.
+	ChatCodex ports.ChatSession
 	// Isolation are Barnraise's own confinement layers (Landlock, microVM).
 	Isolation Isolation
 	// Cloner copies build caches copy-on-write; optional.

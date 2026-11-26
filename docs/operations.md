@@ -146,6 +146,10 @@ On Ubuntu 23.10 and later, AppArmor forbids unprivileged user namespaces, so bub
 
 A check or setup that fails with `Permission denied` on a path, or a connection refused, after this change needs that path or port in [`sandbox:`](configuration.md#sandbox) (`read`, `write`, `ports`), or another profile (`sandbox: open` keeps the network open; `sandbox: none` turns the confinement off for that command).
 
+## The conversation
+
+The daemon keeps one interactive Claude Code session for the owner's conversation, in a pseudo-terminal under `<data dir>/chat/` (the state, the permissions and an empty working folder). It starts on the first message, or with the daemon when *Always on* is set (`barnraise chat keep on`), and starts again if it ends while kept on. Remote Control is on, so the session shows in the Claude app of the account it runs as; `barnraise chat status` prints the link and `barnraise chat account` lists and switches accounts. On a ChatGPT account (the computer's own Codex login or a Codex account) the conversation is a thread on the account's Codex app-server daemon (`codex remote-control start`, under its `CODEX_HOME`), sandboxed to write only in the conversation's folder; the ChatGPT app pairs with it once (`barnraise chat pair`, or *Pair the phone* in the panel) and then shows the thread. Accounts logged in with an API key reach no phone. The session reads the projects' roots and runs `barnraise`, read-only `git` and `gh`, the web and the account's MCP servers; it never edits files. Its transcript is Claude Code's own, under the account's login folder.
+
 ## What runs on each machine
 
 `barnraise capabilities` lists every feature whose working depends on the machine or on a switch, grouped (security, isolation, merge, checks, context, tokens, worktrees, providers, telemetry, cluster, plugins), each with its status:

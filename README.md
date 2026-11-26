@@ -164,6 +164,7 @@ Every command prints text for people by default and JSON with `--json`. The web 
 - **Proposals at once.** *Triage with the advisor* reads every open proposal and says approve, reject or later for each, with one sentence; nothing is applied until you keep the ones you agree with.
 - **Or let the autopilot take them all.** With the autopilot on (the switch at the top of the panel, or `barnraise autopilot on --all`), the advisor answers the questions, approves or sends back plans and deliveries, and decides the proposals in every project, each with its reasons. What only you can do (an account, money, a device, an access, a personal choice) stays for you, with what to do.
 - **Your words travel.** What you said while deciding goes, as your words, to the next agent that works on the item.
+- **One conversation about everything, on your phone too.** *Conversation* in the panel (or `barnraise chat`) is one Claude session per machine that reads every project, the code and Barnraise itself, and acts on what you ask: focus, pause, priorities, new items, answers. What can be undone happens at once; closing, approving and deciding ask first. It runs with Remote Control on, so your phone opens the same conversation: the Claude app through a link (a QR code in the panel), or the ChatGPT app paired once with a code when it runs on a ChatGPT (Codex) account. Pick the account it runs as, Claude or ChatGPT; it stays running after you leave, and *Always on* starts it with the daemon.
 
 ## How an item moves
 

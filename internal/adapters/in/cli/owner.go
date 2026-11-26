@@ -1,7 +1,6 @@
 package cli
 
 import (
-	"bufio"
 	"context"
 	"fmt"
 	"io"
@@ -297,126 +296,6 @@ func (e *env) handbackCmd() *cobra.Command {
 		}}
 	c.Flags().StringVar(&note, "note", "", "what you changed")
 	return c
-}
-
-// chatCmd: configuring is talking. Plain sentences map to actions, with a
-// confirmation before anything changes.
-func (e *env) chatCmd() *cobra.Command {
-	return &cobra.Command{Use: "chat", Short: "Talk to Barnraise: focus, pause, approve, status… in plain words", Args: cobra.NoArgs,
-		RunE: func(cmd *cobra.Command, _ []string) error {
-			sc := bufio.NewScanner(e.in)
-			fmt.Fprintln(e.out, "Barnraise: What do you need? (\"focus on payments until done\", \"pause\", \"status\", \"approve the plan of I-42\", \"quit\")")
-			for {
-				fmt.Fprint(e.out, "You: ")
-				if !sc.Scan() {
-					return nil
-				}
-				line := strings.TrimSpace(sc.Text())
-				if line == "" {
-					continue
-				}
-				if l := strings.ToLower(line); l == "quit" || l == "exit" || l == "sair" {
-					return nil
-				}
-				act, args, explain := interpret(line)
-				if act == "" {
-					fmt.Fprintln(e.out, "Barnraise: I did not understand. Try: focus <area> [until <date>], pause, resume, status, approve the plan|delivery of I-<n>, answer Q-<n> <option>.")
-					continue
-				}
-				if act != "status" {
-					fmt.Fprintf(e.out, "Barnraise: %s Confirm? [y/N] ", explain)
-					if !sc.Scan() || !strings.HasPrefix(strings.ToLower(strings.TrimSpace(sc.Text())), "y") && !strings.HasPrefix(strings.ToLower(strings.TrimSpace(sc.Text())), "s") {
-						fmt.Fprintln(e.out, "Barnraise: Nothing changed.")
-						continue
-					}
-				}
-				root := e.rootCmd()
-				root.SetArgs(append([]string{act}, args...))
-				root.SetOut(e.out)
-				if err := root.Execute(); err != nil {
-					fmt.Fprintln(e.out, "Barnraise:", err)
-				}
-			}
-		}}
-}
-
-// interpret maps an English or Portuguese sentence to a command.
-func interpret(s string) (string, []string, string) {
-	l := strings.ToLower(s)
-	f := strings.Fields(l)
-	has := func(ws ...string) bool {
-		for _, w := range ws {
-			if strings.Contains(l, w) {
-				return true
-			}
-		}
-		return false
-	}
-	findID := func(prefix string) string {
-		for w := range strings.FieldsSeq(strings.ToUpper(s)) {
-			w = strings.Trim(w, ".,;:!?")
-			if strings.HasPrefix(w, prefix) {
-				return w
-			}
-		}
-		return ""
-	}
-	switch {
-	case has("status", "como está", "como esta", "progresso", "progress"):
-		return "status", nil, ""
-	case has("resume", "retoma", "continua", "despausa"):
-		return "resume", nil, "Resume every agent."
-	case has("pause", "pausa", "para tudo", "stop everything", "emergência", "emergency"):
-		return "pause", []string{"from chat"}, "Pause everything: running sessions stop and nothing starts."
-	case has("approve", "aprova"):
-		id := findID("I-")
-		if p := findID("P-"); p != "" {
-			return "approve", []string{p}, "Approve the proposal " + p + "."
-		}
-		if id == "" {
-			return "", nil, ""
-		}
-		what := "--delivery"
-		if has("plan", "plano") {
-			what = "--plan"
-		}
-		return "approve", []string{id, what}, "Approve the " + strings.TrimPrefix(what, "--") + " of " + id + "."
-	case has("focus", "foca", "foco"):
-		var area, until string
-		for i, w := range f {
-			if (w == "on" || w == "na" || w == "no" || w == "em") && i+1 < len(f) && area == "" {
-				j := i + 1
-				if f[j] == "tela" || f[j] == "the" || f[j] == "screen" || f[j] == "área" || f[j] == "area" {
-					j++
-				}
-				if j+1 < len(f) && f[j] == "de" {
-					j++
-				}
-				if j < len(f) {
-					area = strings.Trim(f[j], ".,")
-				}
-			}
-			if (w == "until" || w == "até") && i+1 < len(f) {
-				until = strings.Trim(strings.Join(f[i+1:], " "), ".")
-			}
-		}
-		if area == "" {
-			return "", nil, ""
-		}
-		args := []string{area}
-		if until != "" && !strings.Contains(until, "pronta") && !strings.Contains(until, "done") && !strings.Contains(until, "terminar") && !strings.Contains(until, "ficar") {
-			args = append(args, "--until", until)
-		}
-		return "focus", args, fmt.Sprintf("Focus on %s, %s; 80%% of capacity goes to it.", area, def(until, "until done"))
-	case has("answer", "responde"):
-		q := findID("Q-")
-		if q == "" {
-			return "", nil, ""
-		}
-		rest := strings.TrimSpace(s[strings.Index(strings.ToUpper(s), q)+len(q):])
-		return "answer", []string{q, rest}, "Answer " + q + ": " + rest + "."
-	}
-	return "", nil, ""
 }
 
 // ---------- knowledge ----------

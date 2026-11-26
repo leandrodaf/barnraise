@@ -29,7 +29,9 @@ import (
 	"github.com/leandrodaf/barnraise/internal/adapters/out/capprobe"
 	"github.com/leandrodaf/barnraise/internal/adapters/out/checks"
 	"github.com/leandrodaf/barnraise/internal/adapters/out/claude"
+	"github.com/leandrodaf/barnraise/internal/adapters/out/claudechat"
 	"github.com/leandrodaf/barnraise/internal/adapters/out/codex"
+	"github.com/leandrodaf/barnraise/internal/adapters/out/codexchat"
 	"github.com/leandrodaf/barnraise/internal/adapters/out/execx"
 	"github.com/leandrodaf/barnraise/internal/adapters/out/gemini"
 	gitx "github.com/leandrodaf/barnraise/internal/adapters/out/git"
@@ -199,6 +201,8 @@ func runDaemon(ctx context.Context, opts cli.DaemonOptions) error {
 		Prober:        capprobe.New(capprobe.Options{Exec: ex, DataDir: d.dataDir, ToolsBin: toolinstall.BinDir(toolinstall.Root(d.dataDir))}),
 		Installer:     toolinstall.New(toolinstall.Options{Root: toolinstall.Root(d.dataDir)}),
 		Login:         providerlogin.New(),
+		Chat:          claudechat.New(),
+		ChatCodex:     codexchat.New(),
 	})
 	d.svc = svc
 	app.RoleText = config.RolePrompt
@@ -206,6 +210,8 @@ func runDaemon(ctx context.Context, opts cli.DaemonOptions) error {
 	svc.Runtime().SetProbe(d.probe)
 	svc.SetMachineSettings(d.machineSettings)
 	svc.SetLivePeer(d.liveFromPeer)
+	// The owner's conversation runs from the start when they keep it on.
+	go svc.StartConversationIfKept(ctx)
 	if opts.NoAgents {
 		svc.Runtime().MaxSessions = -1
 	}

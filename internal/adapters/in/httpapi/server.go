@@ -97,6 +97,7 @@ func New(svc *app.Service, opts Options) *Server {
 	s.routeLessons()
 	s.routeDocuments()
 	s.routeWork()
+	s.routeConversation()
 	s.routeMachines()
 	s.routeLive()
 	s.trustRoutes()

@@ -35,6 +35,7 @@
 	import Agents from './pages/Agents.svelte';
 	import Accounts from './pages/Accounts.svelte';
 	import Proposals from './pages/Proposals.svelte';
+	import Conversation from './pages/Conversation.svelte';
 	import Machines from './pages/Machines.svelte';
 	import Metrics from './pages/Metrics.svelte';
 	import Capabilities from './pages/Capabilities.svelte';
@@ -119,6 +120,7 @@
 								{:else if router.current.name === 'agents'}<Agents />
 								{:else if router.current.name === 'accounts'}<Accounts />
 								{:else if router.current.name === 'proposals'}<Proposals />
+								{:else if router.current.name === 'conversation'}<Conversation />
 								{:else if router.current.name === 'machines'}<Machines />
 								{:else if router.current.name === 'capabilities'}<Capabilities />
 								{:else if router.current.name === 'parts'}<Parts />

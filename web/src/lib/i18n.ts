@@ -964,6 +964,45 @@ Object.assign(pt, {
   clusterPowerWake: 'acordar', clusterPowerRest: 'standby', clusterPowerOpen: 'Abrir as máquinas',
 });
 
+// The conversation: one AI session per machine, about every project, shared
+// with the command line and the Claude app on the owner's phone.
+Object.assign(en, {
+  navConversation: 'Conversation', convTitle: 'Conversation',
+  convSub: 'One AI conversation about everything in your projects. It reads the code and Barnraise, and acts on what you ask.',
+  convRunning: 'Running', convStopped: 'Stopped', convAnswering: 'Answering…', convStarting: 'Starting the session…',
+  convPlaceholder: 'Ask anything, or tell it what to do: "focus on the Atlas until it ships"…', convSend: 'Send', convStop: 'Stop the answer',
+  convNew: 'New conversation', convNewTitle: 'Start a new conversation?', convNewHelp: 'This one stays in the session history; the new one starts empty.',
+  convPhone: 'On your phone', convPhoneHelp: 'Open this link in the Claude app or a browser: it is this same conversation, live.',
+  convPhoneWait: 'The phone link shows once the session starts.', convCopy: 'Copy link', convCopied: 'Link copied',
+  convKeep: 'Always on', convKeepHelp: 'Keep the session running from the daemon\'s start, so the phone finds it without opening the panel.',
+  convPowerOff: 'Stop the session', convPowerOn: 'Start the session', convShutHelp: 'The conversation stays: the next message resumes it.',
+  convEmpty: 'Nothing said yet. It sees every project, item, agent and machine.', convTool: 'Ran {0}', convFailed: 'failed',
+  convS1: 'What is stuck right now, and why?', convS2: 'What did the agents deliver today?', convS3: 'Focus on the most important item until it ships',
+  convS4: 'What should the next goal be?', convUnavailable: 'No conversation on this machine', convEnded: 'The session ended',
+  convPolicy: 'Reversible actions (focus, pause, priority, new items) happen at once; closing, approving and deciding ask first.',
+  convHello: 'What do you want to know or change?', convThinking: 'Thinking…', convSteps: '{0} steps', convStep1: '1 step', convFailedN: '{0} failed',
+  convOutput: 'Output', convCopyAnswer: 'Copy the answer', convToBottom: 'Go to the latest', convKeys: 'Enter sends · Shift+Enter new line · Esc stops · / focuses',
+  convPhoneConnecting: 'Connecting Remote Control…', convPairTitle: 'ChatGPT app', convPairHelp: 'Pair the ChatGPT app once: in Codex, connect a computer and type the code (or scan it). Then this conversation shows on the phone.', convPairButton: 'Pair the phone', convPairCode: 'Code', convPairUntil: 'valid until {0}', convRemote: { connected: 'Remote Control connected', connecting: 'Connecting Remote Control…', errored: 'Remote Control failed', disabled: 'Remote Control off' }, convAccount: 'Account', convAccountHelp: 'The phone shows this conversation in the Claude app signed in to the account chosen here.', convOwnLogin: 'This computer\'s login', convSwitched: 'The conversation now runs as {0}', convWeek: 'week {0}%', convToolRead: 'Read', convToolSearch: 'Search', convToolPlan: 'Plan',
+});
+Object.assign(pt, {
+  navConversation: 'Conversa', convTitle: 'Conversa',
+  convSub: 'Uma conversa com a IA sobre tudo o que acontece nos seus projetos. Ela lê o código e o Barnraise e faz o que você pedir.',
+  convRunning: 'Ligada', convStopped: 'Desligada', convAnswering: 'Respondendo…', convStarting: 'Ligando a sessão…',
+  convPlaceholder: 'Pergunte qualquer coisa ou diga o que fazer: "foca no Atlas até entregar"…', convSend: 'Enviar', convStop: 'Parar a resposta',
+  convNew: 'Nova conversa', convNewTitle: 'Começar uma conversa nova?', convNewHelp: 'Esta fica no histórico da sessão; a nova começa vazia.',
+  convPhone: 'No celular', convPhoneHelp: 'Abra este link no app do Claude ou num navegador: é esta mesma conversa, ao vivo.',
+  convPhoneWait: 'O link do celular aparece quando a sessão liga.', convCopy: 'Copiar link', convCopied: 'Link copiado',
+  convKeep: 'Sempre ligada', convKeepHelp: 'Mantém a sessão ligada desde que o daemon sobe, para o celular achar sem abrir o painel.',
+  convPowerOff: 'Desligar a sessão', convPowerOn: 'Ligar a sessão', convShutHelp: 'A conversa fica: a próxima mensagem retoma.',
+  convEmpty: 'Nada dito ainda. Ela vê todos os projetos, itens, agentes e máquinas.', convTool: 'Rodou {0}', convFailed: 'falhou',
+  convS1: 'O que está travado agora, e por quê?', convS2: 'O que os agentes entregaram hoje?', convS3: 'Foca no item mais importante até entregar',
+  convS4: 'Qual deve ser o próximo objetivo?', convUnavailable: 'Sem conversa nesta máquina', convEnded: 'A sessão terminou',
+  convPolicy: 'O que dá para desfazer (foco, pausa, prioridade, itens novos) ela faz na hora; fechar, aprovar e decidir ela pergunta antes.',
+  convHello: 'O que você quer saber ou mudar?', convThinking: 'Pensando…', convSteps: '{0} passos', convStep1: '1 passo', convFailedN: '{0} falharam',
+  convOutput: 'Saída', convCopyAnswer: 'Copiar a resposta', convToBottom: 'Ir para o mais recente', convKeys: 'Enter envia · Shift+Enter quebra linha · Esc para · / foca',
+  convPhoneConnecting: 'Conectando o Remote Control…', convPairTitle: 'App do ChatGPT', convPairHelp: 'Pareie o app do ChatGPT uma vez: no Codex, conecte um computador e digite o código (ou leia o QR). Depois esta conversa aparece no celular.', convPairButton: 'Parear o celular', convPairCode: 'Código', convPairUntil: 'vale até {0}', convRemote: { connected: 'Remote Control conectado', connecting: 'Conectando o Remote Control…', errored: 'O Remote Control falhou', disabled: 'Remote Control desligado' }, convAccount: 'Conta', convAccountHelp: 'O celular mostra esta conversa no app do Claude logado na conta escolhida aqui.', convOwnLogin: 'Login deste computador', convSwitched: 'A conversa agora roda como {0}', convWeek: 'semana {0}%', convToolRead: 'Leitura', convToolSearch: 'Busca', convToolPlan: 'Plano',
+});
+
 import { locale } from './locale.svelte';
 
 // The current language; t() and tm() read it, so the screen follows a switch.

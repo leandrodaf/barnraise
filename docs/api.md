@@ -202,6 +202,18 @@ curl -s --unix-socket ~/.local/share/barnraise/barnraise.sock \
 
 A machine that cannot be reached, or that runs a Barnraise without this, comes back as a login with `state: failed` and `error` set. When a login ends well, the account is recorded as logged in on that machine (`Account.machines`); with any name there, only those machines and `machine` use the account.
 
+## The conversation
+
+One AI session per machine, about every project, shared by the panel, `barnraise chat` and the Claude app on a phone (Remote Control). Only the owner or an admin token reaches it; a session token never does.
+
+| Call | What it does |
+| --- | --- |
+| `GET /v1/conversation?after=N` | Status (running, busy, Remote Control link), the account it runs as, the accounts it can run as, and the entries from `N` on (`user`, `assistant`, `tool` with input and result). |
+| `POST /v1/conversation/messages` `{"text": "…"}` | Types a message into the session, starting it when it is stopped. |
+| `POST /v1/conversation/account` `{"account": "claude-2"}` | Runs the conversation as another account: `""` for the computer's own Claude login, `"codex"` for its own Codex (ChatGPT) login, or a Claude or Codex account. Each account keeps its own conversation. |
+| `POST /v1/conversation/pair` | On a ChatGPT account: a short-lived code (`manual`, and `code` for a QR code) that pairs the ChatGPT app with this machine's Codex Remote Control. |
+| `POST /v1/conversation/{start,stop,interrupt,new,keep,release}` | Start or stop the session (the conversation stays), stop the answer under way, start a new conversation, keep it running from the daemon's start or not. |
+
 ## Events
 
 Everything that happens becomes an event in an append-only log. Event types are versioned names, the same in the API, in CloudEvents, in webhooks and on NATS.

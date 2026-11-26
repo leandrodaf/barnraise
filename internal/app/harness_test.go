@@ -87,6 +87,8 @@ type envOpts struct {
 	repo       *testkit.Repo
 	files      map[string]string
 	iso        Isolation
+	chat       ports.ChatSession
+	chatCodex  ports.ChatSession
 }
 
 type opt func(*envOpts)
@@ -108,6 +110,8 @@ func withClock(c *testkit.Clock) opt            { return func(o *envOpts) { o.cl
 func withRepo(r *testkit.Repo) opt              { return func(o *envOpts) { o.repo = r } }
 func withFiles(f map[string]string) opt         { return func(o *envOpts) { o.files = f } }
 func withIsolation(i Isolation) opt             { return func(o *envOpts) { o.iso = i } }
+func withChat(c ports.ChatSession) opt          { return func(o *envOpts) { o.chat = c } }
+func withChatCodex(c ports.ChatSession) opt     { return func(o *envOpts) { o.chatCodex = c } }
 
 // env is one daemon with one project, wired to fakes.
 type env struct {
@@ -204,6 +208,8 @@ func newEnv(t *testing.T, opts ...opt) *env {
 		Providers: map[string]ports.Provider{"fake": e.prov}, Log: slog.New(slog.NewTextHandler(io.Discard, nil)),
 		Machine: o.machine, Version: "test", DataDir: t.TempDir(), SocketPath: filepath.Join(t.TempDir(), "s.sock"), BinaryPath: "/bin/barnraise"}
 	deps.Isolation = o.iso
+	deps.Chat = o.chat
+	deps.ChatCodex = o.chatCodex
 	if o.noNotifier {
 		deps.Notifier = nil
 	}

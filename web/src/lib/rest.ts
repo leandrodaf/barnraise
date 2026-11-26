@@ -57,3 +57,20 @@ export type ItemWork = {
 export const work = {
 	ofItem: (project: string, id: string) => rest<ItemWork>('GET', '/v1/items/' + encodeURIComponent(id) + '/work', { project })
 };
+
+// The owner's conversation: one session per machine (GET /v1/conversation).
+export type ConversationEntry = { seq: number; role: 'user' | 'assistant' | 'tool'; text?: string; tool?: string; input?: string; result?: string; failed?: boolean; at?: string };
+export type ConversationAccount = { id: string; provider: string; email?: string; name?: string; plan?: string; week_pct: number; five_hour_pct: number; usable: boolean; why?: string };
+export type Conversation = {
+	session_id: string; name: string; keep: boolean; available: boolean; why?: string;
+	account: string; accounts: ConversationAccount[];
+	status: { running: boolean; busy: boolean; provider?: string; remote_url?: string; remote?: string; started_at?: string; error?: string };
+	entries: ConversationEntry[];
+};
+export const conversation = {
+	get: (after = 0) => rest<Conversation>('GET', '/v1/conversation', { after: String(after) }),
+	send: (text: string) => rest<{ ok: boolean }>('POST', '/v1/conversation/messages', {}, { text }),
+	pair: () => rest<{ code: string; manual: string; expires: string }>('POST', '/v1/conversation/pair', {}, {}),
+	use: (account: string) => rest<{ ok: boolean }>('POST', '/v1/conversation/account', {}, { account }),
+	act: (action: 'start' | 'stop' | 'interrupt' | 'new' | 'keep' | 'release') => rest<{ ok: boolean }>('POST', '/v1/conversation/' + action, {}, {})
+};
