@@ -4,6 +4,8 @@ All notable changes to Barnraise are recorded here. The format follows [Keep a C
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-11-26
+
 ### Fixed
 
 - **owner:** A step that blocks again after a retry, with nothing to wait for, is not retried at once against the same wall. The autopilot answered every "blocked: how should it continue?" with a retry, the agent found the same wall and blocked again, every few minutes: one review item spent 26 million tokens in 19 attempts this way. The second block of the same step within a day now waits before the autopilot decides it (30 minutes, then 2 hours, then 8), or less if something lands on main meanwhile; no session is spent while it waits, and the owner sees it in the digest. The owner is still asked only what needs a person: an account, money, an access or a secret, a legal or brand choice.
@@ -161,6 +163,7 @@ First version: one Go binary that is the daemon, the CLI, the MCP server and the
 - **Web panel** served by the daemon, in English and Portuguese.
 - **Packaging**: release archives for linux and darwin (amd64, arm64) with checksums, SBOMs and keyless cosign signatures, `install.sh`, a container image, a systemd user service (`up --service`) and a system unit.
 
+[0.4.0]: https://github.com/leandrodaf/barnraise/releases/tag/v0.4.0
 [0.3.0]: https://github.com/leandrodaf/barnraise/releases/tag/v0.3.0
 [0.2.1]: https://github.com/leandrodaf/barnraise/releases/tag/v0.2.1
 [0.2.0]: https://github.com/leandrodaf/barnraise/releases/tag/v0.2.0
