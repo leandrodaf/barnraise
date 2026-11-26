@@ -135,6 +135,13 @@ func (s *Service) ItemWork(ctx context.Context, project string, a Actor, id stri
 // newest first, fetching the item's branch when head is not here yet.
 func (s *Service) workCommits(ctx context.Context, p *Project, branch, head string) ([]ports.Commit, error) {
 	g := p.Ports().Git
+	// The main branch moves under an item (another machine integrates, a
+	// person pushes): read it fresh, or its new commits, which the rebased
+	// branch carries, would show as the item's work. Offline, the last fetch
+	// still answers.
+	fctx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	_ = g.Fetch(fctx)
+	cancel()
 	main, err := g.MainHead(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("the main branch cannot be read: %v", err)
