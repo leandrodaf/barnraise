@@ -51,3 +51,4 @@ One short record per decision: context, decision, consequences. A decision that 
 | [ADR-0045](0045-panel-and-desktop-app.md) | One panel for the browser and the desktop app, with no rules in it |
 | [ADR-0046](0046-capability-catalog-and-rootless-tool-installs.md) | A native capability catalog, and pinned, checksum-verified, rootless tool installs |
 | [ADR-0047](0047-barnraise-repairs-main-and-rebases-for-agents.md) | Barnraise rebases for the agent, and one item repairs a check red on main |
+| [ADR-0048](0048-live-view-of-a-running-session.md) | A live view of a running session, opened only while someone watches, and messages that reach it at its next tool call |

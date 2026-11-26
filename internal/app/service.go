@@ -120,6 +120,8 @@ type Service struct {
 	tokens   *TokenRegistry
 	sessions *sessionRegistry
 	runtime  *Runtime
+	// livePeer opens a watch of a session on another machine (live.go).
+	livePeer LivePeer
 	// trust is the provenance state (provenance.go).
 	trust *trustState
 	// telemetry is the short in-memory window of machine readings.
@@ -367,6 +369,7 @@ func (s *Service) emitLocked(ctx context.Context, p *Project, typ, subject, acto
 
 func (s *Service) fanout(p *Project, e domain.Event) {
 	s.hub.Publish(e)
+	s.flagMail(e)
 	switch e.Type {
 	case domain.EvOwnerQuestionAsked, domain.EvProposalCreated, domain.EvItemWaitingOwner, domain.EvItemStepStarted:
 		// Something may wait for the owner: the autopilot looks at the next
@@ -451,6 +454,7 @@ func (s *Service) Ingest(ctx context.Context, e domain.Event) error {
 	p.mu.Unlock()
 	if err == nil {
 		s.hub.Publish(stored[0])
+		s.flagMail(stored[0])
 		s.runtime.Poke()
 		s.dropFinishedWorkspace(ctx, p, stored[0])
 		if stored[0].Type == domain.EvItemIntegrated {

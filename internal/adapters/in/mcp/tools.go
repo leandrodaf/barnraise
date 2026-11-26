@@ -599,7 +599,7 @@ func messageTool() *tool {
 		Name:        "message",
 		Description: "Send a short message to another agent, to every agent of a role or to whoever works on an item. Use it for facts others need now, not for discussion.",
 		Schema: object(map[string]any{
-			"to":      str("An agent name, role:<role> (e.g. role:reviewer) or item:<id> (e.g. item:I-42)."),
+			"to":      str("An agent name, role:<role> (e.g. role:reviewer), item:<id> (e.g. item:I-42), or owner to answer a message of the owner."),
 			"text":    str(fmt.Sprintf("The message, at most %d characters.", domain.MaxMessageLen)),
 			"item_id": str("Item the message is about. Defaults to the item of this session."),
 		}, "to", "text"),

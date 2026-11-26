@@ -97,6 +97,7 @@ func New(svc *app.Service, opts Options) *Server {
 	s.routeLessons()
 	s.routeDocuments()
 	s.routeMachines()
+	s.routeLive()
 	s.trustRoutes()
 	s.mux.HandleFunc("POST /v1/webhooks/github", s.handleGitHub)
 	s.mux.HandleFunc("POST /v1/webhooks/gitlab", s.handleGitLab)

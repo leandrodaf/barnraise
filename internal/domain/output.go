@@ -10,6 +10,11 @@ import (
 	"time"
 )
 
+// MailFlag, in a session folder, tells the session's hooks that a message
+// waits for it: the next tool call reads the inbox at once instead of after
+// the hook's usual pause.
+const MailFlag = ".mail.flag"
+
 // Where the full text of filtered command outputs is kept, inside an item's
 // session folder (.barnraise-session/outputs) or the data folder.
 const (

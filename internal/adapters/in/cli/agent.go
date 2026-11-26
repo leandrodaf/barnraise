@@ -17,6 +17,7 @@ import (
 	pb "github.com/leandrodaf/barnraise/gen/barnraise/v1"
 	"github.com/leandrodaf/barnraise/internal/adapters/in/hooks"
 	"github.com/leandrodaf/barnraise/internal/adapters/in/mcp"
+	"github.com/leandrodaf/barnraise/internal/domain"
 )
 
 func (e *env) nextCmd() *cobra.Command {
@@ -291,7 +292,7 @@ func (e *env) hookCmd() *cobra.Command {
 			if os.Getenv("BARNRAISE_TOKEN") == "" {
 				return nil
 			}
-			if event == "PostToolUse" && !throttle("mail", 20*time.Second) {
+			if event == "PostToolUse" && !mailWaiting() && !throttle("mail", 20*time.Second) {
 				return nil
 			}
 			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
@@ -302,8 +303,13 @@ func (e *env) hookCmd() *cobra.Command {
 			}
 			var b strings.Builder
 			b.WriteString("Messages from Barnraise (delivered between tool calls):\n")
+			fromOwner := false
 			for _, m := range mb.Msg.Messages {
 				fmt.Fprintf(&b, "- %s: %s\n", m.From, m.Text)
+				fromOwner = fromOwner || m.From == "owner" || strings.HasPrefix(m.From, "owner@")
+			}
+			if fromOwner {
+				b.WriteString("The owner is watching this session. Answer them with the message tool (to: owner) when they ask something, then go on with the step.\n")
 			}
 			return hooks.Write(e.out, hooks.AdditionalContext(event, b.String()))
 		}
@@ -332,6 +338,21 @@ func (e *env) hookCmd() *cobra.Command {
 }
 
 // throttle returns true at most once per interval for a key in this session.
+// mailWaiting reports, and clears, the daemon's mark that a message waits
+// for this session (domain.MailFlag): a local file, no network.
+func mailWaiting() bool {
+	wt := os.Getenv("BARNRAISE_WORKTREE")
+	if wt == "" {
+		return false
+	}
+	f := filepath.Join(wt, ".barnraise-session", domain.MailFlag)
+	if _, err := os.Stat(f); err != nil {
+		return false
+	}
+	_ = os.Remove(f)
+	return true
+}
+
 func throttle(key string, every time.Duration) bool {
 	dir := filepath.Join(os.Getenv("BARNRAISE_WORKTREE"), ".barnraise-session")
 	if os.Getenv("BARNRAISE_WORKTREE") == "" {

@@ -10,6 +10,7 @@ Barnraise is API first. Everything the CLI, the MCP server, the hooks and the pa
 | Inbound webhooks | `POST /v1/webhooks/github`, `POST /v1/webhooks/gitlab`, `POST /v1/webhooks/inbound/{project}` |
 | Event chain check (`admin`) | `GET /v1/events/verify[?from=N]`: the report of `barnraise events verify` |
 | Trust of the files that steer agents (`admin`, never a session token) | `GET /v1/trust?project=&item=` (status), `POST /v1/trust?project=&item=` (re-trust, as `barnraise trust`) |
+| Live view of an item's running session and its messages (`admin`, never a session token) | `GET /v1/items/{id}/live?project=[&agent=]` |
 | Health (no token) | `GET /healthz` |
 | Web panel | `GET /` |
 
@@ -264,6 +265,21 @@ curl -N --unix-socket "$SOCK" -H "Authorization: Bearer $TOKEN" \
 Each SSE message has `id:` (the local sequence number), `event:` (the Barnraise type) and `data:` (the CloudEvent). Reconnecting with `Last-Event-ID` resumes after that sequence. The stream sends `: ping` every 20 seconds. The scope needed is `events:read` or `items:read`.
 
 The RPC `ListEvents` and `barnraise events [--after N] [--types …] [-f]` read the same log.
+
+### Live view of a session (SSE)
+
+`GET /v1/items/{id}/live?project=demo` follows the agent session running on an item, for as long as the request stays open: the panel's Agent tab opens it and closes it with the tab ([ADR-0048](adr/0048-live-view-of-a-running-session.md)). It needs `admin` (the owner token has it); a session token is refused whatever its scopes. `agent=` picks one session when two run on the item.
+
+| Event | `data` |
+| --- | --- |
+| `session` | `{project, item_id, agent, role, step, provider, model, machine, since}`: the session followed |
+| `line` | `{at, kind, tool, text, error}`: `kind` is `text` (what the agent writes), `tool` (a call, with a short summary of its input), `result` (the tool's answer), `error` or `limit`; `text` is cut at 300 characters. The last 200 lines come first |
+| `end` | The session ended; the stream stays open for the messages |
+| `idle` | No session runs on the item now |
+| `elsewhere` | `{machine, why}`: it runs on a machine this daemon could not reach for its lines |
+| `message` | `{id, from, to, text, at}`: the item's messages (the last 50 first), then each new one |
+
+When the session runs on another machine of the cluster, this daemon asks that machine for the lines over NATS and passes them on. The lines are kept only in memory, in a small ring per running session; nothing of them enters the event log. To talk to the agent, send a message to `item:<id>` (`SendMessage`): the agent reads it at its next tool call, and answers with its `message` tool to `owner`.
 
 ## Webhooks
 

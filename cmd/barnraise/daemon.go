@@ -205,6 +205,7 @@ func runDaemon(ctx context.Context, opts cli.DaemonOptions) error {
 	app.SetSecretScanner(scanWorktree)
 	svc.Runtime().SetProbe(d.probe)
 	svc.SetMachineSettings(d.machineSettings)
+	svc.SetLivePeer(d.liveFromPeer)
 	if opts.NoAgents {
 		svc.Runtime().MaxSessions = -1
 	}
@@ -234,6 +235,7 @@ func runDaemon(ctx context.Context, opts cli.DaemonOptions) error {
 	go d.serveRemoteStop(ctx)
 	go d.serveRemoteStandby(ctx)
 	go d.serveRemoteCapabilities(ctx)
+	go d.serveRemoteLive(ctx)
 	go d.serveRemoteLogin(ctx)
 	go d.serveRemoteAgents(ctx)
 	go d.serveRemoteProject(ctx)
@@ -537,6 +539,7 @@ func (d *daemon) watchDaemonFile(ctx context.Context) {
 				go d.serveRemoteStop(ctx)
 				go d.serveRemoteStandby(ctx)
 				go d.serveRemoteCapabilities(ctx)
+				go d.serveRemoteLive(ctx)
 				go d.serveRemoteLogin(ctx)
 				go d.serveRemoteAgents(ctx)
 				go d.serveRemoteProject(ctx)

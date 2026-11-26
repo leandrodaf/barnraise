@@ -105,6 +105,10 @@ type liveSession struct {
 	started time.Time
 	// run marks the outputs this session's filter kept, in outputs.
 	run, outputs string
+	// role, provider and model say who the session is, for its watchers.
+	role, provider, model string
+	// feed is the session's live lines (live.go).
+	feed *liveFeed
 	// halted is set when Barnraise stops the session (pause, takeover, close,
 	// shutdown): its end is not the agent's fault.
 	halted atomic.Bool
@@ -740,7 +744,7 @@ func (r *Runtime) start(ctx context.Context, p *Project, slot Slot, a *Assignmen
 		return err
 	}
 	ls := &liveSession{agent: slot.Agent, project: p.Name, itemID: it.ID, step: a.Step.Name, dir: dir, sess: sess, cancel: cancel, started: s.d.Clock.Now(),
-		run: run, outputs: filepath.Join(sessDir, domain.OutputsDir)}
+		run: run, outputs: filepath.Join(sessDir, domain.OutputsDir), role: slot.Role, provider: choice.Provider, model: choice.String(), feed: newLiveFeed()}
 	r.mu.Lock()
 	r.running[slot.Agent] = ls
 	r.mu.Unlock()
@@ -1024,6 +1028,7 @@ func (r *Runtime) watch(p *Project, slot Slot, a *Assignment, ls *liveSession, a
 	defer func() {
 		ls.cancel()
 		s.tokens.Revoke(token)
+		ls.feed.close(s.d.Clock.Now(), "the session ended")
 		r.mu.Lock()
 		delete(r.running, slot.Agent)
 		r.mu.Unlock()
@@ -1048,6 +1053,9 @@ loop:
 		case ev, ok := <-events:
 			if !ok {
 				break loop
+			}
+			if l, show := liveLineOf(ev, s.d.Clock.Now()); show {
+				ls.feed.publish(l)
 			}
 			switch ev.Kind {
 			case ports.PEUsage:
