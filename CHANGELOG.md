@@ -1,5 +1,77 @@
 # Changelog
 
+## v0.2.0 — 2026-11-25
+
+### Novidades
+- feat(panel): an Agent tab on the item page to watch and talk to the agent (6f70b35)
+- feat(runtime): a live view of a running session, opened only while someone watches (1e4e147)
+- feat(queue): the merge queue shows what it does for each item: rebasing, the check it runs on the combined result, moving main (3cc0f1a)
+- feat(analyst): close a draft whose work is gone from main, done by another item or a duplicate, instead of refining it again (5c2ed5a)
+- feat(owner): shape the goal and the focus in a conversation; the item links to its issue, pull request, branch and commit (3675137)
+- feat(machines): every machine has its standby switch in the panel, and one button puts them all to rest or wakes them (65c9806)
+- feat(panel): the dependency graph; what an item waits for is plain to see (e9cbf26)
+- feat(owner): the autopilot records what an agent could not, instead of handing it to the owner (7e20db8)
+- feat(documents): teams rewrite the pull request, plan, item and issue texts; plans draw the design before and after (943404a)
+- feat(owner): an item waits for the items it needs instead of asking; agents edit items from any sandbox (b6662b2)
+- feat(panel): processes, activity and administration; the CLI's owner actions (64b9b06)
+- feat(merge): items land through their pull request when the repository has CI (e6ac55c)
+- feat(owner): ask for work in a conversation; see the autopilot act (1c5985b)
+- feat(owner): models and accounts fall back on limits; locked files unlocked per item (3cc54db)
+- feat(machines): sharing a project again updates it on the machines that have it (49064ab)
+- feat(scheduling): files several items may change at the same time (367c4f7)
+- feat(machines): share a project with a token for its repository (11845fb)
+- feat(machines): share a project with another machine; Godot as an installable tool (4b2f0cc)
+
+### Correções
+- fix(nats): a stream reads its renewal period once, before its goroutine starts (6c168b0)
+- fix(cluster): a newer machine takes the cluster's duties from a machine left on an older binary (f3f63ed)
+- fix(update): a machine that cannot take the newer version tells the cluster and the owner, not only its own log (b031ed9)
+- fix(models): a review whose escalated class offers only the reviewed model runs one level lower instead of never starting (373bbe5)
+- fix(panel): a page left open across a daemon update draws its diagrams again (aa7cddd)
+- fix(flow): Barnraise rebases for the agent; one item repairs a check red on main (97e7b0e)
+- fix(autopilot): decide open proposals while a project is paused; hide put-off proposals on the panel (9cef8df)
+- fix(worktree): put every stale .barnraise/ file back before a step's commit (31f2f8d)
+- fix(runtime): tell a repeating start failure to the cluster again every five minutes (14c3ef1)
+- fix(scheduler): a machine that cannot start sessions no longer holds items; drafts and stuck items show on the panel (fe77ed2)
+- fix(tracker): write issues and pull requests with the repository's shared token (e3bf75c)
+- fix(tracker): repair issues a machine left stale; run the checks from an advisor conversation (95627bb)
+- fix(panel): an item's Related tab reads as a page, not as raw JSON (c4cbb18)
+- fix(panel): an idle item says what it waits for: an account, a busy agent, or the next pass (748737c)
+- fix(machines): a busy machine takes a newer version too (f9408b4)
+- fix(panel): an item that waits says for what; an idle item says why (ee1032a)
+- fix(owner): an answered draft stays a draft until it is ready (32826b1)
+- fix(desktop): the launcher has its styles; starting the daemon says how long it takes (516eca3)
+- fix(machines): a stale repository map never stops an item; a refused item never holds the others (12ccba5)
+- fix(cli): item edit -c writes the criteria again (f77f0bb)
+- fix(machines): the sessions' temporary folder is /var/tmp/barnraise-<uid> (668f412)
+- fix(machines): sessions never fill a small /tmp again (e52f599)
+- fix(owner): the autopilot is never stuck on an advisor that fails (74ef58b)
+- fix(machines): a shared project is cloned over HTTPS when SSH does not reach the host (04f9aee)
+
+### Outros
+- build(panel): rebuild the embedded panel (ffa9a56)
+- test(tracker): the repair test changes the fake tracker under its lock and waits for both failed creates (d68ec12)
+- build(panel): rebuild the embedded panel (6a8f3a7)
+- build(panel): rebuild the embedded panel (5b4e646)
+- perf(panel): read a question's conversation again only when it changes, and refresh at most every 5 s under a steady stream (a93b5ea)
+- perf(panel): stop the item page and the cluster from reading and drawing on every event (18299b3)
+- perf(app): send the timeline without the item snapshots and estimate from the usage events only (3ec208f)
+- build(panel): rebuild the embedded panel (5721974)
+- build(panel): rebuild the embedded panel (348b96c)
+- build(panel): rebuild the embedded panel (2aa4074)
+- merge main (1279a51)
+- build(panel): rebuild the embedded panel (2178ef8)
+- style(panel): the anchor labels of Related stay on one line (a5eaafc)
+- merge feat/machine-switches: one machine's standby through a plain route, no change to the API schema (ea70fae)
+- build(panel): rebuild the embedded panel (80fc6a4)
+- merge main into feat/doc-templates (fbcacde)
+- build(panel): rebuild the embedded panel (dd87b3e)
+- build(panel): rebuild the embedded panel (83a7ca6)
+- style(machines): gofmt (20e0170)
+- build(panel): rebuild the embedded panel (e0b66ba)
+- test(app): the weekly note is found among the notifications, whatever their order (1783404)
+
+
 All notable changes to Barnraise are recorded here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses [semantic versioning](https://semver.org/). Release notes on GitHub are generated from conventional commits.
 
 ## [Unreleased]
