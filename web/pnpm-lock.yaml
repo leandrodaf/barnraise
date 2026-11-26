@@ -24,8 +24,8 @@ importers:
         specifier: ^12.3.0
         version: 12.3.0
       qrcode-generator:
-        specifier: ^1.5.2
-        version: 1.5.2
+        specifier: ^2.0.4
+        version: 2.0.4
     devDependencies:
       '@bufbuild/protoc-gen-es':
         specifier: latest
@@ -1006,8 +1006,8 @@ packages:
     resolution: {integrity: sha512-RVHEU9/Pp1Fnjr/MpAJsZoADukCKhfIi15OunEYiGktIkYLkPVvC1sioWolGDS7XByMTx9m/IGbro0Js13zhnQ==}
     engines: {node: ^10 || ^12 || >=14}
 
-  qrcode-generator@1.5.2:
-    resolution: {integrity: sha512-pItrW0Z9HnDBnFmgiNrY1uxRdri32Uh9EjNYLPVC2zZ3ZRIIEqBoDgm4DkvDwNNDHTK7FNkmr8zAa77BYc9xNw==}
+  qrcode-generator@2.0.4:
+    resolution: {integrity: sha512-mZSiP6RnbHl4xL2Ap5HfkjLnmxfKcPWpWe/c+5XxCuetEenqmNFf1FH/ftXPCtFG5/TDobjsjz6sSNL0Sr8Z9g==}
 
   readdirp@4.1.2:
     resolution: {integrity: sha512-GDhwkLfywWL2s6vEjyhri+eXmfH6j1L7JE27WhqLeYzoh/A3DBaYGEj2H/HFZCn/kMfim73FXxEJTw06WtxQwg==}
@@ -2029,7 +2029,7 @@ snapshots:
       picocolors: 1.1.1
       source-map-js: 1.2.4
 
-  qrcode-generator@1.5.2: {}
+  qrcode-generator@2.0.4: {}
 
   readdirp@4.1.2: {}
 
