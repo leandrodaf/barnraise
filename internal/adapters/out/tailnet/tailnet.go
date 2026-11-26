@@ -103,27 +103,28 @@ type Runner func(ctx context.Context, name string, args ...string) ([]byte, erro
 
 // Network talks to the local Tailscale daemon through its command.
 type Network struct {
-	// Bin is the tailscale command (default "tailscale" on PATH).
+	// Bin is the tailscale command (default "tailscale", found by LookCLI).
 	Bin string
 	// Run executes commands; tests replace it.
 	Run Runner
 }
 
-// New returns a Network using the tailscale command on PATH.
+// New returns a Network using the tailscale command (on the PATH or where
+// its installer put it).
 func New() *Network { return &Network{} }
 
 func (n *Network) bin() string {
 	if n.Bin != "" {
 		return n.Bin
 	}
-	return "tailscale"
+	return cliName
 }
 
 func (n *Network) run(ctx context.Context, args ...string) ([]byte, error) {
 	if n.Run != nil {
 		return n.Run(ctx, n.bin(), args...)
 	}
-	path, err := exec.LookPath(n.bin())
+	path, err := LookCLI(n.bin())
 	if err != nil {
 		return nil, ErrUnavailable
 	}

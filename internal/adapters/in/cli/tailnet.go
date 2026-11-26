@@ -140,6 +140,9 @@ func (e *env) pairingNet(ctx context.Context, df *daemoncfg.File, joining bool) 
 	}
 	if !tn.Available() {
 		_ = tn.Close()
+		if mode == tailnet.ModeTailscale {
+			fmt.Fprintln(e.errOut, "Tailscale is installed but not running or not logged in (open the Tailscale app, or run `tailscale up`); pairing over the local network.")
+		}
 		return p, nil
 	}
 	p.tn, p.own = tn, mode == tailnet.ModeTsnet

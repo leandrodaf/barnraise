@@ -4,6 +4,10 @@ All notable changes to Barnraise are recorded here. The format follows [Keep a C
 
 ## [Unreleased]
 
+### Fixed
+
+- **tailnet:** A new machine with Tailscale installed but its command off the `PATH` joins the tailnet again instead of falling back to the local network. This covers the macOS App Store and standalone apps (the command lives inside `Tailscale.app`) and Homebrew under a daemon started without the shell's `PATH`. Barnraise now also looks in the app bundle, `/opt/homebrew/bin`, `/usr/local/bin`, `/usr/bin`, `/usr/sbin` and `/snap/bin`, and the capability check finds it there too. `machine invite` and `machine join` now say when Tailscale is installed but not running or not logged in, instead of quietly pairing over the local network.
+
 ## [0.2.0] - 2026-11-25
 
 ### Added

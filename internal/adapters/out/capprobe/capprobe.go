@@ -23,6 +23,7 @@ import (
 	"github.com/leandrodaf/barnraise/internal/adapters/out/egress"
 	"github.com/leandrodaf/barnraise/internal/adapters/out/landlock"
 	"github.com/leandrodaf/barnraise/internal/adapters/out/reflink"
+	"github.com/leandrodaf/barnraise/internal/adapters/out/tailnet"
 	"github.com/leandrodaf/barnraise/internal/domain"
 	"github.com/leandrodaf/barnraise/internal/ports"
 )
@@ -64,7 +65,7 @@ var _ ports.CapabilityProber = (*Prober)(nil)
 // New returns a probe.
 func New(o Options) *Prober {
 	if o.LookPath == nil {
-		o.LookPath = exec.LookPath
+		o.LookPath = lookPath
 	}
 	if o.TTL <= 0 {
 		o.TTL = DefaultTTL
@@ -263,4 +264,14 @@ func def(v, d string) string {
 		return d
 	}
 	return v
+}
+
+// lookPath is exec.LookPath, except that tailscale is also found where its
+// installers put it off the PATH (the macOS app bundle, Homebrew), as the
+// daemon finds it.
+func lookPath(name string) (string, error) {
+	if name == "tailscale" {
+		return tailnet.LookCLI(name)
+	}
+	return exec.LookPath(name)
 }

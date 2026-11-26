@@ -8,7 +8,6 @@ import (
 	"io"
 	"net"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -88,7 +87,9 @@ type Config struct {
 	// Logf receives the embedded tailnet's messages meant for people (the
 	// login URL); the auth key is removed from them. Nil discards them.
 	Logf func(format string, args ...any)
-	// LookPath finds the tailscale command; tests replace it.
+	// LookPath finds the tailscale command; tests replace it. The default,
+	// LookCLI, also looks where the installers put it off the PATH (the
+	// macOS app bundle, Homebrew).
 	LookPath func(string) (string, error)
 	// Bin is the tailscale command (default "tailscale").
 	Bin string
@@ -117,7 +118,15 @@ func (c Config) bin() string {
 	if c.Bin != "" {
 		return c.Bin
 	}
-	return "tailscale"
+	return cliName
+}
+
+// findCLI finds the tailscale command (LookPath, by default LookCLI).
+func (c Config) findCLI() (string, error) {
+	if c.LookPath != nil {
+		return c.LookPath(c.bin())
+	}
+	return LookCLI(c.bin())
 }
 
 // HasState reports whether the embedded tailnet logged in before in dir.
@@ -155,11 +164,7 @@ func (c Config) Resolve() (Mode, error) {
 	default:
 		return "", fmt.Errorf("tailnet: unknown network %q", c.Mode)
 	}
-	look := c.LookPath
-	if look == nil {
-		look = exec.LookPath
-	}
-	if _, err := look(c.bin()); err == nil {
+	if _, err := c.findCLI(); err == nil {
 		return ModeTailscale, nil
 	}
 	if Embeddable && (c.authKey() != "" || (c.StateDir != "" && HasState(c.StateDir))) {
@@ -180,7 +185,12 @@ func Open(ctx context.Context, c Config) (Tailnet, Mode, error) {
 	}
 	switch m {
 	case ModeTailscale:
-		return &Network{Bin: c.Bin}, m, nil
+		// Keep the path found: the command is often off the PATH (macOS).
+		bin := c.Bin
+		if p, err := c.findCLI(); err == nil {
+			bin = p
+		}
+		return &Network{Bin: bin}, m, nil
 	case ModeTsnet:
 		t, err := openEmbedded(ctx, c)
 		if err != nil {
