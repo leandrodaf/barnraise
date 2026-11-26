@@ -4,6 +4,10 @@ All notable changes to Barnraise are recorded here. The format follows [Keep a C
 
 ## [Unreleased]
 
+### Changed
+
+- **panel:** The item page's tabs are five at most, underlined, each with its icon: Summary, Agent (with a pulse while a session runs), Activity with its count, Criteria and Dependencies (when the item has any). The checks moved onto the Criteria tab, beside what they prove, with their tally in the tab (`✓ 3/3` or `✕ 2/3`). Resources, Cost, Documents and Related, already summed up in the side column, sit behind **More**, which takes the name of the one open.
+
 ### Fixed
 
 - **git:** An integration no longer moves the local `main` under a checkout that cannot follow it. With a remote, the person's checkout of `main` used to have its branch moved first and its files after, at best: an edit in progress, or an editor that rewrote a file (Godot's `project.godot`), left the files behind, so `git status` showed every integrated change as a local edit undoing it, and every later integration made it worse. Now the files move first, keeping unrelated local changes, and the branch only once they did; otherwise the checkout stays exactly as it was, behind the remote as after a fetch, for its owner to pull.

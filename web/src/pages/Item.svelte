@@ -40,6 +40,16 @@
 	import PencilIcon from '@lucide/svelte/icons/pencil';
 	import SendIcon from '@lucide/svelte/icons/send';
 	import EllipsisIcon from '@lucide/svelte/icons/ellipsis';
+	import FileTextIcon from '@lucide/svelte/icons/file-text';
+	import BotIcon from '@lucide/svelte/icons/bot';
+	import ActivityIcon from '@lucide/svelte/icons/activity';
+	import ListChecksIcon from '@lucide/svelte/icons/list-checks';
+	import NetworkIcon from '@lucide/svelte/icons/network';
+	import CpuIcon from '@lucide/svelte/icons/cpu';
+	import CoinsIcon from '@lucide/svelte/icons/coins';
+	import FileStackIcon from '@lucide/svelte/icons/file-stack';
+	import Link2Icon from '@lucide/svelte/icons/link-2';
+	import ChevronDownIcon from '@lucide/svelte/icons/chevron-down';
 	import LockOpenIcon from '@lucide/svelte/icons/lock-open';
 	import ArchiveXIcon from '@lucide/svelte/icons/archive-x';
 	import WandIcon from '@lucide/svelte/icons/wand-sparkles';
@@ -89,6 +99,14 @@
 		return { it: ir.item!, entries, est, questions, row: row ? ({ ...row, project } as Row) : undefined };
 	}, { relevant });
 	let tab = $state('summary');
+	// Underlined tabs, sized to the bar; the count beside a label is quieter than it.
+	const tabCls =
+		'h-10 flex-none rounded-none px-2.5 text-muted-foreground data-active:text-foreground data-active:!shadow-[inset_0_-2px_0_0_currentColor]';
+	const countCls = 'num rounded-full bg-muted px-1.5 text-[10.5px] font-medium text-muted-foreground';
+	// The checks live on the criteria tab, the proof next to what it proves.
+	$effect(() => {
+		if (tab === 'checks') tab = 'criteria';
+	});
 	// What the item's machines run changes in seconds: while something runs
 	// for it, read it again every few seconds.
 	const live = $derived(!!(data.data?.row && (data.data.row.sessions.length || data.data.row.procs?.count)));
@@ -193,18 +211,56 @@
 
 	<div class="grid gap-4 xl:grid-cols-[minmax(0,1fr)_22rem]">
 		<Tabs.Root bind:value={tab} class="min-w-0">
-			<Tabs.List>
-				<Tabs.Trigger value="summary">{t('tabSummary')}</Tabs.Trigger>
-				<Tabs.Trigger value="timeline">{t('timeline')} <span class="num ml-1 text-[11px] text-muted-foreground">{entries.length}</span></Tabs.Trigger>
-				<Tabs.Trigger value="criteria">{t('criteria')} <span class="num ml-1 text-[11px] text-muted-foreground">{it.criteria.filter((c) => c.met).length}/{it.criteria.length}</span></Tabs.Trigger>
-				{#if row?.checks.length}<Tabs.Trigger value="checks">{t('tabChecks')} <span class="num ml-1 text-[11px] text-muted-foreground">{row.checks.length}</span></Tabs.Trigger>{/if}
-				{#if row?.worktrees.length || row?.procs?.count || row?.sessions.length}<Tabs.Trigger value="resources">{t('tabResources')}{#if row?.procs?.count} <span class="num ml-1 text-[11px] text-st-work">{row.procs.count}</span>{/if}</Tabs.Trigger>{/if}
-				{#if row?.usage && Number(row.usage.tokens)}<Tabs.Trigger value="cost">{t('ovCost')}</Tabs.Trigger>{/if}
-				{#if it.deps.length || depRows.some((r) => r.deps?.includes(id))}<Tabs.Trigger value="deps">{t('tabDeps')}</Tabs.Trigger>{/if}
-				{#if !finished(it.status) || row?.sessions.length}<Tabs.Trigger value="agent">{t('tabAgent')}{#if row?.sessions.length} <span class="ml-1 size-1.5 rounded-full bg-st-work" aria-hidden="true"></span>{/if}</Tabs.Trigger>{/if}
-				<Tabs.Trigger value="documents">{t('tabDocuments')}</Tabs.Trigger>
-				<Tabs.Trigger value="related">{t('tabRelated')}</Tabs.Trigger>
-			</Tabs.List>
+			{@const checksOk = row?.checks.filter((c) => c.passed).length || 0}
+			{@const checksN = row?.checks.length || 0}
+			{@const hasDeps = it.deps.length > 0 || depRows.some((r) => r.deps?.includes(id))}
+			{@const showAgent = !finished(it.status) || !!row?.sessions.length}
+			{@const more = [
+				{ v: 'resources', label: t('tabResources'), icon: CpuIcon, show: !!(row?.worktrees.length || row?.procs?.count || row?.sessions.length), count: row?.procs?.count ? String(row.procs.count) : '' },
+				{ v: 'cost', label: t('ovCost'), icon: CoinsIcon, show: !!(row?.usage && Number(row.usage.tokens)), count: row?.usage && Number(row.usage.tokens) ? money(row.usage.costUsd) : '' },
+				{ v: 'documents', label: t('tabDocuments'), icon: FileStackIcon, show: true, count: '' },
+				{ v: 'related', label: t('tabRelated'), icon: Link2Icon, show: true, count: '' }
+			].filter((m) => m.show)}
+			{@const inMore = more.find((m) => m.v === tab)}
+			<!-- Five tabs at most in the bar, the ones looked at while an item moves;
+			     what is read now and then sits behind "More", which takes the name of
+			     the tab open from it. -->
+			<div class="relative flex items-center gap-1 border-b">
+				<Tabs.List variant="line" class="!h-10 min-w-0 justify-start gap-0.5 overflow-x-auto overflow-y-hidden p-0 [scrollbar-width:none]">
+					<Tabs.Trigger value="summary" class={tabCls}><FileTextIcon />{t('tabSummary')}</Tabs.Trigger>
+					{#if showAgent}
+						<Tabs.Trigger value="agent" class={tabCls}>
+							<BotIcon />{t('tabAgent')}
+							{#if row?.sessions.length}<span class="relative ml-0.5 flex size-2" aria-label={t('live')}><span class="absolute inline-flex size-full animate-ping rounded-full bg-st-work opacity-60"></span><span class="relative inline-flex size-2 rounded-full bg-st-work"></span></span>{/if}
+						</Tabs.Trigger>
+					{/if}
+					<Tabs.Trigger value="timeline" class={tabCls}><ActivityIcon />{t('timeline')}<span class={countCls}>{entries.length}</span></Tabs.Trigger>
+					<Tabs.Trigger value="criteria" class={tabCls}>
+						<ListChecksIcon />{t('criteria')}
+						<span class={countCls}>{it.criteria.filter((c) => c.met).length}/{it.criteria.length}</span>
+						{#if checksN}<span class="num rounded-full px-1.5 text-[10.5px] font-medium {checksOk === checksN ? 'bg-st-done/12 text-st-done' : 'bg-st-fail/12 text-st-fail'}" title={t('tabChecks')}>{checksOk === checksN ? '✓' : '✕'} {checksOk}/{checksN}</span>{/if}
+					</Tabs.Trigger>
+					{#if hasDeps}<Tabs.Trigger value="deps" class={tabCls}><NetworkIcon />{t('tabDeps')}</Tabs.Trigger>{/if}
+				</Tabs.List>
+				<DropdownMenu.Root>
+					<DropdownMenu.Trigger>
+						{#snippet child({ props })}
+							<button {...props} class="relative inline-flex h-10 shrink-0 items-center gap-1.5 px-2.5 text-sm font-medium transition-colors hover:text-foreground {inMore ? 'text-foreground shadow-[inset_0_-2px_0_0_currentColor]' : 'text-muted-foreground'}">
+								{#if inMore}{@const Icon = inMore.icon}<Icon class="size-4" />{inMore.label}{:else}{t('tabMore')}{/if}
+								<ChevronDownIcon class="size-3.5 opacity-60" />
+							</button>
+						{/snippet}
+					</DropdownMenu.Trigger>
+					<DropdownMenu.Content align="start" class="w-56">
+						{#each more as m (m.v)}
+							{@const Icon = m.icon}
+							<DropdownMenu.Item onSelect={() => (tab = m.v)} class={tab === m.v ? 'bg-muted' : ''}>
+								<Icon />{m.label}{#if m.count}<span class="num ml-auto text-xs text-muted-foreground">{m.count}</span>{/if}
+							</DropdownMenu.Item>
+						{/each}
+					</DropdownMenu.Content>
+				</DropdownMenu.Root>
+			</div>
 			<Tabs.Content value="summary" class="mt-3 space-y-4">
 				{#if it.body}<Section title={t('body')}><Markdown text={it.body} /></Section>{/if}
 				{#each [['preserve', it.preserve], ['checklist', it.checklist], ['clarifications', it.clarifications], ['tweaks', it.tweaks]] as [k, arr] (k)}
@@ -242,9 +298,8 @@
 						</ul>
 					{/if}
 				</Section>
-			{/if}</Tabs.Content>
-			{#if row?.checks.length}
-				<Tabs.Content value="checks" class="mt-3">{#if tab === 'checks'}
+				{#if row?.checks.length}
+					<div class="mt-4">
 					<Section title={t('tabChecks')} pad={false}>
 						<ul class="divide-y">
 							{#each row.checks as c (c.check + c.at)}
@@ -260,8 +315,9 @@
 							{/each}
 						</ul>
 					</Section>
-				{/if}</Tabs.Content>
-			{/if}
+					</div>
+				{/if}
+			{/if}</Tabs.Content>
 			<Tabs.Content value="resources" class="mt-3 space-y-4">{#if tab === 'resources'}
 				<Section title={t('procTitle')} sub={t('procItemHelp')}>
 					<ProcSummary p={row?.procs} />
