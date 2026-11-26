@@ -4,6 +4,8 @@ All notable changes to Barnraise are recorded here. The format follows [Keep a C
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-11-26
+
 ### Changed
 
 - **panel:** The item page's tabs are five at most, underlined, each with its icon: Summary, Agent (with a pulse while a session runs), Activity with its count, Criteria and Dependencies (when the item has any). The checks moved onto the Criteria tab, beside what they prove, with their tally in the tab (`✓ 3/3` or `✕ 2/3`). Resources, Cost, Documents and Related, already summed up in the side column, sit behind **More**, which takes the name of the one open.
@@ -147,6 +149,7 @@ First version: one Go binary that is the daemon, the CLI, the MCP server and the
 - **Web panel** served by the daemon, in English and Portuguese.
 - **Packaging**: release archives for linux and darwin (amd64, arm64) with checksums, SBOMs and keyless cosign signatures, `install.sh`, a container image, a systemd user service (`up --service`) and a system unit.
 
+[0.3.0]: https://github.com/leandrodaf/barnraise/releases/tag/v0.3.0
 [0.2.1]: https://github.com/leandrodaf/barnraise/releases/tag/v0.2.1
 [0.2.0]: https://github.com/leandrodaf/barnraise/releases/tag/v0.2.0
 [0.1.1]: https://github.com/leandrodaf/barnraise/releases/tag/v0.1.1
