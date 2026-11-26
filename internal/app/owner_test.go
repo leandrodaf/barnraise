@@ -315,13 +315,15 @@ func TestProposals(t *testing.T) {
 	if _, err := e.svc.Propose(e.ctx, "demo", ag, prop("compress images", "media")); err != nil {
 		t.Fatal(err)
 	}
-	_, err = e.svc.Propose(e.ctx, "demo", ag, prop("one too many", "misc"))
-	wantErr(t, err, ErrConflict) // 3 per agent per day
+	// No daily count by default: a proposal is weighed, not counted.
+	if _, err := e.svc.Propose(e.ctx, "demo", ag, prop("one more finding", "misc")); err != nil {
+		t.Fatal(err)
+	}
 	if _, err := e.svc.Propose(e.ctx, "demo", owner(), domain.Proposal{Title: "Export to PDF", Problem: "people print", Evidence: "emails", Impact: "users", Size: "6h", Area: "export", GoalLink: "growth", Kind: "feature"}); err != nil {
 		t.Fatal("the owner has no daily limit:", err)
 	}
 	open, groups, err := e.svc.ListProposals("demo", owner(), false)
-	if err != nil || len(open) != 4 || len(groups) == 0 {
+	if err != nil || len(open) != 5 || len(groups) == 0 {
 		t.Fatal(open, groups, err)
 	}
 	if _, _, err := e.svc.ListProposals("demo", Actor{}, false); err == nil {
@@ -332,7 +334,7 @@ func TestProposals(t *testing.T) {
 	}
 
 	analyst := agent("analyst", "", "")
-	_, err = e.svc.DecideProposal(e.ctx, "demo", analyst, "P-4", "approve", "")
+	_, err = e.svc.DecideProposal(e.ctx, "demo", analyst, "P-5", "approve", "")
 	wantErr(t, err, ErrForbidden) // features are the owner's
 	got, err := e.svc.DecideProposal(e.ctx, "demo", analyst, "p-1", "approve", "good")
 	if err != nil || got.Status != domain.ProposalApproved || got.ItemID == "" {
@@ -356,7 +358,7 @@ func TestProposals(t *testing.T) {
 	if e.p.Snapshot().Proposals["P-2"].Status != domain.ProposalRejected {
 		t.Fatal("rejected through approve")
 	}
-	feat, err := e.svc.DecideProposal(e.ctx, "demo", owner(), "P-4", "approve", "")
+	feat, err := e.svc.DecideProposal(e.ctx, "demo", owner(), "P-5", "approve", "")
 	if err != nil || e.item(feat.ItemID).Kind != "feature" {
 		t.Fatal(feat, err)
 	}
@@ -382,7 +384,7 @@ func TestProposals(t *testing.T) {
 
 	// Expiry: open proposals not decided in 14 days close with the reason.
 	e.clock.Advance(15 * 24 * time.Hour)
-	if n := e.svc.expireProposals(e.ctx, e.p); n != 1 {
+	if n := e.svc.expireProposals(e.ctx, e.p); n != 2 {
 		t.Fatalf("expired %d", n)
 	}
 	if p := e.p.Snapshot().Proposals["P-3"]; p.Status != domain.ProposalExpired || !strings.Contains(p.Reason, "not approved within") {

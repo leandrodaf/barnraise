@@ -34,7 +34,7 @@ Formats used below:
 | `flows` | mapping | from the template | See [flows](#flows) |
 | `kinds` | mapping | see [kinds](#kinds) | Item kind to flow name |
 | `capacity` | mapping | `{goal: 80%, bugs: 15%, improvements: 5%}` | See [capacity](#capacity) |
-| `proposals` | mapping | `{per_agent_per_day: 3, expire: 14d, duplicate: comment}` | See [proposals](#proposals) |
+| `proposals` | mapping | `{expire: 14d, duplicate: comment}` | See [proposals](#proposals) |
 | `items` | mapping | see [items](#items) | Item size and tweaks |
 | `self_improvement` | mapping | `{budget: 1/week, approves: owner}` | See [self_improvement](#self_improvement) |
 | `models` | mapping | built-in router | See [models](#models) |
@@ -328,7 +328,7 @@ Self-improvement of Barnraise is a separate lane, set in [self_improvement](#sel
 
 | Key | Default | Meaning |
 | --- | --- | --- |
-| `per_agent_per_day` | `3` | Proposals each agent may make per day |
+| `per_agent_per_day` | `0` (none) | An optional daily cap on proposals: an item's findings count together, a proposal outside an item counts by its agent. Off by default: a proposal is weighed by its `goal_link` and by triage, and one an item cannot be delivered without (`blocks`) never counts |
 | `expire` | `14d` | A proposal not approved by then closes itself, with the reason recorded |
 | `duplicate` | `comment` | What happens to a proposal similar to an existing one in the same area |
 

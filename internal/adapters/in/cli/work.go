@@ -485,7 +485,7 @@ func (e *env) proposalsCmd() *cobra.Command {
 func (e *env) proposeCmd() *cobra.Command {
 	var p pb.Proposal
 	var prio int32
-	c := &cobra.Command{Use: "propose", Short: "Propose an item in the fixed shape (limit per agent per day)", Args: cobra.NoArgs,
+	c := &cobra.Command{Use: "propose", Short: "Propose an item in the fixed shape, when the goal needs it", Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			p.Priority = prio
 			ctx, cancel := e.ctx()

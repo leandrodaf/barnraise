@@ -1153,27 +1153,32 @@ func (x *FocusEffect) GetShare() int32 {
 }
 
 type Proposal struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	Version       int32                  `protobuf:"varint,2,opt,name=version,proto3" json:"version,omitempty"`
-	Title         string                 `protobuf:"bytes,3,opt,name=title,proto3" json:"title,omitempty"`
-	Problem       string                 `protobuf:"bytes,4,opt,name=problem,proto3" json:"problem,omitempty"`
-	Evidence      string                 `protobuf:"bytes,5,opt,name=evidence,proto3" json:"evidence,omitempty"`
-	Impact        string                 `protobuf:"bytes,6,opt,name=impact,proto3" json:"impact,omitempty"`
-	Size          string                 `protobuf:"bytes,7,opt,name=size,proto3" json:"size,omitempty"`
-	Area          string                 `protobuf:"bytes,8,opt,name=area,proto3" json:"area,omitempty"`
-	GoalLink      string                 `protobuf:"bytes,9,opt,name=goal_link,json=goalLink,proto3" json:"goal_link,omitempty"`
-	Kind          string                 `protobuf:"bytes,10,opt,name=kind,proto3" json:"kind,omitempty"`
-	Priority      int32                  `protobuf:"varint,11,opt,name=priority,proto3" json:"priority,omitempty"`
-	By            string                 `protobuf:"bytes,12,opt,name=by,proto3" json:"by,omitempty"`
-	Status        string                 `protobuf:"bytes,13,opt,name=status,proto3" json:"status,omitempty"`
-	Comments      []string               `protobuf:"bytes,14,rep,name=comments,proto3" json:"comments,omitempty"`
-	Reason        string                 `protobuf:"bytes,15,opt,name=reason,proto3" json:"reason,omitempty"`
-	ItemId        string                 `protobuf:"bytes,16,opt,name=item_id,json=itemId,proto3" json:"item_id,omitempty"`
-	CreatedAt     string                 `protobuf:"bytes,17,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
-	DecidedAt     string                 `protobuf:"bytes,18,opt,name=decided_at,json=decidedAt,proto3" json:"decided_at,omitempty"`
-	DecidedBy     string                 `protobuf:"bytes,19,opt,name=decided_by,json=decidedBy,proto3" json:"decided_by,omitempty"`
-	LaterUntil    string                 `protobuf:"bytes,20,opt,name=later_until,json=laterUntil,proto3" json:"later_until,omitempty"`
+	state      protoimpl.MessageState `protogen:"open.v1"`
+	Id         string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Version    int32                  `protobuf:"varint,2,opt,name=version,proto3" json:"version,omitempty"`
+	Title      string                 `protobuf:"bytes,3,opt,name=title,proto3" json:"title,omitempty"`
+	Problem    string                 `protobuf:"bytes,4,opt,name=problem,proto3" json:"problem,omitempty"`
+	Evidence   string                 `protobuf:"bytes,5,opt,name=evidence,proto3" json:"evidence,omitempty"`
+	Impact     string                 `protobuf:"bytes,6,opt,name=impact,proto3" json:"impact,omitempty"`
+	Size       string                 `protobuf:"bytes,7,opt,name=size,proto3" json:"size,omitempty"`
+	Area       string                 `protobuf:"bytes,8,opt,name=area,proto3" json:"area,omitempty"`
+	GoalLink   string                 `protobuf:"bytes,9,opt,name=goal_link,json=goalLink,proto3" json:"goal_link,omitempty"`
+	Kind       string                 `protobuf:"bytes,10,opt,name=kind,proto3" json:"kind,omitempty"`
+	Priority   int32                  `protobuf:"varint,11,opt,name=priority,proto3" json:"priority,omitempty"`
+	By         string                 `protobuf:"bytes,12,opt,name=by,proto3" json:"by,omitempty"`
+	Status     string                 `protobuf:"bytes,13,opt,name=status,proto3" json:"status,omitempty"`
+	Comments   []string               `protobuf:"bytes,14,rep,name=comments,proto3" json:"comments,omitempty"`
+	Reason     string                 `protobuf:"bytes,15,opt,name=reason,proto3" json:"reason,omitempty"`
+	ItemId     string                 `protobuf:"bytes,16,opt,name=item_id,json=itemId,proto3" json:"item_id,omitempty"`
+	CreatedAt  string                 `protobuf:"bytes,17,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	DecidedAt  string                 `protobuf:"bytes,18,opt,name=decided_at,json=decidedAt,proto3" json:"decided_at,omitempty"`
+	DecidedBy  string                 `protobuf:"bytes,19,opt,name=decided_by,json=decidedBy,proto3" json:"decided_by,omitempty"`
+	LaterUntil string                 `protobuf:"bytes,20,opt,name=later_until,json=laterUntil,proto3" json:"later_until,omitempty"`
+	// blocks: the proposing item cannot be delivered without it; it becomes
+	// an item at once, which the proposing item waits for.
+	Blocks bool `protobuf:"varint,21,opt,name=blocks,proto3" json:"blocks,omitempty"`
+	// from_item: the item whose session found it.
+	FromItem      string `protobuf:"bytes,22,opt,name=from_item,json=fromItem,proto3" json:"from_item,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1344,6 +1349,20 @@ func (x *Proposal) GetDecidedBy() string {
 func (x *Proposal) GetLaterUntil() string {
 	if x != nil {
 		return x.LaterUntil
+	}
+	return ""
+}
+
+func (x *Proposal) GetBlocks() bool {
+	if x != nil {
+		return x.Blocks
+	}
+	return false
+}
+
+func (x *Proposal) GetFromItem() string {
+	if x != nil {
+		return x.FromItem
 	}
 	return ""
 }
@@ -4470,9 +4489,12 @@ func (x *ProposeRequest) GetProposal() *Proposal {
 }
 
 type ProposeResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Proposal      *Proposal              `protobuf:"bytes,1,opt,name=proposal,proto3" json:"proposal,omitempty"`
-	Duplicate     string                 `protobuf:"bytes,2,opt,name=duplicate,proto3" json:"duplicate,omitempty"`
+	state     protoimpl.MessageState `protogen:"open.v1"`
+	Proposal  *Proposal              `protobuf:"bytes,1,opt,name=proposal,proto3" json:"proposal,omitempty"`
+	Duplicate string                 `protobuf:"bytes,2,opt,name=duplicate,proto3" json:"duplicate,omitempty"`
+	// item: the item made from a proposal that blocks its author's item (or
+	// the item that already covers it), for the author to wait for.
+	Item          string `protobuf:"bytes,3,opt,name=item,proto3" json:"item,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -4517,6 +4539,13 @@ func (x *ProposeResponse) GetProposal() *Proposal {
 func (x *ProposeResponse) GetDuplicate() string {
 	if x != nil {
 		return x.Duplicate
+	}
+	return ""
+}
+
+func (x *ProposeResponse) GetItem() string {
+	if x != nil {
+		return x.Item
 	}
 	return ""
 }
@@ -13676,7 +13705,7 @@ const file_barnraise_v1_barnraise_proto_rawDesc = "" +
 	"\vfocus_items\x18\x01 \x01(\x05R\n" +
 	"focusItems\x12)\n" +
 	"\x10parked_elsewhere\x18\x02 \x03(\tR\x0fparkedElsewhere\x12\x14\n" +
-	"\x05share\x18\x03 \x01(\x05R\x05share\"\x80\x04\n" +
+	"\x05share\x18\x03 \x01(\x05R\x05share\"\xb5\x04\n" +
 	"\bProposal\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x18\n" +
 	"\aversion\x18\x02 \x01(\x05R\aversion\x12\x14\n" +
@@ -13702,7 +13731,9 @@ const file_barnraise_v1_barnraise_proto_rawDesc = "" +
 	"\n" +
 	"decided_by\x18\x13 \x01(\tR\tdecidedBy\x12\x1f\n" +
 	"\vlater_until\x18\x14 \x01(\tR\n" +
-	"laterUntil\"Y\n" +
+	"laterUntil\x12\x16\n" +
+	"\x06blocks\x18\x15 \x01(\bR\x06blocks\x12\x1b\n" +
+	"\tfrom_item\x18\x16 \x01(\tR\bfromItem\"Y\n" +
 	"\rProposalGroup\x12\x12\n" +
 	"\x04area\x18\x01 \x01(\tR\x04area\x124\n" +
 	"\tproposals\x18\x02 \x03(\v2\x16.barnraise.v1.ProposalR\tproposals\"\x87\x01\n" +
@@ -13994,10 +14025,11 @@ const file_barnraise_v1_barnraise_proto_rawDesc = "" +
 	"\x06result\x18\x02 \x01(\v2\x19.barnraise.v1.CheckResultR\x06result\"^\n" +
 	"\x0eProposeRequest\x12\x18\n" +
 	"\aproject\x18\x01 \x01(\tR\aproject\x122\n" +
-	"\bproposal\x18\x02 \x01(\v2\x16.barnraise.v1.ProposalR\bproposal\"c\n" +
+	"\bproposal\x18\x02 \x01(\v2\x16.barnraise.v1.ProposalR\bproposal\"w\n" +
 	"\x0fProposeResponse\x122\n" +
 	"\bproposal\x18\x01 \x01(\v2\x16.barnraise.v1.ProposalR\bproposal\x12\x1c\n" +
-	"\tduplicate\x18\x02 \x01(\tR\tduplicate\"B\n" +
+	"\tduplicate\x18\x02 \x01(\tR\tduplicate\x12\x12\n" +
+	"\x04item\x18\x03 \x01(\tR\x04item\"B\n" +
 	"\x14ListProposalsRequest\x12\x18\n" +
 	"\aproject\x18\x01 \x01(\tR\aproject\x12\x10\n" +
 	"\x03all\x18\x02 \x01(\bR\x03all\"\x82\x01\n" +

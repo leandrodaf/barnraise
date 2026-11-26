@@ -19,7 +19,7 @@ Este arquivo está em português porque a regra é a do próprio Barnraise: o qu
 
 ## O que você ganha
 
-- **Uma fila que termina.** Todo objetivo tem um fim mensurável. Os agentes propõem trabalho, mas as propostas têm limite diário, expiram e precisam de aprovação; a fila não cresce sozinha.
+- **Uma fila que termina.** Todo objetivo tem um fim mensurável. Os agentes só propõem trabalho quando o objetivo precisa: toda proposta diz como serve ao objetivo, a triagem aprova ou recusa, e ela expira; a fila não cresce sozinha. Uma correção sem a qual um item não pode ser entregue vira item na hora, e nada fica esperando burocracia.
 - **O fluxo é código, não prompt.** O daemon decide a próxima etapa, o retrabalho e a integração. O modelo só faz o trabalho da etapa em que está.
 - **Verificação que o modelo não contorna na conversa.** Os critérios são ligados a verificações (build, testes, CI). A revisão roda num modelo diferente do que implementou. Só a fila de integração escreve na main.
 - **Suas assinaturas, bem usadas.** Várias contas por provedor com os limites reais, modelo barato nas etapas baratas e só o contexto de que cada etapa precisa.

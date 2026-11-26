@@ -163,6 +163,11 @@ message Proposal {
   string decided_at = 18;
   string decided_by = 19;
   string later_until = 20;
+  // blocks: the proposing item cannot be delivered without it; it becomes
+  // an item at once, which the proposing item waits for.
+  bool blocks = 21;
+  // from_item: the item whose session found it.
+  string from_item = 22;
 }
 
 message ProposalGroup {
@@ -547,6 +552,9 @@ message ProposeRequest {
 message ProposeResponse {
   Proposal proposal = 1;
   string duplicate = 2;
+  // item: the item made from a proposal that blocks its author's item (or
+  // the item that already covers it), for the author to wait for.
+  string item = 3;
 }
 
 message ListProposalsRequest {

@@ -17,7 +17,7 @@ The name comes from "barn raising": neighbours building a barn together in a day
 
 ## What you get
 
-- **A queue that ends.** Every goal has a measurable end. Agents propose work, but proposals have a daily limit, expire and need approval, so the queue does not grow by itself.
+- **A queue that ends.** Every goal has a measurable end. Agents propose work only when the goal needs it: every proposal says how it serves the goal, triage approves or turns it down, and it expires, so the queue does not grow by itself. A fix an item cannot be delivered without becomes an item at once, so nothing waits on paperwork.
 - **The flow is code, not a prompt.** The daemon decides the next step, the rework and the integration. The model only does the work of the step it is in.
 - **Verification that a model cannot talk its way past.** Criteria are tied to checks (build, tests, CI). A review runs on a different model from the implementation. Only the merge queue writes to main.
 - **Your subscriptions, used well.** Several accounts per provider with their real limits, a cheap model for cheap steps, and only the context each step needs.

@@ -337,7 +337,7 @@ The tools a session sees follow its role (`BARNRAISE_ROLE`; empty is the owner).
 | `next_item` | `items:claim` | every agent role, owner | Atomically reserves the next item and returns the step, instructions and context; with no authorized work the agent records its state and ends its turn |
 | `deliver` | `deliveries:write` | implementers, analyst, owner | Ends a step with a fixed status (`DONE`, `DONE_WITH_CONCERNS`, `NEEDS_CONTEXT`, `BLOCKED`), criteria marked with evidence, files touched |
 | `review` | `reviews:write` | reviewers, analyst, owner | Two verdicts (criteria, code), a decision (`APPROVE`, `REWORK`, `REJECT`) and findings; a review without both verdicts is refused |
-| `propose` | `proposals:write` | everyone | A proposal in the fixed shape, with a daily limit per agent |
+| `propose` | `proposals:write` | everyone | A proposal in the fixed shape, weighed by what it does for the goal; `blocks: true` (only from an item's session) makes it an item at once, for that item to wait for |
 | `ask_owner` | `owner:ask` | analyst, implementers by exception, owner | Context, decision, 2 to 4 options with one recommended, and what happens if nobody answers |
 | `message` | `messages:write` | everyone | A short message to an agent, a role or whoever works on an item |
 | `status` | `items:read` | everyone | Goal and progress, focus, counts, queue, questions, agents, accounts, alerts |

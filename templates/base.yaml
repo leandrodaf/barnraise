@@ -5,7 +5,7 @@ main_branch: main
 tracker:
   type: local
 capacity: { goal: 80%, bugs: 15%, improvements: 5% }
-proposals: { per_agent_per_day: 3, expire: 14d, duplicate: comment }
+proposals: { expire: 14d, duplicate: comment }
 items:
   target_size: 2h-6h
   smaller: tweak

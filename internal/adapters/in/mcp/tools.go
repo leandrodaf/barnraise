@@ -452,7 +452,7 @@ func validateReview(r *pb.Review) error {
 func proposeTool() *tool {
 	t := &tool{
 		Name:        "propose",
-		Description: "Propose work outside your item in the fixed format. The owner decides; nothing is built until approved. There is a daily limit per agent, and equal proposals become a comment on the existing one.",
+		Description: "Propose work outside your item in the fixed format, only when the goal needs it: goal_link says how. Triage decides; nothing is built until approved, and equal proposals become a comment on the existing one. When your own item cannot be delivered without the change (a defect your work found, a missing piece another area owns), set blocks: it becomes an item at once, with no triage, and you deliver BLOCKED with waits_for on it.",
 		Schema: object(map[string]any{
 			"title":     str("Short title stating the change."),
 			"problem":   str("The problem, in one or two sentences."),
@@ -463,6 +463,7 @@ func proposeTool() *tool {
 			"goal_link": str("How it serves the current goal, or 'none' with why it still matters."),
 			"kind":      enum("Kind of change. self_improvement changes how the agents work.", "feature", "improvement", "bug", "self_improvement"),
 			"priority":  integer("0 (highest) to 3. Defaults to 2.", 0, 3),
+			"blocks":    boolean("true only when your item cannot be delivered without this change: it becomes an item now, for your item to wait for."),
 		}, "title", "problem", "evidence", "impact", "size", "area", "goal_link"),
 	}
 	t.run = func(ctx context.Context, s *server, args json.RawMessage) *toolResult {
@@ -476,6 +477,7 @@ func proposeTool() *tool {
 			GoalLink string `json:"goal_link"`
 			Kind     string `json:"kind"`
 			Priority *int32 `json:"priority"`
+			Blocks   bool   `json:"blocks"`
 		}
 		if err := decodeArgs(t, args, &a); err != nil {
 			return errorResult(err.Error())
@@ -497,13 +499,17 @@ func proposeTool() *tool {
 		}
 		p := &pb.Proposal{Title: strings.TrimSpace(a.Title), Problem: strings.TrimSpace(a.Problem), Evidence: strings.TrimSpace(a.Evidence),
 			Impact: strings.TrimSpace(a.Impact), Size: strings.TrimSpace(a.Size), Area: strings.TrimSpace(a.Area),
-			GoalLink: strings.TrimSpace(a.GoalLink), Kind: kind, Priority: prio}
+			GoalLink: strings.TrimSpace(a.GoalLink), Kind: kind, Priority: prio, Blocks: a.Blocks}
 		resp, err := s.api.Propose(ctx, connect.NewRequest(&pb.ProposeRequest{Project: s.opts.Project, Proposal: p}))
 		if err != nil {
 			return daemonError(err)
 		}
 		var text string
 		switch {
+		case resp.Msg.GetItem() != "":
+			text = fmt.Sprintf("%s covers it and your item waits for it: deliver BLOCKED with waits_for [%s]. Your step starts again by itself once it is integrated; do not build it in your item.", resp.Msg.GetItem(), resp.Msg.GetItem())
+		case a.Blocks && resp.Msg.GetProposal().GetStatus() == "rejected":
+			text = fmt.Sprintf("%s was turned down before (%s): your item must be delivered without it, or ask the owner.", resp.Msg.GetProposal().GetId(), resp.Msg.GetProposal().GetReason())
 		case resp.Msg.GetDuplicate() != "":
 			text = fmt.Sprintf("Not a new proposal: %s already covers it, so yours was added there as a comment.", resp.Msg.GetDuplicate())
 		case resp.Msg.GetProposal() != nil:

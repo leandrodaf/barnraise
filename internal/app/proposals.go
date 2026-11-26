@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -16,15 +17,55 @@ import (
 type ProposeResult struct {
 	Proposal  *domain.Proposal `json:"proposal"`
 	Duplicate string           `json:"duplicate,omitempty"` // id it became a comment on
+	// Item is the item a blocking proposal became (or the item that already
+	// covers it): the proposing item waits for it.
+	Item string `json:"item,omitempty"`
 }
 
-// Propose records a proposal in the fixed shape, with the daily limit and
-// duplicate detection: a similar proposal or item in the same area gets a comment.
+// Propose records a proposal in the fixed shape, with duplicate detection: a
+// similar proposal or item in the same area gets a comment. A proposal an
+// agent's item cannot be delivered without (Blocks) is not left to triage:
+// it becomes an item at once, and the result names it for the proposing item
+// to wait for. What is not needed is weighed by triage, not counted.
 func (s *Service) Propose(ctx context.Context, project string, a Actor, in domain.Proposal) (ProposeResult, error) {
 	p, err := s.Project(project)
 	if err != nil {
 		return ProposeResult{}, err
 	}
+	blocking := in.Blocks && a.Kind == ActorAgent && a.ItemID != ""
+	in.Blocks = blocking
+	res, err := s.propose(ctx, p, a, in)
+	if err != nil || !blocking {
+		return res, err
+	}
+	switch {
+	case strings.HasPrefix(res.Duplicate, "I-"):
+		// An item already covers it: wait for that one.
+		res.Item = res.Duplicate
+		return res, nil
+	case res.Duplicate != "":
+		res.Proposal = &domain.Proposal{ID: res.Duplicate}
+	}
+	if res.Proposal == nil {
+		return res, nil
+	}
+	pr, err := s.DecideProposal(ctx, p.Name, System(), res.Proposal.ID, "approve",
+		fmt.Sprintf("%s cannot be delivered without it (reported by %s)", a.ItemID, actorName(a)))
+	if err != nil {
+		if errors.Is(err, ErrConflict) {
+			// Decided before: approved already, or turned down by a person.
+			if cur := p.Snapshot().Proposals[res.Proposal.ID]; cur != nil {
+				res.Proposal, res.Item = cur, cur.ItemID
+			}
+			return res, nil
+		}
+		return res, err
+	}
+	res.Proposal, res.Item = pr, pr.ItemID
+	return res, nil
+}
+
+func (s *Service) propose(ctx context.Context, p *Project, a Actor, in domain.Proposal) (ProposeResult, error) {
 	if err := a.Require(ScopePropose, p.Name); err != nil {
 		return ProposeResult{}, err
 	}
@@ -46,6 +87,8 @@ func (s *Service) Propose(ctx context.Context, project string, a Actor, in domai
 	props := p.state.ProposalList()
 	if a.Kind == ActorAgent {
 		in.FromItem = a.ItemID
+	}
+	if a.Kind == ActorAgent && !in.Blocks {
 		if err := domain.CheckProposalLimit(props, in.By, in.FromItem, now, p.Cfg().Proposals.PerAgentPerDay); err != nil {
 			return ProposeResult{}, fmt.Errorf("%w: %v", ErrConflict, err)
 		}

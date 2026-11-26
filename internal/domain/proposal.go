@@ -41,7 +41,10 @@ type Proposal struct {
 	ItemID   string         `json:"item_id,omitempty"` // item created on approval
 	// FromItem is the item whose work found it (the proposing session's
 	// item); the daily limit counts the findings of that item.
-	FromItem   string    `json:"from_item,omitempty"`
+	FromItem string `json:"from_item,omitempty"`
+	// Blocks says FromItem cannot be delivered without it: it becomes an
+	// item at once, with no triage, and FromItem waits for it.
+	Blocks     bool      `json:"blocks,omitempty"`
 	CreatedAt  time.Time `json:"created_at,omitzero"`
 	DecidedAt  time.Time `json:"decided_at,omitzero"`
 	DecidedBy  string    `json:"decided_by,omitempty"`
@@ -55,8 +58,10 @@ type ProposalRules struct {
 	Duplicate      string        `json:"duplicate"` // comment
 }
 
-// DefaultProposalRules: 3 per agent per day, expire in 14 days, duplicates become comments.
-var DefaultProposalRules = ProposalRules{PerAgentPerDay: 3, Expire: 14 * 24 * time.Hour, Duplicate: "comment"}
+// DefaultProposalRules: no daily count, expire in 14 days, duplicates become
+// comments. A proposal is weighed by what it does for the goal (goal_link and
+// triage), not by how many came before it: a cap only stopped needed work.
+var DefaultProposalRules = ProposalRules{PerAgentPerDay: 0, Expire: 14 * 24 * time.Hour, Duplicate: "comment"}
 
 // Proposal validation errors.
 var (

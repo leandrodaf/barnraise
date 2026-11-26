@@ -66,7 +66,7 @@ checks:
 	if cfg.Roles["designer"].Needs[0] != "emulators" {
 		t.Fatal("needs")
 	}
-	if cfg.Capacity.Goal != 80 || cfg.Proposals.PerAgentPerDay != 3 || cfg.Lease.TTL.Minutes() != 2 {
+	if cfg.Capacity.Goal != 80 || cfg.Proposals.PerAgentPerDay != 0 || cfg.Lease.TTL.Minutes() != 2 {
 		t.Fatal("defaults")
 	}
 }
