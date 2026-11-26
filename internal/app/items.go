@@ -484,7 +484,11 @@ func (s *Service) CloseItem(ctx context.Context, project string, a Actor, id, re
 			if note != "" {
 				msg += ". " + note
 			}
-			_ = p.Ports().CodeHost.Close(context.Background(), prFromRef(it.PR), msg)
+			if err := p.Ports().CodeHost.Close(context.Background(), prFromRef(it.PR), msg); err != nil {
+				// A closed item's pull request left open reads as work in
+				// review: say so where it can be seen and closed by hand.
+				s.d.Log.Warn("closing the pull request of a closed item failed", "project", p.Name, "item", id, "pr", it.PR, "err", err)
+			}
 		}()
 	}
 	s.syncTracker(p, id, false)
