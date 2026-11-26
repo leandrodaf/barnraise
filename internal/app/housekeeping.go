@@ -177,6 +177,13 @@ func (s *Service) holdDuty(ctx context.Context, p *Project, key string) bool {
 			// Ours from before a restart: adopt it.
 			nl, err = a.Renew(ctx, ports.Lease{Key: key, Holder: s.d.Machine, Version: info.Version})
 		} else {
+			if ierr == nil && s.olderHolder(p, info.Holder) {
+				// A machine left behind on an older binary would keep
+				// running the cluster's duties with the old rules: the
+				// newer machine takes them at once, and the old one's next
+				// renewal finds them gone (a negative ttl: however recent).
+				ttl = -1
+			}
 			nl, err = a.TakeOver(ctx, key, s.d.Machine, ttl)
 		}
 	}
@@ -187,6 +194,22 @@ func (s *Service) holdDuty(ctx context.Context, p *Project, key string) bool {
 	p.leases[key] = nl
 	p.mu.Unlock()
 	return true
+}
+
+// olderHolder reports whether holder is a machine of the cluster whose
+// binary is older than this machine's.
+func (s *Service) olderHolder(p *Project, holder string) bool {
+	if holder == "" || holder == s.d.Machine || s.d.Version == "" {
+		return false
+	}
+	p.mu.Lock()
+	m := p.state.Machines[holder]
+	p.mu.Unlock()
+	if m == nil || m.Version == "" {
+		return false
+	}
+	self := domain.Build{Version: s.d.Version, Time: s.d.BuildTime}
+	return self.Newer(domain.Build{Version: m.Version, Time: m.BuildTime})
 }
 
 // takeOverDeadItems takes items whose machine stopped renewing their claim.
