@@ -174,7 +174,25 @@ func TestCodexConversationRunsAThread(t *testing.T) {
 	if err := s.Interrupt(); err != nil || !f.sawCall("turn/interrupt") {
 		t.Fatalf("interrupt: %v", err)
 	}
+	// The answer streams before it lands in the thread's items.
+	s.notify("item/agentMessage/delta", json.RawMessage(`{"threadId":"th-new","itemId":"m1","delta":"I-54 "}`))
+	s.notify("item/agentMessage/delta", json.RawMessage(`{"threadId":"th-new","itemId":"m1","delta":"waits"}`))
+	if d := s.Status().Draft; d != "I-54 waits" {
+		t.Fatalf("draft %q", d)
+	}
+	s.notify("item/agentMessage/delta", json.RawMessage(`{"threadId":"th-new","itemId":"m2","delta":"New"}`))
+	if d := s.Status().Draft; d != "New" {
+		t.Fatalf("a new message starts the draft over: %q", d)
+	}
+	s.notify("item/completed", json.RawMessage(`{"threadId":"th-new","item":{"type":"agentMessage"}}`))
+	if d := s.Status().Draft; d != "" {
+		t.Fatalf("landed: %q", d)
+	}
+	s.notify("item/agentMessage/delta", json.RawMessage(`{"threadId":"th-new","itemId":"m3","delta":"x"}`))
 	s.notify("turn/completed", json.RawMessage(`{"threadId":"th-new","turn":{"id":"turn-1"}}`))
+	if s.Status().Draft != "" {
+		t.Fatal("the turn ended: no draft")
+	}
 	s.notify("turn/started", json.RawMessage(`{"threadId":"other","turn":{"id":"x"}}`))
 	if s.Status().Busy {
 		t.Fatal("the turn ended; another thread's turn is not ours")

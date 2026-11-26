@@ -103,7 +103,7 @@ func TestConversationIsOneSessionThatResumes(t *testing.T) {
 		t.Fatalf("one session, two messages: %d %q", len(chat.specs), chat.sent)
 	}
 	spec := chat.specs[0]
-	if spec.SessionID != id || spec.Resume || !strings.HasPrefix(spec.Name, "Barnraise · ") || !strings.Contains(spec.SystemPrompt, "barnraise status") ||
+	if spec.SessionID != id || spec.Resume || !strings.HasPrefix(spec.Name, "Barnraise · ") || !strings.Contains(spec.SystemPrompt, "barnraise status") || !strings.Contains(spec.SystemPrompt, "<project>/<id>") ||
 		!strings.HasSuffix(spec.Dir, filepath.Join("chat", "workspace")) {
 		t.Fatalf("spec %+v", spec)
 	}
@@ -409,4 +409,91 @@ func codexLoginEmail(t *testing.T, content string) string {
 	_ = os.WriteFile(filepath.Join(dir, "auth.json"), []byte(content), 0o600)
 	email, _ := codexLogin(dir)
 	return email
+}
+
+// sendFails is a session whose writes fail (it ended meanwhile).
+type sendFails struct{ fakeChat }
+
+func (f *sendFails) Send(string) error { return errors.New("the session ended: exit status 1") }
+
+func TestConversationEdges(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	// The owner's MCP servers are allowed to the session.
+	b, _ := json.Marshal(map[string]any{"mcpServers": map[string]any{"github": map[string]any{}, "linear": map[string]any{}},
+		"oauthAccount": map[string]string{"emailAddress": "me@home.dev"}})
+	_ = os.WriteFile(filepath.Join(home, ".claude.json"), b, 0o600)
+	codexHome := t.TempDir()
+	t.Setenv("CODEX_HOME", codexHome)
+	writeCodexLogin(t, codexHome, "env@openai.dev")
+
+	chat := &sendFails{}
+	e := newEnv(t, withChat(chat), withChatCodex(&fakeCodex{}))
+	e.svc.d.Providers["claude"], e.svc.d.Providers["codex"] = e.prov, e.prov
+	owner := Owner("")
+	for _, acc := range []domain.Account{
+		{ID: "claude-5", Provider: "claude", ConfigDir: t.TempDir(), CeilingPct: 100, Status: domain.AccountExpired},
+		{ID: "codex-5", Provider: "codex", ConfigDir: t.TempDir(), CeilingPct: 100, Status: domain.AccountExpired},
+		{ID: "codex-6", Provider: "codex", ConfigDir: t.TempDir(), CeilingPct: 100},
+		{ID: "fake-9", Provider: "fake", ConfigDir: t.TempDir(), CeilingPct: 100},
+	} {
+		if _, err := e.svc.UpsertAccount(e.ctx, "demo", owner, acc); err != nil {
+			t.Fatal(err)
+		}
+	}
+	err := e.svc.ConversationSend(e.ctx, owner, "hi")
+	if err == nil || !strings.Contains(err.Error(), "the conversation session: the session ended") {
+		t.Fatalf("a failed write says why: %v", err)
+	}
+	var settings struct {
+		Permissions struct{ Allow []string } `json:"permissions"`
+	}
+	sb, _ := os.ReadFile(chat.specs[0].SettingsFile)
+	_ = json.Unmarshal(sb, &settings)
+	if !slices.Contains(settings.Permissions.Allow, "mcp__github") || !slices.Contains(settings.Permissions.Allow, "mcp__linear") {
+		t.Fatalf("mcp servers: %v", settings.Permissions.Allow)
+	}
+	v, _ := e.svc.Conversation(e.ctx, owner, 0)
+	why := map[string]string{}
+	usable := map[string]bool{}
+	for _, a := range v.Accounts {
+		why[a.ID], usable[a.ID] = a.Why, a.Usable
+	}
+	if !usable[OwnCodexLogin] || !strings.Contains(why["claude-5"], "relogin") || !strings.Contains(why["codex-5"], "relogin") ||
+		!strings.Contains(why["codex-6"], "no ChatGPT login") || !strings.Contains(why["fake-9"], "Claude and ChatGPT") || usable["fake-9"] {
+		t.Fatalf("accounts %+v", v.Accounts)
+	}
+	if err := e.svc.ConversationUse(e.ctx, owner, "claude-5"); !errors.Is(err, ErrInvalid) {
+		t.Fatalf("an expired account: %v", err)
+	}
+	if e.svc.providerOf("gone") != "claude" || e.svc.accountDir("gone") != "" || e.svc.accountDir(OwnCodexLogin) != "" {
+		t.Fatal("an account no project knows runs on the own Claude login")
+	}
+	for _, bad := range []string{`{"tokens":{"id_token":"onepart"}}`, `{"tokens":{"id_token":"h.!!!.s"}}`} {
+		if got := codexLoginEmail(t, bad); got != "" {
+			t.Fatalf("%s: %q", bad, got)
+		}
+	}
+	if email, _ := codexLogin(""); email != "env@openai.dev" {
+		t.Fatalf("CODEX_HOME: %q", email)
+	}
+	if email, _ := codexLogin(t.TempDir()); email != "" {
+		t.Fatal("no auth.json")
+	}
+}
+
+// A data dir that cannot be written: the conversation says so.
+func TestConversationStateCannotBeSaved(t *testing.T) {
+	chat := &fakeChat{}
+	e := newEnv(t, withChat(chat))
+	_ = os.WriteFile(filepath.Join(e.svc.d.DataDir, "chat"), []byte("not a folder"), 0o600)
+	if err := e.svc.ConversationKeep(e.ctx, Owner(""), true); err == nil {
+		t.Fatal("keep with no place to keep it")
+	}
+	if err := e.svc.ConversationSend(e.ctx, Owner(""), "hi"); err == nil {
+		t.Fatal("start with no folder for its settings")
+	}
+	if err := e.svc.ConversationNew(e.ctx, Owner("")); err == nil {
+		t.Fatal("new with no place to keep it")
+	}
 }

@@ -40,6 +40,8 @@
 	import PackageIcon from '@lucide/svelte/icons/package-check';
 	import OctagonIcon from '@lucide/svelte/icons/octagon-alert';
 	import UserIcon from '@lucide/svelte/icons/circle-user-round';
+	import MicIcon from '@lucide/svelte/icons/mic';
+	import MicOffIcon from '@lucide/svelte/icons/mic-off';
 
 	let view = $state<Conversation | null>(null);
 	let entries = $state<ConversationEntry[]>([]);
@@ -107,6 +109,72 @@
 		return last?.role === 'tool' && !last.result ? last : null;
 	});
 
+	// The answer being written (providers that stream it).
+	const draft = $derived(busy ? view?.status.draft || '' : '');
+	// The last answer asks the owner something: offer the usual replies.
+	const asks = $derived.by(() => {
+		if (busy || !turns.length) return false;
+		const last = turns[turns.length - 1];
+		if (last.kind !== 'assistant') return false;
+		const txt = turnText(last).trim();
+		return /\?\s*(\*\*)?\s*$/.test(txt);
+	});
+	const REPLIES = ['convYes', 'convNo', 'convExplain'];
+
+	// How long the answer under way has taken.
+	let since = $state(0);
+	let tickNow = $state(Date.now());
+	$effect(() => {
+		if (!busy) {
+			since = 0;
+			return;
+		}
+		if (!since) since = Date.now();
+		const iv = setInterval(() => (tickNow = Date.now()), 1000);
+		return () => clearInterval(iv);
+	});
+	const elapsed = $derived(since ? Math.max(0, Math.round((tickNow - since) / 1000)) : 0);
+
+	// Tell the owner the answer arrived when they looked away.
+	let wasBusy = false;
+	$effect(() => {
+		const b = busy;
+		if (wasBusy && !b && document.hidden) {
+			document.title = '● ' + t('convTitle') + ' · Barnraise';
+			if ('Notification' in window && Notification.permission === 'granted') new Notification('Barnraise', { body: t('convAnswered'), tag: 'barnraise-conversation' });
+		}
+		wasBusy = b;
+	});
+	function onVisible() {
+		if (!document.hidden && document.title.startsWith('● ')) document.title = t('convTitle') + ' · Barnraise';
+	}
+
+	// Dictation, where the browser has speech recognition.
+	type Recognition = { lang: string; interimResults: boolean; continuous: boolean; start(): void; stop(): void; onresult: ((e: any) => void) | null; onend: (() => void) | null };
+	const SR = typeof window !== 'undefined' ? ((window as any).SpeechRecognition || (window as any).webkitSpeechRecognition) : undefined;
+	let rec: Recognition | null = null;
+	let listening = $state(false);
+	function dictate() {
+		if (!SR) return;
+		if (listening) {
+			rec?.stop();
+			return;
+		}
+		const base = text ? text.trimEnd() + ' ' : '';
+		rec = new SR() as Recognition;
+		rec.lang = document.documentElement.lang || navigator.language || 'pt-BR';
+		rec.interimResults = true;
+		rec.continuous = true;
+		rec.onresult = (e: any) => {
+			let said = '';
+			for (let i = 0; i < e.results.length; i++) said += e.results[i][0].transcript;
+			text = base + said;
+		};
+		rec.onend = () => (listening = false);
+		listening = true;
+		rec.start();
+	}
+
 	const SUGGEST = [
 		{ k: 'convS1', icon: OctagonIcon },
 		{ k: 'convS2', icon: PackageIcon },
@@ -167,6 +235,8 @@
 		if (!msg || sending) return;
 		sending = true;
 		pending = msg;
+		if ('Notification' in window && Notification.permission === 'default') Notification.requestPermission().catch(() => {});
+		rec?.stop();
 		text = '';
 		atBottom = true;
 		bottom();
@@ -279,6 +349,7 @@
 </script>
 
 <svelte:window onkeydown={onWindowKey} />
+<svelte:document onvisibilitychange={onVisible} />
 
 <PageHeader title={t('convTitle')} icon={MessagesIcon} meta={[view?.name, accountName(current)]} subtitle={t('convSub')}>
 	{#snippet badges()}
@@ -381,6 +452,19 @@
 						{/if}
 					{/each}
 
+					{#if draft}
+						<article class="flex gap-3">
+							<span class="mt-0.5 grid size-7 shrink-0 place-items-center rounded-full bg-st-review/15 text-st-review ring-1 ring-st-review/20"><SparklesIcon class="size-3.5" /></span>
+							<div class="min-w-0 flex-1 text-sm leading-relaxed after:ml-0.5 after:inline-block after:h-4 after:w-1.5 after:animate-pulse after:rounded-sm after:bg-st-review after:align-middle after:content-['']"><Markdown text={draft} /></div>
+						</article>
+					{/if}
+					{#if asks}
+						<div class="flex flex-wrap gap-2 pl-10">
+							{#each REPLIES as k (k)}
+								<button class="rounded-full border bg-card px-3 py-1.5 text-xs transition hover:-translate-y-px hover:border-st-review/40 hover:bg-st-review/10" onclick={() => send(t(k))}>{t(k)}</button>
+							{/each}
+						</div>
+					{/if}
 					{#if pending && !entries.some((e) => e.role === 'user' && e.text === pending)}
 						<div class="flex justify-end"><div class="max-w-[85%] rounded-3xl rounded-br-lg bg-muted px-4 py-2.5 text-sm whitespace-pre-wrap opacity-70 [overflow-wrap:anywhere]">{pending}</div></div>
 					{/if}
@@ -388,8 +472,9 @@
 						<div class="flex items-center gap-3 text-sm" role="status">
 							<span class="grid size-7 place-items-center rounded-full bg-st-review/15 text-st-review"><SparklesIcon class="size-3.5 animate-pulse" /></span>
 							<span class="truncate bg-gradient-to-r from-muted-foreground via-foreground to-muted-foreground bg-[length:200%_100%] bg-clip-text text-transparent [animation:shimmer_2.2s_linear_infinite]">
-								{starting || switching ? t('convStarting') : now ? toolLook(now.tool).label + ' · ' + shortPath(now.input) : t('convThinking')}
+								{starting || switching ? t('convStarting') : now ? toolLook(now.tool).label + ' · ' + shortPath(now.input) : draft ? t('convWriting') : t('convThinking')}
 							</span>
+							{#if elapsed > 2}<span class="num shrink-0 text-xs text-muted-foreground">{elapsed}s</span>{/if}
 						</div>
 					{:else if !running && view?.status.error}
 						<p class="flex items-start gap-2 rounded-xl bg-st-fail/10 px-3 py-2 text-xs text-st-fail [overflow-wrap:anywhere]"><XIcon class="mt-px size-3.5 shrink-0" />{t('convEnded')}: {view.status.error}</p>
@@ -411,6 +496,11 @@
 						{/if}
 						<span class="hidden truncate pl-1 text-[11px] text-muted-foreground lg:block">{t('convKeys')}</span>
 						<span class="ml-auto"></span>
+						{#if SR}
+							<Button type="button" size="icon" variant={listening ? 'default' : 'ghost'} class="size-8 rounded-full {listening ? 'animate-pulse bg-st-fail text-white hover:bg-st-fail' : ''}" onclick={dictate} title={listening ? t('convDictateStop') : t('convDictate')} aria-label={listening ? t('convDictateStop') : t('convDictate')} aria-pressed={listening}>
+								{#if listening}<MicOffIcon class="size-4" />{:else}<MicIcon class="size-4" />{/if}
+							</Button>
+						{/if}
 						{#if view?.status.busy}
 							<Button type="button" size="icon" variant="outline" class="size-8 rounded-full" onclick={() => act('interrupt')} title={t('convStop')} aria-label={t('convStop')}><SquareIcon class="size-3 fill-current" /></Button>
 						{/if}

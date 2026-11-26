@@ -384,7 +384,8 @@ func (s *Service) conversationPrompt() string {
 		strings.Join(projects, "\n") + "\n" +
 		"The owner talks to you from the panel, the command line or the Claude or ChatGPT app on their phone, about anything that goes on: " +
 		"what runs, why something is stuck, what an item did, what to do next.\n" +
-		"- Answer in " + lang + ", plainly and briefly, with the ids, numbers and links that matter.\n" +
+		"- Answer in " + lang + ", plainly and briefly, with the ids, numbers and links that matter. Write an item, question or proposal " +
+		"as <project>/<id> (one-more-bastion/I-39, nobira/Q-3): the panel turns it into a link. Use Markdown: short lists, tables to compare, links to pull requests.\n" +
 		"- You see everything through the barnraise command; run it instead of guessing: barnraise projects, barnraise status -p <project>, " +
 		"barnraise overview, barnraise item show|timeline <id> -p <project>, barnraise agents, barnraise queue, barnraise metrics, barnraise proposals, " +
 		"barnraise questions, barnraise machine list, barnraise events. `barnraise help` and `barnraise <command> --help` list the rest. " +

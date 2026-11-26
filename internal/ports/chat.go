@@ -42,6 +42,9 @@ type ChatStatus struct {
 	RemoteURL string    `json:"remote_url,omitempty"`
 	Remote    string    `json:"remote,omitempty"`
 	StartedAt time.Time `json:"started_at,omitzero"`
+	// Draft is the answer being written, before it lands in the transcript
+	// (providers that stream it).
+	Draft string `json:"draft,omitempty"`
 	// Err says why the session is not running, when it stopped on its own.
 	Err string `json:"error,omitempty"`
 }

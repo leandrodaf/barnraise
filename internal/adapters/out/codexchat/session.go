@@ -36,6 +36,8 @@ type Session struct {
 	thread  string
 	turn    string // the turn under way, "" when idle
 	remote  string // Remote Control status: connected, connecting, errored, disabled
+	draft   string // the answer being written
+	draftID string
 	started time.Time
 	err     string
 }
@@ -192,6 +194,11 @@ func (s *Session) notify(method string, params json.RawMessage) {
 			ID string `json:"id"`
 		} `json:"turn"`
 		Status json.RawMessage `json:"status"`
+		Delta  string          `json:"delta"`
+		ItemID string          `json:"itemId"`
+		Item   struct {
+			Type string `json:"type"`
+		} `json:"item"`
 	}
 	_ = json.Unmarshal(params, &p)
 	if p.ThreadID != "" && p.ThreadID != s.thread {
@@ -201,7 +208,16 @@ func (s *Session) notify(method string, params json.RawMessage) {
 	case "turn/started":
 		s.turn = p.Turn.ID
 	case "turn/completed":
-		s.turn = ""
+		s.turn, s.draft, s.draftID = "", "", ""
+	case "item/agentMessage/delta":
+		if p.ItemID != s.draftID {
+			s.draft, s.draftID = "", p.ItemID
+		}
+		s.draft += p.Delta
+	case "item/completed":
+		if p.Item.Type == "agentMessage" {
+			s.draft, s.draftID = "", ""
+		}
 	case "remoteControl/status/changed":
 		var st string
 		if json.Unmarshal(p.Status, &st) == nil {
@@ -292,7 +308,7 @@ func (s *Session) Status() ports.ChatStatus {
 	defer s.mu.Unlock()
 	st := ports.ChatStatus{Running: s.conn != nil, Err: s.err, Provider: "codex"}
 	if st.Running {
-		st.Busy, st.StartedAt, st.Remote = s.turn != "", s.started, s.remote
+		st.Busy, st.StartedAt, st.Remote, st.Draft = s.turn != "", s.started, s.remote, s.draft
 	}
 	return st
 }

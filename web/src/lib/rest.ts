@@ -64,7 +64,7 @@ export type ConversationAccount = { id: string; provider: string; email?: string
 export type Conversation = {
 	session_id: string; name: string; keep: boolean; available: boolean; why?: string;
 	account: string; accounts: ConversationAccount[];
-	status: { running: boolean; busy: boolean; provider?: string; remote_url?: string; remote?: string; started_at?: string; error?: string };
+	status: { running: boolean; busy: boolean; provider?: string; remote_url?: string; remote?: string; draft?: string; started_at?: string; error?: string };
 	entries: ConversationEntry[];
 };
 export const conversation = {

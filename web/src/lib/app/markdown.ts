@@ -1,7 +1,7 @@
 // A small Markdown reader for item and tracker text. It returns blocks and
 // inline pieces that Svelte renders as text: no HTML is ever parsed or
 // inserted, so a description cannot inject anything into the page.
-export type Inline = { t: 'text' | 'bold' | 'code' | 'em' | 'link'; v: string; href?: string };
+export type Inline = { t: 'text' | 'bold' | 'code' | 'em' | 'link' | 'item'; v: string; href?: string; project?: string; id?: string };
 export type Block =
 	| { k: 'h'; level: number; parts: Inline[] }
 	| { k: 'p'; parts: Inline[] }
@@ -14,12 +14,15 @@ export type Block =
 export function inline(s: string): Inline[] {
 	const out: Inline[] = [];
 	// Links open only http(s) addresses: no javascript: or data: ever.
-	const re = /(\[[^\]]+\]\(https?:\/\/[^)\s]+\)|https?:\/\/[^\s<>()]+[^\s<>().,;:!?'"]|\*\*[^*]+\*\*|`[^`]+`|(?<![\w*])\*[^*\s][^*]*\*(?!\w)|(?<!\w)_[^_\s][^_]*_(?!\w))/g;
+	// An item, question or proposal as project/I-39 opens it in the panel.
+	const re = /((?<![\w/.-])[a-z0-9][a-z0-9._-]*\/[IPQ]-\d+\b|\[[^\]]+\]\(https?:\/\/[^)\s]+\)|https?:\/\/[^\s<>()]+[^\s<>().,;:!?'"]|\*\*[^*]+\*\*|`[^`]+`|(?<![\w*])\*[^*\s][^*]*\*(?!\w)|(?<!\w)_[^_\s][^_]*_(?!\w))/g;
 	let last = 0;
 	for (const m of s.matchAll(re)) {
 		if (m.index! > last) out.push({ t: 'text', v: s.slice(last, m.index) });
 		const x = m[0];
-		if (x.startsWith('[')) {
+		const ref = x.match(/^([a-z0-9][a-z0-9._-]*)\/([IPQ]-\d+)$/);
+		if (ref) out.push({ t: 'item', v: x, project: ref[1], id: ref[2] });
+		else if (x.startsWith('[')) {
 			const k = x.indexOf('](');
 			out.push({ t: 'link', v: x.slice(1, k), href: x.slice(k + 2, -1) });
 		} else if (x.startsWith('http')) out.push({ t: 'link', v: x, href: x });

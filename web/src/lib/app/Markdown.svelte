@@ -3,6 +3,7 @@
 	import SquareCheckIcon from '@lucide/svelte/icons/square-check';
 	import { parse, type Inline } from './markdown';
 	import Mermaid from './Mermaid.svelte';
+	import { href } from '$lib/router.svelte';
 
 	let { text }: { text: string } = $props();
 	// Tracker text arrives wrapped in an untrusted marker; it stays out of view.
@@ -20,7 +21,7 @@
 	const H = ['', 'text-base', 'text-base', 'text-sm', 'text-sm', 'text-sm', 'text-sm'];
 </script>
 
-{#snippet parts(ps: Inline[])}{#each ps as p, i (i)}{#if p.t === 'bold'}<strong class="font-semibold">{p.v}</strong>{:else if p.t === 'code'}<code class="num rounded bg-muted px-1 py-0.5 text-[0.85em]">{p.v}</code>{:else if p.t === 'em'}<em>{p.v}</em>{:else if p.t === 'link'}<a href={p.href} target="_blank" rel="noreferrer" class="font-medium text-st-work underline decoration-st-work/30 underline-offset-2 [overflow-wrap:anywhere] hover:decoration-st-work">{p.v}</a>{:else}{p.v}{/if}{/each}{/snippet}
+{#snippet parts(ps: Inline[])}{#each ps as p, i (i)}{#if p.t === 'bold'}<strong class="font-semibold">{p.v}</strong>{:else if p.t === 'code'}<code class="num rounded bg-muted px-1 py-0.5 text-[0.85em]">{p.v}</code>{:else if p.t === 'em'}<em>{p.v}</em>{:else if p.t === 'item'}<a href={p.id?.startsWith('I-') ? href('item', p.project || '', p.id || '') : p.id?.startsWith('P-') ? href('proposals') : href('home')} class="num inline-flex items-center rounded-md border border-st-work/25 bg-st-work/10 px-1.5 py-px text-[0.85em] font-medium text-st-work no-underline hover:bg-st-work/20" title={p.project}><span class="opacity-60">{p.project}/</span>{p.id}</a>{:else if p.t === 'link'}<a href={p.href} target="_blank" rel="noreferrer" class="font-medium text-st-work underline decoration-st-work/30 underline-offset-2 [overflow-wrap:anywhere] hover:decoration-st-work">{p.v}</a>{:else}{p.v}{/if}{/each}{/snippet}
 
 <div class="space-y-2.5 text-sm leading-relaxed">
 	{#each blocks as b, i (i)}

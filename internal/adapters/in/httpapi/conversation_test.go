@@ -93,6 +93,15 @@ func TestConversationEndpoints(t *testing.T) {
 			t.Fatalf("%s: %d %s", a, code, body)
 		}
 	}
+	if code, _ := do("POST", "/v1/conversation/pair", "{}"); code != http.StatusBadRequest {
+		t.Fatalf("pair on Claude: %d", code)
+	}
+	if code, _ := do("POST", "/v1/conversation/account", `{"account":"nobody"}`); code != http.StatusNotFound {
+		t.Fatalf("unknown account: %d", code)
+	}
+	if code, _ := do("POST", "/v1/conversation/account", `nope`); code != http.StatusBadRequest {
+		t.Fatalf("bad body: %d", code)
+	}
 	if code, _ := do("POST", "/v1/conversation/explode", "{}"); code != http.StatusNotFound {
 		t.Fatalf("unknown action: %d", code)
 	}

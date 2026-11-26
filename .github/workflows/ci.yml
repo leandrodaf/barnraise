@@ -110,6 +110,26 @@ jobs:
         with:
           key: ${{ steps.go.outputs.key }}
 
+  panel:
+    name: panel types and build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.33.0
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "24"
+          cache: pnpm
+          cache-dependency-path: web/pnpm-lock.yaml
+      - uses: bufbuild/buf-action@v1
+        with:
+          setup_only: true
+      - name: type check, build, and the committed build matches web/
+        run: make web-check
+
   proto:
     name: buf lint and breaking
     needs: changes
