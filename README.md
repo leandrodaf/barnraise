@@ -5,6 +5,10 @@
   </picture>
 </h1>
 
+[![CI](https://github.com/leandrodaf/barnraise/actions/workflows/ci.yml/badge.svg)](https://github.com/leandrodaf/barnraise/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/leandrodaf/barnraise)](https://github.com/leandrodaf/barnraise/releases/latest)
+[![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/leandrodaf/barnraise/badge)](https://scorecard.dev/viewer/?uri=github.com/leandrodaf/barnraise)
+
 Barnraise is one Go binary that drives a software project with AI coding agents, from the queue to the commit on main. It runs Claude Code, Codex and the Gemini CLI through their own CLIs and subscriptions and takes care of everything around them: which item comes next, the steps each item goes through, checks, reviews, the merge queue, accounts and limits, several machines, and security.
 
 The name comes from "barn raising": neighbours building a barn together in a day.

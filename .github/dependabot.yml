@@ -1,0 +1,24 @@
+# Weekly version updates, grouped so each ecosystem is one pull request.
+# Security updates arrive as soon as an advisory does (repository setting).
+version: 2
+updates:
+  - package-ecosystem: gomod
+    directory: /
+    schedule: { interval: weekly }
+    groups:
+      go: { patterns: ["*"] }
+  - package-ecosystem: gomod
+    directory: /desktop
+    schedule: { interval: weekly }
+    groups:
+      desktop-go: { patterns: ["*"] }
+  - package-ecosystem: npm
+    directory: /web
+    schedule: { interval: weekly }
+    groups:
+      panel: { patterns: ["*"] }
+  - package-ecosystem: github-actions
+    directory: /
+    schedule: { interval: weekly }
+    groups:
+      actions: { patterns: ["*"] }
