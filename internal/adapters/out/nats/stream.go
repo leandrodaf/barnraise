@@ -103,6 +103,7 @@ func ServeStream(ctx context.Context, nc *nats.Conn, subject string, open Stream
 		streams[id] = st
 		mu.Unlock()
 		answer(m, first, id, nil)
+		every := StreamKeep // read once: the goroutine outlives this call
 		go func() {
 			defer func() {
 				st.stop()
@@ -113,7 +114,7 @@ func ServeStream(ctx context.Context, nc *nats.Conn, subject string, open Stream
 				end.Header.Set(streamEndHeader, "1")
 				_ = nc.PublishMsg(end)
 			}()
-			lease := time.NewTicker(StreamKeep)
+			lease := time.NewTicker(every)
 			defer lease.Stop()
 			for {
 				select {
@@ -122,7 +123,7 @@ func ServeStream(ctx context.Context, nc *nats.Conn, subject string, open Stream
 				case <-st.ended:
 					return
 				case <-lease.C:
-					if time.Since(time.Unix(0, st.keep.Load())) > 3*StreamKeep {
+					if time.Since(time.Unix(0, st.keep.Load())) > 3*every {
 						return // the asker is gone
 					}
 				case data, ok := <-next:
@@ -196,10 +197,11 @@ func RequestStream(ctx context.Context, nc *nats.Conn, subject string, data []by
 		return err
 	}
 	out := make(chan []byte, 256)
+	every := StreamKeep // read once: the goroutine outlives this call
 	go func() {
 		defer close(out)
 		defer func() { _ = sub.Unsubscribe() }()
-		keep := time.NewTicker(StreamKeep)
+		keep := time.NewTicker(every)
 		defer keep.Stop()
 		for {
 			select {
