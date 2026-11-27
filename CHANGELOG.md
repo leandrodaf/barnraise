@@ -8,6 +8,9 @@
 - feat(desktop): a Windows app that drives the daemon in WSL, and a launcher that starts it by itself (76297be)
 
 ### Correções
+- fix(review): a review by the implementer's model counts instead of being thrown away (54055f5)
+- fix(github): issues created at once no longer fail on the label they all create (82f766a)
+- fix(agents): teach waiting without sleep, the commit header limit and shared job slots (aa4e603)
 - fix(tracker): one issue is worked on by one Barnraise, and people see who has it (f173aa5)
 - fix(models): a different reviewer model is a preference, never a wait (24049ff)
 - fix(models): a step whose whole class is at its limit runs one rung down (4933254)
