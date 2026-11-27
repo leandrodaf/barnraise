@@ -599,3 +599,19 @@ func TestItemLinks(t *testing.T) {
 		t.Fatalf("%+v", l)
 	}
 }
+
+// The advisor's instructions are always English: they are a prompt, not
+// text a person reads. Only its answer comes out in the owner's language.
+func TestAdvisorInstructionsAreEnglish(t *testing.T) {
+	e := newEnv(t, withCfg(func(c *domain.ProjectConfig) { c.Language = "pt-BR" }))
+	ask := advisorAsk(e.p, "plan")
+	if !strings.HasPrefix(ask, "Autopilot: the owner is away") || strings.Contains(ask, "Piloto automático") {
+		t.Fatalf("the instructions must be English:\n%s", ask)
+	}
+	if !strings.Contains(ask, "Write your answer and the note in Brazilian Portuguese") || !strings.Contains(ask, "approval of plan") {
+		t.Fatalf("the answer's language and the approval are named:\n%s", ask)
+	}
+	if en := advisorAsk(newEnv(t).p, ""); strings.Contains(en, "Write your answer") {
+		t.Fatalf("an English project needs no language line:\n%s", en)
+	}
+}

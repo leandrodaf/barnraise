@@ -313,10 +313,7 @@ func (s *Service) autopilotStep(p *Project, thread string, working bool) {
 func (s *Service) autopilotDecide(ctx context.Context, p *Project, d autopilotDecision) (bool, error) {
 	s.autopilotStep(p, d.thread, true)
 	defer s.autopilotStep(p, d.thread, false)
-	ask := ot(p, "autopilot.ask")
-	if d.awaits != "" {
-		ask += ot(p, "autopilot.approve", d.awaits)
-	}
+	ask := advisorAsk(p, d.awaits)
 	conv, err := s.Discuss(ctx, p.Name, advisorActor, d.thread, ask)
 	if err != nil {
 		return false, fmt.Errorf("%w: %v", errAdvisorFailed, err)

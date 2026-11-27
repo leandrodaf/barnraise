@@ -48,21 +48,6 @@ var ownerTexts = map[string][2]string{ // key: {en, pt-BR}
 	"delegate.note":     {"Decided by the advisor at the owner's request: %s", "Decidido pelo conselheiro a pedido do dono: %s"},
 	"delegate.done":     {"Applied: %s.", "Aplicado: %s."},
 	"autopilot.reason":  {"Decided by the advisor on autopilot: %s", "Decidido pelo conselheiro no piloto automático: %s"},
-	"autopilot.ask": {"Autopilot: the owner is away and asked you to take this decision. Choose the answer you recommend and say why. " +
-		"Only when the decision truly needs the owner (signing in to an account, spending money, a physical device or place, giving an access or a secret, " +
-		"a legal, brand or personal choice) end with option: OWNER and, in the note, exactly what the owner must do. " +
-		"Anything Barnraise itself can do is not the owner's: recording criteria or dependencies (option: EDIT), unlocking files (option: UNLOCK), " +
-		"retrying, or choosing the option that moves the item on. An earlier owner answer that forbade a workaround does not forbid these. " +
-		"When the step is blocked because what it asks is already in place another way (the owner did it, or switched it on in the panel), choose the option that closes the item as already done, so the items that wait for it go on. " +
-		"When no listed option fits, choose the one closest to moving the item on and say in the note what to do.",
-		"Piloto automático: o dono está ausente e pediu que você tome esta decisão. Escolha a resposta que recomenda e diga por quê. " +
-			"Só quando a decisão realmente precisa do dono (entrar numa conta, gastar dinheiro, um aparelho ou lugar físico, dar um acesso ou um segredo, " +
-			"uma escolha legal, de marca ou pessoal) termine com option: OWNER e, na nota, exatamente o que o dono precisa fazer. " +
-			"O que o próprio Barnraise consegue fazer não é do dono: gravar critérios ou dependências (option: EDIT), liberar arquivos (option: UNLOCK), " +
-			"tentar de novo ou escolher a opção que faz o item andar. Uma resposta antiga do dono que proibiu contornar não proíbe isso. " +
-			"Quando a etapa parou porque o que ela pede já está feito de outro jeito (o dono fez, ou ligou no painel), escolha a opção que fecha o item como já resolvido, para os itens que esperam por ele seguirem. " +
-			"Quando nenhuma opção listada serve, escolha a mais próxima de fazer o item andar e diga na nota o que fazer."},
-	"autopilot.approve": {"\nThe decision is the approval of %s of this item: the options are approve or send back.", "\nA decisão é a aprovação %s deste item: as opções são approve ou send back."},
 	"autopilot.left":    {"Left to you: %s", "Ficou para você: %s"},
 	"chat.from":         {"Written from the owner's conversation %s.", "Escrito a partir da conversa %s do dono."},
 	"chat.created":      {"Created %s: %s. The analyst refines it and the agents take it from the queue.", "Criei o %s: %s. O analista refina e os agentes pegam da fila."},
@@ -98,6 +83,33 @@ func ot(p *Project, key string, args ...any) string {
 // the action fixed.
 func ownerOpt(p *Project, action string, recommended bool, args ...any) domain.Option {
 	return domain.Option{Label: ot(p, "opt."+action, args...), Recommended: recommended, Action: action}
+}
+
+// advisorTexts are instructions to the advisor model, not text a person
+// reads: always in English, however the project speaks. What the advisor
+// writes for the owner comes out in the owner's language (advisorAsk).
+var advisorTexts = map[string]string{
+	"autopilot.ask": "Autopilot: the owner is away and asked you to take this decision. Choose the answer you recommend and say why. " +
+		"Only when the decision truly needs the owner (signing in to an account, spending money, a physical device or place, giving an access or a secret, " +
+		"a legal, brand or personal choice) end with option: OWNER and, in the note, exactly what the owner must do. " +
+		"Anything Barnraise itself can do is not the owner's: recording criteria or dependencies (option: EDIT), unlocking files (option: UNLOCK), " +
+		"retrying, or choosing the option that moves the item on. An earlier owner answer that forbade a workaround does not forbid these. " +
+		"When the step is blocked because what it asks is already in place another way (the owner did it, or switched it on in the panel), choose the option that closes the item as already done, so the items that wait for it go on. " +
+		"When no listed option fits, choose the one closest to moving the item on and say in the note what to do.",
+	"autopilot.approve": "\nThe decision is the approval of %s of this item: the options are approve or send back.",
+}
+
+// advisorAsk is the autopilot's instruction to the advisor for one
+// decision, ending with the language the owner reads its answer in.
+func advisorAsk(p *Project, awaits string) string {
+	ask := advisorTexts["autopilot.ask"]
+	if awaits != "" {
+		ask += fmt.Sprintf(advisorTexts["autopilot.approve"], awaits)
+	}
+	if lang := ownerLanguageName(p.Cfg().Language); lang != "" {
+		ask += "\nWrite your answer and the note in " + lang + ": the owner reads them."
+	}
+	return ask
 }
 
 // ownerLanguageNames names the languages the owner may read, for an agent.
