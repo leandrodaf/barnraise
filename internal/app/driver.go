@@ -433,17 +433,23 @@ func (s *Service) runCheckStep(ctx context.Context, p *Project, it *domain.Item,
 	head := ""
 	main := ""
 	touched := it.FilesTouched
+	// What the branch changes now decides the lock, when git can tell: the
+	// files touched in earlier rounds may have been put back (a stopped
+	// rebase leaves files the agent then removes), and a file that came in
+	// from main is not the branch's change. Without git, what was reported.
+	lockFiles := touched
 	if p.Ports().Git != nil {
 		head, _ = p.Ports().Git.Head(ctx, dir)
 		main, _ = p.Ports().Git.MainHead(ctx)
 		if main != "" && head != "" {
 			if files, err := s.itemFiles(ctx, p, main, head); err == nil {
 				touched = domain.Dedupe(append(touched, files...))
+				lockFiles = s.differFromMain(ctx, p, main, head, files)
 			}
 		}
 	}
 	// Existing tests and check scripts are locked: an item that changed one fails.
-	if locked := s.lockedChanges(ctx, p, main, touched, it.ID); len(locked) > 0 {
+	if locked := s.lockedChanges(ctx, p, main, lockFiles, it.ID); len(locked) > 0 {
 		_, _, err := s.finishStep(ctx, p, stepOutcome{Item: it.ID, Step: st.Name, Outcome: domain.OutcomeFail, Actor: "checks",
 			Reason: "existing tests, references or check scripts were changed (they are locked; add new tests instead): " + strings.Join(locked, ", ")})
 		return err
@@ -606,6 +612,23 @@ func (s *Service) itemFiles(ctx context.Context, p *Project, main, head string) 
 		}
 	}
 	return out, nil
+}
+
+// differFromMain keeps the files the branch changed whose content on the
+// branch is not main's: a file main brought in, or one put back as main
+// has it, changed nothing.
+func (s *Service) differFromMain(ctx context.Context, p *Project, main, head string, files []string) []string {
+	diff, err := p.Ports().Git.ChangedFiles(ctx, main, head)
+	if err != nil {
+		return files
+	}
+	var out []string
+	for _, f := range files {
+		if domain.Contains(diff, f) {
+			out = append(out, f)
+		}
+	}
+	return out
 }
 
 // lockedChanges returns touched files that are locked because they existed on main.

@@ -649,3 +649,36 @@ func TestItemContinuesOnAnExistingBranch(t *testing.T) {
 		t.Fatalf("after the start: %v", err)
 	}
 }
+
+// The lock looks at what the branch changes now: a locked file reported in
+// an earlier round and put back, or one that main brought in and the branch
+// holds as main has it, is no change. I-56 was sent back four times for
+// three such files.
+func TestLockedTestsCountOnlyWhatTheBranchChanges(t *testing.T) {
+	e := newEnv(t, withGit(), withFiles(map[string]string{"README.md": "# demo\n", "tests/a_test.sh": "exit 0\n"}))
+	it := e.ready("simple", "keep the lock fair", "x")
+	e.next("implementer", it.ID)
+	// main moves on: a new test arrives there after the branch started.
+	e.repo.PushToMain(t, "add b", map[string]string{"tests/b_test.sh": "exit 0 # b\n"})
+	// The branch holds the same file as main (left by a stopped rebase),
+	// and a.sh as main has it, though an earlier round reported it.
+	e.workspace(it.ID, map[string]string{"tests/b_test.sh": "exit 0 # b\n", "app.go": "package app\n"})
+	e.mustDeliver(it.ID, domain.Delivery{Files: []string{"tests/a_test.sh", "app.go"}})
+	e.drive(it.ID)
+	got := e.item(it.ID)
+	for _, r := range got.Rework {
+		if strings.Contains(r.Reason, "locked") {
+			t.Fatalf("no locked change: %q", r.Reason)
+		}
+	}
+	// A real change to a locked test is still caught.
+	it2 := e.ready("simple", "weaken a test", "y")
+	e.next("implementer", it2.ID)
+	e.workspace(it2.ID, map[string]string{"tests/a_test.sh": "exit 0 # weakened\n"})
+	e.mustDeliver(it2.ID, domain.Delivery{})
+	e.drive(it2.ID)
+	got2 := e.wantStatus(it2.ID, domain.StatusInProgress, "implement")
+	if len(got2.Rework) == 0 || !strings.Contains(got2.Rework[0].Reason, "tests/a_test.sh") {
+		t.Fatalf("rework %+v", got2.Rework)
+	}
+}
