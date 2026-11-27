@@ -14,29 +14,48 @@
 	import { api } from '$lib/api';
 	import { t } from '$lib/i18n';
 	import { session } from '$lib/session.svelte';
+	import { cluster } from '$lib/cluster.svelte';
 	import Section from '$lib/app/Section.svelte';
 	import type { GitHubTokenResponse, GitHubTokenSetup } from '$lib/gen/barnraise/v1/barnraise_pb';
 
-	let project = $state(session.projects[0] || '');
-	let setup = $state<GitHubTokenSetup | null>(null);
-	let setupErr = $state('');
+	// Only the projects on GitHub: the others have no token to set here.
+	let setups = $state<Record<string, GitHubTokenSetup>>({});
+	let ready = $state(false);
+	let project = $state('');
+	const setup = $derived(setups[project] || null);
+	const ghProjects = $derived(Object.keys(setups));
 	let token = $state('');
 	let busy = $state('');
 	let result = $state<GitHubTokenResponse | null>(null);
 
-	async function load(p: string) {
-		setup = null;
-		setupErr = '';
-		result = null;
-		if (!p) return;
+	async function loadAll(names: string[]) {
+		const found: Record<string, GitHubTokenSetup> = {};
+		await Promise.all(
+			names.map(async (p) => {
+				try {
+					found[p] = await api.getGitHubTokenSetup({ project: p });
+				} catch {
+					// Not on GitHub (or not reachable): not listed.
+				}
+			})
+		);
+		setups = found;
+		if (!found[project]) project = names.find((p) => found[p] && !cluster.all?.projects.find((x) => x.project === p)?.paused) || names.find((p) => found[p]) || '';
+		ready = true;
+	}
+	async function reloadOne(p: string) {
 		try {
-			setup = await api.getGitHubTokenSetup({ project: p });
-		} catch (e) {
-			setupErr = e instanceof Error ? e.message : String(e);
+			setups = { ...setups, [p]: await api.getGitHubTokenSetup({ project: p }) };
+		} catch {
+			/* keep what was shown */
 		}
 	}
 	$effect(() => {
-		load(project);
+		loadAll(session.projects);
+	});
+	$effect(() => {
+		project;
+		result = null;
 	});
 
 	async function run(testOnly: boolean) {
@@ -50,7 +69,7 @@
 			else if (result.installed) {
 				toast.success(t('ghtInstalled', result.machines.map((m) => m.machine).join(', ')));
 				token = '';
-				load(project);
+				reloadOne(project);
 			}
 		} catch (e) {
 			toast.error(e instanceof Error ? e.message : String(e));
@@ -61,14 +80,14 @@
 
 <Section title={t('ghtTitle')} sub={t('ghtHelp')}>
 	{#snippet right()}
-		{#if session.projects.length > 1}
+		{#if ghProjects.length > 1}
 			<select class="rounded-md border bg-background px-2 py-1 text-sm" bind:value={project}>
-				{#each session.projects as p (p)}<option value={p}>{p}</option>{/each}
+				{#each ghProjects as p (p)}<option value={p}>{p}</option>{/each}
 			</select>
 		{/if}
 	{/snippet}
-	{#if setupErr}
-		<p class="text-sm text-muted-foreground">{setupErr}</p>
+	{#if ready && !setup}
+		<p class="text-sm text-muted-foreground">{t('ghtNone')}</p>
 	{:else if setup}
 		<p class="mb-3 text-xs text-muted-foreground">{t('ghtCurrent', setup.repo)} <span class="text-foreground">{setup.current}</span></p>
 		<ol class="space-y-4 text-sm">

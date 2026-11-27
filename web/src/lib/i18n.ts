@@ -1010,7 +1010,7 @@ Object.assign(en, {
   ghtStep2: '2. Paste the token', ghtStep2Help: 'Each machine tests every permission from its own network before keeping it; with one missing, nothing is installed.',
   ghtTest: 'Test only', ghtTesting: 'Testing…', ghtInstall: 'Test and install on every machine', ghtInstalling: 'Installing…',
   ghtTestOk: 'Every permission passed.', ghtInstalled: 'Token installed on {0}.', ghtBadgeInstalled: 'installed', ghtBadgeTested: 'passed', ghtBadgeFailed: 'not installed',
-  ghtExpires: 'expires {0}'
+  ghtExpires: 'expires {0}', ghtNone: 'No project here uses GitHub.'
 });
 
 Object.assign(pt, {
@@ -1020,7 +1020,7 @@ Object.assign(pt, {
   ghtStep2: '2. Cole o token', ghtStep2Help: 'Cada máquina testa cada permissão pela própria rede antes de guardar; faltando uma, nada é instalado.',
   ghtTest: 'Só testar', ghtTesting: 'Testando…', ghtInstall: 'Testar e instalar em todas as máquinas', ghtInstalling: 'Instalando…',
   ghtTestOk: 'Todas as permissões passaram.', ghtInstalled: 'Token instalado em {0}.', ghtBadgeInstalled: 'instalado', ghtBadgeTested: 'passou', ghtBadgeFailed: 'não instalado',
-  ghtExpires: 'vence {0}'
+  ghtExpires: 'vence {0}', ghtNone: 'Nenhum projeto daqui usa o GitHub.'
 });
 
 import { locale } from './locale.svelte';
