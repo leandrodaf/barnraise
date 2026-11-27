@@ -107,6 +107,9 @@ func TestAgentsGetOnlyTheMCPServersTheOwnerAllowed(t *testing.T) {
 	if got["github"] == nil || got["figma"] != nil || got["mail"] != nil {
 		t.Fatalf("the implementer gets github (every role) but not figma (reviewer) nor mail (not allowed): %v", got)
 	}
+	if sys := specs[len(specs)-1].SystemPrompt; !strings.Contains(sys, "# Extra MCP servers") || !strings.Contains(sys, "`github`") || strings.Contains(sys, "`figma`") {
+		t.Fatalf("the session is told which extra servers it has:\n%s", sys)
+	}
 	gh := got["github"]
 	if gh["url"] != "https://api.githubcopilot.com/mcp/" || gh["type"] != "http" || gh["headers"].(map[string]any)["Authorization"] != "Bearer ghp" {
 		t.Fatalf("github %v", gh)
@@ -132,6 +135,10 @@ func TestAgentMCPYAMLWinsAndIsNotGranted(t *testing.T) {
 	}
 	if err := e.svc.SetAgentMCP(e.ctx, "demo", Actor{}, domain.AgentMCPGrant{Name: "github", Allowed: true}); err == nil {
 		t.Fatal("only the owner lets agents use a server")
+	}
+	admin := Actor{Kind: ActorToken, Name: "ops", Scopes: []string{ScopeAdmin}}
+	if _, _, err := e.svc.AgentMCPView(e.ctx, "demo", admin); err != nil {
+		t.Fatalf("a token that may change the grants may see them: %v", err)
 	}
 	defs, missing, err := e.svc.sessionMCP(e.ctx, e.p, "implementer")
 	if err != nil || defs["figma"].Command != "yaml-figma" || len(missing) != 0 {

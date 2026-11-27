@@ -708,8 +708,12 @@ func (r *Runtime) start(ctx context.Context, p *Project, slot Slot, a *Assignmen
 	}
 	env[domain.PolicyHashEnv] = seal[policyPath]
 	sctx, cancel := context.WithTimeout(context.Background(), r.SessionTimeout)
+	system := prompt.System
+	if note := s.mcpPromptNote(context.Background(), p, role); note != "" {
+		system += "\n\n" + note
+	}
 	spec := ports.SessionSpec{Agent: slot.Agent, Role: role, Account: *acc, Model: choice.Model, Effort: choice.Effort, Workdir: dir,
-		Prompt: prompt.Prompt, SystemPrompt: prompt.System, Env: env, MCPConfig: mcpPath, SettingsFile: settingsPath,
+		Prompt: prompt.Prompt, SystemPrompt: system, Env: env, MCPConfig: mcpPath, SettingsFile: settingsPath,
 		Timeout: r.SessionTimeout, RunAsUser: acc.LinuxUser, Endpoint: endpoint}
 	if ct := p.Cfg().Container; ct.Image != "" {
 		cs, err := r.containerSpec(p, ct, dir, sessDir, acc, cli, env)
