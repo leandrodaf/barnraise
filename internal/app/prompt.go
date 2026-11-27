@@ -438,7 +438,14 @@ const barnraiseConventions = `
   their ids in ` + "`waits_for`" + `: the item waits for them and starts again by itself. Do not ask the owner for that.
 - Commit messages and the delivery's ` + "`change`" + ` are always in English, in the Conventional Commits form
   (type(scope): subject — imperative, lower case, no final period), whatever language the item is written in.
-  Barnraise writes the changelog from ` + "`change`" + `; never edit the changelog file.
+  Barnraise writes the changelog from ` + "`change`" + `; never edit the changelog file. The header (type, scope and
+  subject) fits in 72 characters: the detail goes in the body.
+- Waiting: run a long command in the foreground with a timeout (one Bash call may take ten minutes). To wait for
+  one running in the background, use a single call such as ` + "`timeout 600 sh -c 'until [ -s <file> ]; do sleep 10; done'`" + `;
+  never ` + "`sleep N; <command>`" + `, which the CLI refuses. The Monitor tool must be loaded with ToolSearch first.
+- MCP servers that run jobs (image generation, for one) have few job slots, shared by every agent of every machine:
+  start a few jobs, wait for yours to finish, then start more. When one answers that the slots are full or the rate
+  is exceeded, wait for your running jobs and try again; it is not a failure of the item.
 `
 
 // ownerDecisions lists the owner's answers about an item, oldest first. Every
