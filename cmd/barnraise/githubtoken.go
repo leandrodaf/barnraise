@@ -185,7 +185,6 @@ func (d *daemon) applyGitHubToken(ctx context.Context, r remoteGitHubToken) *pb.
 		return m
 	}
 	m.Installed = true
-	d.repairGHLogin(r.Token, r.Repo)
 	if _, err := d.svc.Project(r.Project); err == nil {
 		if err := d.reloadProject(ctx, r.Project); err != nil {
 			m.Error = "kept, but the project did not reload: " + err.Error()
@@ -222,10 +221,40 @@ var (
 
 func init() { ghRepairOn.Store(true) }
 
-// repairGHLogin gives the GitHub CLI of this machine the installed token
-// when its own login is missing or no longer works (a deleted token): one
-// token, the panel's, reaches GitHub everywhere on the machine. A working
-// login is left alone, and so is a GH_TOKEN the environment sets.
+// keepGHLogin keeps the machine's GitHub CLI reaching the repository of a
+// running project: when it cannot (no login, a deleted token, or a token
+// for another repository, such as a paused project's), it logs in with
+// the token installed for that project. One token, the panel's, then
+// serves Barnraise, git and gh alike. A gh that already reaches it, or a
+// GH_TOKEN or GITHUB_TOKEN in the environment, is left alone.
+func (d *daemon) keepGHLogin(ctx context.Context) {
+	t := time.NewTimer(time.Minute)
+	defer t.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-t.C:
+		}
+		for _, name := range d.svc.Projects() {
+			p, err := d.svc.Project(name)
+			if err != nil || p.Snapshot().Paused {
+				continue
+			}
+			_, repo, _, err := d.githubRepoOf(name)
+			if err != nil || d.secrets == nil {
+				continue
+			}
+			if tok, _ := d.secrets.Get(domain.GitTokenSecret("github.com", repo)); tok != "" {
+				d.repairGHLogin(tok, repo)
+				break // one gh login per machine: the first running project's
+			}
+		}
+		t.Reset(5 * time.Minute)
+	}
+}
+
+// repairGHLogin logs the GitHub CLI in with token when it cannot reach repo.
 func (d *daemon) repairGHLogin(token, repo string) {
 	if !ghRepairOn.Load() || token == "" || os.Getenv("GH_TOKEN") != "" || os.Getenv("GITHUB_TOKEN") != "" {
 		return
@@ -238,17 +267,17 @@ func (d *daemon) repairGHLogin(token, repo string) {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 	env := append(os.Environ(), "GH_PROMPT_DISABLED=1", "GH_NO_UPDATE_NOTIFIER=1")
-	status := exec.CommandContext(ctx, "gh", "auth", "status", "-h", "github.com")
-	status.Env = env
-	if status.Run() == nil {
-		return // its own login works
+	reach := exec.CommandContext(ctx, "gh", "api", "repos/"+repo, "--silent")
+	reach.Env = env
+	if reach.Run() == nil {
+		return // it reaches the repository already
 	}
 	login := exec.CommandContext(ctx, "gh", "auth", "login", "-h", "github.com", "--git-protocol", "https", "--with-token")
 	login.Env = env
 	login.Stdin = strings.NewReader(token + "\n")
 	if out, err := login.CombinedOutput(); err != nil {
-		d.log.Warn("the GitHub CLI login could not be repaired with the installed token", "repo", repo, "err", err, "out", strings.TrimSpace(string(out)))
+		d.log.Warn("the GitHub CLI login could not be set to the installed token", "repo", repo, "err", err, "out", strings.TrimSpace(string(out)))
 		return
 	}
-	d.log.Info("the GitHub CLI had no working login: it now uses the installed token", "repo", repo)
+	d.log.Info("the GitHub CLI could not reach the running project: it now uses its installed token", "repo", repo)
 }
