@@ -827,6 +827,51 @@ func (h *Handler) ShareProject(ctx context.Context, r *connect.Request[pb.ShareP
 	return connect.NewResponse(out), nil
 }
 
+// GetGitHubTokenSetup is how to create the project's GitHub token.
+func (h *Handler) GetGitHubTokenSetup(ctx context.Context, r *connect.Request[pb.ProjectRef]) (*connect.Response[pb.GitHubTokenSetup], error) {
+	if err := actorFrom(ctx).Require(app.ScopeAdmin, ""); err != nil {
+		return nil, connectErr(err)
+	}
+	if _, err := h.svc().Project(r.Msg.Project); err != nil {
+		return nil, connectErr(err)
+	}
+	if h.srv.opts.GitHubTokenSetup == nil {
+		return nil, connect.NewError(connect.CodeUnimplemented, errors.New("this daemon cannot set tokens"))
+	}
+	out, err := h.srv.opts.GitHubTokenSetup(ctx, r.Msg.Project)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeFailedPrecondition, err)
+	}
+	return connect.NewResponse(out), nil
+}
+
+// InstallGitHubToken tests a GitHub token and installs it on every machine.
+func (h *Handler) InstallGitHubToken(ctx context.Context, r *connect.Request[pb.GitHubTokenRequest]) (*connect.Response[pb.GitHubTokenResponse], error) {
+	if err := actorFrom(ctx).Require(app.ScopeAdmin, ""); err != nil {
+		return nil, connectErr(err)
+	}
+	if _, err := h.svc().Project(r.Msg.Project); err != nil {
+		return nil, connectErr(err)
+	}
+	if h.srv.opts.InstallGitHubToken == nil {
+		return nil, connect.NewError(connect.CodeUnimplemented, errors.New("this daemon cannot set tokens"))
+	}
+	out, err := h.srv.opts.InstallGitHubToken(ctx, r.Msg)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeFailedPrecondition, err)
+	}
+	var ok []string
+	for _, m := range out.Machines {
+		if m.Installed {
+			ok = append(ok, m.Machine)
+		}
+	}
+	if !r.Msg.TestOnly {
+		h.audit(ctx, "github.token.install", strings.Join(ok, ","), r.Msg.Project, "")
+	}
+	return connect.NewResponse(out), nil
+}
+
 // SetMaxAgents sets how many agents the named machines run at once.
 func (h *Handler) SetMaxAgents(ctx context.Context, r *connect.Request[pb.MaxAgentsRequest]) (*connect.Response[pb.MaxAgentsResponse], error) {
 	if err := actorFrom(ctx).Require(app.ScopeAdmin, ""); err != nil {

@@ -1114,6 +1114,60 @@ message ShareProjectResponse {
   repeated PeerResult machines = 1;
 }
 
+// GitHubTokenSetup is how to create a GitHub token for a project: GitHub's
+// form with everything filled in, and what each permission is for.
+message GitHubTokenSetup {
+  string project = 1;
+  string repo = 2;
+  // GitHub's new fine-grained token form, owner and permissions filled in.
+  string url = 3;
+  repeated GitHubPermission permissions = 4;
+  // Where the token in use comes from on this machine, in a plain sentence.
+  string current = 5;
+}
+
+message GitHubPermission {
+  string name = 1;
+  string access = 2;
+  string why = 3;
+}
+
+// GitHubTokenRequest is a token to test and install on every machine.
+message GitHubTokenRequest {
+  string project = 1;
+  string token = 2;
+  // Only test it: install nothing.
+  bool test_only = 3;
+}
+
+message GitHubTokenCheck {
+  string name = 1;
+  string access = 2;
+  string why = 3;
+  bool ok = 4;
+  // False when GitHub offers no harmless test (workflows on a fine-grained token).
+  bool testable = 5;
+  string detail = 6;
+}
+
+// GitHubTokenMachine is one machine's test of the token, and whether it
+// installed it.
+message GitHubTokenMachine {
+  string machine = 1;
+  repeated GitHubTokenCheck checks = 2;
+  bool installed = 3;
+  string error = 4;
+  // fine-grained, classic or oauth.
+  string kind = 5;
+  string expires = 6;
+}
+
+message GitHubTokenResponse {
+  // Every machine passed and installed it.
+  bool installed = 1;
+  repeated GitHubTokenMachine machines = 2;
+}
+
 message MaxAgentsRequest {
   // Agents at once on each machine named; 0 measures it from the machine.
   int32 max_agents = 1;
@@ -1759,6 +1813,12 @@ service BarnraiseService {
   // ShareProject has other machines clone a project's repository and
   // register it, so their agents work on it too.
   rpc ShareProject(ShareProjectRequest) returns (ShareProjectResponse);
+  // How to create the project's GitHub token: a link to GitHub's form with
+  // every permission Barnraise needs already filled in.
+  rpc GetGitHubTokenSetup(ProjectRef) returns (GitHubTokenSetup);
+  // Tests a GitHub token's permissions on this machine and, when they all
+  // pass, installs it on every connected machine, each testing it again.
+  rpc InstallGitHubToken(GitHubTokenRequest) returns (GitHubTokenResponse);
   // What is active on each machine, what falls back and why, and how to fix
   // it (ADR-0046). Owner and admin tokens only.
   rpc Capabilities(CapabilitiesRequest) returns (CapabilitiesResponse);

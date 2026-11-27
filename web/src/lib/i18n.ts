@@ -1003,6 +1003,26 @@ Object.assign(pt, {
   convPhoneConnecting: 'Conectando o Remote Control…', convPairTitle: 'App do ChatGPT', convPairHelp: 'Pareie o app do ChatGPT uma vez: no Codex, conecte um computador e digite o código (ou leia o QR). Depois esta conversa aparece no celular.', convPairButton: 'Parear o celular', convPairCode: 'Código', convPairUntil: 'vale até {0}', convRemote: { connected: 'Remote Control conectado', connecting: 'Conectando o Remote Control…', errored: 'O Remote Control falhou', disabled: 'Remote Control desligado' }, convYes: 'Sim, pode', convNo: 'Não', convExplain: 'Explica melhor', convWriting: 'Escrevendo…', convAnswered: 'A conversa respondeu', convDictate: 'Ditar', convDictateStop: 'Parar o ditado', convToolEdit: 'Edição', convToolThinking: 'Raciocínio', pulseTool: 'Rodando {0}', pulseWriting: 'Escrevendo', pulseThinking: 'Pensando', pulseWaiting: 'Começando', pulseWorking: 'Trabalhando', pulseFor: 'há {0}', pulseLast: 'último sinal há {0}', pulseLongTool: 'Comando longo: testes e builds demoram mesmo; ele continua rodando.', pulseQuiet: 'Sem sinal de vida há {0}: pode ter travado. Normalmente é o modelo pensando muito.', pulseStuck: 'Provavelmente travou: sem sinal de vida há {0}. Pause e retome o item, ou mande uma mensagem para ele.', agentAgent: 'Agente', agentTalkPlaceholder: 'Diga algo ao agente: ele lê no próximo passo', convAccount: 'Conta', convAccountHelp: 'O celular mostra esta conversa no app do Claude logado na conta escolhida aqui.', convOwnLogin: 'Login deste computador', convSwitched: 'A conversa agora roda como {0}', convWeek: 'semana {0}%', convToolRead: 'Leitura', convToolSearch: 'Busca', convToolPlan: 'Plano',
 });
 
+Object.assign(en, {
+  ghtTitle: 'GitHub token', ghtHelp: 'What Barnraise uses for pull requests, issues, checks and CI. Created on GitHub, tested here on every machine.',
+  ghtCurrent: 'Token in use for {0}:', ghtStep1: '1. Create the token on GitHub', ghtOpen: 'Open GitHub with everything filled in',
+  ghtStep1Help: 'Under Repository access pick “Only select repositories” and {0}, then press Generate token. The permissions are already marked:',
+  ghtStep2: '2. Paste the token', ghtStep2Help: 'Each machine tests every permission from its own network before keeping it; with one missing, nothing is installed.',
+  ghtTest: 'Test only', ghtTesting: 'Testing…', ghtInstall: 'Test and install on every machine', ghtInstalling: 'Installing…',
+  ghtTestOk: 'Every permission passed.', ghtInstalled: 'Token installed on {0}.', ghtBadgeInstalled: 'installed', ghtBadgeTested: 'passed', ghtBadgeFailed: 'not installed',
+  ghtExpires: 'expires {0}'
+});
+
+Object.assign(pt, {
+  ghtTitle: 'Token do GitHub', ghtHelp: 'O que o Barnraise usa para pull requests, issues, checks e CI. Criado no GitHub, testado aqui em cada máquina.',
+  ghtCurrent: 'Token em uso para {0}:', ghtStep1: '1. Crie o token no GitHub', ghtOpen: 'Abrir o GitHub com tudo preenchido',
+  ghtStep1Help: 'Em Repository access escolha “Only select repositories” e {0}, depois aperte Generate token. As permissões já vêm marcadas:',
+  ghtStep2: '2. Cole o token', ghtStep2Help: 'Cada máquina testa cada permissão pela própria rede antes de guardar; faltando uma, nada é instalado.',
+  ghtTest: 'Só testar', ghtTesting: 'Testando…', ghtInstall: 'Testar e instalar em todas as máquinas', ghtInstalling: 'Instalando…',
+  ghtTestOk: 'Todas as permissões passaram.', ghtInstalled: 'Token instalado em {0}.', ghtBadgeInstalled: 'instalado', ghtBadgeTested: 'passou', ghtBadgeFailed: 'não instalado',
+  ghtExpires: 'vence {0}'
+});
+
 import { locale } from './locale.svelte';
 
 // The current language; t() and tm() read it, so the screen follows a switch.

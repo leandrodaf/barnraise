@@ -27,6 +27,7 @@
 	import Loading from '$lib/app/Loading.svelte';
 	import Empty from '$lib/app/Empty.svelte';
 	import Dot from '$lib/app/Dot.svelte';
+	import GitHubToken from '$lib/app/GitHubToken.svelte';
 
 	// What the CLI does to the daemon, from the panel: projects, tokens and
 	// the cluster's daemons.
@@ -175,6 +176,8 @@
 			<div class="flex items-center gap-2"><code class="num min-w-0 flex-1 break-all rounded-md bg-muted px-2 py-1.5 text-xs">{secret.secret}</code><Button size="sm" onclick={() => copy(secret!.secret)}><CopyIcon />{t('copy')}</Button></div>
 		</Section>
 	{/if}
+
+	<GitHubToken />
 
 	<Section title={t('tokTitle')} count={tokens.data?.length} sub={t('tokHelp')} pad={false}>
 		{#snippet right()}<Button size="sm" variant="outline" onclick={newToken}><PlusIcon />{t('tokNew')}</Button>{/snippet}

@@ -253,6 +253,12 @@ const (
 	// BarnraiseServiceShareProjectProcedure is the fully-qualified name of the BarnraiseService's
 	// ShareProject RPC.
 	BarnraiseServiceShareProjectProcedure = "/barnraise.v1.BarnraiseService/ShareProject"
+	// BarnraiseServiceGetGitHubTokenSetupProcedure is the fully-qualified name of the
+	// BarnraiseService's GetGitHubTokenSetup RPC.
+	BarnraiseServiceGetGitHubTokenSetupProcedure = "/barnraise.v1.BarnraiseService/GetGitHubTokenSetup"
+	// BarnraiseServiceInstallGitHubTokenProcedure is the fully-qualified name of the BarnraiseService's
+	// InstallGitHubToken RPC.
+	BarnraiseServiceInstallGitHubTokenProcedure = "/barnraise.v1.BarnraiseService/InstallGitHubToken"
 	// BarnraiseServiceCapabilitiesProcedure is the fully-qualified name of the BarnraiseService's
 	// Capabilities RPC.
 	BarnraiseServiceCapabilitiesProcedure = "/barnraise.v1.BarnraiseService/Capabilities"
@@ -398,6 +404,12 @@ type BarnraiseServiceClient interface {
 	// ShareProject has other machines clone a project's repository and
 	// register it, so their agents work on it too.
 	ShareProject(context.Context, *connect.Request[v1.ShareProjectRequest]) (*connect.Response[v1.ShareProjectResponse], error)
+	// How to create the project's GitHub token: a link to GitHub's form with
+	// every permission Barnraise needs already filled in.
+	GetGitHubTokenSetup(context.Context, *connect.Request[v1.ProjectRef]) (*connect.Response[v1.GitHubTokenSetup], error)
+	// Tests a GitHub token's permissions on this machine and, when they all
+	// pass, installs it on every connected machine, each testing it again.
+	InstallGitHubToken(context.Context, *connect.Request[v1.GitHubTokenRequest]) (*connect.Response[v1.GitHubTokenResponse], error)
 	// What is active on each machine, what falls back and why, and how to fix
 	// it (ADR-0046). Owner and admin tokens only.
 	Capabilities(context.Context, *connect.Request[v1.CapabilitiesRequest]) (*connect.Response[v1.CapabilitiesResponse], error)
@@ -872,6 +884,18 @@ func NewBarnraiseServiceClient(httpClient connect.HTTPClient, baseURL string, op
 			connect.WithSchema(barnraiseServiceMethods.ByName("ShareProject")),
 			connect.WithClientOptions(opts...),
 		),
+		getGitHubTokenSetup: connect.NewClient[v1.ProjectRef, v1.GitHubTokenSetup](
+			httpClient,
+			baseURL+BarnraiseServiceGetGitHubTokenSetupProcedure,
+			connect.WithSchema(barnraiseServiceMethods.ByName("GetGitHubTokenSetup")),
+			connect.WithClientOptions(opts...),
+		),
+		installGitHubToken: connect.NewClient[v1.GitHubTokenRequest, v1.GitHubTokenResponse](
+			httpClient,
+			baseURL+BarnraiseServiceInstallGitHubTokenProcedure,
+			connect.WithSchema(barnraiseServiceMethods.ByName("InstallGitHubToken")),
+			connect.WithClientOptions(opts...),
+		),
 		capabilities: connect.NewClient[v1.CapabilitiesRequest, v1.CapabilitiesResponse](
 			httpClient,
 			baseURL+BarnraiseServiceCapabilitiesProcedure,
@@ -913,87 +937,89 @@ func NewBarnraiseServiceClient(httpClient connect.HTTPClient, baseURL string, op
 
 // barnraiseServiceClient implements BarnraiseServiceClient.
 type barnraiseServiceClient struct {
-	listProjects       *connect.Client[v1.Empty, v1.ProjectsResponse]
-	registerProject    *connect.Client[v1.RegisterProjectRequest, v1.ProjectsResponse]
-	reloadProject      *connect.Client[v1.ProjectRef, v1.ProjectsResponse]
-	createItem         *connect.Client[v1.CreateItemRequest, v1.CreateItemResponse]
-	createItemFromChat *connect.Client[v1.DiscussionRef, v1.CreateItemResponse]
-	getItem            *connect.Client[v1.ItemRef, v1.ItemResponse]
-	listItems          *connect.Client[v1.ListItemsRequest, v1.ItemsResponse]
-	updateItem         *connect.Client[v1.UpdateItemRequest, v1.ItemResponse]
-	unlockFiles        *connect.Client[v1.UnlockFilesRequest, v1.ItemResponse]
-	closeItem          *connect.Client[v1.CloseItemRequest, v1.ItemResponse]
-	nextItem           *connect.Client[v1.NextItemRequest, v1.Assignment]
-	deliver            *connect.Client[v1.DeliverRequest, v1.ItemResponse]
-	submitReview       *connect.Client[v1.ReviewRequest, v1.ItemResponse]
-	reportCheck        *connect.Client[v1.ReportCheckRequest, v1.ItemResponse]
-	timeline           *connect.Client[v1.ItemRef, v1.TimelineResponse]
-	estimate           *connect.Client[v1.ItemRef, v1.EstimateResponse]
-	takeover           *connect.Client[v1.ItemRef, v1.TakeoverResponse]
-	handback           *connect.Client[v1.HandbackRequest, v1.ItemResponse]
-	redo               *connect.Client[v1.RedoRequest, v1.ItemResponse]
-	propose            *connect.Client[v1.ProposeRequest, v1.ProposeResponse]
-	listProposals      *connect.Client[v1.ListProposalsRequest, v1.ListProposalsResponse]
-	decideProposal     *connect.Client[v1.DecideProposalRequest, v1.ProposalResponse]
-	addTweak           *connect.Client[v1.AddTweakRequest, v1.AddTweakResponse]
-	askOwner           *connect.Client[v1.AskOwnerRequest, v1.QuestionResponse]
-	listQuestions      *connect.Client[v1.ProjectRef, v1.QuestionsResponse]
-	answer             *connect.Client[v1.AnswerRequest, v1.QuestionResponse]
-	approve            *connect.Client[v1.ApproveRequest, v1.Empty]
-	discuss            *connect.Client[v1.DiscussRequest, v1.DiscussionResponse]
-	listParts          *connect.Client[v1.ProjectRef, v1.PartsResponse]
-	getDiscussion      *connect.Client[v1.DiscussionRef, v1.DiscussionResponse]
-	delegate           *connect.Client[v1.DiscussionRef, v1.DiscussionResponse]
-	setAutopilot       *connect.Client[v1.AutopilotRequest, v1.AutopilotResponse]
-	triageProposals    *connect.Client[v1.ProjectRef, v1.ProposalTriageResponse]
-	setGoal            *connect.Client[v1.SetGoalRequest, v1.SetGoalResponse]
-	draftFromChat      *connect.Client[v1.DiscussionRef, v1.ChatDraft]
-	runChecksInChat    *connect.Client[v1.DiscussionRef, v1.Empty]
-	setFocus           *connect.Client[v1.FocusRequest, v1.FocusResponse]
-	clearFocus         *connect.Client[v1.ProjectRef, v1.Empty]
-	pause              *connect.Client[v1.PauseRequest, v1.Empty]
-	resume             *connect.Client[v1.ProjectRef, v1.Empty]
-	status             *connect.Client[v1.ProjectRef, v1.StatusResponse]
-	overview           *connect.Client[v1.OverviewRequest, v1.OverviewResponse]
-	metrics            *connect.Client[v1.MetricsRequest, v1.MetricsResponse]
-	digest             *connect.Client[v1.ProjectRef, v1.DigestResponse]
-	queue              *connect.Client[v1.ProjectRef, v1.QueueResponse]
-	processQueue       *connect.Client[v1.ProjectRef, v1.QueueResponse]
-	listEvents         *connect.Client[v1.EventsRequest, v1.EventsResponse]
-	sendMessage        *connect.Client[v1.SendMessageRequest, v1.MessageResponse]
-	inbox              *connect.Client[v1.InboxRequest, v1.InboxResponse]
-	journal            *connect.Client[v1.JournalRequest, v1.Empty]
-	reportViolation    *connect.Client[v1.PolicyViolationRequest, v1.Empty]
-	context            *connect.Client[v1.ContextRequest, v1.ContextResponse]
-	find               *connect.Client[v1.FindRequest, v1.FindResponse]
-	get                *connect.Client[v1.KnowledgeRequest, v1.KnowledgeResponse]
-	related            *connect.Client[v1.KnowledgeRequest, v1.KnowledgeResponse]
-	why                *connect.Client[v1.KnowledgeRequest, v1.KnowledgeResponse]
-	history            *connect.Client[v1.KnowledgeRequest, v1.KnowledgeResponse]
-	rules              *connect.Client[v1.KnowledgeRequest, v1.KnowledgeResponse]
-	revalidate         *connect.Client[v1.RevalidateRequest, v1.RevalidateResponse]
-	sweep              *connect.Client[v1.ProjectRef, v1.RevalidateResponse]
-	upsertAccount      *connect.Client[v1.AccountRequest, v1.AccountResponse]
-	listAccounts       *connect.Client[v1.ProjectRef, v1.AccountsResponse]
-	startAccountLogin  *connect.Client[v1.AccountLoginRequest, v1.AccountLoginResponse]
-	getAccountLogin    *connect.Client[v1.AccountLoginRequest, v1.AccountLoginResponse]
-	answerAccountLogin *connect.Client[v1.AccountLoginRequest, v1.AccountLoginResponse]
-	cancelAccountLogin *connect.Client[v1.AccountLoginRequest, v1.AccountLoginResponse]
-	reportUsage        *connect.Client[v1.ReportUsageRequest, v1.Empty]
-	listMachines       *connect.Client[v1.ProjectRef, v1.MachinesResponse]
-	machineHistory     *connect.Client[v1.MachineHistoryRequest, v1.MachineHistoryResponse]
-	leaveMachine       *connect.Client[v1.ProjectRef, v1.LeaveResponse]
-	listPeers          *connect.Client[v1.Empty, v1.PeersResponse]
-	stopPeers          *connect.Client[v1.StopPeersRequest, v1.StopPeersResponse]
-	setStandby         *connect.Client[v1.StandbyRequest, v1.StandbyResponse]
-	setMaxAgents       *connect.Client[v1.MaxAgentsRequest, v1.MaxAgentsResponse]
-	shareProject       *connect.Client[v1.ShareProjectRequest, v1.ShareProjectResponse]
-	capabilities       *connect.Client[v1.CapabilitiesRequest, v1.CapabilitiesResponse]
-	installTools       *connect.Client[v1.InstallToolsRequest, v1.InstallToolsResponse]
-	createToken        *connect.Client[v1.CreateTokenRequest, v1.CreateTokenResponse]
-	listTokens         *connect.Client[v1.Empty, v1.TokensResponse]
-	revokeToken        *connect.Client[v1.RevokeTokenRequest, v1.Empty]
-	listAudit          *connect.Client[v1.AuditRequest, v1.AuditResponse]
+	listProjects        *connect.Client[v1.Empty, v1.ProjectsResponse]
+	registerProject     *connect.Client[v1.RegisterProjectRequest, v1.ProjectsResponse]
+	reloadProject       *connect.Client[v1.ProjectRef, v1.ProjectsResponse]
+	createItem          *connect.Client[v1.CreateItemRequest, v1.CreateItemResponse]
+	createItemFromChat  *connect.Client[v1.DiscussionRef, v1.CreateItemResponse]
+	getItem             *connect.Client[v1.ItemRef, v1.ItemResponse]
+	listItems           *connect.Client[v1.ListItemsRequest, v1.ItemsResponse]
+	updateItem          *connect.Client[v1.UpdateItemRequest, v1.ItemResponse]
+	unlockFiles         *connect.Client[v1.UnlockFilesRequest, v1.ItemResponse]
+	closeItem           *connect.Client[v1.CloseItemRequest, v1.ItemResponse]
+	nextItem            *connect.Client[v1.NextItemRequest, v1.Assignment]
+	deliver             *connect.Client[v1.DeliverRequest, v1.ItemResponse]
+	submitReview        *connect.Client[v1.ReviewRequest, v1.ItemResponse]
+	reportCheck         *connect.Client[v1.ReportCheckRequest, v1.ItemResponse]
+	timeline            *connect.Client[v1.ItemRef, v1.TimelineResponse]
+	estimate            *connect.Client[v1.ItemRef, v1.EstimateResponse]
+	takeover            *connect.Client[v1.ItemRef, v1.TakeoverResponse]
+	handback            *connect.Client[v1.HandbackRequest, v1.ItemResponse]
+	redo                *connect.Client[v1.RedoRequest, v1.ItemResponse]
+	propose             *connect.Client[v1.ProposeRequest, v1.ProposeResponse]
+	listProposals       *connect.Client[v1.ListProposalsRequest, v1.ListProposalsResponse]
+	decideProposal      *connect.Client[v1.DecideProposalRequest, v1.ProposalResponse]
+	addTweak            *connect.Client[v1.AddTweakRequest, v1.AddTweakResponse]
+	askOwner            *connect.Client[v1.AskOwnerRequest, v1.QuestionResponse]
+	listQuestions       *connect.Client[v1.ProjectRef, v1.QuestionsResponse]
+	answer              *connect.Client[v1.AnswerRequest, v1.QuestionResponse]
+	approve             *connect.Client[v1.ApproveRequest, v1.Empty]
+	discuss             *connect.Client[v1.DiscussRequest, v1.DiscussionResponse]
+	listParts           *connect.Client[v1.ProjectRef, v1.PartsResponse]
+	getDiscussion       *connect.Client[v1.DiscussionRef, v1.DiscussionResponse]
+	delegate            *connect.Client[v1.DiscussionRef, v1.DiscussionResponse]
+	setAutopilot        *connect.Client[v1.AutopilotRequest, v1.AutopilotResponse]
+	triageProposals     *connect.Client[v1.ProjectRef, v1.ProposalTriageResponse]
+	setGoal             *connect.Client[v1.SetGoalRequest, v1.SetGoalResponse]
+	draftFromChat       *connect.Client[v1.DiscussionRef, v1.ChatDraft]
+	runChecksInChat     *connect.Client[v1.DiscussionRef, v1.Empty]
+	setFocus            *connect.Client[v1.FocusRequest, v1.FocusResponse]
+	clearFocus          *connect.Client[v1.ProjectRef, v1.Empty]
+	pause               *connect.Client[v1.PauseRequest, v1.Empty]
+	resume              *connect.Client[v1.ProjectRef, v1.Empty]
+	status              *connect.Client[v1.ProjectRef, v1.StatusResponse]
+	overview            *connect.Client[v1.OverviewRequest, v1.OverviewResponse]
+	metrics             *connect.Client[v1.MetricsRequest, v1.MetricsResponse]
+	digest              *connect.Client[v1.ProjectRef, v1.DigestResponse]
+	queue               *connect.Client[v1.ProjectRef, v1.QueueResponse]
+	processQueue        *connect.Client[v1.ProjectRef, v1.QueueResponse]
+	listEvents          *connect.Client[v1.EventsRequest, v1.EventsResponse]
+	sendMessage         *connect.Client[v1.SendMessageRequest, v1.MessageResponse]
+	inbox               *connect.Client[v1.InboxRequest, v1.InboxResponse]
+	journal             *connect.Client[v1.JournalRequest, v1.Empty]
+	reportViolation     *connect.Client[v1.PolicyViolationRequest, v1.Empty]
+	context             *connect.Client[v1.ContextRequest, v1.ContextResponse]
+	find                *connect.Client[v1.FindRequest, v1.FindResponse]
+	get                 *connect.Client[v1.KnowledgeRequest, v1.KnowledgeResponse]
+	related             *connect.Client[v1.KnowledgeRequest, v1.KnowledgeResponse]
+	why                 *connect.Client[v1.KnowledgeRequest, v1.KnowledgeResponse]
+	history             *connect.Client[v1.KnowledgeRequest, v1.KnowledgeResponse]
+	rules               *connect.Client[v1.KnowledgeRequest, v1.KnowledgeResponse]
+	revalidate          *connect.Client[v1.RevalidateRequest, v1.RevalidateResponse]
+	sweep               *connect.Client[v1.ProjectRef, v1.RevalidateResponse]
+	upsertAccount       *connect.Client[v1.AccountRequest, v1.AccountResponse]
+	listAccounts        *connect.Client[v1.ProjectRef, v1.AccountsResponse]
+	startAccountLogin   *connect.Client[v1.AccountLoginRequest, v1.AccountLoginResponse]
+	getAccountLogin     *connect.Client[v1.AccountLoginRequest, v1.AccountLoginResponse]
+	answerAccountLogin  *connect.Client[v1.AccountLoginRequest, v1.AccountLoginResponse]
+	cancelAccountLogin  *connect.Client[v1.AccountLoginRequest, v1.AccountLoginResponse]
+	reportUsage         *connect.Client[v1.ReportUsageRequest, v1.Empty]
+	listMachines        *connect.Client[v1.ProjectRef, v1.MachinesResponse]
+	machineHistory      *connect.Client[v1.MachineHistoryRequest, v1.MachineHistoryResponse]
+	leaveMachine        *connect.Client[v1.ProjectRef, v1.LeaveResponse]
+	listPeers           *connect.Client[v1.Empty, v1.PeersResponse]
+	stopPeers           *connect.Client[v1.StopPeersRequest, v1.StopPeersResponse]
+	setStandby          *connect.Client[v1.StandbyRequest, v1.StandbyResponse]
+	setMaxAgents        *connect.Client[v1.MaxAgentsRequest, v1.MaxAgentsResponse]
+	shareProject        *connect.Client[v1.ShareProjectRequest, v1.ShareProjectResponse]
+	getGitHubTokenSetup *connect.Client[v1.ProjectRef, v1.GitHubTokenSetup]
+	installGitHubToken  *connect.Client[v1.GitHubTokenRequest, v1.GitHubTokenResponse]
+	capabilities        *connect.Client[v1.CapabilitiesRequest, v1.CapabilitiesResponse]
+	installTools        *connect.Client[v1.InstallToolsRequest, v1.InstallToolsResponse]
+	createToken         *connect.Client[v1.CreateTokenRequest, v1.CreateTokenResponse]
+	listTokens          *connect.Client[v1.Empty, v1.TokensResponse]
+	revokeToken         *connect.Client[v1.RevokeTokenRequest, v1.Empty]
+	listAudit           *connect.Client[v1.AuditRequest, v1.AuditResponse]
 }
 
 // ListProjects calls barnraise.v1.BarnraiseService.ListProjects.
@@ -1371,6 +1397,16 @@ func (c *barnraiseServiceClient) ShareProject(ctx context.Context, req *connect.
 	return c.shareProject.CallUnary(ctx, req)
 }
 
+// GetGitHubTokenSetup calls barnraise.v1.BarnraiseService.GetGitHubTokenSetup.
+func (c *barnraiseServiceClient) GetGitHubTokenSetup(ctx context.Context, req *connect.Request[v1.ProjectRef]) (*connect.Response[v1.GitHubTokenSetup], error) {
+	return c.getGitHubTokenSetup.CallUnary(ctx, req)
+}
+
+// InstallGitHubToken calls barnraise.v1.BarnraiseService.InstallGitHubToken.
+func (c *barnraiseServiceClient) InstallGitHubToken(ctx context.Context, req *connect.Request[v1.GitHubTokenRequest]) (*connect.Response[v1.GitHubTokenResponse], error) {
+	return c.installGitHubToken.CallUnary(ctx, req)
+}
+
 // Capabilities calls barnraise.v1.BarnraiseService.Capabilities.
 func (c *barnraiseServiceClient) Capabilities(ctx context.Context, req *connect.Request[v1.CapabilitiesRequest]) (*connect.Response[v1.CapabilitiesResponse], error) {
 	return c.capabilities.CallUnary(ctx, req)
@@ -1526,6 +1562,12 @@ type BarnraiseServiceHandler interface {
 	// ShareProject has other machines clone a project's repository and
 	// register it, so their agents work on it too.
 	ShareProject(context.Context, *connect.Request[v1.ShareProjectRequest]) (*connect.Response[v1.ShareProjectResponse], error)
+	// How to create the project's GitHub token: a link to GitHub's form with
+	// every permission Barnraise needs already filled in.
+	GetGitHubTokenSetup(context.Context, *connect.Request[v1.ProjectRef]) (*connect.Response[v1.GitHubTokenSetup], error)
+	// Tests a GitHub token's permissions on this machine and, when they all
+	// pass, installs it on every connected machine, each testing it again.
+	InstallGitHubToken(context.Context, *connect.Request[v1.GitHubTokenRequest]) (*connect.Response[v1.GitHubTokenResponse], error)
 	// What is active on each machine, what falls back and why, and how to fix
 	// it (ADR-0046). Owner and admin tokens only.
 	Capabilities(context.Context, *connect.Request[v1.CapabilitiesRequest]) (*connect.Response[v1.CapabilitiesResponse], error)
@@ -1996,6 +2038,18 @@ func NewBarnraiseServiceHandler(svc BarnraiseServiceHandler, opts ...connect.Han
 		connect.WithSchema(barnraiseServiceMethods.ByName("ShareProject")),
 		connect.WithHandlerOptions(opts...),
 	)
+	barnraiseServiceGetGitHubTokenSetupHandler := connect.NewUnaryHandler(
+		BarnraiseServiceGetGitHubTokenSetupProcedure,
+		svc.GetGitHubTokenSetup,
+		connect.WithSchema(barnraiseServiceMethods.ByName("GetGitHubTokenSetup")),
+		connect.WithHandlerOptions(opts...),
+	)
+	barnraiseServiceInstallGitHubTokenHandler := connect.NewUnaryHandler(
+		BarnraiseServiceInstallGitHubTokenProcedure,
+		svc.InstallGitHubToken,
+		connect.WithSchema(barnraiseServiceMethods.ByName("InstallGitHubToken")),
+		connect.WithHandlerOptions(opts...),
+	)
 	barnraiseServiceCapabilitiesHandler := connect.NewUnaryHandler(
 		BarnraiseServiceCapabilitiesProcedure,
 		svc.Capabilities,
@@ -2184,6 +2238,10 @@ func NewBarnraiseServiceHandler(svc BarnraiseServiceHandler, opts ...connect.Han
 			barnraiseServiceSetMaxAgentsHandler.ServeHTTP(w, r)
 		case BarnraiseServiceShareProjectProcedure:
 			barnraiseServiceShareProjectHandler.ServeHTTP(w, r)
+		case BarnraiseServiceGetGitHubTokenSetupProcedure:
+			barnraiseServiceGetGitHubTokenSetupHandler.ServeHTTP(w, r)
+		case BarnraiseServiceInstallGitHubTokenProcedure:
+			barnraiseServiceInstallGitHubTokenHandler.ServeHTTP(w, r)
 		case BarnraiseServiceCapabilitiesProcedure:
 			barnraiseServiceCapabilitiesHandler.ServeHTTP(w, r)
 		case BarnraiseServiceInstallToolsProcedure:
@@ -2503,6 +2561,14 @@ func (UnimplementedBarnraiseServiceHandler) SetMaxAgents(context.Context, *conne
 
 func (UnimplementedBarnraiseServiceHandler) ShareProject(context.Context, *connect.Request[v1.ShareProjectRequest]) (*connect.Response[v1.ShareProjectResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("barnraise.v1.BarnraiseService.ShareProject is not implemented"))
+}
+
+func (UnimplementedBarnraiseServiceHandler) GetGitHubTokenSetup(context.Context, *connect.Request[v1.ProjectRef]) (*connect.Response[v1.GitHubTokenSetup], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("barnraise.v1.BarnraiseService.GetGitHubTokenSetup is not implemented"))
+}
+
+func (UnimplementedBarnraiseServiceHandler) InstallGitHubToken(context.Context, *connect.Request[v1.GitHubTokenRequest]) (*connect.Response[v1.GitHubTokenResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("barnraise.v1.BarnraiseService.InstallGitHubToken is not implemented"))
 }
 
 func (UnimplementedBarnraiseServiceHandler) Capabilities(context.Context, *connect.Request[v1.CapabilitiesRequest]) (*connect.Response[v1.CapabilitiesResponse], error) {

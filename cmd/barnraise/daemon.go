@@ -245,6 +245,7 @@ func runDaemon(ctx context.Context, opts cli.DaemonOptions) error {
 	go d.serveRemoteLogin(ctx)
 	go d.serveRemoteAgents(ctx)
 	go d.serveRemoteProject(ctx)
+	go d.serveRemoteGitHubToken(ctx)
 	go d.watchCapabilities(ctx)
 	go newChainWatch(d).run(ctx)
 
@@ -254,7 +255,8 @@ func runDaemon(ctx context.Context, opts cli.DaemonOptions) error {
 		Reload:   d.reloadProject,
 		Peers:    d.peers, StopPeers: d.stopPeers, SetStandby: d.setStandby,
 		Capabilities: d.capabilities, InstallTools: d.installTools, AccountLogin: d.accountLogin, SetMaxAgents: d.setMachineAgents,
-		ShareProject: d.shareProject,
+		ShareProject:     d.shareProject,
+		GitHubTokenSetup: d.gitHubTokenSetup, InstallGitHubToken: d.installGitHubToken,
 		VerifyAnchor: natsx.AnchorVerifier(df.NKeyPublic),
 		WebhookSecret: func(project, source string) string {
 			v, _ := d.secrets.Get("webhook/" + project + "/" + source)
@@ -552,6 +554,7 @@ func (d *daemon) watchDaemonFile(ctx context.Context) {
 				go d.serveRemoteLogin(ctx)
 				go d.serveRemoteAgents(ctx)
 				go d.serveRemoteProject(ctx)
+				go d.serveRemoteGitHubToken(ctx)
 			}
 		}
 		if d.repl != nil {

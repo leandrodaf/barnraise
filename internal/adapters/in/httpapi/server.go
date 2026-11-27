@@ -51,6 +51,11 @@ type Options struct {
 	SetMaxAgents func(ctx context.Context, n int, machines []string) (*pb.MaxAgentsResponse, error)
 	// ShareProject has the named machines clone and register a project.
 	ShareProject func(ctx context.Context, r *pb.ShareProjectRequest) (*pb.ShareProjectResponse, error)
+	// GitHubTokenSetup and InstallGitHubToken give a project its GitHub
+	// token from the panel: GitHub's form filled in, then a test of every
+	// permission and the install on every machine.
+	GitHubTokenSetup   func(ctx context.Context, project string) (*pb.GitHubTokenSetup, error)
+	InstallGitHubToken func(ctx context.Context, r *pb.GitHubTokenRequest) (*pb.GitHubTokenResponse, error)
 	// Capabilities and InstallTools answer for this machine and fan out to
 	// the requested peers (ADR-0046); nil answers for this machine only.
 	Capabilities func(ctx context.Context, r *pb.CapabilitiesRequest) (*pb.CapabilitiesResponse, error)

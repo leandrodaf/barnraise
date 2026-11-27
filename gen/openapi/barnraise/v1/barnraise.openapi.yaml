@@ -943,6 +943,47 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/barnraise.v1.DiscussionResponse'
+  /barnraise.v1.BarnraiseService/GetGitHubTokenSetup:
+    post:
+      tags:
+        - barnraise.v1.BarnraiseService
+      summary: GetGitHubTokenSetup
+      description: |-
+        How to create the project's GitHub token: a link to GitHub's form with
+         every permission Barnraise needs already filled in.
+      operationId: barnraise.v1.BarnraiseService.GetGitHubTokenSetup
+      parameters:
+        - name: Connect-Protocol-Version
+          in: header
+          description: Define the version of the Connect protocol
+          schema:
+            $ref: '#/components/schemas/connect-protocol-version'
+          example: 1
+        - name: Connect-Timeout-Ms
+          in: header
+          description: Define the timeout, in ms
+          schema:
+            $ref: '#/components/schemas/connect-timeout-header'
+          example: 1000
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/barnraise.v1.ProjectRef'
+        required: true
+      responses:
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.error'
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/barnraise.v1.GitHubTokenSetup'
   /barnraise.v1.BarnraiseService/GetItem:
     post:
       tags:
@@ -1095,6 +1136,47 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/barnraise.v1.InboxResponse'
+  /barnraise.v1.BarnraiseService/InstallGitHubToken:
+    post:
+      tags:
+        - barnraise.v1.BarnraiseService
+      summary: InstallGitHubToken
+      description: |-
+        Tests a GitHub token's permissions on this machine and, when they all
+         pass, installs it on every connected machine, each testing it again.
+      operationId: barnraise.v1.BarnraiseService.InstallGitHubToken
+      parameters:
+        - name: Connect-Protocol-Version
+          in: header
+          description: Define the version of the Connect protocol
+          schema:
+            $ref: '#/components/schemas/connect-protocol-version'
+          example: 1
+        - name: Connect-Timeout-Ms
+          in: header
+          description: Define the timeout, in ms
+          schema:
+            $ref: '#/components/schemas/connect-timeout-header'
+          example: 1000
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/barnraise.v1.GitHubTokenRequest'
+        required: true
+      responses:
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.error'
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/barnraise.v1.GitHubTokenResponse'
   /barnraise.v1.BarnraiseService/InstallTools:
     post:
       tags:
@@ -4609,6 +4691,130 @@ components:
           title: applied
       title: FocusResponse
       additionalProperties: false
+    barnraise.v1.GitHubPermission:
+      type: object
+      properties:
+        name:
+          type: string
+          title: name
+        access:
+          type: string
+          title: access
+        why:
+          type: string
+          title: why
+      title: GitHubPermission
+      additionalProperties: false
+    barnraise.v1.GitHubTokenCheck:
+      type: object
+      properties:
+        name:
+          type: string
+          title: name
+        access:
+          type: string
+          title: access
+        why:
+          type: string
+          title: why
+        ok:
+          type: boolean
+          title: ok
+        testable:
+          type: boolean
+          title: testable
+          description: False when GitHub offers no harmless test (workflows on a fine-grained token).
+        detail:
+          type: string
+          title: detail
+      title: GitHubTokenCheck
+      additionalProperties: false
+    barnraise.v1.GitHubTokenMachine:
+      type: object
+      properties:
+        machine:
+          type: string
+          title: machine
+        checks:
+          type: array
+          items:
+            $ref: '#/components/schemas/barnraise.v1.GitHubTokenCheck'
+          title: checks
+        installed:
+          type: boolean
+          title: installed
+        error:
+          type: string
+          title: error
+        kind:
+          type: string
+          title: kind
+          description: fine-grained, classic or oauth.
+        expires:
+          type: string
+          title: expires
+      title: GitHubTokenMachine
+      additionalProperties: false
+      description: |-
+        GitHubTokenMachine is one machine's test of the token, and whether it
+         installed it.
+    barnraise.v1.GitHubTokenRequest:
+      type: object
+      properties:
+        project:
+          type: string
+          title: project
+        token:
+          type: string
+          title: token
+        testOnly:
+          type: boolean
+          title: test_only
+          description: 'Only test it: install nothing.'
+      title: GitHubTokenRequest
+      additionalProperties: false
+      description: GitHubTokenRequest is a token to test and install on every machine.
+    barnraise.v1.GitHubTokenResponse:
+      type: object
+      properties:
+        installed:
+          type: boolean
+          title: installed
+          description: Every machine passed and installed it.
+        machines:
+          type: array
+          items:
+            $ref: '#/components/schemas/barnraise.v1.GitHubTokenMachine'
+          title: machines
+      title: GitHubTokenResponse
+      additionalProperties: false
+    barnraise.v1.GitHubTokenSetup:
+      type: object
+      properties:
+        project:
+          type: string
+          title: project
+        repo:
+          type: string
+          title: repo
+        url:
+          type: string
+          title: url
+          description: GitHub's new fine-grained token form, owner and permissions filled in.
+        permissions:
+          type: array
+          items:
+            $ref: '#/components/schemas/barnraise.v1.GitHubPermission'
+          title: permissions
+        current:
+          type: string
+          title: current
+          description: Where the token in use comes from on this machine, in a plain sentence.
+      title: GitHubTokenSetup
+      additionalProperties: false
+      description: |-
+        GitHubTokenSetup is how to create a GitHub token for a project: GitHub's
+         form with everything filled in, and what each permission is for.
     barnraise.v1.Goal:
       type: object
       properties:
