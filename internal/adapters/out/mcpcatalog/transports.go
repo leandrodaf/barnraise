@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"crypto/rand"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -12,6 +13,7 @@ import (
 	"net/url"
 	"os"
 	"os/exec"
+	"regexp"
 	"strings"
 	"sync"
 	"time"
@@ -28,7 +30,9 @@ func stdioTools(ctx context.Context, def domain.MCPServerDef) ([]string, error) 
 	}
 	cmd := exec.CommandContext(ctx, def.Command, def.Args...)
 	execx.KillGroupOnCancel(cmd, 2*time.Second)
-	cmd.Env = os.Environ()
+	// Started as Claude Code starts a server: some refuse to run without
+	// the session id it passes them (session-aware bridges).
+	cmd.Env = append(os.Environ(), "CLAUDE_CODE_SESSION_ID="+probeSessionID())
 	for k, v := range def.Env {
 		cmd.Env = append(cmd.Env, k+"="+v)
 	}
@@ -70,7 +74,7 @@ func stdioTools(ctx context.Context, def domain.MCPServerDef) ([]string, error) 
 		_ = in.Close()
 		_ = cmd.Wait()
 		exited = true
-		why := strings.TrimSpace(stderr.String())
+		why := lastWords(stderr.String())
 		if why == "" && ctx.Err() != nil {
 			why = "no answer"
 		}
@@ -115,8 +119,33 @@ func (t *tail) Write(p []byte) (int, error) {
 func (t *tail) String() string {
 	t.mu.Lock()
 	defer t.mu.Unlock()
-	return string(t.b)
+	return ansiRe.ReplaceAllString(string(t.b), "")
 }
+
+// lastWords picks what a server said last before dying: its last error
+// line, else its last line (logs come first, the reason at the end).
+func lastWords(s string) string {
+	lines := strings.Split(strings.TrimSpace(s), "\n")
+	for i := len(lines) - 1; i >= 0; i-- {
+		l := strings.TrimSpace(lines[i])
+		if strings.Contains(strings.ToLower(l), "error") || strings.Contains(strings.ToLower(l), "fatal") || strings.Contains(l, "panic") {
+			return l
+		}
+	}
+	return strings.TrimSpace(lines[len(lines)-1])
+}
+
+// probeSessionID is a fresh id in the shape of Claude Code's session ids.
+func probeSessionID() string {
+	var b [16]byte
+	_, _ = rand.Read(b[:])
+	b[6] = b[6]&0x0f | 0x40
+	b[8] = b[8]&0x3f | 0x80
+	return fmt.Sprintf("%x-%x-%x-%x-%x", b[0:4], b[4:6], b[6:8], b[8:10], b[10:])
+}
+
+// ansiRe matches terminal colour codes, which servers put in their logs.
+var ansiRe = regexp.MustCompile(`\x1b\[[0-9;]*[A-Za-z]`)
 
 var httpClient = &http.Client{Timeout: 30 * time.Second}
 

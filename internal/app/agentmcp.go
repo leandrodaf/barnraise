@@ -322,8 +322,11 @@ func (s *Service) AgentMCPView(ctx context.Context, project string, a Actor) ([]
 		byName[name] = x
 		return x
 	}
-	for _, list := range reports {
-		for _, st := range list {
+	// This machine's view of a server comes first, then the others' in order.
+	order := sortedKeys(reports)
+	order = append([]string{s.d.Machine}, slices.DeleteFunc(order, func(m string) bool { return m == s.d.Machine })...)
+	for _, name := range order {
+		for _, st := range reports[name] {
 			x := get(st.Name)
 			if x.Kind == "" || st.Source == domain.MCPFromBarnraise {
 				x.Kind, x.Summary = st.Kind, st.Summary

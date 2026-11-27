@@ -29,7 +29,13 @@ func TestMain(m *testing.M) {
 
 func fakeStdio() {
 	if os.Getenv("FAKE_MCP_FAIL") != "" {
-		fmt.Fprintln(os.Stderr, "missing FIGMA_TOKEN")
+		fmt.Fprintln(os.Stderr, "\x1b[2m2026-11-27\x1b[0m INFO starting")
+		fmt.Fprintln(os.Stderr, "\x1b[31mError: missing FIGMA_TOKEN\x1b[0m")
+		fmt.Fprintln(os.Stderr, "bye")
+		os.Exit(1)
+	}
+	if len(os.Getenv("CLAUDE_CODE_SESSION_ID")) != 36 {
+		fmt.Fprintln(os.Stderr, "Error: CLAUDE_CODE_SESSION_ID is missing")
 		os.Exit(1)
 	}
 	sc := bufio.NewScanner(os.Stdin)
@@ -80,7 +86,7 @@ func TestStdioTools(t *testing.T) {
 // A server that dies says why, from its stderr.
 func TestStdioToolsFailureSaysWhy(t *testing.T) {
 	_, err := New().Tools(context.Background(), selfServer(t, map[string]string{"FAKE_MCP_FAIL": "1"}))
-	if err == nil || !strings.Contains(err.Error(), "missing FIGMA_TOKEN") {
+	if err == nil || err.Error() != "Error: missing FIGMA_TOKEN" {
 		t.Fatalf("err = %v", err)
 	}
 }
