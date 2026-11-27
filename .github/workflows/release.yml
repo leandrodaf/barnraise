@@ -27,3 +27,46 @@ jobs:
           args: release --clean
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # The desktop app for Windows: a native window that drives the daemon in
+  # WSL (desktop/wsl.go). Wails cross-compiles it from Linux (WebView2 needs
+  # no cgo), and NSIS wraps it in an installer with a Start menu entry.
+  desktop-windows:
+    needs: goreleaser
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: desktop/go.mod
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.33.0
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "24"
+          cache: pnpm
+          cache-dependency-path: web/pnpm-lock.yaml
+      - name: tools
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq nsis
+          go install github.com/wailsapp/wails/v2/cmd/wails@v2.17.1
+      - name: launcher page
+        working-directory: web
+        run: pnpm install --frozen-lockfile && pnpm build:desktop
+      - name: build
+        working-directory: desktop
+        env:
+          VERSION: ${{ github.ref_name }}
+        run: |
+          plain="${VERSION#v}"
+          jq --arg v "$plain" '.info.productVersion = $v' wails.json > wails.tmp && mv wails.tmp wails.json
+          wails build -platform windows/amd64 -nsis -skipbindings -s -trimpath -ldflags "-X main.appVersion=$VERSION"
+          cd build/bin
+          mv barnraise-desktop.exe "Barnraise-${plain}-windows-amd64.exe"
+          mv barnraise-desktop-amd64-installer.exe "Barnraise-${plain}-windows-amd64-setup.exe"
+          sha256sum Barnraise-*.exe > desktop-windows-checksums.txt
+      - name: upload
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release upload "${{ github.ref_name }}" desktop/build/bin/Barnraise-*.exe desktop/build/bin/desktop-windows-checksums.txt --clobber

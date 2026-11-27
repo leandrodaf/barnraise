@@ -9,6 +9,7 @@ import (
 	"os/exec"
 	"runtime"
 	"strings"
+	"sync"
 
 	"github.com/spf13/cobra"
 
@@ -55,11 +56,7 @@ func (e *env) panelCmd() *cobra.Command {
 				fmt.Fprintln(e.out, u)
 				return nil
 			}
-			name := "xdg-open"
-			if runtime.GOOS == "darwin" {
-				name = "open"
-			}
-			if err := exec.Command(name, u).Start(); err != nil {
+			if err := openBrowser(u); err != nil {
 				return fmt.Errorf("could not open the browser (%v): run `barnraise panel --print` and open the address yourself", err)
 			}
 			fmt.Fprintln(e.out, "✔ The panel is open in the browser.")
@@ -68,3 +65,30 @@ func (e *env) panelCmd() *cobra.Command {
 	c.Flags().BoolVar(&print, "print", false, "write the address (with the token) instead of opening it")
 	return c
 }
+
+// openBrowser opens u in the owner's browser. In WSL that is the Windows
+// one: wslview when wslu is there, else explorer.exe, which hands an address
+// to the default browser.
+func openBrowser(u string) error {
+	var name string
+	switch {
+	case runtime.GOOS == "darwin":
+		name = "open"
+	case inWSL():
+		name = "explorer.exe"
+		if _, err := exec.LookPath("wslview"); err == nil {
+			name = "wslview"
+		}
+	default:
+		name = "xdg-open"
+	}
+	return exec.Command(name, u).Start()
+}
+
+var inWSL = sync.OnceValue(func() bool {
+	if os.Getenv("WSL_DISTRO_NAME") != "" || os.Getenv("WSL_INTEROP") != "" {
+		return true
+	}
+	b, _ := os.ReadFile("/proc/sys/kernel/osrelease")
+	return strings.Contains(strings.ToLower(string(b)), "microsoft")
+})

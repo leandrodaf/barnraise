@@ -8,14 +8,9 @@ import (
 	"net/http"
 	"net/url"
 	"os"
-	"os/exec"
-	"path/filepath"
+	"runtime"
 	"strings"
-	"syscall"
 	"time"
-
-	"github.com/leandrodaf/barnraise/internal/daemoncfg"
-	"github.com/leandrodaf/barnraise/internal/paths"
 )
 
 // App is what the launcher page calls. Every answer is a plain struct; the
@@ -28,7 +23,9 @@ func NewApp() *App { return &App{} }
 
 func (a *App) startup(ctx context.Context) { a.ctx = ctx }
 
-// Local is what the app knows about this machine's daemon.
+// Local is what the app knows about this machine's daemon. On Windows the
+// daemon runs in WSL (it is a Linux program): Host is then "wsl" and Distro
+// the Linux distribution it lives in.
 type Local struct {
 	Running   bool   `json:"running"`
 	URL       string `json:"url"`
@@ -40,84 +37,76 @@ type Local struct {
 	Problem   string `json:"problem,omitempty"`
 	PanelURL  string `json:"panel_url,omitempty"` // with the token, when running
 	DevServer bool   `json:"dev_server"`
+	// CanInstall: the program is missing and the app can install it.
+	CanInstall bool `json:"can_install"`
+	// Windows only: the daemon's home is WSL.
+	Host     string `json:"host,omitempty"`   // "wsl" on Windows
+	Distro   string `json:"distro,omitempty"` // the WSL distribution used
+	NeedsWSL bool   `json:"needs_wsl"`        // WSL or a distribution is missing
 	// AppVersion is this app's build; Version above is the daemon's.
 	AppVersion string `json:"app_version"`
+	Platform   string `json:"platform"`
 }
 
-// Status looks for the daemon of this machine.
+// Status looks for the daemon of this machine (on Windows: the one in WSL).
 func (a *App) Status() Local {
-	l := Local{AppVersion: appVersion}
-	l.Binary = findBinary()
-	l.Service = serviceInstalled()
-	df, err := daemoncfg.Load()
-	if err != nil {
-		l.Problem = err.Error()
-		return l
-	}
-	if df.Listen == "" || df.Listen == "off" {
-		l.Problem = "the daemon has no TCP address (listen: off in " + paths.DaemonConfig() + ")"
-		return l
-	}
-	l.URL = "http://" + loopback(df.Listen)
-	tok, _ := os.ReadFile(paths.OwnerTokenFile())
-	l.HasToken = len(strings.TrimSpace(string(tok))) > 0
-	h, err := health(l.URL)
-	if err != nil {
-		return l
-	}
-	l.Running, l.Machine, l.Version = true, h.Machine, h.Version
-	if l.HasToken {
-		l.PanelURL, l.DevServer = panelURL(l.URL, strings.TrimSpace(string(tok)))
-	}
+	l := localStatus()
+	l.AppVersion, l.Platform = appVersion, runtime.GOOS
 	return l
 }
 
 // startWait is how long StartDaemon waits for the daemon to answer.
 const startWait = 90 * time.Second
 
-// StartDaemon starts this machine's daemon as its own process: through the
-// systemd user service when there is one, otherwise `barnraise daemon` in
-// the background with its log in the data folder. It waits until it answers.
+// StartDaemon starts this machine's daemon as its own process and waits
+// until it answers with its panel. Closing the app does not stop it.
 func (a *App) StartDaemon() (Local, error) {
+	// One that already answers is never started twice, token or not.
 	if s := a.Status(); s.Running {
 		return s, nil
 	}
-	switch {
-	case serviceInstalled():
-		if out, err := exec.Command("systemctl", "--user", "start", "barnraise").CombinedOutput(); err != nil {
-			return Local{}, fmt.Errorf("systemctl --user start barnraise: %v: %s", err, out)
-		}
-	default:
-		bin := findBinary()
-		if bin == "" {
-			return Local{}, errors.New("the barnraise program was not found next to the app, on the PATH or in ~/.local/bin")
-		}
-		if err := os.MkdirAll(paths.DataDir(), 0o700); err != nil {
-			return Local{}, err
-		}
-		logf, err := os.OpenFile(filepath.Join(paths.DataDir(), "daemon.log"), os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o600)
-		if err != nil {
-			return Local{}, err
-		}
-		defer logf.Close()
-		cmd := exec.Command(bin, "daemon")
-		cmd.Stdout, cmd.Stderr = logf, logf
-		cmd.SysProcAttr = &syscall.SysProcAttr{Setsid: true} // its own session: it outlives the app
-		if err := cmd.Start(); err != nil {
-			return Local{}, err
-		}
-		_ = cmd.Process.Release()
+	if err := localStart(); err != nil {
+		return a.Status(), err
 	}
 	// The daemon answers only after it loaded every project: a large one
-	// takes ten seconds or more, so the wait is generous.
+	// takes ten seconds or more, so the wait is generous. It writes the
+	// owner token as it starts, so the panel address follows the answer.
 	deadline := time.Now().Add(startWait)
 	for time.Now().Before(deadline) {
-		if s := a.Status(); s.Running {
+		if s := a.Status(); s.Running && s.PanelURL != "" {
 			return s, nil
 		}
-		time.Sleep(300 * time.Millisecond)
+		time.Sleep(time.Second)
 	}
-	return Local{}, fmt.Errorf("the daemon did not answer in %s; see %s", startWait, filepath.Join(paths.DataDir(), "daemon.log"))
+	if s := a.Status(); s.Running {
+		return s, nil
+	}
+	return a.Status(), fmt.Errorf("the daemon did not answer in %s. Its last lines:\n%s", startWait, localLogTail())
+}
+
+// Install puts the barnraise program on this machine (on Windows: in WSL)
+// with the project's install.sh, from the latest release.
+func (a *App) Install() (Local, error) {
+	out, err := localInstall()
+	if err != nil {
+		return a.Status(), fmt.Errorf("%v\n%s", err, lastLines(out, 12))
+	}
+	return a.Status(), nil
+}
+
+// InstallWSL asks Windows to install WSL with its default distribution
+// (Windows asks the owner for administrator rights). Elsewhere it is a no-op.
+func (a *App) InstallWSL() error { return localInstallWSL() }
+
+// installScript is the one-line install the README documents.
+const installScript = "curl -fsSL --proto '=https' --tlsv1.2 https://raw.githubusercontent.com/leandrodaf/barnraise/main/install.sh | sh"
+
+func lastLines(s string, n int) string {
+	lines := strings.Split(strings.TrimRight(s, "\n"), "\n")
+	if len(lines) > n {
+		lines = lines[len(lines)-n:]
+	}
+	return strings.Join(lines, "\n")
 }
 
 // Remote checks another machine's daemon and returns its panel address.
@@ -187,32 +176,4 @@ func isLoopback(host string) bool {
 	}
 	ip := net.ParseIP(host)
 	return ip != nil && ip.IsLoopback()
-}
-
-// findBinary looks next to the app first (the installer puts it there), then
-// on the PATH, then in ~/.local/bin.
-func findBinary() string {
-	if exe, err := os.Executable(); err == nil {
-		p := filepath.Join(filepath.Dir(exe), "barnraise")
-		if fi, err := os.Stat(p); err == nil && !fi.IsDir() {
-			return p
-		}
-	}
-	if p, err := exec.LookPath("barnraise"); err == nil {
-		return p
-	}
-	if home, err := os.UserHomeDir(); err == nil {
-		p := filepath.Join(home, ".local", "bin", "barnraise")
-		if _, err := os.Stat(p); err == nil {
-			return p
-		}
-	}
-	return ""
-}
-
-func serviceInstalled() bool {
-	if _, err := exec.LookPath("systemctl"); err != nil {
-		return false
-	}
-	return exec.Command("systemctl", "--user", "cat", "barnraise").Run() == nil
 }
