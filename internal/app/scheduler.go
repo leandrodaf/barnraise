@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"maps"
+	"sort"
 	"time"
 
 	"github.com/leandrodaf/barnraise/internal/domain"
@@ -155,6 +156,7 @@ func (s *Service) forgetRefine(p *Project, itemID string) {
 func (s *Service) heldWorkLocked(p *Project, slot Slot, skip map[string]bool) *Assignment {
 	var best *domain.Item
 	var bestStep domain.StepDef
+	blocks := blockingCounts(p.state.Items)
 	for _, it := range p.state.Items {
 		if skip[it.ID] {
 			continue
@@ -182,7 +184,11 @@ func (s *Service) heldWorkLocked(p *Project, slot Slot, skip map[string]bool) *A
 		if !s.machineFits(p, slot.Role, slot.Machine) {
 			continue
 		}
-		if best == nil || it.Priority < best.Priority || (it.Priority == best.Priority && it.StepStartedAt.Before(best.StepStartedAt)) {
+		// The most urgent first; among equals, the one more items wait for,
+		// then the one waiting longest.
+		if best == nil || it.Priority < best.Priority ||
+			(it.Priority == best.Priority && (blocks[it.ID] > blocks[best.ID] ||
+				blocks[it.ID] == blocks[best.ID] && it.StepStartedAt.Before(best.StepStartedAt))) {
 			best, bestStep = it, st
 		}
 	}
@@ -295,6 +301,22 @@ func (s *Service) candidatesLocked(p *Project, slot Slot) []*domain.Item {
 			capacity.Improvements = rest - capacity.Bugs
 		}
 		capacity.Goal = focus.Share
+	}
+	// In each lane, the item more open items wait for goes first: one that
+	// unblocks three others is worth more now than one nobody waits for. A
+	// P0 still comes before everything.
+	blocks := blockingCounts(p.state.Items)
+	for _, list := range byLane {
+		sort.SliceStable(list, func(i, j int) bool {
+			a, b := list[i], list[j]
+			if (a.Priority == domain.P0) != (b.Priority == domain.P0) {
+				return a.Priority == domain.P0
+			}
+			if blocks[a.ID] != blocks[b.ID] {
+				return blocks[a.ID] > blocks[b.ID]
+			}
+			return a.Priority < b.Priority
+		})
 	}
 	var out []*domain.Item
 	remaining := map[domain.Lane][]*domain.Item{}
@@ -553,4 +575,34 @@ func (s *Service) ClaimForAgent(ctx context.Context, project string, a Actor, m 
 	}
 	m.Name = s.d.Machine
 	return s.NextWork(ctx, p.Name, Slot{Agent: a.Name, Role: a.Role, Machine: m})
+}
+
+// blockingCounts tells, for each item, how many open items wait for it,
+// directly or through others.
+func blockingCounts(items map[string]*domain.Item) map[string]int {
+	dependents := map[string][]string{}
+	for _, it := range items {
+		if it.Status.Terminal() {
+			continue
+		}
+		for _, d := range it.Deps {
+			dependents[d] = append(dependents[d], it.ID)
+		}
+	}
+	out := map[string]int{}
+	for id := range items {
+		seen := map[string]bool{}
+		stack := append([]string(nil), dependents[id]...)
+		for len(stack) > 0 {
+			n := stack[len(stack)-1]
+			stack = stack[:len(stack)-1]
+			if seen[n] || n == id {
+				continue
+			}
+			seen[n] = true
+			stack = append(stack, dependents[n]...)
+		}
+		out[id] = len(seen)
+	}
+	return out
 }

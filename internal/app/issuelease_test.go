@@ -87,3 +87,20 @@ func TestIssueHoldersAndClaimNotice(t *testing.T) {
 		t.Fatalf("claim notice %q", c)
 	}
 }
+
+// Among new items of one lane and priority, the one more items wait for
+// starts first.
+func TestUnblockingItemStartsFirst(t *testing.T) {
+	e := newEnv(t)
+	a := e.ready("feature", "Nobody waits for this", "")
+	b := e.ready("feature", "Two wait for this", "")
+	e.create(NewItem{Title: "Waits for B", Kind: "feature", Criteria: crit(ears), Priority: "P1", Deps: []string{b.ID}})
+	e.create(NewItem{Title: "Also waits for B", Kind: "feature", Criteria: crit(ears), Priority: "P1", Deps: []string{b.ID}})
+	e.next("implementer", b.ID)
+	// B now runs here: its next step comes before A starts.
+	e.next("implementer", b.ID)
+	_ = a
+	if got := blockingCounts(e.p.Snapshot().Items)[b.ID]; got != 2 {
+		t.Fatalf("B blocks %d", got)
+	}
+}
