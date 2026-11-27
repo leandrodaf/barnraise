@@ -138,14 +138,16 @@ type Project struct {
 
 // Service is the application.
 type Service struct {
-	d        Deps
-	mcpHosts mcpHostsCache
-	mu       sync.RWMutex
-	projects map[string]*Project
-	hub      *Hub
-	tokens   *TokenRegistry
-	sessions *sessionRegistry
-	runtime  *Runtime
+	d Deps
+	// imageRevs keeps, per item version, where its pictures are read from.
+	imageRevs sync.Map
+	mcpHosts  mcpHostsCache
+	mu        sync.RWMutex
+	projects  map[string]*Project
+	hub       *Hub
+	tokens    *TokenRegistry
+	sessions  *sessionRegistry
+	runtime   *Runtime
 	// livePeer opens a watch of a session on another machine (live.go).
 	livePeer LivePeer
 	// trust is the provenance state (provenance.go).

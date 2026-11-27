@@ -26,17 +26,17 @@ func TestItemImages(t *testing.T) {
 		if len(got) != 2 || got["art/hero.svg"] != true || got["art/icon.png"] != false {
 			t.Fatalf("%s: %+v", when, v)
 		}
-		after, err := e.svc.ItemImageBytes(e.ctx, "demo", Owner("owner"), it.ID, "art/icon.png", false)
+		after, _, err := e.svc.ItemImageBytes(e.ctx, "demo", Owner("owner"), it.ID, "art/icon.png", false)
 		if err != nil || string(after) != "NEW-PNG" {
 			t.Fatalf("%s after %q %v", when, after, err)
 		}
-		before, err := e.svc.ItemImageBytes(e.ctx, "demo", Owner("owner"), it.ID, "art/icon.png", true)
+		before, _, err := e.svc.ItemImageBytes(e.ctx, "demo", Owner("owner"), it.ID, "art/icon.png", true)
 		if err != nil || string(before) != "OLD-PNG" {
 			t.Fatalf("%s before %q %v", when, before, err)
 		}
 		// Only what the item changed, and only pictures.
 		for _, f := range []string{"art/keep.png", "src/main.go", "../../etc/passwd.png"} {
-			if _, err := e.svc.ItemImageBytes(e.ctx, "demo", Owner("owner"), it.ID, f, false); err == nil {
+			if _, _, err := e.svc.ItemImageBytes(e.ctx, "demo", Owner("owner"), it.ID, f, false); err == nil {
 				t.Fatalf("%s: %s must not be readable", when, f)
 			}
 		}

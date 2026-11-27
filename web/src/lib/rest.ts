@@ -76,19 +76,55 @@ export const conversation = {
 };
 
 export type ItemImage = { path: string; added: boolean };
-export type ItemImagesView = { images: ItemImage[]; more?: number; note?: string };
+export type ItemImagesView = { images: ItemImage[]; more?: number; note?: string; rev?: string };
 
 // The pictures an item's work added or changed. Each one is fetched with the
-// token and shown from an object URL: an <img> cannot send the token.
+// token and shown from an object URL (an <img> cannot send the token). The
+// address names the commit, so the browser keeps the bytes; the object URLs
+// are kept for the page's life, so coming back to an item shows them at once.
+// At most eight load together, in the order asked: the visible ones first.
+const imageCache = new Map<string, Promise<string>>();
+const MAX_PARALLEL = 8;
+let running = 0;
+const queue: (() => void)[] = [];
+function slot(): Promise<() => void> {
+	return new Promise((resolve) => {
+		const go = () => {
+			running++;
+			resolve(() => {
+				running--;
+				queue.shift()?.();
+			});
+		};
+		if (running < MAX_PARALLEL) go();
+		else queue.push(go);
+	});
+}
+
 export const images = {
 	ofItem: (project: string, id: string) => rest<ItemImagesView>('GET', '/v1/items/' + encodeURIComponent(id) + '/images', { project }),
-	async url(project: string, id: string, path: string, before = false): Promise<string> {
-		const q = new URLSearchParams({ project, path, v: before ? 'before' : 'after' });
-		const headers: Record<string, string> = {};
-		const tok = getToken();
-		if (tok) headers.Authorization = 'Bearer ' + tok;
-		const r = await fetch('/v1/items/' + encodeURIComponent(id) + '/image?' + q, { headers });
-		if (!r.ok) throw new Error((await r.json().catch(() => ({})))?.error || r.statusText);
-		return URL.createObjectURL(await r.blob());
+	url(project: string, id: string, path: string, before = false, rev = ''): Promise<string> {
+		const key = [project, id, rev, path, before ? 'b' : 'a'].join('|');
+		const hit = imageCache.get(key);
+		if (hit) return hit;
+		const p = (async () => {
+			const done = await slot();
+			try {
+				const q = new URLSearchParams({ project, path, v: before ? 'before' : 'after' });
+				if (rev) q.set('rev', rev);
+				const headers: Record<string, string> = {};
+				const tok = getToken();
+				if (tok) headers.Authorization = 'Bearer ' + tok;
+				const r = await fetch('/v1/items/' + encodeURIComponent(id) + '/image?' + q, { headers });
+				if (!r.ok) throw new Error((await r.json().catch(() => ({})))?.error || r.statusText);
+				return URL.createObjectURL(await r.blob());
+			} finally {
+				done();
+			}
+		})();
+		// A failure is not kept: the next look tries again.
+		p.catch(() => imageCache.delete(key));
+		imageCache.set(key, p);
+		return p;
 	}
 };

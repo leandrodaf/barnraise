@@ -26,7 +26,7 @@ func (s *Server) handleItemImages(w http.ResponseWriter, r *http.Request) {
 func (s *Server) handleItemImage(w http.ResponseWriter, r *http.Request) {
 	q := r.URL.Query()
 	file := q.Get("path")
-	b, err := s.svc.ItemImageBytes(r.Context(), q.Get("project"), actorFrom(r.Context()), r.PathValue("id"), file, q.Get("v") == "before")
+	b, rev, err := s.svc.ItemImageBytes(r.Context(), q.Get("project"), actorFrom(r.Context()), r.PathValue("id"), file, q.Get("v") == "before")
 	if err != nil {
 		writeAppErr(w, err)
 		return
@@ -40,6 +40,11 @@ func (s *Server) handleItemImage(w http.ResponseWriter, r *http.Request) {
 	h.Set("X-Content-Type-Options", "nosniff")
 	// An SVG opened on its own runs no script and loads nothing.
 	h.Set("Content-Security-Policy", "default-src 'none'; style-src 'unsafe-inline'; sandbox")
-	h.Set("Cache-Control", "private, max-age=30")
+	// An address that names the commit read always gives the same bytes.
+	if want := q.Get("rev"); want != "" && want == rev {
+		h.Set("Cache-Control", "private, max-age=31536000, immutable")
+	} else {
+		h.Set("Cache-Control", "private, max-age=30")
+	}
 	_, _ = w.Write(b)
 }

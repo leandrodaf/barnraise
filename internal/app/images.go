@@ -6,7 +6,10 @@ import (
 	"os"
 	"path"
 	"slices"
+	"strconv"
 	"strings"
+	"sync"
+	"time"
 
 	"github.com/leandrodaf/barnraise/internal/domain"
 )
@@ -45,12 +48,61 @@ type ItemImagesView struct {
 	More int `json:"more,omitempty"`
 	// Note says why there is nothing to show yet, when that is the case.
 	Note string `json:"note,omitempty"`
+	// Rev is the commit the pictures are read at: an address that names it
+	// never changes, so the panel and the browser keep each picture.
+	Rev string `json:"rev,omitempty"`
+}
+
+// imageRevs is where an item's pictures are read from, kept per version of
+// the item: listing them fetches the branch once, and each picture after
+// that reads git only for its own bytes.
+type imageRevSet struct {
+	base, head string
+	files      map[string]bool
+	at         time.Time
+	// list is the listing built from them, once.
+	mu   sync.Mutex
+	list *ItemImagesView
+}
+
+// imageRevsTTL bounds how long a listing is reused for one item version
+// (its branch may move on another machine meanwhile).
+const imageRevsTTL = 2 * time.Minute
+
+func (s *Service) imageRevsOf(ctx context.Context, p *Project, it *domain.Item, fetch bool) (*imageRevSet, error) {
+	key := p.Name + "/" + it.ID + "/" + strconv.Itoa(it.Version)
+	if v, ok := s.imageRevs.Load(key); ok {
+		if rs := v.(*imageRevSet); time.Since(rs.at) < imageRevsTTL {
+			return rs, nil
+		}
+	}
+	base, head, err := s.itemRevs(ctx, p, it, fetch)
+	if err != nil || head == "" {
+		return &imageRevSet{}, err
+	}
+	g := p.Ports().Git
+	// Name the commits themselves: a branch moves, a commit does not.
+	for _, r := range []*string{&base, &head} {
+		if cs, err := g.Log(ctx, "-1", "--no-walk", *r); err == nil && len(cs) == 1 && cs[0].SHA != "" {
+			*r = cs[0].SHA
+		}
+	}
+	files, err := g.ChangedFiles(ctx, base, head)
+	if err != nil {
+		return nil, err
+	}
+	rs := &imageRevSet{base: base, head: head, files: map[string]bool{}, at: time.Now()}
+	for _, f := range files {
+		rs.files[f] = true
+	}
+	s.imageRevs.Store(key, rs)
+	return rs, nil
 }
 
 // itemRevs are the item's work and where it started: its commit on main
 // once integrated, else its worktree here or its branch (fetched when it
 // is worked on at another machine).
-func (s *Service) itemRevs(ctx context.Context, p *Project, it *domain.Item) (base, head string, err error) {
+func (s *Service) itemRevs(ctx context.Context, p *Project, it *domain.Item, fetch bool) (base, head string, err error) {
 	g := p.Ports().Git
 	if g == nil {
 		return "", "", fmt.Errorf("%w: %s has no repository", ErrInvalid, p.Name)
@@ -70,7 +122,9 @@ func (s *Service) itemRevs(ctx context.Context, p *Project, it *domain.Item) (ba
 		}
 	}
 	if head == "" && it.Branch != "" {
-		_, _ = g.FetchBranch(ctx, it.Branch)
+		if fetch {
+			_, _ = g.FetchBranch(ctx, it.Branch)
+		}
 		for _, rev := range []string{"refs/heads/" + it.Branch, "refs/remotes/barnraise/" + it.Branch, "refs/remotes/origin/" + it.Branch} {
 			if _, merr := g.MergeBase(ctx, main, rev); merr == nil {
 				head = rev
@@ -95,69 +149,74 @@ func (s *Service) ItemImages(ctx context.Context, project string, a Actor, id st
 		return nil, err
 	}
 	out := &ItemImagesView{Images: []ItemImage{}}
-	base, head, err := s.itemRevs(ctx, p, it)
+	rs, err := s.imageRevsOf(ctx, p, it, true)
 	if err != nil {
 		return nil, err
 	}
-	if head == "" {
+	if rs.head == "" {
 		out.Note = "no work of this item on this machine or its remote yet"
 		return out, nil
 	}
-	files, err := p.Ports().Git.ChangedFiles(ctx, base, head)
-	if err != nil {
-		return nil, err
+	rs.mu.Lock()
+	defer rs.mu.Unlock()
+	if rs.list != nil {
+		return rs.list, nil
 	}
+	out.Rev = rs.head
 	g := p.Ports().Git
+	files := make([]string, 0, len(rs.files))
+	for f := range rs.files {
+		files = append(files, f)
+	}
+	slices.Sort(files)
 	for _, f := range files {
-		if !IsImagePath(f) || domain.Contains(ItemFiles, f) || !g.ExistsAt(ctx, head, f) {
+		if !IsImagePath(f) || domain.Contains(ItemFiles, f) || !g.ExistsAt(ctx, rs.head, f) {
 			continue // a removed picture has nothing to show
 		}
 		if len(out.Images) == maxItemImages {
 			out.More++
 			continue
 		}
-		out.Images = append(out.Images, ItemImage{Path: f, Added: !g.ExistsAt(ctx, base, f)})
+		out.Images = append(out.Images, ItemImage{Path: f, Added: !g.ExistsAt(ctx, rs.base, f)})
 	}
+	rs.list = out
 	return out, nil
 }
 
 // ItemImageBytes is one picture of an item's work: as the item left it, or
 // with before, as it was before. Only a picture the item changed is read:
 // this is not a way into the rest of the repository.
-func (s *Service) ItemImageBytes(ctx context.Context, project string, a Actor, id, file string, before bool) ([]byte, error) {
+func (s *Service) ItemImageBytes(ctx context.Context, project string, a Actor, id, file string, before bool) ([]byte, string, error) {
 	p, it, err := s.readableItem(project, a, id)
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
 	if !IsImagePath(file) {
-		return nil, fmt.Errorf("%w: %s is not a picture", ErrInvalid, file)
+		return nil, "", fmt.Errorf("%w: %s is not a picture", ErrInvalid, file)
 	}
-	base, head, err := s.itemRevs(ctx, p, it)
+	// Each picture reads git for its bytes only: the listing fetched.
+	rs, err := s.imageRevsOf(ctx, p, it, false)
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
-	if head == "" {
-		return nil, fmt.Errorf("%w: no work of %s yet", ErrNotFound, it.ID)
+	if rs.head == "" {
+		return nil, "", fmt.Errorf("%w: no work of %s yet", ErrNotFound, it.ID)
 	}
-	files, err := p.Ports().Git.ChangedFiles(ctx, base, head)
-	if err != nil {
-		return nil, err
+	if !rs.files[file] {
+		return nil, "", fmt.Errorf("%w: %s did not change %s", ErrNotFound, it.ID, file)
 	}
-	if !slices.Contains(files, file) {
-		return nil, fmt.Errorf("%w: %s did not change %s", ErrNotFound, it.ID, file)
-	}
-	rev := head
+	rev := rs.head
 	if before {
-		rev = base
+		rev = rs.base
 	}
 	b, err := p.Ports().Git.Show(ctx, rev, file)
 	if err != nil {
-		return nil, fmt.Errorf("%w: %s at %s", ErrNotFound, file, rev)
+		return nil, "", fmt.Errorf("%w: %s at %s", ErrNotFound, file, rev)
 	}
 	if len(b) > maxImageBytes {
-		return nil, fmt.Errorf("%w: %s is larger than %d MB", ErrInvalid, file, maxImageBytes>>20)
+		return nil, "", fmt.Errorf("%w: %s is larger than %d MB", ErrInvalid, file, maxImageBytes>>20)
 	}
-	return b, nil
+	return b, rs.head, nil
 }
 
 // readableItem is the item, for an actor who may read the project's items.

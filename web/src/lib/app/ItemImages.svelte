@@ -6,7 +6,6 @@
 	import { Button } from '$lib/components/ui/button';
 	import { Badge } from '$lib/components/ui/badge';
 	import ImageIcon from '@lucide/svelte/icons/image';
-	import { onDestroy } from 'svelte';
 	import { images, type ItemImage } from '$lib/rest';
 	import { t } from '$lib/i18n';
 	import Section from './Section.svelte';
@@ -22,16 +21,15 @@
 	const FIRST = 12;
 	const shown = $derived(all ? list : list.slice(0, FIRST));
 	let mode = $state<'after' | 'before' | 'both'>('after');
-	const made: string[] = [];
+	let rev = '';
 
-	// Blobs are kept per path and version (now / before) and freed on leave.
+	// Each picture is kept by the shared cache (rest.ts): a second look at
+	// the item shows them at once.
 	async function load(path: string, before = false) {
 		const key = (before ? 'b:' : 'a:') + path;
 		if (urls[key]) return;
 		try {
-			const u = await images.url(project, id, path, before);
-			made.push(u);
-			urls[key] = u;
+			urls[key] = await images.url(project, id, path, before, rev);
 		} catch {
 			urls[key] = '';
 		}
@@ -41,13 +39,13 @@
 		images
 			.ofItem(project, id)
 			.then((v) => {
+				rev = v.rev || '';
 				list = v.images;
 				more = v.more || 0;
 				for (const im of v.images.slice(0, FIRST)) load(im.path);
 			})
 			.catch(() => (list = []));
 	});
-	onDestroy(() => made.forEach((u) => URL.revokeObjectURL(u)));
 
 	// Pixel art is small: shown large, it stays crisp instead of blurred.
 	const measure = (path: string) => (e: Event) => {
