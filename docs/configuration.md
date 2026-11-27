@@ -110,6 +110,8 @@ Each machine writes to the tracker with its own token. A machine whose writes fa
 
 Without `token`, Barnraise reads `GITHUB_TOKEN` (then `gh auth token`), `GITLAB_TOKEN`, `JIRA_TOKEN` (with `JIRA_EMAIL` when `project` has no email) or `LINEAR_API_KEY`.
 
+For GitHub, the simplest is the panel: Admin → *GitHub token* opens GitHub's form with every permission filled in, tests the pasted token permission by permission on every machine and keeps it in each machine's keychain. That token then wins over `GITHUB_TOKEN` and `gh`, for the tracker, the code host and git over HTTPS; and a machine whose GitHub CLI has no working login (a deleted token) gets it too, so `gh` there works with the same token. A working `gh` login is never replaced.
+
 ## code_host
 
 The git server, separate from the tracker. When `type` is empty it is `github` or `gitlab` when the tracker is, with the tracker's `repo`; otherwise `git` (branches and commits without pull requests; the review stays in the panel).

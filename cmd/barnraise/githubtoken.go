@@ -6,9 +6,11 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"os/exec"
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/nats-io/nats.go"
@@ -183,6 +185,7 @@ func (d *daemon) applyGitHubToken(ctx context.Context, r remoteGitHubToken) *pb.
 		return m
 	}
 	m.Installed = true
+	d.repairGHLogin(r.Token, r.Repo)
 	if _, err := d.svc.Project(r.Project); err == nil {
 		if err := d.reloadProject(ctx, r.Project); err != nil {
 			m.Error = "kept, but the project did not reload: " + err.Error()
@@ -208,4 +211,44 @@ func (d *daemon) serveRemoteGitHubToken(ctx context.Context) {
 		}
 		return json.Marshal(d.applyGitHubToken(ctx, r))
 	})
+}
+
+// ghRepair runs the GitHub CLI's repair one at a time; ghRepairOn is off
+// in tests, which must never touch the machine's own gh login.
+var (
+	ghRepair   sync.Mutex
+	ghRepairOn atomic.Bool
+)
+
+func init() { ghRepairOn.Store(true) }
+
+// repairGHLogin gives the GitHub CLI of this machine the installed token
+// when its own login is missing or no longer works (a deleted token): one
+// token, the panel's, reaches GitHub everywhere on the machine. A working
+// login is left alone, and so is a GH_TOKEN the environment sets.
+func (d *daemon) repairGHLogin(token, repo string) {
+	if !ghRepairOn.Load() || token == "" || os.Getenv("GH_TOKEN") != "" || os.Getenv("GITHUB_TOKEN") != "" {
+		return
+	}
+	if _, err := exec.LookPath("gh"); err != nil {
+		return
+	}
+	ghRepair.Lock()
+	defer ghRepair.Unlock()
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	env := append(os.Environ(), "GH_PROMPT_DISABLED=1", "GH_NO_UPDATE_NOTIFIER=1")
+	status := exec.CommandContext(ctx, "gh", "auth", "status", "-h", "github.com")
+	status.Env = env
+	if status.Run() == nil {
+		return // its own login works
+	}
+	login := exec.CommandContext(ctx, "gh", "auth", "login", "-h", "github.com", "--git-protocol", "https", "--with-token")
+	login.Env = env
+	login.Stdin = strings.NewReader(token + "\n")
+	if out, err := login.CombinedOutput(); err != nil {
+		d.log.Warn("the GitHub CLI login could not be repaired with the installed token", "repo", repo, "err", err, "out", strings.TrimSpace(string(out)))
+		return
+	}
+	d.log.Info("the GitHub CLI had no working login: it now uses the installed token", "repo", repo)
 }

@@ -726,7 +726,9 @@ var ghAuthToken = func() string {
 // names, then the one `barnraise machine share --token-stdin` kept for that
 // repository (git already pushes with it here, so a machine that can push can
 // also write the repository's issues and pull requests), then GITHUB_TOKEN,
-// then `gh auth token`.
+// then `gh auth token`. The keychain's token (the panel's) also repairs a
+// GitHub CLI whose own login no longer works, so one token serves the
+// machine.
 func (d *daemon) githubToken(resolve func(ref, env string) string, ref, repo string) string {
 	if ref != "" {
 		if v := resolve(ref, "GITHUB_TOKEN"); v != "" {
@@ -735,6 +737,7 @@ func (d *daemon) githubToken(resolve func(ref, env string) string, ref, repo str
 	}
 	if key := domain.GitTokenSecret("github.com", repo); key != "" && d.secrets != nil {
 		if v, _ := d.secrets.Get(key); v != "" {
+			go d.repairGHLogin(v, repo)
 			return v
 		}
 	}

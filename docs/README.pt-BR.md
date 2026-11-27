@@ -261,7 +261,7 @@ checks:
     workflow: ui-tests.yml
 ```
 
-Sem token guardado, o Barnraise usa `GITHUB_TOKEN` e depois `gh auth token`. Sem webhooks, ele consulta o rastreador de tempos em tempos; com eles (`POST /v1/webhooks/github`, conferido pela assinatura HMAC, eventos `push`, `issues`, `issue_comment`, `check_run`, `workflow_run`) as mudanças chegam na hora. O texto que vem do GitHub é limpo e mostrado aos agentes dentro de cercas, como dado não confiável. "Issue" é só a coisa dentro do GitHub: o item I-42 aparece como a issue #1608. GitLab, Jira e Linear funcionam do mesmo jeito como rastreadores; veja [configuration.md](configuration.md).
+O jeito simples é o painel: Administração → *Token do GitHub* abre o GitHub com todas as permissões marcadas, testa o token colado em cada máquina e guarda no keychain de cada uma; esse token vale para o rastreador, o code host e o git, e o `gh` de uma máquina sem login funcionando passa a usá-lo também. Sem token guardado, o Barnraise usa `GITHUB_TOKEN` e depois `gh auth token`. Sem webhooks, ele consulta o rastreador de tempos em tempos; com eles (`POST /v1/webhooks/github`, conferido pela assinatura HMAC, eventos `push`, `issues`, `issue_comment`, `check_run`, `workflow_run`) as mudanças chegam na hora. O texto que vem do GitHub é limpo e mostrado aos agentes dentro de cercas, como dado não confiável. "Issue" é só a coisa dentro do GitHub: o item I-42 aparece como a issue #1608. GitLab, Jira e Linear funcionam do mesmo jeito como rastreadores; veja [configuration.md](configuration.md).
 
 ## Segurança
 

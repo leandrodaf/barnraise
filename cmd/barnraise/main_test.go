@@ -16,5 +16,6 @@ func TestMain(m *testing.M) {
 	if len(os.Args) > 1 && os.Args[1] == landlock.ExecCommand {
 		os.Exit(cli.Main(os.Args[1:], cli.Hooks{Version: version, RunDaemon: runDaemon}))
 	}
+	ghRepairOn.Store(false) // never touch this machine's gh login
 	os.Exit(m.Run())
 }
