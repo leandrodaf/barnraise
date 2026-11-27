@@ -15,6 +15,7 @@ var ownerTexts = map[string][2]string{ // key: {en, pt-BR}
 	"continue.decision": {"How should it continue?", "Como seguir?"},
 	"opt.retry":         {"Retry the step", "Tentar a etapa de novo"},
 	"opt.abandon":       {"Abandon the item", "Desistir do item"},
+	"opt.done":          {"Already done another way: close the item", "Já está resolvido de outro jeito: fechar o item"},
 	"if.blocked":        {"The item stays blocked; agents work on other items.", "O item fica parado; os agentes seguem com os outros."},
 	"blocked.again": {"%s (%s) is blocked again at step %s (attempt %d), with nothing new to wait for. The autopilot decides at %s, or sooner if something lands on main, instead of retrying at once against the same wall. %s",
 		"%s (%s) parou de novo na etapa %s (tentativa %d), sem nada novo a esperar. O piloto automático decide às %s, ou antes se algo entrar na main, em vez de tentar de novo na hora contra a mesma parede. %s"},
@@ -52,12 +53,14 @@ var ownerTexts = map[string][2]string{ // key: {en, pt-BR}
 		"a legal, brand or personal choice) end with option: OWNER and, in the note, exactly what the owner must do. " +
 		"Anything Barnraise itself can do is not the owner's: recording criteria or dependencies (option: EDIT), unlocking files (option: UNLOCK), " +
 		"retrying, or choosing the option that moves the item on. An earlier owner answer that forbade a workaround does not forbid these. " +
+		"When the step is blocked because what it asks is already in place another way (the owner did it, or switched it on in the panel), choose the option that closes the item as already done, so the items that wait for it go on. " +
 		"When no listed option fits, choose the one closest to moving the item on and say in the note what to do.",
 		"Piloto automático: o dono está ausente e pediu que você tome esta decisão. Escolha a resposta que recomenda e diga por quê. " +
 			"Só quando a decisão realmente precisa do dono (entrar numa conta, gastar dinheiro, um aparelho ou lugar físico, dar um acesso ou um segredo, " +
 			"uma escolha legal, de marca ou pessoal) termine com option: OWNER e, na nota, exatamente o que o dono precisa fazer. " +
 			"O que o próprio Barnraise consegue fazer não é do dono: gravar critérios ou dependências (option: EDIT), liberar arquivos (option: UNLOCK), " +
 			"tentar de novo ou escolher a opção que faz o item andar. Uma resposta antiga do dono que proibiu contornar não proíbe isso. " +
+			"Quando a etapa parou porque o que ela pede já está feito de outro jeito (o dono fez, ou ligou no painel), escolha a opção que fecha o item como já resolvido, para os itens que esperam por ele seguirem. " +
 			"Quando nenhuma opção listada serve, escolha a mais próxima de fazer o item andar e diga na nota o que fazer."},
 	"autopilot.approve": {"\nThe decision is the approval of %s of this item: the options are approve or send back.", "\nA decisão é a aprovação %s deste item: as opções são approve ou send back."},
 	"autopilot.left":    {"Left to you: %s", "Ficou para você: %s"},

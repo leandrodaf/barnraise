@@ -472,6 +472,7 @@ func (s *Service) CloseItem(ctx context.Context, project string, a Actor, id, re
 	}
 	s.releaseLease(ctx, p, id)
 	s.stopItemSessions(id)
+	s.retireQuestions(ctx, p, a, id, "closed: "+reason)
 	// Nothing uses a closed item's worktrees again; the branch keeps what was
 	// committed. Their pre_remove hook, teardown and compose project go first.
 	s.dropItemWorkspaces(ctx, p, id)
@@ -523,4 +524,34 @@ func def(v, d string) string {
 		return d
 	}
 	return v
+}
+
+// retireQuestions answers the open owner questions of an item that ended:
+// a question about a closed item waited on the owner's screen forever.
+func (s *Service) retireQuestions(ctx context.Context, p *Project, a Actor, itemID, answer string) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	for _, q := range p.state.OpenQuestions() {
+		if q.ItemID != itemID {
+			continue
+		}
+		qq := *q
+		qq.Version++
+		qq.Answer, qq.AnsweredBy, qq.AnsweredAt = "Item "+answer, actorName(a), s.d.Clock.Now().UTC()
+		if _, err := s.emitLocked(ctx, p, domain.EvOwnerQuestionAnswer, qq.ID, actorName(a), domain.Payload{Question: &qq}); err != nil {
+			s.d.Log.Warn("retire the question of a closed item", "item", itemID, "question", qq.ID, "err", err)
+		}
+	}
+}
+
+// retireStaleQuestions answers the open questions of items that already
+// ended (closed before questions were retired with them, or by another
+// machine's older binary): nothing is left waiting on the owner for them.
+func (s *Service) retireStaleQuestions(ctx context.Context, p *Project) {
+	snap := p.Snapshot()
+	for _, q := range snap.OpenQuestions() {
+		if it := snap.Items[q.ItemID]; q.ItemID != "" && it != nil && it.Status.Terminal() {
+			s.retireQuestions(ctx, p, Actor{Kind: ActorOwner, Name: "barnraise"}, it.ID, string(it.Status))
+		}
+	}
 }

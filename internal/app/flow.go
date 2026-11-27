@@ -267,7 +267,11 @@ func (s *Service) ownerQuestionFor(p *Project, it *domain.Item, o stepOutcome, t
 		q.Topic = "blocked:" + o.Step
 		q.Context = ot(p, "blocked.context", it.ID, it.Title, o.Step, truncate(o.Reason, 500))
 		q.Decision = ot(p, "continue.decision")
-		q.Options = []domain.Option{ownerOpt(p, "retry", true), ownerOpt(p, "abandon", false)}
+		// "Already done" is the way out when the step is blocked because
+		// what it asks was done otherwise (by the owner, from the panel):
+		// before, only retrying or abandoning were offered, and the items
+		// that waited for it stayed blocked behind an abandoned one.
+		q.Options = []domain.Option{ownerOpt(p, "retry", true), ownerOpt(p, "done", false), ownerOpt(p, "abandon", false)}
 		q.IfNoAnswer = ot(p, "if.blocked")
 		if n := blockedRetries(p.state, it.ID, q.Topic, s.d.Clock.Now()); n >= 1 {
 			// The step was retried and blocked again: another attempt at

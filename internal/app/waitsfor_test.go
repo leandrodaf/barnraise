@@ -103,3 +103,83 @@ func TestIdleSaysWhy(t *testing.T) {
 		t.Fatalf("every implementer busy: %+v", got)
 	}
 }
+
+// A step blocked on something done another way (the owner switched it on in
+// the panel) has a way out besides retrying and abandoning: "already done"
+// closes it as obsolete, retires its question, and the items that wait for
+// it go on. Abandoning would have left them waiting forever.
+func TestBlockedStepAlreadyDoneFreesWhatWaits(t *testing.T) {
+	e := newEnv(t)
+	base := e.ready("simple", "Give agents the PixelLab server", "x")
+	after := e.create(NewItem{Title: "Pixel-art style bible", Criteria: crit(ears), Deps: []string{base.ID}})
+	e.start(base.ID)
+	got := e.mustDeliver(base.ID, domain.Delivery{Status: domain.DeliveryBlocked, Reason: "the only file is barnraise.yaml, which hooks block"})
+	if got.WaitingQuestion == "" {
+		t.Fatal("a block asks the owner")
+	}
+	q := e.p.Snapshot().Questions[got.WaitingQuestion]
+	done := ""
+	for _, o := range q.Options {
+		if o.Action == "done" {
+			done = o.Label
+		}
+	}
+	if done == "" {
+		t.Fatalf("no 'already done' option: %+v", q.Options)
+	}
+	if _, err := e.svc.Answer(e.ctx, "demo", owner(), q.ID, done, "switched on in the panel"); err != nil {
+		t.Fatal(err)
+	}
+	closed := e.item(base.ID)
+	if closed.Status != domain.StatusClosed || closed.ClosedReason != "obsolete" {
+		t.Fatalf("closed %s %s", closed.Status, closed.ClosedReason)
+	}
+	if e.item(after.ID).Status == domain.StatusBlocked {
+		t.Fatal("the item that waited for it is still blocked")
+	}
+	if len(e.p.Snapshot().OpenQuestions()) != 0 {
+		t.Fatal("a question stays open")
+	}
+}
+
+// Closing an item by hand retires its open questions: one stayed on the
+// owner's screen about an item that was already closed.
+func TestClosingAnItemRetiresItsQuestions(t *testing.T) {
+	e := newEnv(t)
+	it := e.ready("simple", "Stuck", "x")
+	e.start(it.ID)
+	got := e.mustDeliver(it.ID, domain.Delivery{Status: domain.DeliveryBlocked, Reason: "a wall"})
+	if got.WaitingQuestion == "" {
+		t.Fatal("a block asks the owner")
+	}
+	if _, err := e.svc.CloseItem(e.ctx, "demo", owner(), it.ID, "obsolete", "", "done from the panel"); err != nil {
+		t.Fatal(err)
+	}
+	q := e.p.Snapshot().Questions[got.WaitingQuestion]
+	if q.Open() || !strings.Contains(q.Answer, "closed: obsolete") {
+		t.Fatalf("question %+v", q)
+	}
+}
+
+// A question left open on an item that ended earlier is retired by the
+// housekeeping pass.
+func TestStaleQuestionsAreRetired(t *testing.T) {
+	e := newEnv(t)
+	it := e.ready("simple", "Old", "x")
+	e.start(it.ID)
+	got := e.mustDeliver(it.ID, domain.Delivery{Status: domain.DeliveryBlocked, Reason: "a wall"})
+	// Closed as an older binary did: the question stays open.
+	if _, err := e.svc.mutateItem(e.ctx, e.p, it.ID, domain.EvItemClosed, "owner", func(x *domain.Item) error {
+		x.Status, x.ClosedReason = domain.StatusClosed, "obsolete"
+		return nil
+	}, domain.Payload{}); err != nil {
+		t.Fatal(err)
+	}
+	if !e.p.Snapshot().Questions[got.WaitingQuestion].Open() {
+		t.Fatal("setup: the question should still be open")
+	}
+	e.svc.retireStaleQuestions(e.ctx, e.p)
+	if e.p.Snapshot().Questions[got.WaitingQuestion].Open() {
+		t.Fatal("the stale question stays open")
+	}
+}

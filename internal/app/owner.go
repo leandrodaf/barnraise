@@ -131,7 +131,7 @@ func (s *Service) applyAnswer(ctx context.Context, p *Project, a Actor, it *doma
 	// Options Barnraise offers carry their action, whatever the language of
 	// the label; older questions and the ones agents write are read by label.
 	if action != "" {
-		lc = map[string]string{"approve": "approve", "rework": "rework", "abandon": "abandon", "split": "split",
+		lc = map[string]string{"approve": "approve", "rework": "rework", "abandon": "abandon", "split": "split", "done": "done",
 			"accept": "accept", "stronger": "stronger retry", "retry": "retry", "answer": "answer", "update": "update", "keep": "keep"}[action]
 	}
 	f, err := p.Cfg().FlowOf(it.Kind, it.Area)
@@ -148,6 +148,11 @@ func (s *Service) applyAnswer(ctx context.Context, p *Project, a Actor, it *doma
 		return err
 	case strings.Contains(lc, "abandon"):
 		_, err := s.CloseItem(ctx, p.Name, Owner(a.Name), it.ID, "abandoned", "", note)
+		return err
+	case lc == "done":
+		// Done another way: closed as obsolete, so the items that wait for
+		// it go on (an abandoned one would leave them waiting).
+		_, err := s.CloseItem(ctx, p.Name, Owner(a.Name), it.ID, "obsolete", "", def(note, "already done another way, by the owner's answer"))
 		return err
 	case strings.Contains(lc, "split"):
 		_, err := s.CloseItem(ctx, p.Name, Owner(a.Name), it.ID, "split", "", def(note, "split by the owner"))

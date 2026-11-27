@@ -98,6 +98,7 @@ func (r *Runtime) housekeeping(ctx context.Context, p *Project, m domain.Machine
 		return
 	}
 	s.takeOverDeadItems(ctx, p)
+	s.retireStaleQuestions(ctx, p)
 	if n := s.expireProposals(ctx, p); n > 0 {
 		s.d.Log.Info("proposals expired", "project", p.Name, "count", n)
 	}
