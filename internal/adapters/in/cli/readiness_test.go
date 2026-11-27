@@ -5,6 +5,7 @@ import (
 	"errors"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/leandrodaf/barnraise/internal/domain"
 )
@@ -150,5 +151,36 @@ func TestIsolateProblem(t *testing.T) {
 	}
 	if why := isolateProblem("/srv/barnraise/accounts/claude-1"); why != "" {
 		t.Fatalf("a folder outside the home: %q", why)
+	}
+}
+
+// A network that drops while the daemon restarts is tried again and never
+// pauses the project; a refused credential still does.
+func TestReadinessNetworkBlipIsNotAProblem(t *testing.T) {
+	m := fakeMachine{gh: true, tools: map[string]bool{"make": true, "golangci-lint": true}}
+	cfg := nobiraLike()
+	for _, failures := range []int{1, 5} {
+		r := m.readiness()
+		calls, waits := 0, 0
+		inner := r.run
+		r.run = func(ctx context.Context, dir, name string, args ...string) (string, error) {
+			if name == "git" && len(args) > 0 && args[0] == "push" {
+				calls++
+				if calls <= failures {
+					return "ssh: connect to host github.com port 22: Network is unreachable\nfatal: Could not read from remote repository.", errors.New("exit 128")
+				}
+			}
+			return inner(ctx, dir, name, args...)
+		}
+		r.sleep = func(time.Duration) { waits++ }
+		if got := r.problems(context.Background(), cfg); len(got) != 0 {
+			t.Fatalf("%d network failures: %v", failures, got)
+		}
+		if want := min(failures+1, 3); calls != want || waits != want-1 {
+			t.Fatalf("%d failures: %d calls, %d waits", failures, calls, waits)
+		}
+	}
+	if !networkDown("Could not resolve host: github.com") || networkDown("Permission to o/r.git denied") {
+		t.Fatal("networkDown")
 	}
 }

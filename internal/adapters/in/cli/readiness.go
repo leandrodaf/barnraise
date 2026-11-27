@@ -33,6 +33,9 @@ type readiness struct {
 	env func(string) string
 	// stat reads a file's information; nil means os.Stat.
 	stat func(string) (os.FileInfo, error)
+	// tries and sleep pace the push check on a network error (0/nil: 3, time.Sleep).
+	tries int
+	sleep func(time.Duration)
 }
 
 func defaultReadiness() readiness {
@@ -65,11 +68,25 @@ func (r readiness) problems(ctx context.Context, cfg *domain.ProjectConfig) []st
 	if _, err := r.run(ctx, cfg.Root, "git", "remote", "get-url", remote); err != nil {
 		out = append(out, fmt.Sprintf("the git remote %q does not exist in %s: it is the arbiter of the cluster and where every step is pushed; add it (git remote add %s <url>) or set code_host.remote", remote, cfg.Root, remote))
 	} else {
-		pctx, cancel := context.WithTimeout(ctx, 40*time.Second)
-		// A dry-run push asks the server for write access without sending anything.
-		msg, err := r.run(pctx, cfg.Root, "git", "push", "--dry-run", "--porcelain", remote, "HEAD:refs/barnraise/readiness")
-		cancel()
-		if err != nil {
+		// A dry-run push asks the server for write access without sending
+		// anything. A network that drops for a moment is tried again, and a
+		// network that stays down is not a missing credential: it does not
+		// pause the project (that paused one each time the daemon restarted
+		// during a blip).
+		var msg string
+		var err error
+		for try := 0; try < r.pushTries(); try++ {
+			if try > 0 {
+				r.wait(3 * time.Second)
+			}
+			pctx, cancel := context.WithTimeout(ctx, 40*time.Second)
+			msg, err = r.run(pctx, cfg.Root, "git", "push", "--dry-run", "--porcelain", remote, "HEAD:refs/barnraise/readiness")
+			cancel()
+			if err == nil || !networkDown(msg) {
+				break
+			}
+		}
+		if err != nil && !networkDown(msg) {
 			out = append(out, fmt.Sprintf("this machine cannot push to the git remote %q (%s): items cannot be claimed or saved here; give this machine its own credential for that repository", remote, firstLine(msg)))
 		}
 	}
@@ -147,4 +164,32 @@ func firstLine(s string) string {
 		}
 	}
 	return "no answer"
+}
+
+// networkDown reports an error that says the network is not there now, not
+// that access is refused.
+func networkDown(msg string) bool {
+	m := strings.ToLower(msg)
+	for _, w := range []string{"network is unreachable", "could not resolve host", "could not resolve hostname", "temporary failure in name resolution",
+		"connection timed out", "operation timed out", "no route to host", "connection refused", "connection reset", "network is down"} {
+		if strings.Contains(m, w) {
+			return true
+		}
+	}
+	return false
+}
+
+func (r readiness) pushTries() int {
+	if r.tries > 0 {
+		return r.tries
+	}
+	return 3
+}
+
+func (r readiness) wait(d time.Duration) {
+	if r.sleep != nil {
+		r.sleep(d)
+		return
+	}
+	time.Sleep(d)
 }
