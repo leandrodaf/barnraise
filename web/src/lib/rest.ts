@@ -74,3 +74,21 @@ export const conversation = {
 	use: (account: string) => rest<{ ok: boolean }>('POST', '/v1/conversation/account', {}, { account }),
 	act: (action: 'start' | 'stop' | 'interrupt' | 'new' | 'keep' | 'release') => rest<{ ok: boolean }>('POST', '/v1/conversation/' + action, {}, {})
 };
+
+export type ItemImage = { path: string; added: boolean };
+export type ItemImagesView = { images: ItemImage[]; more?: number; note?: string };
+
+// The pictures an item's work added or changed. Each one is fetched with the
+// token and shown from an object URL: an <img> cannot send the token.
+export const images = {
+	ofItem: (project: string, id: string) => rest<ItemImagesView>('GET', '/v1/items/' + encodeURIComponent(id) + '/images', { project }),
+	async url(project: string, id: string, path: string, before = false): Promise<string> {
+		const q = new URLSearchParams({ project, path, v: before ? 'before' : 'after' });
+		const headers: Record<string, string> = {};
+		const tok = getToken();
+		if (tok) headers.Authorization = 'Bearer ' + tok;
+		const r = await fetch('/v1/items/' + encodeURIComponent(id) + '/image?' + q, { headers });
+		if (!r.ok) throw new Error((await r.json().catch(() => ({})))?.error || r.statusText);
+		return URL.createObjectURL(await r.blob());
+	}
+};

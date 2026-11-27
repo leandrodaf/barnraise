@@ -34,6 +34,7 @@
 	import Empty from '$lib/app/Empty.svelte';
 	import Markdown from '$lib/app/Markdown.svelte';
 	import ItemDocuments from '$lib/app/ItemDocuments.svelte';
+	import ItemImages from '$lib/app/ItemImages.svelte';
 	import ItemWorkCard from '$lib/app/ItemWork.svelte';
 	import { work as workApi, type ItemWork } from '$lib/rest';
 	import AgentLive from '$lib/app/AgentLive.svelte';
@@ -278,6 +279,7 @@
 			<Tabs.Content value="summary" class="mt-3 space-y-4">
 				{#if work && (work.pr?.number || work.commits.length || work.merged)}<ItemWorkCard {work} />{/if}
 				{#if it.body}<Section title={t('body')}><Markdown text={it.body} /></Section>{/if}
+				<ItemImages {project} id={it.id} version={it.step + '/' + (it.mergeCommit || '') + '/' + (it.runs ? Object.keys(it.runs).length : 0)} />
 				{#each [['preserve', it.preserve], ['checklist', it.checklist], ['clarifications', it.clarifications], ['tweaks', it.tweaks]] as [k, arr] (k)}
 					{#if (arr as string[]).length}<Section title={t(k as string)}><ul class="list-disc space-y-1 pl-5 text-sm">{#each arr as string[] as x, i (i)}<li>{x}</li>{/each}</ul></Section>{/if}
 				{/each}
