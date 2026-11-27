@@ -1,5 +1,19 @@
 # Changelog
 
+## v0.7.0 — 2026-11-27
+
+### Novidades
+- feat(items): show the pictures an item's work drew or changed (4538369)
+- feat(onboarding): add a project from its repository address, from the panel or barnraise add (2e58e2d)
+- feat(desktop): a Windows app that drives the daemon in WSL, and a launcher that starts it by itself (76297be)
+
+### Correções
+- fix(tracker): one issue is worked on by one Barnraise, and people see who has it (f173aa5)
+- fix(models): a different reviewer model is a preference, never a wait (24049ff)
+- fix(models): a step whose whole class is at its limit runs one rung down (4933254)
+- fix(autopilot): give the advisor its instructions in English (2215cfd)
+- fix(flow): a blocked item can be closed as already done, and its questions go with it (d9a2bd5)
+
 ## v0.6.0 — 2026-11-27
 
 ### Novidades
