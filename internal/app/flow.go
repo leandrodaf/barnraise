@@ -555,11 +555,12 @@ func (s *Service) Review(ctx context.Context, project string, a Actor, r domain.
 		p.mu.Unlock()
 		return nil, fmt.Errorf("%w: step %s is reviewed by role %s", ErrForbidden, r.Step, stepRole(st))
 	}
-	// The reviewer must not be the author's model family when the step says so.
+	// A different model is a preference of the scheduler, never a wait: when
+	// none could run, a fresh session of the same model reviewed, and its
+	// review counts. Refusing it here threw the review away after it ran.
 	if d := st.DifferentFrom(); d != "" && a.Kind == ActorAgent && cur.Runs != nil {
 		if prev, ok := cur.Runs[d]; ok && prev.Family != "" && prev.Family == a.Family && prev.Model == a.Model {
-			p.mu.Unlock()
-			return nil, fmt.Errorf("%w: step %s must be reviewed by a different model than %s", ErrForbidden, r.Step, d)
+			s.d.Log.Info("a review by the same model as the step it reviews (no other model could run)", "item", cur.ID, "step", r.Step, "model", a.Model)
 		}
 	}
 	areaOf := p.Cfg().AreaOfFile

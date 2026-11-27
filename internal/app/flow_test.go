@@ -117,6 +117,19 @@ func TestDeliverNeedsContextAndBlocked(t *testing.T) {
 	wantErr(t, err, ErrUnknownProj)
 }
 
+// A different reviewer model is a preference, never a wait: when only the
+// implementer's model could run, its fresh session reviews, and the review
+// counts instead of being thrown away after it ran.
+func TestReviewBySameModelCounts(t *testing.T) {
+	e := newEnv(t)
+	it := e.ready("reviewed", "Cards", "")
+	e.next("implementer", it.ID)
+	e.mustDeliver(it.ID, domain.Delivery{})
+	if _, err := e.svc.Review(e.ctx, "demo", agent("reviewer", it.ID, "review"), approveReview("same model, fresh session")); err != nil {
+		t.Fatalf("a review by the same model was refused: %v", err)
+	}
+}
+
 func TestReviewValidation(t *testing.T) {
 	e := newEnv(t, withCfg(func(c *domain.ProjectConfig) {
 		c.Areas = map[string]domain.AreaDef{"cards": {Name: "cards", Paths: []string{"app/cards/**"}}, "wallet": {Name: "wallet", Paths: []string{"app/wallet/**"}}}
@@ -131,9 +144,6 @@ func TestReviewValidation(t *testing.T) {
 	_, err = e.deliver(it.ID, domain.Delivery{})
 	wantErr(t, err, ErrInvalid) // review takes a review
 
-	same := agent("reviewer", it.ID, "review")
-	_, err = e.svc.Review(e.ctx, "demo", same, approveReview("me again"))
-	wantErr(t, err, ErrForbidden) // same model as the implementer
 	wrongRole := agent("critic", it.ID, "review")
 	wrongRole.Family = "other"
 	_, err = e.svc.Review(e.ctx, "demo", wrongRole, approveReview("x"))
