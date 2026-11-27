@@ -258,6 +258,12 @@ func (r *Runtime) tickEvery() time.Duration {
 
 // Tick runs one pass: leases, housekeeping, driver steps, merge queue, agent slots.
 func (r *Runtime) Tick(ctx context.Context) {
+	if r.isStopped() {
+		// Shutting down (an update replaces the binary meanwhile): no duty,
+		// no trust check, no new work. A check that saw the new binary on
+		// disk gave every item of the machine away during an update.
+		return
+	}
 	m := r.machine()
 	for _, name := range r.s.Projects() {
 		p, err := r.s.Project(name)

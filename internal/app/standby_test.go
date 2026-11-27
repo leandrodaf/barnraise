@@ -131,3 +131,21 @@ func TestStandbyHoldsTheMergeQueue(t *testing.T) {
 	}
 	e.wantStatus(it.ID, domain.StatusIntegrated, "integrate")
 }
+
+// A runtime that is stopping (an update swaps the binary meanwhile) runs no
+// tick: no heartbeat, no duty, no session.
+func TestStoppedRuntimeDoesNotTick(t *testing.T) {
+	e := newEnv(t)
+	e.account("fake-1")
+	e.ready("simple", "after stop", "x")
+	r := e.svc.Runtime()
+	r.StopAll()
+	r.Tick(e.ctx)
+	e.fill()
+	if n := len(e.prov.Specs()); n != 0 {
+		t.Fatalf("%d sessions opened after StopAll", n)
+	}
+	if _, ok := e.p.leases[HousekeepingKey]; ok {
+		t.Fatal("a stopping runtime took the housekeeping duty")
+	}
+}

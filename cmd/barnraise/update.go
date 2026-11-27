@@ -132,12 +132,17 @@ func (d *daemon) selfUpdate(ctx context.Context, m *domain.Machine) error {
 		os.Remove(tmp)
 		return fmt.Errorf("binary hash mismatch: got %s, want %s", got, m.Binary)
 	}
+	// Stop first, then swap: while the sessions drain the runtime must not
+	// see a binary on disk that is not the one it runs (its trust check
+	// took that for a tampered hook and gave every item away).
+	d.log.Info("new binary ready; stopping to restart", "version", m.Version)
+	d.svc.Runtime().StopAll()
 	if err := os.Rename(tmp, exe); err != nil {
 		os.Remove(tmp)
-		return err
+		d.log.Warn("the new binary could not replace the old one; restarting on the old one", "err", err)
+	} else {
+		d.log.Info("binary replaced; restarting", "version", m.Version)
 	}
-	d.log.Info("binary replaced; restarting", "version", m.Version)
-	d.svc.Runtime().StopAll()
 	d.stopNATS()
 	d.closeTailnet()
 	_ = d.store.Close()
