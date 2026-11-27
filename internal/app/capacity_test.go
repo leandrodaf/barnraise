@@ -54,8 +54,12 @@ func TestLadderFallback(t *testing.T) {
 	complex := []domain.ModelChoice{{Provider: "claude", Model: "fable", Effort: "high"}, {Provider: "claude", Model: "opus", Effort: "high"}}
 	e.svc.markModelLimited("claude-1", "fable", now.Add(72*time.Hour))
 	c, acc, ok := e.svc.ladderFallback(m, complex, "opus", accounts, "demo", now)
-	if !ok || acc.ID != "claude-1" || c.Model != "sonnet" || c.Effort != "high" {
-		t.Fatalf("a review that must differ from opus falls to sonnet: %+v %v", c, ok)
+	if !ok || acc.ID != "claude-1" || c.Model != "opus" || c.Effort != "high" {
+		t.Fatalf("with fable out, a fresh opus session reviews before a weaker model: %+v %v", c, ok)
+	}
+	e.svc.markModelLimited("claude-1", "opus", now.Add(time.Hour))
+	if c, _, ok := e.svc.ladderFallback(m, complex, "opus", accounts, "demo", now); !ok || c.Model != "sonnet" {
+		t.Fatalf("then sonnet: %+v %v", c, ok)
 	}
 	e.svc.markModelLimited("claude-1", "sonnet", now.Add(time.Hour))
 	if c, _, ok := e.svc.ladderFallback(m, complex, "opus", accounts, "demo", now); ok {

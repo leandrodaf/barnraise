@@ -202,10 +202,11 @@ func (s *Service) waitingOf(p *Project) (string, time.Time) {
 
 // ladderFallback finds, when no model of a step's class may run now, the
 // strongest model below them on the same provider's ladder that an account
-// here may run: never the model the step must differ from, and never the
-// ladder's bottom rung (the cheapest model does not review or implement).
-// Two reviews waited three days for one model's weekly limit while a
-// lighter model of the same family was free.
+// here may run, never the ladder's bottom rung (the cheapest model does not
+// review or implement). The model the step should differ from counts too:
+// a fresh session of the stronger model reviews better than a weaker one,
+// and both beat waiting. Two reviews waited three days for one model's
+// weekly limit while opus and sonnet were free.
 func (s *Service) ladderFallback(m domain.ModelRouter, choices []domain.ModelChoice, avoidModel string, accounts []*domain.Account, project string, now time.Time) (domain.ModelChoice, *domain.Account, bool) {
 	tried := map[string]bool{}
 	for _, c := range choices {
@@ -219,7 +220,7 @@ func (s *Service) ladderFallback(m domain.ModelRouter, choices []domain.ModelCho
 		}
 		for i := top - 1; i >= 1; i-- {
 			model := ladder[i]
-			if model == avoidModel || tried[c.Provider+"/"+model] {
+			if tried[c.Provider+"/"+model] && model != avoidModel {
 				continue
 			}
 			tried[c.Provider+"/"+model] = true

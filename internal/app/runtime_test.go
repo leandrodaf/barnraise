@@ -416,10 +416,10 @@ func TestWeeklyTurnsAlertsIntoProposals(t *testing.T) {
 	q.svc.notifyOwnerQuestion(q.ctx, q.p, &domain.Question{})
 }
 
-// A review must run on another model. With a single model configured that
-// can never happen, so the owner is told once instead of the item waiting
-// in silence.
-func TestRuntimeTellsTheOwnerWhenNoOtherModelCanReview(t *testing.T) {
+// A review prefers another model but never waits for one: with a single
+// model configured, the review runs on it (a fresh session), and nobody is
+// asked about it. The owner chose a strong reviewer over a stalled item.
+func TestRuntimeReviewsWithTheSameModelWhenItIsTheOnlyOne(t *testing.T) {
 	e := newEnv(t, withCfg(func(c *domain.ProjectConfig) {
 		for class := range c.Models.Classes {
 			c.Models.Classes[class] = []domain.ModelChoice{{Provider: "fake", Model: "fake-large"}}
@@ -430,25 +430,20 @@ func TestRuntimeTellsTheOwnerWhenNoOtherModelCanReview(t *testing.T) {
 	e.start(it.ID)
 	e.mustDeliver(it.ID, domain.Delivery{})
 	e.wantStatus(it.ID, domain.StatusInProgress, "review")
+	release := e.holdSessions()
 	e.fill()
-	e.fill()
-	var told []string
+	specs := e.prov.Specs()
+	if len(specs) != 1 || specs[0].Model != "fake-large" || specs[0].Role != "reviewer" {
+		t.Fatalf("the review runs on the only model: %+v", specs)
+	}
 	for _, n := range e.notes.Sent() {
 		if n.Kind == "model_rule" {
-			told = append(told, n.Body)
+			t.Fatalf("nobody is asked about it: %v", n)
 		}
 	}
-	if len(told) != 1 {
-		t.Fatalf("the owner is told once, got %d: %v", len(told), e.notes.Kinds())
-	}
-	for _, want := range []string{"step review of " + it.ID, "different model from step implement", "fake-large", "models.classes"} {
-		if !strings.Contains(told[0], want) {
-			t.Fatalf("the message must say what to do; %q lacks %q", told[0], want)
-		}
-	}
-	if len(e.prov.Specs()) != 0 {
-		t.Fatal("no session may review with the model that did the work")
-	}
+	e.svc.Runtime().MaxSessions = -1
+	release()
+	e.idle()
 }
 
 // A session gets Barnraise's MCP server and only the servers the owner

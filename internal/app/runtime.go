@@ -11,6 +11,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	goruntime "runtime"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -601,7 +602,24 @@ func (r *Runtime) start(ctx context.Context, p *Project, slot Slot, a *Assignmen
 		}
 		return domain.PickAccount(accounts, provider, s.d.Machine, p.Name, now) != nil
 	}
+	// A step that should differ from another (a review from the work it
+	// reviews) prefers a different model, but never waits for one: the
+	// class's own models follow, the reviewed one included. The owner chose
+	// a strong model reviewing over a stall or a weaker reviewer.
 	choices, err := p.Cfg().Models.Route(domain.RouteRequest{Class: class, FixedModel: a.Step.Model, Tier: it.Tier, AvoidFamily: avoidFamily, AvoidModel: avoidModel, Usable: usable})
+	if avoidModel != "" || avoidFamily != "" {
+		same, serr := p.Cfg().Models.Route(domain.RouteRequest{Class: class, FixedModel: a.Step.Model, Tier: it.Tier, Usable: usable})
+		if serr == nil {
+			for _, c := range same {
+				if !slices.Contains(choices, c) {
+					choices = append(choices, c)
+				}
+			}
+			if errors.Is(err, domain.ErrNoOtherModel) || len(choices) > 0 {
+				err = nil
+			}
+		}
+	}
 	if errors.Is(err, domain.ErrNoOtherModel) {
 		return fmt.Errorf("step %s of %s must run on a different model from step %s: %w (add a second model to the class in `models.classes`, or an account of another provider)",
 			a.Step.Name, it.ID, a.Step.DifferentFrom(), err)
@@ -621,7 +639,7 @@ func (r *Runtime) start(ctx context.Context, p *Project, slot Slot, a *Assignmen
 		// the step runs one rung down its provider's ladder.
 		if fc, facc, ok := s.ladderFallback(p.Cfg().Models, choices, avoidModel, accounts, p.Name, now); ok {
 			s.d.Log.Info("every model of the class is at its limit: the step runs one rung down",
-				"item", it.ID, "step", a.Step.Name, "class", class, "model", fc.Model)
+				"item", it.ID, "step", a.Step.Name, "class", class, "model", fc.Model, "same_as_the_step_it_reviews", fc.Model == avoidModel)
 			choice, acc = fc, facc
 		}
 	}

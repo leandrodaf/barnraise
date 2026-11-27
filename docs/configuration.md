@@ -254,7 +254,7 @@ A flow is an ordered mapping of steps plus its rework rules. Step order is the o
 | `approve` | Who approves: `owner` or a role. On an agent step it adds an approval step `<step>-approval` right after it |
 | `type` | Explicit type: `agent`, `script`, `approval`, `check`, `merge_queue` (normally inferred) |
 | `model` | Fixed model for the step, e.g. `haiku` |
-| `model_family` | `different_from(<step>)`: use another model family than that step (Codex reviewing Claude) |
+| `model_family` | `different_from(<step>)`: prefer another model family than that step (Codex reviewing Claude), then another model of the same family; when none of them may run, the step runs on that step's own model (a fresh session) instead of waiting. When every model of the class is at its limit, it takes the strongest model below them on the provider's ladder, never the cheapest rung |
 | `class` | Model class for the step |
 | `output` | `plan.md` (the plan step) or `failing_test` (the reproduce step of a bug) |
 | `scope` | For check steps: `touched` or `all` |
