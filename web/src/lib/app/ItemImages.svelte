@@ -18,6 +18,9 @@
 	let urls = $state<Record<string, string>>({});
 	let small = $state<Record<string, boolean>>({});
 	let open = $state<ItemImage | null>(null);
+	let all = $state(false);
+	const FIRST = 12;
+	const shown = $derived(all ? list : list.slice(0, FIRST));
 	let mode = $state<'after' | 'before' | 'both'>('after');
 	const made: string[] = [];
 
@@ -40,7 +43,7 @@
 			.then((v) => {
 				list = v.images;
 				more = v.more || 0;
-				for (const im of v.images.slice(0, 48)) load(im.path);
+				for (const im of v.images.slice(0, FIRST)) load(im.path);
 			})
 			.catch(() => (list = []));
 	});
@@ -77,7 +80,7 @@
 {#if list.length}
 	<Section title={t('imgTitle')} count={list.length + (more ? '+' : '')} sub={t('imgHelp')}>
 		<ul class="grid grid-cols-[repeat(auto-fill,minmax(7.5rem,1fr))] gap-3">
-			{#each list as im (im.path)}
+			{#each shown as im (im.path)}
 				<li>
 					<button class="group w-full text-left" onclick={() => show(im)} title={im.path}>
 						<div class="grid aspect-square place-items-center overflow-hidden rounded-lg border bg-[repeating-conic-gradient(var(--muted)_0_25%,transparent_0_50%)] bg-[length:12px_12px] p-2 transition group-hover:border-foreground/40">
@@ -94,6 +97,9 @@
 				</li>
 			{/each}
 		</ul>
+		{#if list.length > FIRST}
+			<Button variant="outline" size="sm" class="mt-3" onclick={() => { all = !all; if (all) for (const im of list) load(im.path); }}>{all ? t('imgFewer') : t('imgAll', list.length + (more ? '+' : ''))}</Button>
+		{/if}
 	</Section>
 {/if}
 

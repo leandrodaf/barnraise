@@ -277,9 +277,9 @@
 				</DropdownMenu.Root>
 			</div>
 			<Tabs.Content value="summary" class="mt-3 space-y-4">
+				<ItemImages {project} id={it.id} version={it.step + '/' + (it.mergeCommit || '') + '/' + (it.runs ? Object.keys(it.runs).length : 0)} />
 				{#if work && (work.pr?.number || work.commits.length || work.merged)}<ItemWorkCard {work} />{/if}
 				{#if it.body}<Section title={t('body')}><Markdown text={it.body} /></Section>{/if}
-				<ItemImages {project} id={it.id} version={it.step + '/' + (it.mergeCommit || '') + '/' + (it.runs ? Object.keys(it.runs).length : 0)} />
 				{#each [['preserve', it.preserve], ['checklist', it.checklist], ['clarifications', it.clarifications], ['tweaks', it.tweaks]] as [k, arr] (k)}
 					{#if (arr as string[]).length}<Section title={t(k as string)}><ul class="list-disc space-y-1 pl-5 text-sm">{#each arr as string[] as x, i (i)}<li>{x}</li>{/each}</ul></Section>{/if}
 				{/each}
