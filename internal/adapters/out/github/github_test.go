@@ -765,3 +765,25 @@ func TestHostChecksFromWorkflowRuns(t *testing.T) {
 		t.Fatalf("checks %+v", c)
 	}
 }
+
+// Issues created at once race to create a new label: GitHub refuses all but
+// one with already_exists, and the call goes through once more.
+func TestLabelRaceIsRetried(t *testing.T) {
+	f := newFake(t)
+	n := 0
+	f.on("POST /repos/acme/app/issues", func(w http.ResponseWriter, r *http.Request) {
+		n++
+		if n == 1 {
+			w.WriteHeader(http.StatusUnprocessableEntity)
+			_, _ = w.Write([]byte(`{"message":"Validation Failed","errors":[{"resource":"Label","field":"name","code":"already_exists"}]}`))
+			return
+		}
+		w.WriteHeader(http.StatusCreated)
+		_, _ = w.Write([]byte(`{"number":7,"title":"[I-1] x","html_url":"https://github.com/acme/app/issues/7"}`))
+	})
+	c := f.client(t, nil)
+	var out ghIssue
+	if _, err := c.do(context.Background(), http.MethodPost, c.repoPath("/issues"), map[string]any{"title": "x"}, &out); err != nil || out.Number != 7 || n != 2 {
+		t.Fatalf("%v %+v after %d calls", err, out, n)
+	}
+}

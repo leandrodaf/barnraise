@@ -136,6 +136,17 @@ func (c *Client) repoPath(format string, args ...any) string {
 
 func (c *Client) do(ctx context.Context, method, path string, in, out any) (*httpx.Response, error) {
 	resp, err := c.http.Do(ctx, method, path, in, out)
+	// Issues written at once that name the same new label race to create it,
+	// and every one but the first is refused; the label exists now, so the
+	// same call goes through. Sixteen issues of one project were lost so.
+	for try := 0; err != nil && labelRace(err) && try < 2; try++ {
+		select {
+		case <-ctx.Done():
+			return resp, fmt.Errorf("github: %w", err)
+		case <-time.After(time.Duration(300*(try+1)) * time.Millisecond):
+		}
+		resp, err = c.http.Do(ctx, method, path, in, out)
+	}
 	if err != nil {
 		return resp, fmt.Errorf("github: %w", err)
 	}
@@ -167,3 +178,10 @@ func ParseRef(ref string) (int, error) {
 
 // Ref formats an issue number as a tracker reference.
 func Ref(n int) string { return "#" + strconv.Itoa(n) }
+
+// labelRace tells GitHub's refusal of a label another request created a
+// moment before.
+func labelRace(err error) bool {
+	m := err.Error()
+	return strings.Contains(m, "422") && strings.Contains(m, `"resource":"Label"`) && strings.Contains(m, "already_exists")
+}
