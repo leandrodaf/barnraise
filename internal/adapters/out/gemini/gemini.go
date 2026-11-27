@@ -177,6 +177,7 @@ type mcpServer struct {
 	Args    []string          `json:"args"`
 	Env     map[string]string `json:"env"`
 	URL     string            `json:"url"`
+	Headers map[string]string `json:"headers"`
 }
 
 // mcpServers turns a Claude-style MCP config (file path or inline JSON with
@@ -206,8 +207,14 @@ func mcpServers(cfg string) (map[string]map[string]any, []string, error) {
 		switch {
 		case s.URL != "" && s.Type == "sse":
 			srv["url"] = s.URL
+			if len(s.Headers) > 0 {
+				srv["headers"] = s.Headers
+			}
 		case s.URL != "":
 			srv["httpUrl"] = s.URL
+			if len(s.Headers) > 0 {
+				srv["headers"] = s.Headers
+			}
 		default:
 			srv["command"] = s.Command
 			if len(s.Args) > 0 {

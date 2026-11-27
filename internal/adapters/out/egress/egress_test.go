@@ -90,3 +90,20 @@ func TestNFTRules(t *testing.T) {
 		}
 	}
 }
+
+// The hosts of the MCP servers agents may use change while the daemon runs:
+// the proxy asks for them at each request.
+func TestExtraHosts(t *testing.T) {
+	p := New(nil, nil)
+	hosts := []string{"mcp.example.com"}
+	p.Extra = func() []string { return hosts }
+	for host, want := range map[string]bool{"mcp.example.com:443": true, "eu.mcp.example.com": true, "evilmcp.example.com": false, "example.com": false} {
+		if got := p.Allowed(host); got != want {
+			t.Errorf("Allowed(%s) = %v, want %v", host, got, want)
+		}
+	}
+	hosts = nil
+	if p.Allowed("mcp.example.com") {
+		t.Error("a host whose server is no longer allowed stays open")
+	}
+}

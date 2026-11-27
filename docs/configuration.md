@@ -731,11 +731,17 @@ A machine with an NVIDIA GPU needs the NVIDIA Container Toolkit for containers t
 
 MCP servers the agents may use besides Barnraise's own. A session loads **only** Barnraise's server and the ones listed here for its role: the servers, plugins and personal settings of the account's own configuration are never loaded (`--strict-mcp-config`), so an agent cannot reach the owner's mail, ads or cloud tools, and their tool lists do not cost tokens in every session.
 
+Your own Claude, opened in the project's folder, keeps every server of the machine and of the project's `.mcp.json`: Barnraise never changes that configuration. For agents there are two ways to give a server:
+
+- **The panel** (Admin → *MCP servers for agents*): every machine lists the servers it finds in Claude's own configuration (the project's `.mcp.json`, and `~/.claude.json` for every folder or for this project only) and tests them now and then. Each server shows per machine whether it is there, answers, and how many tools it has; a switch lets agents use it, for every role or the ones chosen. A session gets the machine's own definition, secrets included, so nothing is copied between machines; on a machine without the server the session runs without it, and the panel marks it *missing on a machine*. **Test** runs the MCP handshake on every machine at once. A server that signs in with OAuth (Claude's `/mcp` login) cannot be used by agents, and the test says so.
+- **`mcp:` here**, below: the servers listed for a role are always given to it, on every machine, from this definition.
+
 | Key | Default | Meaning |
 | --- | --- | --- |
 | `command`, `args` | none | A local server started by the session |
 | `url`, `type` | none, `http` | A remote server (`http` or `sse`); use this or `command` |
 | `env` | none | Environment of a local server; a value may be a secret reference (`keychain:…`, `env:…`), resolved when the session starts |
+| `headers` | none | Headers of a remote server (`Authorization: Bearer …`); values may be secret references |
 | `roles` | every role | Roles that get this server |
 
 ```yaml

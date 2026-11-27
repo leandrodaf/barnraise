@@ -56,6 +56,8 @@ type Options struct {
 	// permission and the install on every machine.
 	GitHubTokenSetup   func(ctx context.Context, project string) (*pb.GitHubTokenSetup, error)
 	InstallGitHubToken func(ctx context.Context, r *pb.GitHubTokenRequest) (*pb.GitHubTokenResponse, error)
+	// TestAgentMCP tests an MCP server on this machine and the connected ones.
+	TestAgentMCP func(ctx context.Context, project, name string) (*pb.AgentMCPTestResponse, error)
 	// Capabilities and InstallTools answer for this machine and fan out to
 	// the requested peers (ADR-0046); nil answers for this machine only.
 	Capabilities func(ctx context.Context, r *pb.CapabilitiesRequest) (*pb.CapabilitiesResponse, error)

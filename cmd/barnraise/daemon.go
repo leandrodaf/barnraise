@@ -41,6 +41,7 @@ import (
 	"github.com/leandrodaf/barnraise/internal/adapters/out/keychain"
 	"github.com/leandrodaf/barnraise/internal/adapters/out/knowledge"
 	"github.com/leandrodaf/barnraise/internal/adapters/out/linear"
+	"github.com/leandrodaf/barnraise/internal/adapters/out/mcpcatalog"
 	natsx "github.com/leandrodaf/barnraise/internal/adapters/out/nats"
 	"github.com/leandrodaf/barnraise/internal/adapters/out/notify"
 	"github.com/leandrodaf/barnraise/internal/adapters/out/plugin"
@@ -196,6 +197,7 @@ func runDaemon(ctx context.Context, opts cli.DaemonOptions) error {
 		Machine: df.Machine, Version: version, BuildTime: selfBuild().Time, SelfUpdate: os.Getenv("BARNRAISE_NO_SELF_UPDATE") == "", DataDir: d.dataDir, SocketPath: paths.Socket(), BinaryPath: exe,
 		Notifier: d.notifier(), Blobs: blobsOrNil(d.blobs), Host: sysinfo.NewHost(),
 		ResolveSecret: func(ref string) (string, error) { return notify.SecretRef(d.secrets, ref) },
+		MCP:           mcpcatalog.New(),
 		Isolation:     d.isolation(exe),
 		Cloner:        reflink.New(),
 		Prober:        capprobe.New(capprobe.Options{Exec: ex, DataDir: d.dataDir, ToolsBin: toolinstall.BinDir(toolinstall.Root(d.dataDir))}),
@@ -246,6 +248,7 @@ func runDaemon(ctx context.Context, opts cli.DaemonOptions) error {
 	go d.serveRemoteAgents(ctx)
 	go d.serveRemoteProject(ctx)
 	go d.serveRemoteGitHubToken(ctx)
+	go d.serveRemoteMCPTest(ctx)
 	go d.watchCapabilities(ctx)
 	go newChainWatch(d).run(ctx)
 
@@ -257,6 +260,7 @@ func runDaemon(ctx context.Context, opts cli.DaemonOptions) error {
 		Capabilities: d.capabilities, InstallTools: d.installTools, AccountLogin: d.accountLogin, SetMaxAgents: d.setMachineAgents,
 		ShareProject:     d.shareProject,
 		GitHubTokenSetup: d.gitHubTokenSetup, InstallGitHubToken: d.installGitHubToken,
+		TestAgentMCP: d.testAgentMCP,
 		VerifyAnchor: natsx.AnchorVerifier(df.NKeyPublic),
 		WebhookSecret: func(project, source string) string {
 			v, _ := d.secrets.Get("webhook/" + project + "/" + source)
@@ -555,6 +559,7 @@ func (d *daemon) watchDaemonFile(ctx context.Context) {
 				go d.serveRemoteAgents(ctx)
 				go d.serveRemoteProject(ctx)
 				go d.serveRemoteGitHubToken(ctx)
+				go d.serveRemoteMCPTest(ctx)
 			}
 		}
 		if d.repl != nil {

@@ -1332,6 +1332,48 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/barnraise.v1.AccountsResponse'
+  /barnraise.v1.BarnraiseService/ListAgentMCP:
+    post:
+      tags:
+        - barnraise.v1.BarnraiseService
+      summary: ListAgentMCP
+      description: |-
+        The MCP servers the machines have for a project, and which ones its
+         agents may use. The owner's own Claude keeps every server; agents get
+         only Barnraise's, barnraise.yaml's and the ones allowed here.
+      operationId: barnraise.v1.BarnraiseService.ListAgentMCP
+      parameters:
+        - name: Connect-Protocol-Version
+          in: header
+          description: Define the version of the Connect protocol
+          schema:
+            $ref: '#/components/schemas/connect-protocol-version'
+          example: 1
+        - name: Connect-Timeout-Ms
+          in: header
+          description: Define the timeout, in ms
+          schema:
+            $ref: '#/components/schemas/connect-timeout-header'
+          example: 1000
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/barnraise.v1.ProjectRef'
+        required: true
+      responses:
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.error'
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/barnraise.v1.AgentMCPResponse'
   /barnraise.v1.BarnraiseService/ListAudit:
     post:
       tags:
@@ -2528,6 +2570,45 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/barnraise.v1.MessageResponse'
+  /barnraise.v1.BarnraiseService/SetAgentMCP:
+    post:
+      tags:
+        - barnraise.v1.BarnraiseService
+      summary: SetAgentMCP
+      description: Lets agents use an MCP server (for some roles), or no longer.
+      operationId: barnraise.v1.BarnraiseService.SetAgentMCP
+      parameters:
+        - name: Connect-Protocol-Version
+          in: header
+          description: Define the version of the Connect protocol
+          schema:
+            $ref: '#/components/schemas/connect-protocol-version'
+          example: 1
+        - name: Connect-Timeout-Ms
+          in: header
+          description: Define the timeout, in ms
+          schema:
+            $ref: '#/components/schemas/connect-timeout-header'
+          example: 1000
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/barnraise.v1.AgentMCPGrantRequest'
+        required: true
+      responses:
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.error'
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/barnraise.v1.AgentMCPResponse'
   /barnraise.v1.BarnraiseService/SetAutopilot:
     post:
       tags:
@@ -3002,6 +3083,47 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/barnraise.v1.TakeoverResponse'
+  /barnraise.v1.BarnraiseService/TestAgentMCP:
+    post:
+      tags:
+        - barnraise.v1.BarnraiseService
+      summary: TestAgentMCP
+      description: |-
+        Tests an MCP server on every connected machine now: the handshake and
+         the list of its tools.
+      operationId: barnraise.v1.BarnraiseService.TestAgentMCP
+      parameters:
+        - name: Connect-Protocol-Version
+          in: header
+          description: Define the version of the Connect protocol
+          schema:
+            $ref: '#/components/schemas/connect-protocol-version'
+          example: 1
+        - name: Connect-Timeout-Ms
+          in: header
+          description: Define the timeout, in ms
+          schema:
+            $ref: '#/components/schemas/connect-timeout-header'
+          example: 1000
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/barnraise.v1.AgentMCPTestRequest'
+        required: true
+      responses:
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.error'
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/barnraise.v1.AgentMCPTestResponse'
   /barnraise.v1.BarnraiseService/Timeline:
     post:
       tags:
@@ -3473,6 +3595,147 @@ components:
           title: item
           $ref: '#/components/schemas/barnraise.v1.Item'
       title: AddTweakResponse
+      additionalProperties: false
+    barnraise.v1.AgentMCPGrantRequest:
+      type: object
+      properties:
+        project:
+          type: string
+          title: project
+        name:
+          type: string
+          title: name
+        allowed:
+          type: boolean
+          title: allowed
+        roles:
+          type: array
+          items:
+            type: string
+          title: roles
+        hosts:
+          type: array
+          items:
+            type: string
+          title: hosts
+      title: AgentMCPGrantRequest
+      additionalProperties: false
+    barnraise.v1.AgentMCPResponse:
+      type: object
+      properties:
+        project:
+          type: string
+          title: project
+        roles:
+          type: array
+          items:
+            type: string
+          title: roles
+          description: The project's roles, to choose from.
+        servers:
+          type: array
+          items:
+            $ref: '#/components/schemas/barnraise.v1.AgentMCPServer'
+          title: servers
+      title: AgentMCPResponse
+      additionalProperties: false
+    barnraise.v1.AgentMCPServer:
+      type: object
+      properties:
+        name:
+          type: string
+          title: name
+        kind:
+          type: string
+          title: kind
+          description: local (a command) or remote (a URL).
+        summary:
+          type: string
+          title: summary
+          description: The command, or the URL's host and path.
+        fromYaml:
+          type: boolean
+          title: from_yaml
+          description: 'In barnraise.yaml (mcp:): always given to its roles, changed there.'
+        allowed:
+          type: boolean
+          title: allowed
+        roles:
+          type: array
+          items:
+            type: string
+          title: roles
+          description: 'Roles that get it; empty: every role.'
+        hosts:
+          type: array
+          items:
+            type: string
+          title: hosts
+          description: Hosts a local server reaches, opened in the egress proxy.
+        machines:
+          type: array
+          items:
+            $ref: '#/components/schemas/barnraise.v1.AgentMCPStatus'
+          title: machines
+      title: AgentMCPServer
+      additionalProperties: false
+      description: |-
+        AgentMCPServer is one MCP server across the cluster, and whether agents
+         may use it.
+    barnraise.v1.AgentMCPStatus:
+      type: object
+      properties:
+        machine:
+          type: string
+          title: machine
+        found:
+          type: boolean
+          title: found
+          description: The machine has the server (in Claude's configuration or barnraise.yaml).
+        source:
+          type: string
+          title: source
+          description: project (.mcp.json), user or local (~/.claude.json), barnraise (barnraise.yaml).
+        ok:
+          type: boolean
+          title: ok
+        tools:
+          type: array
+          items:
+            type: string
+          title: tools
+        error:
+          type: string
+          title: error
+        testedAt:
+          type: string
+          title: tested_at
+          description: RFC 3339.
+      title: AgentMCPStatus
+      additionalProperties: false
+      description: |-
+        AgentMCPStatus is what one machine says of one MCP server: never its
+         env or headers.
+    barnraise.v1.AgentMCPTestRequest:
+      type: object
+      properties:
+        project:
+          type: string
+          title: project
+        name:
+          type: string
+          title: name
+      title: AgentMCPTestRequest
+      additionalProperties: false
+    barnraise.v1.AgentMCPTestResponse:
+      type: object
+      properties:
+        machines:
+          type: array
+          items:
+            $ref: '#/components/schemas/barnraise.v1.AgentMCPStatus'
+          title: machines
+      title: AgentMCPTestResponse
       additionalProperties: false
     barnraise.v1.Anchors:
       type: object

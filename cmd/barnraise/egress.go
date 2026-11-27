@@ -39,6 +39,9 @@ func (d *daemon) startEgress(ctx context.Context, svc *app.Service, roots []stri
 		return fmt.Errorf("egress proxy: %w", err)
 	}
 	px := egress.New(allow, log)
+	// The MCP servers the owner lets agents use change while the daemon
+	// runs: their hosts are asked for at each request.
+	px.Extra = svc.AgentMCPHosts
 	dir := filepath.Join(d.dataDir, "egress")
 	switch ca, err := egress.LoadOrCreateCA(dir, nil); {
 	case err != nil:

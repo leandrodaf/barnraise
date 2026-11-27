@@ -62,6 +62,10 @@ type Proxy struct {
 	Inspect []string
 	// UpstreamTLS verifies the real hosts (nil: the system roots).
 	UpstreamTLS *tls.Config
+	// Extra lists hosts allowed besides the rules, asked at each request:
+	// the hosts of the MCP servers the owner lets agents use, which change
+	// while the daemon runs. A host also matches its subdomains.
+	Extra func() []string
 
 	mu      sync.Mutex
 	blocked map[string]int
@@ -91,7 +95,21 @@ func New(allow []string, log *slog.Logger) *Proxy {
 }
 
 // Allowed reports whether host (a port may follow) may be reached at all.
-func (p *Proxy) Allowed(host string) bool { return p.rules.HostAllowed(host) }
+func (p *Proxy) Allowed(host string) bool { return p.rules.HostAllowed(host) || p.extraAllowed(host) }
+
+// extraAllowed reports whether host is one of Extra's, or a subdomain.
+func (p *Proxy) extraAllowed(host string) bool {
+	if p.Extra == nil {
+		return false
+	}
+	h := strings.ToLower(domain.HostOnly(host))
+	for _, e := range p.Extra() {
+		if e = strings.ToLower(e); h == e || strings.HasSuffix(h, "."+e) {
+			return true
+		}
+	}
+	return false
+}
 
 // Rules are the compiled allow list.
 func (p *Proxy) Rules() domain.EgressRules { return p.rules }
@@ -226,6 +244,9 @@ func (p *Proxy) seen(w http.ResponseWriter, r *http.Request, scheme, host string
 	hn := domain.HostOnly(host)
 	rc := Receipt{Host: hn, Method: r.Method, Path: r.URL.Path}
 	ok, rule := p.rules.Allow(r.Method, host, r.URL.Path)
+	if !ok && rule == "not-allowed" && p.extraAllowed(host) {
+		ok, rule = true, "agent-mcp"
+	}
 	if !ok && rule == "not-allowed" {
 		p.refuse(w, r.Method, hn, r.URL.Path)
 		return

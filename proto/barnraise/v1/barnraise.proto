@@ -1168,6 +1168,63 @@ message GitHubTokenResponse {
   repeated GitHubTokenMachine machines = 2;
 }
 
+// AgentMCPStatus is what one machine says of one MCP server: never its
+// env or headers.
+message AgentMCPStatus {
+  string machine = 1;
+  // The machine has the server (in Claude's configuration or barnraise.yaml).
+  bool found = 2;
+  // project (.mcp.json), user or local (~/.claude.json), barnraise (barnraise.yaml).
+  string source = 3;
+  bool ok = 4;
+  repeated string tools = 5;
+  string error = 6;
+  // RFC 3339.
+  string tested_at = 7;
+}
+
+// AgentMCPServer is one MCP server across the cluster, and whether agents
+// may use it.
+message AgentMCPServer {
+  string name = 1;
+  // local (a command) or remote (a URL).
+  string kind = 2;
+  // The command, or the URL's host and path.
+  string summary = 3;
+  // In barnraise.yaml (mcp:): always given to its roles, changed there.
+  bool from_yaml = 4;
+  bool allowed = 5;
+  // Roles that get it; empty: every role.
+  repeated string roles = 6;
+  // Hosts a local server reaches, opened in the egress proxy.
+  repeated string hosts = 7;
+  repeated AgentMCPStatus machines = 8;
+}
+
+message AgentMCPResponse {
+  string project = 1;
+  // The project's roles, to choose from.
+  repeated string roles = 2;
+  repeated AgentMCPServer servers = 3;
+}
+
+message AgentMCPGrantRequest {
+  string project = 1;
+  string name = 2;
+  bool allowed = 3;
+  repeated string roles = 4;
+  repeated string hosts = 5;
+}
+
+message AgentMCPTestRequest {
+  string project = 1;
+  string name = 2;
+}
+
+message AgentMCPTestResponse {
+  repeated AgentMCPStatus machines = 1;
+}
+
 message MaxAgentsRequest {
   // Agents at once on each machine named; 0 measures it from the machine.
   int32 max_agents = 1;
@@ -1819,6 +1876,15 @@ service BarnraiseService {
   // Tests a GitHub token's permissions on this machine and, when they all
   // pass, installs it on every connected machine, each testing it again.
   rpc InstallGitHubToken(GitHubTokenRequest) returns (GitHubTokenResponse);
+  // The MCP servers the machines have for a project, and which ones its
+  // agents may use. The owner's own Claude keeps every server; agents get
+  // only Barnraise's, barnraise.yaml's and the ones allowed here.
+  rpc ListAgentMCP(ProjectRef) returns (AgentMCPResponse);
+  // Lets agents use an MCP server (for some roles), or no longer.
+  rpc SetAgentMCP(AgentMCPGrantRequest) returns (AgentMCPResponse);
+  // Tests an MCP server on every connected machine now: the handshake and
+  // the list of its tools.
+  rpc TestAgentMCP(AgentMCPTestRequest) returns (AgentMCPTestResponse);
   // What is active on each machine, what falls back and why, and how to fix
   // it (ADR-0046). Owner and admin tokens only.
   rpc Capabilities(CapabilitiesRequest) returns (CapabilitiesResponse);

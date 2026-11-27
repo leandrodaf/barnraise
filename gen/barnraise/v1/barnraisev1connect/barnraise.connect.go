@@ -259,6 +259,15 @@ const (
 	// BarnraiseServiceInstallGitHubTokenProcedure is the fully-qualified name of the BarnraiseService's
 	// InstallGitHubToken RPC.
 	BarnraiseServiceInstallGitHubTokenProcedure = "/barnraise.v1.BarnraiseService/InstallGitHubToken"
+	// BarnraiseServiceListAgentMCPProcedure is the fully-qualified name of the BarnraiseService's
+	// ListAgentMCP RPC.
+	BarnraiseServiceListAgentMCPProcedure = "/barnraise.v1.BarnraiseService/ListAgentMCP"
+	// BarnraiseServiceSetAgentMCPProcedure is the fully-qualified name of the BarnraiseService's
+	// SetAgentMCP RPC.
+	BarnraiseServiceSetAgentMCPProcedure = "/barnraise.v1.BarnraiseService/SetAgentMCP"
+	// BarnraiseServiceTestAgentMCPProcedure is the fully-qualified name of the BarnraiseService's
+	// TestAgentMCP RPC.
+	BarnraiseServiceTestAgentMCPProcedure = "/barnraise.v1.BarnraiseService/TestAgentMCP"
 	// BarnraiseServiceCapabilitiesProcedure is the fully-qualified name of the BarnraiseService's
 	// Capabilities RPC.
 	BarnraiseServiceCapabilitiesProcedure = "/barnraise.v1.BarnraiseService/Capabilities"
@@ -410,6 +419,15 @@ type BarnraiseServiceClient interface {
 	// Tests a GitHub token's permissions on this machine and, when they all
 	// pass, installs it on every connected machine, each testing it again.
 	InstallGitHubToken(context.Context, *connect.Request[v1.GitHubTokenRequest]) (*connect.Response[v1.GitHubTokenResponse], error)
+	// The MCP servers the machines have for a project, and which ones its
+	// agents may use. The owner's own Claude keeps every server; agents get
+	// only Barnraise's, barnraise.yaml's and the ones allowed here.
+	ListAgentMCP(context.Context, *connect.Request[v1.ProjectRef]) (*connect.Response[v1.AgentMCPResponse], error)
+	// Lets agents use an MCP server (for some roles), or no longer.
+	SetAgentMCP(context.Context, *connect.Request[v1.AgentMCPGrantRequest]) (*connect.Response[v1.AgentMCPResponse], error)
+	// Tests an MCP server on every connected machine now: the handshake and
+	// the list of its tools.
+	TestAgentMCP(context.Context, *connect.Request[v1.AgentMCPTestRequest]) (*connect.Response[v1.AgentMCPTestResponse], error)
 	// What is active on each machine, what falls back and why, and how to fix
 	// it (ADR-0046). Owner and admin tokens only.
 	Capabilities(context.Context, *connect.Request[v1.CapabilitiesRequest]) (*connect.Response[v1.CapabilitiesResponse], error)
@@ -896,6 +914,24 @@ func NewBarnraiseServiceClient(httpClient connect.HTTPClient, baseURL string, op
 			connect.WithSchema(barnraiseServiceMethods.ByName("InstallGitHubToken")),
 			connect.WithClientOptions(opts...),
 		),
+		listAgentMCP: connect.NewClient[v1.ProjectRef, v1.AgentMCPResponse](
+			httpClient,
+			baseURL+BarnraiseServiceListAgentMCPProcedure,
+			connect.WithSchema(barnraiseServiceMethods.ByName("ListAgentMCP")),
+			connect.WithClientOptions(opts...),
+		),
+		setAgentMCP: connect.NewClient[v1.AgentMCPGrantRequest, v1.AgentMCPResponse](
+			httpClient,
+			baseURL+BarnraiseServiceSetAgentMCPProcedure,
+			connect.WithSchema(barnraiseServiceMethods.ByName("SetAgentMCP")),
+			connect.WithClientOptions(opts...),
+		),
+		testAgentMCP: connect.NewClient[v1.AgentMCPTestRequest, v1.AgentMCPTestResponse](
+			httpClient,
+			baseURL+BarnraiseServiceTestAgentMCPProcedure,
+			connect.WithSchema(barnraiseServiceMethods.ByName("TestAgentMCP")),
+			connect.WithClientOptions(opts...),
+		),
 		capabilities: connect.NewClient[v1.CapabilitiesRequest, v1.CapabilitiesResponse](
 			httpClient,
 			baseURL+BarnraiseServiceCapabilitiesProcedure,
@@ -1014,6 +1050,9 @@ type barnraiseServiceClient struct {
 	shareProject        *connect.Client[v1.ShareProjectRequest, v1.ShareProjectResponse]
 	getGitHubTokenSetup *connect.Client[v1.ProjectRef, v1.GitHubTokenSetup]
 	installGitHubToken  *connect.Client[v1.GitHubTokenRequest, v1.GitHubTokenResponse]
+	listAgentMCP        *connect.Client[v1.ProjectRef, v1.AgentMCPResponse]
+	setAgentMCP         *connect.Client[v1.AgentMCPGrantRequest, v1.AgentMCPResponse]
+	testAgentMCP        *connect.Client[v1.AgentMCPTestRequest, v1.AgentMCPTestResponse]
 	capabilities        *connect.Client[v1.CapabilitiesRequest, v1.CapabilitiesResponse]
 	installTools        *connect.Client[v1.InstallToolsRequest, v1.InstallToolsResponse]
 	createToken         *connect.Client[v1.CreateTokenRequest, v1.CreateTokenResponse]
@@ -1407,6 +1446,21 @@ func (c *barnraiseServiceClient) InstallGitHubToken(ctx context.Context, req *co
 	return c.installGitHubToken.CallUnary(ctx, req)
 }
 
+// ListAgentMCP calls barnraise.v1.BarnraiseService.ListAgentMCP.
+func (c *barnraiseServiceClient) ListAgentMCP(ctx context.Context, req *connect.Request[v1.ProjectRef]) (*connect.Response[v1.AgentMCPResponse], error) {
+	return c.listAgentMCP.CallUnary(ctx, req)
+}
+
+// SetAgentMCP calls barnraise.v1.BarnraiseService.SetAgentMCP.
+func (c *barnraiseServiceClient) SetAgentMCP(ctx context.Context, req *connect.Request[v1.AgentMCPGrantRequest]) (*connect.Response[v1.AgentMCPResponse], error) {
+	return c.setAgentMCP.CallUnary(ctx, req)
+}
+
+// TestAgentMCP calls barnraise.v1.BarnraiseService.TestAgentMCP.
+func (c *barnraiseServiceClient) TestAgentMCP(ctx context.Context, req *connect.Request[v1.AgentMCPTestRequest]) (*connect.Response[v1.AgentMCPTestResponse], error) {
+	return c.testAgentMCP.CallUnary(ctx, req)
+}
+
 // Capabilities calls barnraise.v1.BarnraiseService.Capabilities.
 func (c *barnraiseServiceClient) Capabilities(ctx context.Context, req *connect.Request[v1.CapabilitiesRequest]) (*connect.Response[v1.CapabilitiesResponse], error) {
 	return c.capabilities.CallUnary(ctx, req)
@@ -1568,6 +1622,15 @@ type BarnraiseServiceHandler interface {
 	// Tests a GitHub token's permissions on this machine and, when they all
 	// pass, installs it on every connected machine, each testing it again.
 	InstallGitHubToken(context.Context, *connect.Request[v1.GitHubTokenRequest]) (*connect.Response[v1.GitHubTokenResponse], error)
+	// The MCP servers the machines have for a project, and which ones its
+	// agents may use. The owner's own Claude keeps every server; agents get
+	// only Barnraise's, barnraise.yaml's and the ones allowed here.
+	ListAgentMCP(context.Context, *connect.Request[v1.ProjectRef]) (*connect.Response[v1.AgentMCPResponse], error)
+	// Lets agents use an MCP server (for some roles), or no longer.
+	SetAgentMCP(context.Context, *connect.Request[v1.AgentMCPGrantRequest]) (*connect.Response[v1.AgentMCPResponse], error)
+	// Tests an MCP server on every connected machine now: the handshake and
+	// the list of its tools.
+	TestAgentMCP(context.Context, *connect.Request[v1.AgentMCPTestRequest]) (*connect.Response[v1.AgentMCPTestResponse], error)
 	// What is active on each machine, what falls back and why, and how to fix
 	// it (ADR-0046). Owner and admin tokens only.
 	Capabilities(context.Context, *connect.Request[v1.CapabilitiesRequest]) (*connect.Response[v1.CapabilitiesResponse], error)
@@ -2050,6 +2113,24 @@ func NewBarnraiseServiceHandler(svc BarnraiseServiceHandler, opts ...connect.Han
 		connect.WithSchema(barnraiseServiceMethods.ByName("InstallGitHubToken")),
 		connect.WithHandlerOptions(opts...),
 	)
+	barnraiseServiceListAgentMCPHandler := connect.NewUnaryHandler(
+		BarnraiseServiceListAgentMCPProcedure,
+		svc.ListAgentMCP,
+		connect.WithSchema(barnraiseServiceMethods.ByName("ListAgentMCP")),
+		connect.WithHandlerOptions(opts...),
+	)
+	barnraiseServiceSetAgentMCPHandler := connect.NewUnaryHandler(
+		BarnraiseServiceSetAgentMCPProcedure,
+		svc.SetAgentMCP,
+		connect.WithSchema(barnraiseServiceMethods.ByName("SetAgentMCP")),
+		connect.WithHandlerOptions(opts...),
+	)
+	barnraiseServiceTestAgentMCPHandler := connect.NewUnaryHandler(
+		BarnraiseServiceTestAgentMCPProcedure,
+		svc.TestAgentMCP,
+		connect.WithSchema(barnraiseServiceMethods.ByName("TestAgentMCP")),
+		connect.WithHandlerOptions(opts...),
+	)
 	barnraiseServiceCapabilitiesHandler := connect.NewUnaryHandler(
 		BarnraiseServiceCapabilitiesProcedure,
 		svc.Capabilities,
@@ -2242,6 +2323,12 @@ func NewBarnraiseServiceHandler(svc BarnraiseServiceHandler, opts ...connect.Han
 			barnraiseServiceGetGitHubTokenSetupHandler.ServeHTTP(w, r)
 		case BarnraiseServiceInstallGitHubTokenProcedure:
 			barnraiseServiceInstallGitHubTokenHandler.ServeHTTP(w, r)
+		case BarnraiseServiceListAgentMCPProcedure:
+			barnraiseServiceListAgentMCPHandler.ServeHTTP(w, r)
+		case BarnraiseServiceSetAgentMCPProcedure:
+			barnraiseServiceSetAgentMCPHandler.ServeHTTP(w, r)
+		case BarnraiseServiceTestAgentMCPProcedure:
+			barnraiseServiceTestAgentMCPHandler.ServeHTTP(w, r)
 		case BarnraiseServiceCapabilitiesProcedure:
 			barnraiseServiceCapabilitiesHandler.ServeHTTP(w, r)
 		case BarnraiseServiceInstallToolsProcedure:
@@ -2569,6 +2656,18 @@ func (UnimplementedBarnraiseServiceHandler) GetGitHubTokenSetup(context.Context,
 
 func (UnimplementedBarnraiseServiceHandler) InstallGitHubToken(context.Context, *connect.Request[v1.GitHubTokenRequest]) (*connect.Response[v1.GitHubTokenResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("barnraise.v1.BarnraiseService.InstallGitHubToken is not implemented"))
+}
+
+func (UnimplementedBarnraiseServiceHandler) ListAgentMCP(context.Context, *connect.Request[v1.ProjectRef]) (*connect.Response[v1.AgentMCPResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("barnraise.v1.BarnraiseService.ListAgentMCP is not implemented"))
+}
+
+func (UnimplementedBarnraiseServiceHandler) SetAgentMCP(context.Context, *connect.Request[v1.AgentMCPGrantRequest]) (*connect.Response[v1.AgentMCPResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("barnraise.v1.BarnraiseService.SetAgentMCP is not implemented"))
+}
+
+func (UnimplementedBarnraiseServiceHandler) TestAgentMCP(context.Context, *connect.Request[v1.AgentMCPTestRequest]) (*connect.Response[v1.AgentMCPTestResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("barnraise.v1.BarnraiseService.TestAgentMCP is not implemented"))
 }
 
 func (UnimplementedBarnraiseServiceHandler) Capabilities(context.Context, *connect.Request[v1.CapabilitiesRequest]) (*connect.Response[v1.CapabilitiesResponse], error) {

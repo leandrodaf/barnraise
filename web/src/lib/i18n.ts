@@ -1023,6 +1023,34 @@ Object.assign(pt, {
   ghtExpires: 'vence {0}', ghtNone: 'Nenhum projeto daqui usa o GitHub.'
 });
 
+Object.assign(en, {
+  mcpTitle: 'MCP servers for agents', mcpHelp: 'Your own Claude, opened in the project, keeps every server. Barnraise\'s agents get only the ones switched on here, on the machines that have them.',
+  mcpNone: 'No machine has an MCP server for this project yet. Add one to Claude (claude mcp add) or to the project\'s .mcp.json and it shows up here.',
+  mcpOn: 'Agents use it', mcpOff: 'Agents do not', mcpSwitch: 'Let agents use {0}', mcpSwitchHelp: 'Switched on, sessions of the chosen roles get this server on every machine that has it.',
+  mcpYamlHelp: 'Listed in barnraise.yaml (mcp:): its roles get it always; change it there.',
+  mcpAllowed: 'Agents now use {0}.', mcpBlocked: 'Agents no longer use {0}.', mcpRoles: 'Roles:', mcpAllRoles: 'none chosen: every role',
+  mcpTest: 'Test', mcpTesting: 'Testing…', mcpTestOk: '{0} answers on all {1} machines.', mcpTestSome: '{0}: {1} machines failed, {2} do not have it.',
+  mcpMissing: 'does not have it', mcpTools: '{0} tools', mcpFailed: 'fails', mcpUntested: 'not tested yet', mcpGap: 'missing on a machine',
+  mcpMissingHelp: 'Not on this machine: its agents run without it. Add it there with claude mcp add, or put it in the project\'s .mcp.json for every machine.',
+  mcpTestedAgo: 'tested {0}', mcpDetails: 'Details', mcpHostsHelp: 'Hosts this local server reaches on the internet (opened for agents when the egress proxy is on):',
+  mcpSrc_project: 'from the project (.mcp.json)', mcpSrc_user: 'from Claude on this machine (every folder)', mcpSrc_local: 'from Claude on this machine (this project)', mcpSrc_barnraise: 'from barnraise.yaml',
+  refresh: 'Refresh'
+});
+
+Object.assign(pt, {
+  mcpTitle: 'MCPs dos agentes', mcpHelp: 'O seu Claude, aberto no projeto, continua com todos os servidores. Os agentes do Barnraise só usam os ligados aqui, nas máquinas que os têm.',
+  mcpNone: 'Nenhuma máquina tem servidor MCP para este projeto ainda. Adicione no Claude (claude mcp add) ou no .mcp.json do projeto e ele aparece aqui.',
+  mcpOn: 'Agentes usam', mcpOff: 'Agentes não usam', mcpSwitch: 'Deixar os agentes usarem {0}', mcpSwitchHelp: 'Ligado, as sessões dos papéis escolhidos recebem este servidor em toda máquina que o tem.',
+  mcpYamlHelp: 'Está no barnraise.yaml (mcp:): os papéis dele sempre recebem; mude lá.',
+  mcpAllowed: 'Os agentes agora usam {0}.', mcpBlocked: 'Os agentes não usam mais {0}.', mcpRoles: 'Papéis:', mcpAllRoles: 'nenhum escolhido: todos os papéis',
+  mcpTest: 'Testar', mcpTesting: 'Testando…', mcpTestOk: '{0} responde nas {1} máquinas.', mcpTestSome: '{0}: falhou em {1} máquinas, {2} não têm.',
+  mcpMissing: 'não tem', mcpTools: '{0} ferramentas', mcpFailed: 'falha', mcpUntested: 'ainda não testado', mcpGap: 'falta numa máquina',
+  mcpMissingHelp: 'Não está nesta máquina: os agentes dela rodam sem ele. Adicione lá com claude mcp add, ou coloque no .mcp.json do projeto para valer em todas.',
+  mcpTestedAgo: 'testado {0}', mcpDetails: 'Detalhes', mcpHostsHelp: 'Hosts que este servidor local acessa na internet (liberados para os agentes quando o proxy de saída está ligado):',
+  mcpSrc_project: 'do projeto (.mcp.json)', mcpSrc_user: 'do Claude desta máquina (todas as pastas)', mcpSrc_local: 'do Claude desta máquina (só este projeto)', mcpSrc_barnraise: 'do barnraise.yaml',
+  refresh: 'Atualizar'
+});
+
 import { locale } from './locale.svelte';
 
 // The current language; t() and tm() read it, so the screen follows a switch.

@@ -331,6 +331,17 @@ type HostChecks struct {
 	Failed  []string `json:"failed,omitempty"` // names of the checks that did not pass
 }
 
+// MCPCatalog finds the MCP servers a machine has for a project, in
+// Claude's own configuration, and tests one by listing its tools.
+type MCPCatalog interface {
+	// Find reads the project's .mcp.json and the user's Claude settings
+	// (servers for every folder, and those for root only).
+	Find(ctx context.Context, root string) ([]domain.MCPFound, error)
+	// Tools starts or calls the server, runs the MCP handshake and lists
+	// its tools. Secret references in def are already resolved.
+	Tools(ctx context.Context, def domain.MCPServerDef) ([]string, error)
+}
+
 // ErrChecksDenied says the code host refused to show a commit's checks to
 // this machine's token (it lacks the permission): waiting will not help.
 var ErrChecksDenied = errors.New("the code host does not let this token read the checks")

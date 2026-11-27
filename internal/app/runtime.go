@@ -965,29 +965,30 @@ func (r *Runtime) writeSessionFiles(p *Project, sessDir, worktree string, env ma
 		mcpEnv[k] = env[k]
 	}
 	servers := map[string]any{"barnraise": map[string]any{"command": bin, "args": []string{"mcp"}, "env": mcpEnv}}
-	// Only what the owner allowed for this role in barnraise.yaml (`mcp:`).
-	for name, d := range p.Cfg().MCPFor(a.Role) {
+	// Only what the owner allowed for this role: barnraise.yaml's `mcp:`,
+	// and the servers of this machine the panel lets agents use.
+	extra, missing, err := r.s.sessionMCP(context.Background(), p, a.Role)
+	if err != nil {
+		return "", "", err
+	}
+	if len(missing) > 0 {
+		r.s.d.Log.Warn("MCP servers agents may use are not on this machine: the session runs without them",
+			"project", p.Name, "agent", a.Name, "servers", strings.Join(missing, ", "))
+	}
+	for name, d := range extra {
 		srv := map[string]any{}
 		if d.URL != "" {
 			srv["url"] = d.URL
 			srv["type"] = def(d.Type, "http")
+			if len(d.Headers) > 0 {
+				srv["headers"] = d.Headers
+			}
 		} else {
 			srv["command"] = d.Command
 			srv["args"] = append([]string{}, d.Args...)
 		}
 		if len(d.Env) > 0 {
-			senv := map[string]string{}
-			for k, v := range d.Env {
-				if r.s.d.ResolveSecret != nil && (strings.HasPrefix(v, "keychain:") || strings.HasPrefix(v, "env:")) {
-					rv, err := r.s.d.ResolveSecret(v)
-					if err != nil {
-						return "", "", fmt.Errorf("mcp.%s: %s: %w", name, k, err)
-					}
-					v = rv
-				}
-				senv[k] = v
-			}
-			srv["env"] = senv
+			srv["env"] = d.Env
 		}
 		servers[name] = srv
 	}

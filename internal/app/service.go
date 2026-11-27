@@ -48,11 +48,14 @@ type Deps struct {
 	// ResolveSecret turns a secret reference (keychain:…, env:…) into its
 	// value; optional. Used for the environment of the owner's MCP servers.
 	ResolveSecret func(ref string) (string, error)
-	Providers     map[string]ports.Provider
-	ACP           ports.Provider  // optional: runs the providers of `type: acp`
-	Blobs         ports.BlobStore // optional
-	Knowledge     ports.Knowledge // optional
-	Exec          ports.Exec      // optional
+	// MCP finds this machine's MCP servers in Claude's configuration and
+	// tests them (optional: without it agents get barnraise.yaml's only).
+	MCP       ports.MCPCatalog
+	Providers map[string]ports.Provider
+	ACP       ports.Provider  // optional: runs the providers of `type: acp`
+	Blobs     ports.BlobStore // optional
+	Knowledge ports.Knowledge // optional
+	Exec      ports.Exec      // optional
 	// Host reads this machine's processes and disk for the inventory; optional.
 	Host    ports.Host
 	Log     *slog.Logger
@@ -121,11 +124,14 @@ type Project struct {
 	// (shown on screen through the heartbeat); passErr collects the
 	// current pass's.
 	queueErr, passErr string
+	// mcp is what this machine found of the project's MCP servers.
+	mcp mcpCache
 }
 
 // Service is the application.
 type Service struct {
 	d        Deps
+	mcpHosts mcpHostsCache
 	mu       sync.RWMutex
 	projects map[string]*Project
 	hub      *Hub
@@ -308,6 +314,12 @@ func cloneState(s *domain.State) *domain.State {
 		pp := *v
 		pp.Comments = append([]string(nil), v.Comments...)
 		c.Proposals[k] = &pp
+	}
+	c.AgentMCP = make(map[string]*domain.AgentMCPGrant, len(s.AgentMCP))
+	for k, v := range s.AgentMCP {
+		g := *v
+		g.Roles, g.Hosts = slices.Clone(v.Roles), slices.Clone(v.Hosts)
+		c.AgentMCP[k] = &g
 	}
 	c.Goals = map[string]*domain.Goal{}
 	for k, v := range s.Goals {

@@ -218,6 +218,21 @@ type mcpServer struct {
 	Args    []string          `json:"args"`
 	Env     map[string]string `json:"env"`
 	URL     string            `json:"url"`
+	Headers map[string]string `json:"headers"`
+}
+
+// tomlTable writes an inline TOML table of strings, keys sorted.
+func tomlTable(m map[string]string) string {
+	keys := make([]string, 0, len(m))
+	for k := range m {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	parts := make([]string, len(keys))
+	for i, k := range keys {
+		parts[i] = tomlString(k) + "=" + tomlString(m[k])
+	}
+	return "{" + strings.Join(parts, ",") + "}"
 }
 
 // mcpOverrides turns a Claude-style MCP config (file path or inline JSON with
@@ -248,6 +263,9 @@ func mcpOverrides(cfg string) ([]string, error) {
 		key := "mcp_servers." + tomlKey(n)
 		if s.URL != "" {
 			out = append(out, "-c", key+".url="+tomlString(s.URL))
+			if len(s.Headers) > 0 {
+				out = append(out, "-c", key+".http_headers="+tomlTable(s.Headers))
+			}
 			continue
 		}
 		out = append(out, "-c", key+".command="+tomlString(s.Command))
@@ -259,16 +277,7 @@ func mcpOverrides(cfg string) ([]string, error) {
 			out = append(out, "-c", key+".args=["+strings.Join(parts, ",")+"]")
 		}
 		if len(s.Env) > 0 {
-			keys := make([]string, 0, len(s.Env))
-			for k := range s.Env {
-				keys = append(keys, k)
-			}
-			sort.Strings(keys)
-			parts := make([]string, len(keys))
-			for i, k := range keys {
-				parts[i] = tomlString(k) + "=" + tomlString(s.Env[k])
-			}
-			out = append(out, "-c", key+".env={"+strings.Join(parts, ",")+"}")
+			out = append(out, "-c", key+".env="+tomlTable(s.Env))
 		}
 	}
 	return out, nil

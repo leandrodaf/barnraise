@@ -56,6 +56,9 @@ const (
 	// With it on, the advisor takes the owner's decisions (questions,
 	// approvals, proposals) and leaves only what it cannot resolve.
 	EvAutopilot = "autopilot.changed"
+	// EvAgentMCP lets agents use (or no longer use) an MCP server the
+	// machines have: Payload.AgentMCP.
+	EvAgentMCP = "agent_mcp.changed"
 	// EvAutopilotStep is live only: the autopilot works on a decision
 	// (subject: the question, the item, or "proposals"), Note "working" or
 	// "done", so the owner sees it act.
@@ -116,6 +119,7 @@ type Payload struct {
 	Journal        *JournalEntry      `json:"journal,omitempty"`
 	Lesson         *Lesson            `json:"lesson,omitempty"`
 	Discussion     *DiscussionMessage `json:"discussion,omitempty"`
+	AgentMCP       *AgentMCPGrant     `json:"agent_mcp,omitempty"`
 	DiscussionStep *DiscussionStep    `json:"discussion_step,omitempty"`
 	// Worktrees is a machine's inventory of what it keeps for the project.
 	Worktrees *WorktreeReport `json:"worktrees,omitempty"`
@@ -218,6 +222,10 @@ type Machine struct {
 	// right now ("" when it can or does not try): its changes reach the
 	// tracker only through another machine's repair.
 	TrackerErr string `json:"tracker_err,omitempty"`
+	// MCP are the MCP servers this machine has for the project, from
+	// Claude's own configuration and barnraise.yaml, with the result of
+	// their last test: never their env or headers.
+	MCP []MCPStatus `json:"mcp,omitempty"`
 	// QueueErr is why this machine's merge queue cannot land its items
 	// right now ("" when it can): every machine shows it to the owner.
 	QueueErr string `json:"queue_err,omitempty"`
@@ -332,10 +340,12 @@ type State struct {
 	Paused      bool                            `json:"paused"`
 	PausedWhy   string                          `json:"paused_why,omitempty"`
 	// Autopilot: the advisor takes the owner's decisions by itself.
-	Autopilot bool            `json:"autopilot,omitempty"`
-	Seen      map[string]bool `json:"-"` // applied event ids
-	LastSeq   int64           `json:"last_seq"`
-	Counters  map[IDKind]int  `json:"counters"`
+	Autopilot bool `json:"autopilot,omitempty"`
+	// AgentMCP are the MCP servers of the machines agents may use, by name.
+	AgentMCP map[string]*AgentMCPGrant `json:"agent_mcp,omitempty"`
+	Seen     map[string]bool           `json:"-"` // applied event ids
+	LastSeq  int64                     `json:"last_seq"`
+	Counters map[IDKind]int            `json:"counters"`
 }
 
 // NewState creates an empty projection.
@@ -486,6 +496,8 @@ func (s *State) Apply(e Event) error {
 		s.Paused, s.PausedWhy = false, ""
 	case EvAutopilot:
 		s.Autopilot = p.Note == "on"
+	case EvAgentMCP:
+		s.applyAgentMCP(p.AgentMCP)
 	}
 	return nil
 }

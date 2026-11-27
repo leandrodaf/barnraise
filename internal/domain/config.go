@@ -282,7 +282,9 @@ type MCPServerDef struct {
 	Args    []string          `json:"args,omitempty"`
 	Env     map[string]string `json:"env,omitempty"` // values may be secret references (keychain:…, env:…)
 	URL     string            `json:"url,omitempty"`
-	Type    string            `json:"type,omitempty"`  // http or sse, with url
+	Type    string            `json:"type,omitempty"` // http or sse, with url
+	// Headers of a remote server; values may be secret references.
+	Headers map[string]string `json:"headers,omitempty"`
 	Roles   []string          `json:"roles,omitempty"` // empty: every role
 }
 
