@@ -135,6 +135,23 @@ type Review struct {
 }
 
 // Validate refuses reviews without both verdicts or inconsistent decisions.
+// FillSummary writes the summary a review left out from what it says: the
+// decision and verdicts, then the first finding. A missing summary is
+// shape, not substance; refusing it cost the reviewer a turn.
+func (r *Review) FillSummary() {
+	if strings.TrimSpace(r.Summary) != "" {
+		return
+	}
+	s := fmt.Sprintf("%s: criteria %s, code %s", r.Decision, r.Criteria, r.Code)
+	if len(r.Findings) > 0 && strings.TrimSpace(r.Findings[0].Text) != "" {
+		s += ". " + strings.TrimSpace(r.Findings[0].Text)
+		if len(r.Findings) > 1 {
+			s += fmt.Sprintf(" (and %d more findings)", len(r.Findings)-1)
+		}
+	}
+	r.Summary = s
+}
+
 func (r *Review) Validate() error {
 	if r.Criteria != VerdictPass && r.Criteria != VerdictFail {
 		return errors.New("review needs criteria_verdict: pass or fail")

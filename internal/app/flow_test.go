@@ -142,7 +142,7 @@ func TestReviewValidation(t *testing.T) {
 		{Criteria: "maybe", Code: domain.VerdictPass, Decision: domain.ReviewApprove, Summary: "x"},
 		{Criteria: domain.VerdictFail, Code: domain.VerdictPass, Decision: domain.ReviewApprove, Summary: "x"},
 		{Criteria: domain.VerdictFail, Code: domain.VerdictPass, Decision: domain.ReviewRework, Summary: "x"},
-		{Criteria: domain.VerdictPass, Code: domain.VerdictPass, Decision: domain.ReviewApprove},
+		// A missing summary is filled, not refused (TestReviewFillSummary).
 	} {
 		_, err := e.review(it.ID, r)
 		wantErr(t, err, ErrInvalid)

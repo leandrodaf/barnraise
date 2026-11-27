@@ -756,3 +756,22 @@ func TestChangeNoteNormalize(t *testing.T) {
 		}
 	}
 }
+
+// A review without a summary gets one from its decision and findings.
+func TestReviewFillSummary(t *testing.T) {
+	r := Review{Decision: ReviewApprove, Criteria: VerdictPass, Code: VerdictPass}
+	r.FillSummary()
+	if r.Summary != "APPROVE: criteria pass, code pass" || r.Validate() != nil {
+		t.Fatalf("%q", r.Summary)
+	}
+	w := Review{Decision: ReviewRework, Criteria: VerdictFail, Code: VerdictPass, Findings: []Finding{{Text: " the plan book misses huts "}, {Text: "x"}}}
+	w.FillSummary()
+	if w.Summary != "REWORK: criteria fail, code pass. the plan book misses huts (and 1 more findings)" {
+		t.Fatalf("%q", w.Summary)
+	}
+	kept := Review{Summary: "mine"}
+	kept.FillSummary()
+	if kept.Summary != "mine" {
+		t.Fatal("a written summary stays")
+	}
+}

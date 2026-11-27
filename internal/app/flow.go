@@ -519,6 +519,7 @@ func (s *Service) Review(ctx context.Context, project string, a Actor, r domain.
 	if err := checkItemAccess(a, r.ItemID); err != nil {
 		return nil, err
 	}
+	r.FillSummary()
 	if err := r.Validate(); err != nil {
 		return nil, fmt.Errorf("%w: %v", ErrInvalid, err)
 	}

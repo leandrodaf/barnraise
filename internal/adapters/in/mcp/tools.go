@@ -441,9 +441,8 @@ func validateReview(r *pb.Review) error {
 	default:
 		return fmt.Errorf("decision must be APPROVE, REWORK or REJECT, not %q", r.Decision)
 	}
-	if blank(r.Summary) {
-		return errors.New("a review needs a summary")
-	}
+	// A missing summary is written by Barnraise from the decision and the
+	// findings (domain.Review.FillSummary), not refused.
 	return nil
 }
 
