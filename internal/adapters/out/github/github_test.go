@@ -711,3 +711,19 @@ func TestHostChecks(t *testing.T) {
 		t.Fatalf("checks %+v", c)
 	}
 }
+
+// A fine-grained token without the Checks permission gets 403: the queue
+// must know waiting will not help.
+func TestHostChecksDenied(t *testing.T) {
+	f := newFake(t)
+	sha := "6dcb09b5b57875f334f61aebed695e2e4193db5e"
+	f.on("GET /repos/acme/app/commits/"+sha+"/check-runs", func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusForbidden)
+		_, _ = w.Write([]byte(`{"message":"Resource not accessible by personal access token"}`))
+	})
+	_, err := f.client(t, nil).CodeHost().Checks(context.Background(), sha)
+	if !errors.Is(err, ports.ErrChecksDenied) {
+		t.Fatalf("err = %v, want ErrChecksDenied", err)
+	}
+}

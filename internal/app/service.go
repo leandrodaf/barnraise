@@ -113,6 +113,14 @@ type Project struct {
 	// waiting for the code host's own checks before it lands on main.
 	hostWait map[string]*hostWait
 	queueMu  sync.Mutex
+	// queueSince is when the pass holding queueMu started (unix nanos, 0
+	// when none runs); queueWarned when a stuck pass was last reported.
+	queueSince  atomic.Int64
+	queueWarned atomic.Int64
+	// queueErr is why the last pass of the merge queue could not land
+	// (shown on screen through the heartbeat); passErr collects the
+	// current pass's.
+	queueErr, passErr string
 }
 
 // Service is the application.

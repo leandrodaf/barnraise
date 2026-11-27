@@ -25,6 +25,11 @@ const (
 	maxBodyBytes      = 32 << 20
 )
 
+// defaultHTTP is used when Client.HTTP is nil. http.DefaultClient has no
+// timeout: one request whose connection dies silently would hang its
+// caller (the merge queue asking for a pull request's checks) forever.
+var defaultHTTP = &http.Client{Timeout: 2 * time.Minute}
+
 // Client sends JSON requests to one API.
 type Client struct {
 	HTTP    *http.Client
@@ -179,7 +184,7 @@ func (c *Client) once(ctx context.Context, method, url string, payload []byte, h
 	}
 	hc := c.HTTP
 	if hc == nil {
-		hc = http.DefaultClient
+		hc = defaultHTTP
 	}
 	res, err := hc.Do(req)
 	if err != nil {

@@ -331,6 +331,10 @@ type HostChecks struct {
 	Failed  []string `json:"failed,omitempty"` // names of the checks that did not pass
 }
 
+// ErrChecksDenied says the code host refused to show a commit's checks to
+// this machine's token (it lacks the permission): waiting will not help.
+var ErrChecksDenied = errors.New("the code host does not let this token read the checks")
+
 // Done reports whether every check has ended.
 func (c HostChecks) Done() bool { return c.Pending == 0 }
 

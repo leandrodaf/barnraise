@@ -218,6 +218,9 @@ type Machine struct {
 	// right now ("" when it can or does not try): its changes reach the
 	// tracker only through another machine's repair.
 	TrackerErr string `json:"tracker_err,omitempty"`
+	// QueueErr is why this machine's merge queue cannot land its items
+	// right now ("" when it can): every machine shows it to the owner.
+	QueueErr string `json:"queue_err,omitempty"`
 }
 
 // Health returns green, yellow or red by heartbeat age.

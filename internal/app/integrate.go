@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/leandrodaf/barnraise/internal/domain"
 	"github.com/leandrodaf/barnraise/internal/ports"
@@ -51,9 +52,20 @@ func (s *Service) ProcessQueue(ctx context.Context, project string) (int, error)
 		return 0, nil
 	}
 	if !p.queueMu.TryLock() {
+		s.reportStuckQueue(p)
 		return 0, nil
 	}
-	defer p.queueMu.Unlock()
+	p.queueSince.Store(s.d.Clock.Now().UnixNano())
+	p.mu.Lock()
+	p.passErr = ""
+	p.mu.Unlock()
+	defer func() {
+		p.mu.Lock()
+		p.queueErr = p.passErr
+		p.mu.Unlock()
+		p.queueSince.Store(0)
+		p.queueMu.Unlock()
+	}()
 	snap := p.Snapshot()
 	if on, _ := s.runtime.Standby(); snap.Paused || on {
 		return 0, nil
@@ -85,6 +97,47 @@ func (s *Service) ProcessQueue(ctx context.Context, project string) (int, error)
 		queued = queued[:batch]
 	}
 	return s.integrateBatch(ctx, p, queued)
+}
+
+// queueStuckAfter is how long one pass of the merge queue may run before
+// it is reported: a rebase, the full checks and a push take minutes, not
+// this long, and while it runs no other item of the project lands.
+const queueStuckAfter = 45 * time.Minute
+
+// reportStuckQueue warns, at most every queueStuckAfter, that the pass
+// holding the queue has run too long. Every later pass skips quietly, so
+// without this a hung git or HTTP call stops all merges with no trace.
+func (s *Service) reportStuckQueue(p *Project) {
+	since := p.queueSince.Load()
+	if since == 0 {
+		return
+	}
+	now := s.d.Clock.Now()
+	held := now.Sub(time.Unix(0, since))
+	if held < queueStuckAfter || now.Sub(time.Unix(0, p.queueWarned.Load())) < queueStuckAfter {
+		return
+	}
+	p.queueWarned.Store(now.UnixNano())
+	s.d.Log.Warn("merge queue stuck: one pass holds it", "project", p.Name, "for", held.Round(time.Minute))
+	p.mu.Lock()
+	p.queueErr = "one pass of the merge queue has been running for " + held.Round(time.Minute).String() + "; restart the daemon on " + s.d.Machine
+	p.mu.Unlock()
+	go s.notifyOwner(context.Background(), p, "queue_stuck", "The merge queue of "+p.Name+" on "+s.d.Machine+" is stuck",
+		"One pass of the merge queue has run for "+held.Round(time.Minute).String()+" and nothing else lands meanwhile. Restarting the daemon on "+s.d.Machine+" frees it.")
+}
+
+// queueProblem records why the current pass cannot land, for the screen.
+func (s *Service) queueProblem(p *Project, why string) {
+	p.mu.Lock()
+	p.passErr = truncate(why, 300)
+	p.mu.Unlock()
+}
+
+// queueErrOf is why this machine's merge queue cannot land now, "" when it can.
+func (s *Service) queueErrOf(p *Project) string {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	return p.queueErr
 }
 
 // integrateBatch tries the whole batch; on failure it splits it in halves
@@ -158,6 +211,7 @@ func (s *Service) tryIntegrate(ctx context.Context, p *Project, items []*domain.
 	g := p.Ports().Git
 	if err := g.Fetch(ctx); err != nil {
 		s.d.Log.Warn("fetch before integration", "err", err)
+		s.queueProblem(p, "git fetch fails: "+err.Error())
 	}
 	main, err := g.MainHead(ctx)
 	if err != nil {

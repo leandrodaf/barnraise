@@ -641,7 +641,8 @@ func (s *Service) notifyOwner(ctx context.Context, p *Project, kind, title, body
 	if s.d.Notifier == nil {
 		return
 	}
-	urgent := map[string]bool{"rework_exhausted": true, "owner_approval": true, "secret": true, "deploy": true, "policy_violation": true, "accounts_exhausted": true, "question": true, "model_rule": true, "check_red_on_main": true, "trust": true, "update_failed": true}
+	urgent := map[string]bool{"rework_exhausted": true, "owner_approval": true, "secret": true, "deploy": true, "policy_violation": true, "accounts_exhausted": true, "question": true, "model_rule": true, "check_red_on_main": true, "trust": true, "update_failed": true,
+		"ci_waits": true, "ci_denied": true, "queue_stuck": true}
 	if !urgent[kind] {
 		return
 	}

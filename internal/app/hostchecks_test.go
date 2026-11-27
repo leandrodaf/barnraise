@@ -1,6 +1,8 @@
 package app
 
 import (
+	"fmt"
+	"slices"
 	"strings"
 	"sync"
 	"testing"
@@ -141,7 +143,10 @@ func TestMergeQueueHostCIStartsOverWhenMainMoves(t *testing.T) {
 func TestMergeQueueWithoutHostCI(t *testing.T) {
 	for name, opts := range map[string][]opt{
 		"no ci files": {withGit(), withHost()},
-		"ignore":      {withGit(), withHost(), ciRepo, withCfg(func(c *domain.ProjectConfig) { c.Merge.HostChecks = "ignore" })},
+		// .github/workflows as an empty file runs nothing on GitHub: the
+		// queue waited forever on one-more-bastion for checks that never came.
+		"workflows is a file": {withGit(), withHost(), withFiles(map[string]string{".github/workflows": ""})},
+		"ignore":              {withGit(), withHost(), ciRepo, withCfg(func(c *domain.ProjectConfig) { c.Merge.HostChecks = "ignore" })},
 	} {
 		e := newEnv(t, opts...)
 		e.host.HostChecks = func(string) (ports.HostChecks, error) {
@@ -169,4 +174,28 @@ func TestMergeQueueHostCIGrace(t *testing.T) {
 		t.Fatal(n, err)
 	}
 	e.wantStatus(it.ID, domain.StatusIntegrated, "integrate")
+}
+
+// A token the host refuses the checks: the item does not land blindly, but
+// the owner hears it at once, and every screen shows why the queue waits.
+func TestMergeQueueHostRefusesTheChecks(t *testing.T) {
+	e := newEnv(t, withGit(), withHost(), ciRepo)
+	e.host.HostChecks = func(string) (ports.HostChecks, error) {
+		return ports.HostChecks{}, fmt.Errorf("%w: 403 Resource not accessible by personal access token", ports.ErrChecksDenied)
+	}
+	it := e.toQueue("Cards screen", map[string]string{"app/cards.txt": "cards\n"})
+	for range 3 {
+		if n, err := e.svc.ProcessQueue(e.ctx, "demo"); n != 0 || err != nil {
+			t.Fatal(n, err)
+		}
+		e.clock.Advance(hostChecksGrace)
+	}
+	e.wantStatus(it.ID, domain.StatusQueued, "integrate")
+	eventually(t, "the owner is told", func() bool { return slices.Contains(e.notes.Kinds(), "ci_denied") })
+	if n := strings.Count(strings.Join(e.notes.Kinds(), " "), "ci_denied"); n != 1 {
+		t.Errorf("told %d times", n)
+	}
+	if got := e.svc.queueErrOf(e.p); !strings.Contains(got, "refuses") {
+		t.Errorf("queue error %q", got)
+	}
 }

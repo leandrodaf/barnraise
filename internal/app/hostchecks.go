@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/leandrodaf/barnraise/internal/domain"
+	"github.com/leandrodaf/barnraise/internal/ports"
 )
 
 // The code host's own CI (ADR-0030 keeps Barnraise's checks; this is the
@@ -41,6 +42,7 @@ type hostWait struct {
 	asked  time.Time // when the host was last asked
 	told   bool      // the item says it waits
 	warned bool      // the owner was told it takes long
+	denied bool      // the owner was told the host refuses the checks
 }
 
 // hostChecksApply reports whether the merge queue waits for the code
@@ -56,11 +58,22 @@ func (s *Service) hostChecksApply(ctx context.Context, p *Project) bool {
 		return false
 	}
 	for _, f := range ciFiles {
-		if g.ExistsAt(ctx, main, f) {
+		if g.ExistsAt(ctx, main, f) && !emptyCIFile(ctx, g, main, f) {
 			return true
 		}
 	}
 	return false
+}
+
+// emptyCIFile reports a CI path that cannot run anything: .github/workflows
+// as a file instead of a folder (GitHub runs no workflow from it), or an
+// empty .gitlab-ci.yml. Waiting on such a repository's checks never ends.
+func emptyCIFile(ctx context.Context, g ports.Git, rev, path string) bool {
+	b, err := g.Show(ctx, rev, path)
+	if err != nil {
+		return false // not a file: a folder of workflows
+	}
+	return path == ".github/workflows" || strings.TrimSpace(string(b)) == ""
 }
 
 // hostWaiting returns the commit of the item that waits on its pull
@@ -101,8 +114,22 @@ func (s *Service) hostVerdict(ctx context.Context, p *Project, it *domain.Item, 
 	w.asked = now
 	c, cerr := p.Ports().CodeHost.Checks(ctx, w.sha)
 	switch {
+	case errors.Is(cerr, ports.ErrChecksDenied):
+		s.d.Log.Warn("the code host's checks", "item", it.ID, "commit", short(w.sha), "err", cerr)
+		s.queueProblem(p, "the code host refuses this machine's token the checks ("+it.ID+"): give it read access to Checks and Commit statuses")
+		if !w.denied {
+			// Waiting cannot end: say so at once, on the item and to the owner.
+			w.denied = true
+			_, _ = s.mutateItem(ctx, p, it.ID, domain.EvItemUpdated, "merge-queue", func(*domain.Item) error { return nil },
+				domain.Payload{Note: "the code host refuses this machine's token the checks of " + short(w.sha) + ": it cannot land until the token can read them"})
+			go s.notifyOwner(context.WithoutCancel(ctx), p, "ci_denied", it.ID+" cannot land: "+s.d.Machine+"'s token cannot read the checks",
+				"The code host answers "+s.d.Machine+" that its token may not read the checks of "+short(w.sha)+" ("+cerr.Error()+"). "+
+					"Give the token read access to Checks and Commit statuses (a fine-grained GitHub token: Repository permissions), "+
+					"or set `merge.host_checks: ignore` in barnraise.yaml to land items on Barnraise's own checks alone.")
+		}
 	case cerr != nil:
 		s.d.Log.Warn("the code host's checks", "item", it.ID, "commit", short(w.sha), "err", cerr)
+		s.queueProblem(p, "reading the checks of "+it.ID+" fails: "+cerr.Error())
 	case len(c.Failed) > 0:
 		s.forgetHostWait(p, []*domain.Item{it})
 		return false, "the repository's CI failed on the pull request (" + short(w.sha) + "): " + strings.Join(c.Failed, ", "), nil

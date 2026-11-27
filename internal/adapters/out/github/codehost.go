@@ -171,7 +171,7 @@ func (h *CodeHost) Checks(ctx context.Context, sha string) (ports.HostChecks, er
 		} `json:"check_runs"`
 	}
 	if _, err := h.c.do(ctx, http.MethodGet, h.c.repoPath("/commits/%s/check-runs?per_page=100", url.PathEscape(sha)), nil, &runs); err != nil {
-		return out, err
+		return out, checksErr(err)
 	}
 	for _, r := range runs.CheckRuns {
 		out.Total++
@@ -189,7 +189,7 @@ func (h *CodeHost) Checks(ctx context.Context, sha string) (ports.HostChecks, er
 		} `json:"statuses"`
 	}
 	if _, err := h.c.do(ctx, http.MethodGet, h.c.repoPath("/commits/%s/status?per_page=100", url.PathEscape(sha)), nil, &combined); err != nil {
-		return out, err
+		return out, checksErr(err)
 	}
 	for _, st := range combined.Statuses {
 		if strings.HasPrefix(st.Context, ownCheck) {
@@ -205,6 +205,17 @@ func (h *CodeHost) Checks(ctx context.Context, sha string) (ports.HostChecks, er
 		}
 	}
 	return out, nil
+}
+
+// checksErr marks a refusal (a fine-grained token without the Checks or
+// Commit statuses permission answers 403) so the queue does not wait for
+// checks it will never be shown.
+func checksErr(err error) error {
+	switch httpx.StatusOf(err) {
+	case http.StatusUnauthorized, http.StatusForbidden:
+		return fmt.Errorf("%w: %w", ports.ErrChecksDenied, err)
+	}
+	return err
 }
 
 // Merge merges with squash (default), rebase or merge and returns the sha.

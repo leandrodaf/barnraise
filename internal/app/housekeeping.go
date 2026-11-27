@@ -35,6 +35,7 @@ func (r *Runtime) housekeeping(ctx context.Context, p *Project, m domain.Machine
 	m.Standby = r.standby
 	r.mu.Unlock()
 	m.TrackerErr = s.TrackerErr(p.Name)
+	m.QueueErr = s.queueErrOf(p)
 	m.Accounts = nil
 	for _, a := range p.Snapshot().AccountList() {
 		if a.UsableOn(s.d.Machine) {
