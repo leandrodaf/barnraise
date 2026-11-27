@@ -1,5 +1,29 @@
 # Changelog
 
+## v0.6.0 — 2026-11-27
+
+### Novidades
+- feat(mcp): tell each session which extra MCP servers it has (b048f20)
+- feat(mcp): choose from the panel which MCP servers agents use, per machine (402552d)
+- feat(panel): create, test and install the GitHub token without the CLI (043922c)
+- feat(agents): a pulse says whether an agent works or is stuck; one chat everywhere (5c8ddc2)
+
+### Correções
+- fix: say why work waits for capacity, teach the unlock path, stop repeating tracker comments (d553295)
+- fix(github): keep gh on the running project's token, checked every 5 minutes (86dfc50)
+- fix(github): one token per machine: the panel's also repairs a broken gh login (be25ecc)
+- fix(mcp): test a server as Claude Code starts it, and show why it died (78b9995)
+- fix(panel): list only the GitHub projects in the GitHub token card (21eb67c)
+- fix(update): stop the runtime before swapping the binary (d6c6f1e)
+- fix(github): read a commit's CI with a fine-grained token (5547a6e)
+- fix(queue): never wait silently for checks that will not come (9c96ffd)
+- fix(up): do not start a project paused over a network blip (b6b45af)
+- fix(review): write a missing review summary instead of refusing it (7818bd6)
+- fix(checks): lock existing tests on what the branch changes now (60d1af0)
+- fix(policy): let a session read its own check logs and git state (a4a3785)
+- fix(agents): end the errors agents hit: signing, policy misreads, shape refusals (127609b)
+
+
 All notable changes to Barnraise are recorded here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses [semantic versioning](https://semver.org/). Release notes on GitHub are generated from conventional commits.
 
 ## [Unreleased]
