@@ -186,9 +186,14 @@ func (d *daemon) applyGitHubToken(ctx context.Context, r remoteGitHubToken) *pb.
 	}
 	m.Installed = true
 	if _, err := d.svc.Project(r.Project); err == nil {
+		if err := d.useRepoToken(ctx, r.Project, r.Repo); err != nil {
+			m.Error = "kept, but git does not use it yet: " + err.Error()
+		}
 		if err := d.reloadProject(ctx, r.Project); err != nil {
 			m.Error = "kept, but the project did not reload: " + err.Error()
 		}
+		// A project that waited for this token runs now, without a second step.
+		go d.tryResume(context.WithoutCancel(ctx), r.Project)
 	}
 	d.log.Info("GitHub token installed", "project", r.Project, "repo", r.Repo, "kind", sum.Kind)
 	return m

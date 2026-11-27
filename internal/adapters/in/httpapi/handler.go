@@ -128,6 +128,28 @@ func (h *Handler) RegisterProject(ctx context.Context, r *connect.Request[pb.Reg
 	return h.ListProjects(ctx, nil)
 }
 
+// AddProject puts a project on this machine from a repository address or a
+// folder, in one step.
+func (h *Handler) AddProject(ctx context.Context, r *connect.Request[pb.AddProjectRequest]) (*connect.Response[pb.AddProjectResponse], error) {
+	if err := actorFrom(ctx).Require(app.ScopeAdmin, ""); err != nil {
+		return nil, connectErr(err)
+	}
+	if h.srv.opts.AddProject == nil {
+		return nil, connect.NewError(connect.CodeUnimplemented, errors.New("this daemon cannot add projects"))
+	}
+	if strings.TrimSpace(r.Msg.Source) == "" {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("a repository address or a folder is needed"))
+	}
+	out, err := h.srv.opts.AddProject(ctx, r.Msg)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, err)
+	}
+	if out.Project != "" {
+		h.audit(ctx, "project.add", out.Root, out.Project, strings.TrimSpace(r.Msg.Source))
+	}
+	return connect.NewResponse(out), nil
+}
+
 func (h *Handler) ReloadProject(ctx context.Context, r *connect.Request[pb.ProjectRef]) (*connect.Response[pb.ProjectsResponse], error) {
 	a := actorFrom(ctx)
 	if err := a.Require(app.ScopeAdmin, r.Msg.Project); err != nil {

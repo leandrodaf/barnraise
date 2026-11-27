@@ -3,6 +3,7 @@ package providerlogin
 import (
 	"context"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -147,5 +148,18 @@ func TestLoginsThatCannotRun(t *testing.T) {
 	env := strings.Join(r.env(ports.LoginSpec{Provider: "claude"}), "\n")
 	if strings.Contains(env, "CLAUDE_CONFIG_DIR=") {
 		t.Error("an account without a folder got one")
+	}
+}
+
+func TestInstallThenLogin(t *testing.T) {
+	if installThenLogin("codex", false) != "" || installThenLogin("claude", true) != "" {
+		t.Fatal("only claude has an installer, and a test's program is never installed")
+	}
+	s := installThenLogin("claude", false)
+	if s == "" {
+		t.Skip("no curl or bash here")
+	}
+	if out, err := exec.Command("sh", "-n", "-c", s).CombinedOutput(); err != nil {
+		t.Fatalf("%v %s", err, out)
 	}
 }

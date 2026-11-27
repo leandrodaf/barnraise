@@ -16,6 +16,7 @@ import (
 	"github.com/nats-io/nats.go"
 
 	pb "github.com/leandrodaf/barnraise/gen/barnraise/v1"
+	"github.com/leandrodaf/barnraise/internal/adapters/in/cli"
 	natsx "github.com/leandrodaf/barnraise/internal/adapters/out/nats"
 	"github.com/leandrodaf/barnraise/internal/domain"
 )
@@ -31,6 +32,9 @@ type remoteProject struct {
 	From   string `json:"from,omitempty"`
 	// Token is kept in the peer's keychain for this repository only.
 	Token string `json:"token,omitempty"`
+	// Language writes the same barnraise.yaml there when the repository
+	// has none committed (a project added from the panel).
+	Language string `json:"language,omitempty"`
 }
 
 var projectNameRe = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._-]{0,99}$`)
@@ -49,7 +53,11 @@ func (d *daemon) shareProject(ctx context.Context, r *pb.ShareProjectRequest) (*
 	}
 	url := strings.TrimSpace(string(out))
 	_, peers := d.targets(r.Machines, r.All)
-	body, _ := json.Marshal(remoteProject{Name: r.Project, URL: url, Paused: r.Paused, From: d.df.Machine, Token: strings.TrimSpace(r.Token)})
+	lang := ""
+	if p, err := d.svc.Project(r.Project); err == nil {
+		lang = p.Cfg().Language
+	}
+	body, _ := json.Marshal(remoteProject{Name: r.Project, URL: url, Paused: r.Paused, From: d.df.Machine, Token: strings.TrimSpace(r.Token), Language: lang})
 	res := make([]*pb.PeerResult, len(peers))
 	var wg sync.WaitGroup
 	for i, name := range peers {
@@ -159,30 +167,17 @@ func (d *daemon) serveRemoteProject(ctx context.Context) {
 		}
 		d.log.Info("a paired machine shared a project with this machine", "from", rp.From, "project", rp.Name, "url", rp.URL, "token", rp.Token != "")
 		dir := filepath.Join(d.dataDir, "projects", rp.Name)
-		// With a token, git reaches the repository over HTTPS with it, read
-		// from this machine's keychain by the helper, for this repository only.
-		var gitArgs []string
-		if rp.Token != "" {
-			u := cloneURLs(rp.URL)
-			https := u[len(u)-1]
-			host, path, ok := httpsHostPath(https)
-			if !ok {
-				return nil, fmt.Errorf("a token needs an HTTPS address for %s", rp.URL)
-			}
-			if err := d.secrets.Set(domain.GitTokenSecret(host, path), rp.Token); err != nil {
-				return nil, fmt.Errorf("the token was not kept in the keychain of %s: %w", d.df.Machine, err)
-			}
-			exe, _ := os.Executable()
-			gitArgs = credentialConfig(host, exe)
-			rp.URL = https
-		}
 		if p, err := d.svc.Project(rp.Name); err == nil {
 			// Already here: bring its checkout to the latest main and read
 			// its configuration again.
 			d.mu.Lock()
 			root := d.roots[p.Name]
 			d.mu.Unlock()
-			if len(gitArgs) > 0 {
+			if rp.Token != "" {
+				gitArgs, _, err := d.keepRepoToken(rp.URL, rp.Token)
+				if err != nil {
+					return nil, err
+				}
 				if err := setCredentialConfig(ctx, root, gitArgs); err != nil {
 					return nil, err
 				}
@@ -199,42 +194,75 @@ func (d *daemon) serveRemoteProject(ctx context.Context) {
 		}
 		cctx, cancel := context.WithTimeout(ctx, peerShareTimeout-time.Minute)
 		defer cancel()
-		if _, err := os.Stat(filepath.Join(dir, ".git")); err != nil {
-			if err := os.MkdirAll(filepath.Dir(dir), 0o755); err != nil {
-				return nil, err
-			}
-			// The address as the sharing machine has it, then its HTTPS form:
-			// a machine may reach the host over HTTPS only (a credential
-			// helper, no SSH key).
-			var errs []string
-			cloned := false
-			urls := cloneURLs(rp.URL)
-			if len(gitArgs) > 0 {
-				urls = []string{rp.URL}
-			}
-			for _, u := range urls {
-				cmd := exec.CommandContext(cctx, "git", append(append([]string{}, gitArgs...), "clone", "--quiet", "--", u, dir)...)
-				cmd.Env = append(os.Environ(), "GIT_TERMINAL_PROMPT=0", "GIT_SSH_COMMAND=ssh -o BatchMode=yes")
-				out, err := cmd.CombinedOutput()
-				if err == nil {
-					cloned = true
-					break
-				}
-				_ = os.RemoveAll(dir)
-				errs = append(errs, fmt.Sprintf("%s: %v: %s", u, err, strings.TrimSpace(string(out))))
-			}
-			if !cloned {
-				return nil, fmt.Errorf("git clone on %s: %s", d.df.Machine, strings.Join(errs, " · "))
-			}
+		if err := d.cloneRepo(cctx, dir, rp.URL, rp.Token); err != nil {
+			return nil, err
 		}
-		if len(gitArgs) > 0 {
-			if err := setCredentialConfig(cctx, dir, gitArgs); err != nil {
-				return nil, err
-			}
+		if _, err := cli.AutoConfig(dir, cli.AutoOptions{Language: rp.Language}); err != nil {
+			return nil, err
 		}
 		if err := d.register(cctx, dir, rp.Paused); err != nil {
 			return nil, fmt.Errorf("%s was cloned to %s but not registered: %w", rp.Name, dir, err)
 		}
 		return []byte(dir), nil
 	})
+}
+
+// keepRepoToken keeps a repository's token in this machine's keychain, for
+// that repository only, and returns git's options that make the helper read
+// it, with the HTTPS address git must then use.
+func (d *daemon) keepRepoToken(url, token string) (gitArgs []string, https string, err error) {
+	u := cloneURLs(url)
+	https = u[len(u)-1]
+	host, path, ok := httpsHostPath(https)
+	if !ok {
+		return nil, "", fmt.Errorf("a token needs an HTTPS address for %s", url)
+	}
+	if err := d.secrets.Set(domain.GitTokenSecret(host, path), token); err != nil {
+		return nil, "", fmt.Errorf("the token was not kept in the keychain of %s: %w", d.df.Machine, err)
+	}
+	exe, _ := os.Executable()
+	return credentialConfig(host, exe), https, nil
+}
+
+// cloneRepo clones url into dir; a clone already there is kept. With a
+// token, git reaches the repository over HTTPS with it, read from this
+// machine's keychain by the helper; without one, the address as given,
+// then its HTTPS form (a machine may reach the host over HTTPS only: a
+// credential helper, no SSH key). Git never asks a question: missing
+// credentials are an error.
+func (d *daemon) cloneRepo(ctx context.Context, dir, url, token string) error {
+	var gitArgs []string
+	urls := cloneURLs(url)
+	if token != "" {
+		args, https, err := d.keepRepoToken(url, token)
+		if err != nil {
+			return err
+		}
+		gitArgs, urls = args, []string{https}
+	}
+	if _, err := os.Stat(filepath.Join(dir, ".git")); err != nil {
+		if err := os.MkdirAll(filepath.Dir(dir), 0o755); err != nil {
+			return err
+		}
+		var errs []string
+		cloned := false
+		for _, u := range urls {
+			cmd := exec.CommandContext(ctx, "git", append(append([]string{}, gitArgs...), "clone", "--quiet", "--", u, dir)...)
+			cmd.Env = append(os.Environ(), "GIT_TERMINAL_PROMPT=0", "GIT_SSH_COMMAND=ssh -o BatchMode=yes")
+			out, err := cmd.CombinedOutput()
+			if err == nil {
+				cloned = true
+				break
+			}
+			_ = os.RemoveAll(dir)
+			errs = append(errs, fmt.Sprintf("%s: %v: %s", u, err, strings.TrimSpace(string(out))))
+		}
+		if !cloned {
+			return fmt.Errorf("git clone on %s: %s", d.df.Machine, strings.Join(errs, " · "))
+		}
+	}
+	if len(gitArgs) > 0 {
+		return setCredentialConfig(ctx, dir, gitArgs)
+	}
+	return nil
 }

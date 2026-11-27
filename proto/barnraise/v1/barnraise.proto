@@ -1358,6 +1358,35 @@ message EventsResponse {
   repeated Event events = 1;
 }
 
+// AddProjectRequest is a project to put on this machine, in the owner's
+// words: owner/name, github.com/owner/name, an HTTPS or SSH address, or a
+// folder of this machine.
+message AddProjectRequest {
+  string source = 1;
+  // A token for a repository this machine's git cannot reach: kept in the
+  // keychain for this repository only, never logged.
+  string token = 2;
+  // The language people read Barnraise in (pt-BR, en…), for a new
+  // barnraise.yaml.
+  string language = 3;
+}
+
+message AddProjectResponse {
+  string project = 1;
+  string root = 2;
+  // A barnraise.yaml was written from what the repository holds.
+  bool configured = 3;
+  // What stops agents on this machine; the project then starts paused.
+  repeated string not_ready = 4;
+  bool paused = 5;
+  // The repository did not let this machine in: a token is needed.
+  bool needs_token = 6;
+  // GitHub's form for that token, with the permissions filled in.
+  string token_url = 7;
+  // Why git could not clone, when needs_token is set.
+  string detail = 8;
+}
+
 message RegisterProjectRequest {
   // Absolute path of a repository with a barnraise.yaml.
   string root = 1;
@@ -1743,6 +1772,10 @@ service BarnraiseService {
   // Projects
   rpc ListProjects(Empty) returns (ProjectsResponse);
   rpc RegisterProject(RegisterProjectRequest) returns (ProjectsResponse);
+  // AddProject puts a project on this machine from a repository address or
+  // a folder: it clones it, writes a barnraise.yaml when there is none and
+  // registers it. The one step a new owner takes.
+  rpc AddProject(AddProjectRequest) returns (AddProjectResponse);
   rpc ReloadProject(ProjectRef) returns (ProjectsResponse);
 
   // Items

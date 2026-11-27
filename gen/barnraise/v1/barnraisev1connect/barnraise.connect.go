@@ -47,6 +47,9 @@ const (
 	// BarnraiseServiceRegisterProjectProcedure is the fully-qualified name of the BarnraiseService's
 	// RegisterProject RPC.
 	BarnraiseServiceRegisterProjectProcedure = "/barnraise.v1.BarnraiseService/RegisterProject"
+	// BarnraiseServiceAddProjectProcedure is the fully-qualified name of the BarnraiseService's
+	// AddProject RPC.
+	BarnraiseServiceAddProjectProcedure = "/barnraise.v1.BarnraiseService/AddProject"
 	// BarnraiseServiceReloadProjectProcedure is the fully-qualified name of the BarnraiseService's
 	// ReloadProject RPC.
 	BarnraiseServiceReloadProjectProcedure = "/barnraise.v1.BarnraiseService/ReloadProject"
@@ -293,6 +296,10 @@ type BarnraiseServiceClient interface {
 	// Projects
 	ListProjects(context.Context, *connect.Request[v1.Empty]) (*connect.Response[v1.ProjectsResponse], error)
 	RegisterProject(context.Context, *connect.Request[v1.RegisterProjectRequest]) (*connect.Response[v1.ProjectsResponse], error)
+	// AddProject puts a project on this machine from a repository address or
+	// a folder: it clones it, writes a barnraise.yaml when there is none and
+	// registers it. The one step a new owner takes.
+	AddProject(context.Context, *connect.Request[v1.AddProjectRequest]) (*connect.Response[v1.AddProjectResponse], error)
 	ReloadProject(context.Context, *connect.Request[v1.ProjectRef]) (*connect.Response[v1.ProjectsResponse], error)
 	// Items
 	CreateItem(context.Context, *connect.Request[v1.CreateItemRequest]) (*connect.Response[v1.CreateItemResponse], error)
@@ -462,6 +469,12 @@ func NewBarnraiseServiceClient(httpClient connect.HTTPClient, baseURL string, op
 			httpClient,
 			baseURL+BarnraiseServiceRegisterProjectProcedure,
 			connect.WithSchema(barnraiseServiceMethods.ByName("RegisterProject")),
+			connect.WithClientOptions(opts...),
+		),
+		addProject: connect.NewClient[v1.AddProjectRequest, v1.AddProjectResponse](
+			httpClient,
+			baseURL+BarnraiseServiceAddProjectProcedure,
+			connect.WithSchema(barnraiseServiceMethods.ByName("AddProject")),
 			connect.WithClientOptions(opts...),
 		),
 		reloadProject: connect.NewClient[v1.ProjectRef, v1.ProjectsResponse](
@@ -975,6 +988,7 @@ func NewBarnraiseServiceClient(httpClient connect.HTTPClient, baseURL string, op
 type barnraiseServiceClient struct {
 	listProjects        *connect.Client[v1.Empty, v1.ProjectsResponse]
 	registerProject     *connect.Client[v1.RegisterProjectRequest, v1.ProjectsResponse]
+	addProject          *connect.Client[v1.AddProjectRequest, v1.AddProjectResponse]
 	reloadProject       *connect.Client[v1.ProjectRef, v1.ProjectsResponse]
 	createItem          *connect.Client[v1.CreateItemRequest, v1.CreateItemResponse]
 	createItemFromChat  *connect.Client[v1.DiscussionRef, v1.CreateItemResponse]
@@ -1069,6 +1083,11 @@ func (c *barnraiseServiceClient) ListProjects(ctx context.Context, req *connect.
 // RegisterProject calls barnraise.v1.BarnraiseService.RegisterProject.
 func (c *barnraiseServiceClient) RegisterProject(ctx context.Context, req *connect.Request[v1.RegisterProjectRequest]) (*connect.Response[v1.ProjectsResponse], error) {
 	return c.registerProject.CallUnary(ctx, req)
+}
+
+// AddProject calls barnraise.v1.BarnraiseService.AddProject.
+func (c *barnraiseServiceClient) AddProject(ctx context.Context, req *connect.Request[v1.AddProjectRequest]) (*connect.Response[v1.AddProjectResponse], error) {
+	return c.addProject.CallUnary(ctx, req)
 }
 
 // ReloadProject calls barnraise.v1.BarnraiseService.ReloadProject.
@@ -1496,6 +1515,10 @@ type BarnraiseServiceHandler interface {
 	// Projects
 	ListProjects(context.Context, *connect.Request[v1.Empty]) (*connect.Response[v1.ProjectsResponse], error)
 	RegisterProject(context.Context, *connect.Request[v1.RegisterProjectRequest]) (*connect.Response[v1.ProjectsResponse], error)
+	// AddProject puts a project on this machine from a repository address or
+	// a folder: it clones it, writes a barnraise.yaml when there is none and
+	// registers it. The one step a new owner takes.
+	AddProject(context.Context, *connect.Request[v1.AddProjectRequest]) (*connect.Response[v1.AddProjectResponse], error)
 	ReloadProject(context.Context, *connect.Request[v1.ProjectRef]) (*connect.Response[v1.ProjectsResponse], error)
 	// Items
 	CreateItem(context.Context, *connect.Request[v1.CreateItemRequest]) (*connect.Response[v1.CreateItemResponse], error)
@@ -1661,6 +1684,12 @@ func NewBarnraiseServiceHandler(svc BarnraiseServiceHandler, opts ...connect.Han
 		BarnraiseServiceRegisterProjectProcedure,
 		svc.RegisterProject,
 		connect.WithSchema(barnraiseServiceMethods.ByName("RegisterProject")),
+		connect.WithHandlerOptions(opts...),
+	)
+	barnraiseServiceAddProjectHandler := connect.NewUnaryHandler(
+		BarnraiseServiceAddProjectProcedure,
+		svc.AddProject,
+		connect.WithSchema(barnraiseServiceMethods.ByName("AddProject")),
 		connect.WithHandlerOptions(opts...),
 	)
 	barnraiseServiceReloadProjectHandler := connect.NewUnaryHandler(
@@ -2173,6 +2202,8 @@ func NewBarnraiseServiceHandler(svc BarnraiseServiceHandler, opts ...connect.Han
 			barnraiseServiceListProjectsHandler.ServeHTTP(w, r)
 		case BarnraiseServiceRegisterProjectProcedure:
 			barnraiseServiceRegisterProjectHandler.ServeHTTP(w, r)
+		case BarnraiseServiceAddProjectProcedure:
+			barnraiseServiceAddProjectHandler.ServeHTTP(w, r)
 		case BarnraiseServiceReloadProjectProcedure:
 			barnraiseServiceReloadProjectHandler.ServeHTTP(w, r)
 		case BarnraiseServiceCreateItemProcedure:
@@ -2356,6 +2387,10 @@ func (UnimplementedBarnraiseServiceHandler) ListProjects(context.Context, *conne
 
 func (UnimplementedBarnraiseServiceHandler) RegisterProject(context.Context, *connect.Request[v1.RegisterProjectRequest]) (*connect.Response[v1.ProjectsResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("barnraise.v1.BarnraiseService.RegisterProject is not implemented"))
+}
+
+func (UnimplementedBarnraiseServiceHandler) AddProject(context.Context, *connect.Request[v1.AddProjectRequest]) (*connect.Response[v1.AddProjectResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("barnraise.v1.BarnraiseService.AddProject is not implemented"))
 }
 
 func (UnimplementedBarnraiseServiceHandler) ReloadProject(context.Context, *connect.Request[v1.ProjectRef]) (*connect.Response[v1.ProjectsResponse], error) {

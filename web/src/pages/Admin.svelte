@@ -28,6 +28,7 @@
 	import Empty from '$lib/app/Empty.svelte';
 	import Dot from '$lib/app/Dot.svelte';
 	import GitHubToken from '$lib/app/GitHubToken.svelte';
+	import { addProjectDialog } from '$lib/app/addproject.svelte';
 	import AgentMCP from '$lib/app/AgentMCP.svelte';
 
 	// What the CLI does to the daemon, from the panel: projects, tokens and
@@ -60,23 +61,6 @@
 		const r = (await api.sweep({ project })).result as Record<string, any> | undefined;
 		return t('admSwept', project, (r?.candidates || []).length, (r?.verdicts || []).length, (r?.deferred || []).length);
 	});
-
-	function register() {
-		dialog.open({
-			title: t('admRegister'),
-			description: t('admRegisterHelp'),
-			fields: [
-				{ name: 'root', label: t('admRoot'), required: true, placeholder: '/home/…/repository' },
-				{ name: 'paused', label: t('admStartPaused'), type: 'select', value: 'no', options: [['no', t('no')], ['yes', t('admPausedYes')]] }
-			],
-			submit: t('admRegister'),
-			onSubmit: async (v) => {
-				await api.registerProject({ root: v.root.trim(), paused: v.paused === 'yes' });
-				await session.readProjects();
-				return t('admRegistered', v.root);
-			}
-		});
-	}
 
 	function newToken() {
 		dialog.open({
@@ -147,7 +131,7 @@
 </script>
 
 <PageHeader title={t('navAdmin')} icon={SettingsIcon} meta={[session.machine, session.version, t('projectsN', session.projects.length)]} subtitle={t('adminHelp')}>
-	{#snippet actions()}<Button size="sm" onclick={register}><FolderPlusIcon />{t('admRegister')}</Button>{/snippet}
+	{#snippet actions()}<Button size="sm" onclick={() => (addProjectDialog.open = true)}><FolderPlusIcon />{t('apAddTitle')}</Button>{/snippet}
 </PageHeader>
 
 <PageGrid>

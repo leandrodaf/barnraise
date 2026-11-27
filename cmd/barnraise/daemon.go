@@ -223,7 +223,7 @@ func runDaemon(ctx context.Context, opts cli.DaemonOptions) error {
 		}
 	}
 	for _, root := range df.Projects {
-		if err := d.addProject(ctx, root, false); err != nil {
+		if err := d.addProject(ctx, root, ""); err != nil {
 			log.Error("project not loaded", "root", root, "err", err)
 		}
 	}
@@ -251,13 +251,15 @@ func runDaemon(ctx context.Context, opts cli.DaemonOptions) error {
 	go d.serveRemoteMCPTest(ctx)
 	go d.keepGHLogin(ctx)
 	go d.watchCapabilities(ctx)
+	go d.resumeWhenReady(ctx)
 	go newChainWatch(d).run(ctx)
 
 	srv := httpapi.New(svc, httpapi.Options{
 		Version: version, OwnerToken: owner, Store: d.store, Probe: d.probe, Panel: panel.FS(), OpenAPI: openapi.Document(),
-		Register: d.register,
-		Reload:   d.reloadProject,
-		Peers:    d.peers, StopPeers: d.stopPeers, SetStandby: d.setStandby,
+		Register:   d.register,
+		AddProject: d.addProjectFrom,
+		Reload:     d.reloadProject,
+		Peers:      d.peers, StopPeers: d.stopPeers, SetStandby: d.setStandby,
 		Capabilities: d.capabilities, InstallTools: d.installTools, AccountLogin: d.accountLogin, SetMaxAgents: d.setMachineAgents,
 		ShareProject:     d.shareProject,
 		GitHubTokenSetup: d.gitHubTokenSetup, InstallGitHubToken: d.installGitHubToken,
@@ -530,7 +532,7 @@ func (d *daemon) watchDaemonFile(ctx context.Context) {
 		}
 		for _, root := range df.Projects {
 			if !d.loaded(root) {
-				if err := d.addProject(ctx, root, false); err != nil {
+				if err := d.addProject(ctx, root, ""); err != nil {
 					d.log.Warn("project", "root", root, "err", err)
 				}
 			}
@@ -585,7 +587,7 @@ func (d *daemon) loaded(root string) bool {
 const pausedNote = "started paused (barnraise up --paused): adopt the existing work, then barnraise resume"
 
 // pauseRoot pauses the project already loaded from root.
-func (d *daemon) pauseRoot(ctx context.Context, root string) error {
+func (d *daemon) pauseRoot(ctx context.Context, root, note string) error {
 	cfg, err := config.Load(root)
 	if err != nil {
 		return err
@@ -593,22 +595,32 @@ func (d *daemon) pauseRoot(ctx context.Context, root string) error {
 	if p, err := d.svc.Project(cfg.Name); err == nil && p.Snapshot().Paused {
 		return nil
 	}
-	return d.svc.Pause(ctx, cfg.Name, app.System(), pausedNote)
+	return d.svc.Pause(ctx, cfg.Name, app.System(), note)
 }
 
 // register loads the project of root, or reloads it when it is loaded,
 // and keeps it in daemon.yaml.
 func (d *daemon) register(ctx context.Context, root string, paused bool) error {
+	note := ""
+	if paused {
+		note = pausedNote
+	}
+	return d.registerPaused(ctx, root, note)
+}
+
+// registerPaused is register with the pause's reason: "" registers it
+// running.
+func (d *daemon) registerPaused(ctx context.Context, root, note string) error {
 	abs, _ := filepath.Abs(root)
 	if d.loaded(abs) {
-		if paused {
-			if err := d.pauseRoot(ctx, abs); err != nil {
+		if note != "" {
+			if err := d.pauseRoot(ctx, abs, note); err != nil {
 				return err
 			}
 		}
 		return d.reloadRoot(ctx, abs)
 	}
-	if err := d.addProject(ctx, abs, paused); err != nil {
+	if err := d.addProject(ctx, abs, note); err != nil {
 		return err
 	}
 	cur, err := daemoncfg.Load()
@@ -618,9 +630,9 @@ func (d *daemon) register(ctx context.Context, root string, paused bool) error {
 	return nil
 }
 
-// addProject loads the project of root. With paused, the pause is recorded
+// addProject loads the project of root. With a note, the pause is recorded
 // before the runtime is woken, so no agent of it can start.
-func (d *daemon) addProject(ctx context.Context, root string, paused bool) error {
+func (d *daemon) addProject(ctx context.Context, root, note string) error {
 	cfg, err := config.Load(root)
 	if err != nil {
 		return err
@@ -638,9 +650,9 @@ func (d *daemon) addProject(ctx context.Context, root string, paused bool) error
 	if err := d.svc.TrustOnLoad(ctx, cfg.Name); err != nil {
 		d.log.Warn("record the trusted files", "project", cfg.Name, "err", err)
 	}
-	if paused {
+	if note != "" {
 		if p, err := d.svc.Project(cfg.Name); err == nil && !p.Snapshot().Paused {
-			if err := d.svc.Pause(ctx, cfg.Name, app.System(), pausedNote); err != nil {
+			if err := d.svc.Pause(ctx, cfg.Name, app.System(), note); err != nil {
 				return err
 			}
 		}

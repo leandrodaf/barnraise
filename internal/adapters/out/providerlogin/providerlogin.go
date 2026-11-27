@@ -75,17 +75,43 @@ func loginArgs(provider string) ([]string, error) {
 	return nil, fmt.Errorf("the login of %q cannot run without a terminal", provider)
 }
 
+// claudeInstaller is Claude Code's own installer: no root, no JavaScript runtime; it puts
+// claude in ~/.local/bin.
+const claudeInstaller = "https://claude.ai/install.sh"
+
+// installThenLogin is the script that installs a provider's CLI and then
+// runs its login, for the providers that have an installer of their own;
+// "" for the others, and when a test names the program.
+func installThenLogin(provider string, overridden bool) string {
+	if overridden || provider != "claude" {
+		return ""
+	}
+	if _, err := exec.LookPath("curl"); err != nil {
+		return ""
+	}
+	if _, err := exec.LookPath("bash"); err != nil {
+		return ""
+	}
+	return `echo "Installing Claude Code (` + claudeInstaller + `)…"; curl -fsSL --proto '=https' --tlsv1.2 ` + claudeInstaller + ` | bash || exit 1; ` +
+		`c=$(command -v claude || echo "$HOME/.local/bin/claude"); exec "$c" auth login`
+}
+
 // Start implements ports.ProviderLogin.
 func (r *Runner) Start(ctx context.Context, spec ports.LoginSpec) (ports.LoginProcess, error) {
 	args, err := loginArgs(spec.Provider)
 	if err != nil {
 		return nil, err
 	}
-	bin, err := exec.LookPath(r.bin(spec.Provider))
-	if err != nil {
+	var cmd *exec.Cmd
+	if bin, err := exec.LookPath(r.bin(spec.Provider)); err == nil {
+		cmd = exec.CommandContext(ctx, bin, args...)
+	} else if script := installThenLogin(spec.Provider, r.Bin[spec.Provider] != ""); script != "" {
+		// Not installed: the login installs it first, in the same stream,
+		// so the owner sees it happen and the link follows.
+		cmd = exec.CommandContext(ctx, "sh", "-c", script)
+	} else {
 		return nil, fmt.Errorf("%s is not installed on this machine", spec.Provider)
 	}
-	cmd := exec.CommandContext(ctx, bin, args...)
 	cmd.Env = r.env(spec)
 	cmd.WaitDelay = 2 * time.Second
 	stdin, err := cmd.StdinPipe()

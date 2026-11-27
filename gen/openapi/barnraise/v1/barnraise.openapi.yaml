@@ -7,6 +7,48 @@ info:
   license:
     name: Apache-2.0
 paths:
+  /barnraise.v1.BarnraiseService/AddProject:
+    post:
+      tags:
+        - barnraise.v1.BarnraiseService
+      summary: AddProject
+      description: |-
+        AddProject puts a project on this machine from a repository address or
+         a folder: it clones it, writes a barnraise.yaml when there is none and
+         registers it. The one step a new owner takes.
+      operationId: barnraise.v1.BarnraiseService.AddProject
+      parameters:
+        - name: Connect-Protocol-Version
+          in: header
+          description: Define the version of the Connect protocol
+          schema:
+            $ref: '#/components/schemas/connect-protocol-version'
+          example: 1
+        - name: Connect-Timeout-Ms
+          in: header
+          description: Define the timeout, in ms
+          schema:
+            $ref: '#/components/schemas/connect-timeout-header'
+          example: 1000
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/barnraise.v1.AddProjectRequest'
+        required: true
+      responses:
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.error'
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/barnraise.v1.AddProjectResponse'
   /barnraise.v1.BarnraiseService/AddTweak:
     post:
       tags:
@@ -3570,6 +3612,66 @@ components:
           type: string
           title: at
       title: Activity
+      additionalProperties: false
+    barnraise.v1.AddProjectRequest:
+      type: object
+      properties:
+        source:
+          type: string
+          title: source
+        token:
+          type: string
+          title: token
+          description: |-
+            A token for a repository this machine's git cannot reach: kept in the
+             keychain for this repository only, never logged.
+        language:
+          type: string
+          title: language
+          description: |-
+            The language people read Barnraise in (pt-BR, en…), for a new
+             barnraise.yaml.
+      title: AddProjectRequest
+      additionalProperties: false
+      description: |-
+        AddProjectRequest is a project to put on this machine, in the owner's
+         words: owner/name, github.com/owner/name, an HTTPS or SSH address, or a
+         folder of this machine.
+    barnraise.v1.AddProjectResponse:
+      type: object
+      properties:
+        project:
+          type: string
+          title: project
+        root:
+          type: string
+          title: root
+        configured:
+          type: boolean
+          title: configured
+          description: A barnraise.yaml was written from what the repository holds.
+        notReady:
+          type: array
+          items:
+            type: string
+          title: not_ready
+          description: What stops agents on this machine; the project then starts paused.
+        paused:
+          type: boolean
+          title: paused
+        needsToken:
+          type: boolean
+          title: needs_token
+          description: 'The repository did not let this machine in: a token is needed.'
+        tokenUrl:
+          type: string
+          title: token_url
+          description: GitHub's form for that token, with the permissions filled in.
+        detail:
+          type: string
+          title: detail
+          description: Why git could not clone, when needs_token is set.
+      title: AddProjectResponse
       additionalProperties: false
     barnraise.v1.AddTweakRequest:
       type: object

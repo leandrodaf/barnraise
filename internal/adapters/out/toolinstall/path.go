@@ -26,4 +26,14 @@ func UsePATH(root string) {
 		}
 	}
 	_ = os.Setenv(domain.EnvToolsDir, root)
+	// ~/.local/bin, last: where install.sh puts barnraise and Claude Code's
+	// installer puts claude, both without root. A daemon started from a
+	// shell whose profile ran before that folder existed (a fresh WSL, a
+	// systemd unit) would not find them.
+	if home, err := os.UserHomeDir(); err == nil {
+		user := filepath.Join(home, ".local", "bin")
+		if cur := os.Getenv("PATH"); !slices.Contains(filepath.SplitList(cur), user) {
+			_ = os.Setenv("PATH", cur+string(os.PathListSeparator)+user)
+		}
+	}
 }

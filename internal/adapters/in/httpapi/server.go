@@ -39,6 +39,8 @@ type Options struct {
 	Store      *sqlite.Store
 	Probe      func() domain.Machine
 	Register   func(ctx context.Context, root string, paused bool) error
+	// AddProject clones (or takes a folder), configures and registers a project.
+	AddProject func(ctx context.Context, r *pb.AddProjectRequest) (*pb.AddProjectResponse, error)
 	Reload     func(ctx context.Context, project string) error
 	// Peers lists the machines this daemon is paired with; StopPeers asks
 	// them to stop their daemon (empty names: every connected one).

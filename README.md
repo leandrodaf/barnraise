@@ -117,7 +117,9 @@ Choose Barnraise when the project is larger than one session: many items, more t
 
 ## Quick start
 
-Requirements: Linux or macOS, `git`, and at least one AI CLI you are logged in to (`claude`, `codex` or `gemini`). `bwrap` (bubblewrap) is used when present; Tailscale is built into the release binaries.
+The short way: open the desktop app (or `barnraise panel`), paste the repository's address (`owner/name` is enough) and press Add. Barnraise clones it, writes its `barnraise.yaml` from what the repository holds (languages, test commands, the GitHub remote) and registers it; a private repository asks for a token, with GitHub's form already filled in. What this machine still lacks to run agents (a push credential, a GitHub token, a tool on the PATH) is listed, and the project waits paused until it is fixed. The terminal way:
+
+Requirements: Linux, macOS or Windows with WSL, `git`, and at least one AI CLI you are logged in to (`claude`, `codex` or `gemini`). `bwrap` (bubblewrap) is used when present; Tailscale is built into the release binaries.
 
 ```sh
 curl -fsSL https://raw.githubusercontent.com/leandrodaf/barnraise/main/install.sh | sh
@@ -133,6 +135,8 @@ barnraise item add "Sign-in screen" \
 barnraise status               # goal, focus, queue, agents, accounts and machines in one look
 barnraise panel                # the web panel in the browser, already signed in
 ```
+
+**Windows.** Barnraise is a Linux program, so on Windows it runs in WSL. Install `Barnraise-<version>-windows-amd64-setup.exe` from the [latest release](https://github.com/leandrodaf/barnraise/releases/latest) and open Barnraise from the Start menu: the app finds WSL and its distribution (the default one; `BARNRAISE_WSL_DISTRO` picks another), installs barnraise there if it is missing, starts the daemon and opens the panel already signed in. Without WSL it offers `wsl --install`. The daemon keeps running when the app closes. In a WSL terminal everything above works as on Linux, and `barnraise panel` opens the Windows browser.
 
 | Command | What it does |
 | --- | --- |

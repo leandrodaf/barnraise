@@ -16,6 +16,9 @@
 	import { keys } from '$lib/app/keys.svelte';
 	import { standby, resumeProject } from '$lib/app/actions';
 	import FormDialog from '$lib/app/FormDialog.svelte';
+	import AddProject from '$lib/app/AddProject.svelte';
+	import { addProjectDialog } from '$lib/app/addproject.svelte';
+	import * as Dialog from '$lib/components/ui/dialog';
 	import AppSidebar from '$lib/app/AppSidebar.svelte';
 	import StatusBar from '$lib/app/StatusBar.svelte';
 	import CommandPalette from '$lib/app/CommandPalette.svelte';
@@ -109,7 +112,13 @@
 				{/if}
 				<main id="view" class="w-full p-3 sm:p-4 lg:p-6 min-[1800px]:px-8" tabindex="-1">
 					{#if !session.projects.length}
-						<p class="text-muted-foreground">{t('noProject')}</p>
+						<div class="mx-auto mt-[8vh] max-w-xl space-y-5 rounded-xl border bg-card p-6 shadow-sm">
+							<div class="space-y-1.5">
+								<h1 class="text-xl font-semibold">{t('apTitle')}</h1>
+								<p class="text-sm text-muted-foreground">{t('apIntro')}</p>
+							</div>
+							<AddProject />
+						</div>
 					{:else}
 						{#key session.scope + router.current.name + router.current.args.join('/')}
 							<div class="animate-fade-in">
@@ -145,3 +154,13 @@
 {/if}
 
 <FormDialog />
+
+<Dialog.Root bind:open={addProjectDialog.open}>
+	<Dialog.Content class="sm:max-w-xl">
+		<Dialog.Header>
+			<Dialog.Title>{t('apAddTitle')}</Dialog.Title>
+			<Dialog.Description>{t('apIntro')}</Dialog.Description>
+		</Dialog.Header>
+		<AddProject onDone={() => (addProjectDialog.open = false)} />
+	</Dialog.Content>
+</Dialog.Root>
