@@ -3,11 +3,13 @@
 ## v0.7.0 — 2026-11-27
 
 ### Novidades
+- feat(scheduling): the item more open items wait for goes first, and running work stays first (e8c30fb)
 - feat(items): show the pictures an item's work drew or changed (4538369)
 - feat(onboarding): add a project from its repository address, from the panel or barnraise add (2e58e2d)
 - feat(desktop): a Windows app that drives the daemon in WSL, and a launcher that starts it by itself (76297be)
 
 ### Correções
+- fix(items): pictures load fast: one fetch per listing, cached by commit, eight at a time (e297b5c)
 - fix(review): a review by the implementer's model counts instead of being thrown away (54055f5)
 - fix(github): issues created at once no longer fail on the label they all create (82f766a)
 - fix(agents): teach waiting without sleep, the commit header limit and shared job slots (aa4e603)
