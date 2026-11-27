@@ -13,6 +13,7 @@ import (
 	"log/slog"
 	"slices"
 	"sort"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -108,6 +109,10 @@ type Project struct {
 	state *domain.State
 	// claims held by this machine
 	leases map[string]ports.Lease
+	// issueLeases hold, per item, the tracker entry it works on: another
+	// Barnraise that adopted the same issue (not paired with this one)
+	// cannot take it, since both claim it in the same repository.
+	issueLeases map[string]ports.Lease
 	// items with a step running on this machine (agent session or check)
 	running map[string]string // item -> runner (agent name or "driver")
 	refined map[string]int    // draft item -> version the analyst last refined
@@ -212,7 +217,7 @@ func (s *Service) AddProject(ctx context.Context, cfg *domain.ProjectConfig, pp 
 	if errs := cfg.Validate(); len(errs) > 0 {
 		return nil, fmt.Errorf("project %s: %w", cfg.Name, errors.Join(errs...))
 	}
-	p := &Project{Name: cfg.Name, state: domain.NewState(cfg.Name), leases: map[string]ports.Lease{}, running: map[string]string{}}
+	p := &Project{Name: cfg.Name, state: domain.NewState(cfg.Name), leases: map[string]ports.Lease{}, issueLeases: map[string]ports.Lease{}, running: map[string]string{}}
 	p.cfgV.Store(cfg)
 	p.SetPorts(pp)
 	// The replay and the registration happen under s.mu so that an event
@@ -236,6 +241,11 @@ func (s *Service) AddProject(ctx context.Context, cfg *domain.ProjectConfig, pp 
 		if it.Claim != nil && it.Claim.Machine == s.d.Machine && !it.Status.Terminal() && pp.Arbiter != nil {
 			if info, err := pp.Arbiter.Inspect(ctx, claimKey(it.ID)); err == nil && info.Held && info.Holder == s.d.Machine {
 				p.leases[it.ID] = ports.Lease{Key: claimKey(it.ID), Holder: s.d.Machine, Version: info.Version, Renewed: info.Renewed}
+			}
+			if key := issueClaimKey(it.TrackerRef); key != "" {
+				if info, err := pp.Arbiter.Inspect(ctx, key); err == nil && info.Held && info.Holder == s.d.Machine {
+					p.issueLeases[it.ID] = ports.Lease{Key: key, Holder: s.d.Machine, Version: info.Version, Renewed: info.Renewed}
+				}
 			}
 		}
 	}
@@ -550,6 +560,21 @@ func (RandomIDs) NewID() string {
 }
 
 func claimKey(itemID string) string { return "claims/" + itemID }
+
+// issueClaimKey is the lease of a tracker entry ("#134", "PROJ-12"), ""
+// for an item with none or a reference that cannot name a lease.
+func issueClaimKey(ref string) string {
+	ref = strings.TrimPrefix(strings.TrimSpace(ref), "#")
+	if ref == "" {
+		return ""
+	}
+	for _, r := range ref {
+		if !(r >= 'a' && r <= 'z' || r >= 'A' && r <= 'Z' || r >= '0' && r <= '9' || r == '-' || r == '_') {
+			return ""
+		}
+	}
+	return "issues/" + ref
+}
 
 // HousekeepingKey is the lease of global duties.
 const HousekeepingKey = "lease/housekeeping"

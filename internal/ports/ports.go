@@ -278,16 +278,18 @@ type Provider interface {
 
 // TrackerItem is an item as a tracker shows it.
 type TrackerItem struct {
-	Ref     string    `json:"ref"`
-	Number  int       `json:"number,omitempty"`
-	Title   string    `json:"title"`
-	Body    string    `json:"body"`
-	Status  string    `json:"status"`
-	Labels  []string  `json:"labels,omitempty"`
-	Author  string    `json:"author,omitempty"`
-	URL     string    `json:"url,omitempty"`
-	Updated time.Time `json:"updated,omitzero"`
-	Closed  bool      `json:"closed,omitempty"`
+	Ref    string   `json:"ref"`
+	Number int      `json:"number,omitempty"`
+	Title  string   `json:"title"`
+	Body   string   `json:"body"`
+	Status string   `json:"status"`
+	Labels []string `json:"labels,omitempty"`
+	// Assignees are the people the entry is assigned to in the tracker.
+	Assignees []string  `json:"assignees,omitempty"`
+	Author    string    `json:"author,omitempty"`
+	URL       string    `json:"url,omitempty"`
+	Updated   time.Time `json:"updated,omitzero"`
+	Closed    bool      `json:"closed,omitempty"`
 }
 
 // Tracker is where people see the items.

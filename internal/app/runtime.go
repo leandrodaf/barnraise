@@ -1484,12 +1484,49 @@ func (r *Runtime) renewLeases(ctx context.Context, p *Project) {
 			r.s.d.Log.Warn("lease lost; another machine took the item", "item", id)
 			r.s.stopItemSessions(id)
 			p.mu.Lock()
+			il, iok := p.issueLeases[id]
 			delete(p.leases, id)
+			delete(p.issueLeases, id)
 			delete(p.running, id)
 			p.mu.Unlock()
+			// The machine that took the item takes its issue too.
+			if iok {
+				r.s.releaseLeaseValue(ctx, p, il)
+			}
 		default:
 			// Offline: keep working on the current step; we cannot claim or integrate meanwhile.
 			r.s.d.Log.Debug("lease renew failed", "item", id, "err", err)
+		}
+	}
+	// The tracker entries of the items held here, renewed the same way; an
+	// item whose issue another Barnraise took stops too.
+	p.mu.Lock()
+	issues := map[string]ports.Lease{}
+	maps.Copy(issues, p.issueLeases)
+	p.mu.Unlock()
+	for id, l := range issues {
+		nl, err := p.Ports().Arbiter.Renew(ctx, l)
+		switch {
+		case err == nil:
+			p.mu.Lock()
+			if _, still := p.issueLeases[id]; still {
+				p.issueLeases[id] = nl
+			}
+			p.mu.Unlock()
+		case errors.Is(err, ports.ErrLost) || errors.Is(err, ports.ErrNotHeld):
+			p.mu.Lock()
+			_, still := p.issueLeases[id]
+			delete(p.issueLeases, id)
+			p.mu.Unlock()
+			if still {
+				r.s.d.Log.Warn("issue lease lost; another Barnraise took the issue", "item", id, "issue", l.Key)
+				r.s.stopItemSessions(id)
+				p.mu.Lock()
+				delete(p.running, id)
+				p.mu.Unlock()
+			}
+		default:
+			r.s.d.Log.Debug("issue lease renew failed", "item", id, "err", err)
 		}
 	}
 }

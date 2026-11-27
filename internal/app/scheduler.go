@@ -227,6 +227,9 @@ func (s *Service) candidatesLocked(p *Project, slot Slot) []*domain.Item {
 		if it.Status != domain.StatusReady || it.Claim != nil {
 			continue
 		}
+		if len(it.HeldBy) > 0 {
+			continue // a person took its issue in the tracker
+		}
 		if it.Parked && focusActive && !focus.Includes(it) {
 			continue
 		}
@@ -351,24 +354,49 @@ func firstAgentRole(f *domain.Flow) string {
 
 // claim reserves the item in the arbiter and starts its first step.
 func (s *Service) claim(ctx context.Context, p *Project, id string, slot Slot) (*Assignment, error) {
-	var lease ports.Lease
+	var lease, issue ports.Lease
 	if p.Ports().Arbiter != nil {
 		l, err := p.Ports().Arbiter.Claim(ctx, claimKey(id), s.d.Machine)
 		if err != nil {
 			return nil, err
 		}
 		lease = l
+		// The tracker entry too: a Barnraise not paired with this one may
+		// have adopted the same issue under another id.
+		if snap := p.Snapshot().Items[id]; snap != nil {
+			if key := issueClaimKey(snap.TrackerRef); key != "" {
+				il, err := p.Ports().Arbiter.Claim(ctx, key, s.d.Machine)
+				if errors.Is(err, ports.ErrTaken) {
+					// One that nobody renewed for a whole ttl was left by a
+					// machine that stopped: it is free.
+					if il, err = p.Ports().Arbiter.TakeOver(ctx, key, s.d.Machine, p.Cfg().Lease.TTL); err != nil {
+						s.releaseLeaseValue(ctx, p, lease)
+						s.d.Log.Info("the issue is taken by another Barnraise; the item waits", "project", p.Name, "item", id, "issue", snap.TrackerRef)
+						return nil, ErrConflict
+					}
+				}
+				if err != nil {
+					s.releaseLeaseValue(ctx, p, lease)
+					return nil, err
+				}
+				issue = il
+			}
+		}
+	}
+	release := func() {
+		s.releaseLeaseValue(ctx, p, lease)
+		s.releaseLeaseValue(ctx, p, issue)
 	}
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	cur, ok := p.state.Items[id]
 	if !ok || cur.Status != domain.StatusReady || cur.Claim != nil {
-		s.releaseLeaseValue(ctx, p, lease)
+		release()
 		return nil, ErrConflict
 	}
 	f, err := p.Cfg().FlowOf(cur.Kind, cur.Area)
 	if err != nil {
-		s.releaseLeaseValue(ctx, p, lease)
+		release()
 		return nil, err
 	}
 	now := s.d.Clock.Now().UTC()
@@ -394,7 +422,7 @@ func (s *Service) claim(ctx context.Context, p *Project, id string, slot Slot) (
 		return nil
 	}, domain.Payload{})
 	if err != nil {
-		s.releaseLeaseValue(ctx, p, lease)
+		release()
 		return nil, err
 	}
 	for _, t := range attached {
@@ -404,11 +432,15 @@ func (s *Service) claim(ctx context.Context, p *Project, id string, slot Slot) (
 	}
 	if p.Ports().Arbiter != nil {
 		p.leases[id] = lease
+		if issue.Key != "" {
+			p.issueLeases[id] = issue
+		}
 	}
 	st, _ := f.Step(it.Step)
 	if stepRole(st) == slot.Role {
 		p.running[id] = slot.Agent
 	}
+	s.announceClaim(p, it)
 	return &Assignment{Project: p.Name, Item: it, Step: st, New: true}, nil
 }
 
@@ -463,11 +495,16 @@ func short(sha string) string {
 func (s *Service) releaseLease(ctx context.Context, p *Project, id string) {
 	p.mu.Lock()
 	l, ok := p.leases[id]
+	il, iok := p.issueLeases[id]
 	delete(p.leases, id)
+	delete(p.issueLeases, id)
 	delete(p.running, id)
 	p.mu.Unlock()
 	if ok {
 		s.releaseLeaseValue(ctx, p, l)
+	}
+	if iok {
+		s.releaseLeaseValue(ctx, p, il)
 	}
 }
 

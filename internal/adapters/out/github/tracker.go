@@ -52,6 +52,7 @@ type ghIssue struct {
 	HTMLURL     string          `json:"html_url"`
 	Labels      []ghLabel       `json:"labels"`
 	User        ghUser          `json:"user"`
+	Assignees   []ghUser        `json:"assignees"`
 	UpdatedAt   time.Time       `json:"updated_at"`
 	PullRequest json.RawMessage `json:"pull_request,omitempty"`
 }
@@ -70,17 +71,24 @@ func (i ghIssue) toItem() ports.TrackerItem {
 	if status == "" {
 		status = i.State
 	}
+	var assignees []string
+	for _, a := range i.Assignees {
+		if a.Login != "" {
+			assignees = append(assignees, a.Login)
+		}
+	}
 	return ports.TrackerItem{
-		Ref:     Ref(i.Number),
-		Number:  i.Number,
-		Title:   domain.SanitizeExternal(i.Title),
-		Body:    domain.SanitizeExternal(i.Body),
-		Status:  status,
-		Labels:  labels,
-		Author:  i.User.Login,
-		URL:     i.HTMLURL,
-		Updated: i.UpdatedAt,
-		Closed:  i.State == "closed",
+		Ref:       Ref(i.Number),
+		Number:    i.Number,
+		Title:     domain.SanitizeExternal(i.Title),
+		Body:      domain.SanitizeExternal(i.Body),
+		Status:    status,
+		Labels:    labels,
+		Assignees: assignees,
+		Author:    i.User.Login,
+		URL:       i.HTMLURL,
+		Updated:   i.UpdatedAt,
+		Closed:    i.State == "closed",
 	}
 }
 

@@ -149,6 +149,9 @@ type Item struct {
 	TrackerRef string         `json:"tracker_ref,omitempty"`
 	// TrackerURL is the entry's web page, when the tracker said it.
 	TrackerURL string `json:"tracker_url,omitempty"`
+	// HeldBy are the people the tracker entry is assigned to: a person took
+	// the item, and Barnraise does not start it while they hold it.
+	HeldBy []string `json:"held_by,omitempty"`
 	// Adopted marks an item that came from an entry people wrote in the
 	// tracker. Barnraise keeps its state and labels current there, and never
 	// rewrites its title or text: they are the author's.

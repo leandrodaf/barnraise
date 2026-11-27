@@ -588,3 +588,10 @@ func (e *Exec) Cmds() []ports.Cmd {
 	defer e.mu.Unlock()
 	return append([]ports.Cmd(nil), e.cmds...)
 }
+
+// Comments are the comments written to the tracker, "ref: text".
+func (t *Tracker) Comments() []string {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	return append([]string(nil), t.comments...)
+}

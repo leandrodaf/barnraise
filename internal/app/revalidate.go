@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 	"time"
 
@@ -439,6 +440,7 @@ func (s *Service) ImportFromTracker(ctx context.Context, project string, since t
 	var failed []error
 	for _, ti := range list {
 		if it, ok := byRef[ti.Ref]; ok {
+			s.noteHolders(ctx, p, it, ti.Assignees)
 			title := domain.SanitizeExternal(ti.Title)
 			if strings.TrimSpace(strings.TrimPrefix(title, "["+it.ID+"]")) != it.Title && !it.Status.Terminal() {
 				s.revalidateAsync(p, domain.Change{Kind: "tracker", Cause: ti.URL, Items: []string{it.ID}, Summary: "title changed in the tracker"})
@@ -494,5 +496,29 @@ func (s *Service) SyncAllToTracker(project string) {
 		if it.TrackerRef == "" && !it.Status.Terminal() {
 			s.syncTracker(p, it.ID, true)
 		}
+	}
+}
+
+// noteHolders records who the tracker entry of an item is assigned to. A
+// person who assigns the issue to themselves takes the item over: it is not
+// started while they hold it, and the owner hears of it once.
+func (s *Service) noteHolders(ctx context.Context, p *Project, it *domain.Item, people []string) {
+	people = slices.Sorted(slices.Values(people))
+	if it.Status.Terminal() || slices.Equal(people, it.HeldBy) {
+		return
+	}
+	note := "nobody holds the issue in the tracker any more"
+	if len(people) > 0 {
+		note = "the issue is assigned to " + strings.Join(people, ", ") + " in the tracker: Barnraise leaves the item to them"
+	}
+	if _, err := s.mutateItem(ctx, p, it.ID, domain.EvItemUpdated, "tracker", func(x *domain.Item) error {
+		x.HeldBy = people
+		return nil
+	}, domain.Payload{Note: note}); err != nil {
+		s.d.Log.Warn("record the issue's assignees", "item", it.ID, "err", err)
+		return
+	}
+	if len(people) > 0 && it.Status == domain.StatusInProgress {
+		go s.digestNote(p, fmt.Sprintf("%s is in progress here, and %s took its issue in the tracker: decide who keeps it (barnraise takeover %s, or unassign them).", it.ID, strings.Join(people, ", "), it.ID))
 	}
 }
