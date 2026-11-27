@@ -42,3 +42,23 @@ func TestNoCapacitySaysWhyAndUntilWhen(t *testing.T) {
 		t.Fatalf("a wait that has passed still shows: %v", got)
 	}
 }
+
+// When every model of the class is at its limit, the step runs one rung
+// down the provider's ladder: never the model it must differ from, never
+// the bottom rung.
+func TestLadderFallback(t *testing.T) {
+	e := newEnv(t)
+	now := e.clock.Now()
+	m := domain.ModelRouter{Ladders: map[string][]string{"claude": {"haiku", "sonnet", "opus", "fable"}}}
+	accounts := []*domain.Account{{ID: "claude-1", Provider: "claude", CeilingPct: 100}}
+	complex := []domain.ModelChoice{{Provider: "claude", Model: "fable", Effort: "high"}, {Provider: "claude", Model: "opus", Effort: "high"}}
+	e.svc.markModelLimited("claude-1", "fable", now.Add(72*time.Hour))
+	c, acc, ok := e.svc.ladderFallback(m, complex, "opus", accounts, "demo", now)
+	if !ok || acc.ID != "claude-1" || c.Model != "sonnet" || c.Effort != "high" {
+		t.Fatalf("a review that must differ from opus falls to sonnet: %+v %v", c, ok)
+	}
+	e.svc.markModelLimited("claude-1", "sonnet", now.Add(time.Hour))
+	if c, _, ok := e.svc.ladderFallback(m, complex, "opus", accounts, "demo", now); ok {
+		t.Fatalf("never down to the bottom rung: %+v", c)
+	}
+}

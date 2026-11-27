@@ -3,6 +3,7 @@ package app
 import (
 	"context"
 	"fmt"
+	"slices"
 	"strings"
 	"time"
 
@@ -197,4 +198,35 @@ func (s *Service) waitingOf(p *Project) (string, time.Time) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	return p.waiting, p.waitingUntil
+}
+
+// ladderFallback finds, when no model of a step's class may run now, the
+// strongest model below them on the same provider's ladder that an account
+// here may run: never the model the step must differ from, and never the
+// ladder's bottom rung (the cheapest model does not review or implement).
+// Two reviews waited three days for one model's weekly limit while a
+// lighter model of the same family was free.
+func (s *Service) ladderFallback(m domain.ModelRouter, choices []domain.ModelChoice, avoidModel string, accounts []*domain.Account, project string, now time.Time) (domain.ModelChoice, *domain.Account, bool) {
+	tried := map[string]bool{}
+	for _, c := range choices {
+		tried[c.Provider+"/"+c.Model] = true
+	}
+	for _, c := range choices {
+		ladder := m.Ladders[c.Provider]
+		top := slices.Index(ladder, c.Model)
+		if top < 0 {
+			continue
+		}
+		for i := top - 1; i >= 1; i-- {
+			model := ladder[i]
+			if model == avoidModel || tried[c.Provider+"/"+model] {
+				continue
+			}
+			tried[c.Provider+"/"+model] = true
+			if acc := domain.PickAccount(s.withModel(accounts, model, now), c.Provider, s.d.Machine, project, now); acc != nil {
+				return domain.ModelChoice{Provider: c.Provider, Model: model, Effort: "high"}, acc, true
+			}
+		}
+	}
+	return domain.ModelChoice{}, nil, false
 }

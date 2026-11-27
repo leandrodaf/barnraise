@@ -617,6 +617,15 @@ func (r *Runtime) start(ctx context.Context, p *Project, slot Slot, a *Assignmen
 	// one at its own limit gives the step to the next.
 	choice, acc := s.pickChoice(choices, accounts, p.Name, now)
 	if acc == nil {
+		// Every model of the class is at its limit: rather than wait days,
+		// the step runs one rung down its provider's ladder.
+		if fc, facc, ok := s.ladderFallback(p.Cfg().Models, choices, avoidModel, accounts, p.Name, now); ok {
+			s.d.Log.Info("every model of the class is at its limit: the step runs one rung down",
+				"item", it.ID, "step", a.Step.Name, "class", class, "model", fc.Model)
+			choice, acc = fc, facc
+		}
+	}
+	if acc == nil {
 		why, until := s.noCapacity(choices, accounts, p.Name, now)
 		s.setWaiting(p, it.ID+" "+a.Step.Name+": "+why, until)
 		return errors.New(why)
