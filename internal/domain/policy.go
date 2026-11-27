@@ -160,7 +160,9 @@ func (p *Policy) Decide(c ToolCall, exists func(string) bool) Decision {
 		}
 		for _, g := range p.LockExisting {
 			if MatchGlob(g, rel) && exists != nil && exists(rel) && !contains(p.Unlocked, rel) {
-				return deny("locked_existing", "existing tests, references and check scripts are locked; add a new test instead: "+rel)
+				return deny("locked_existing", "existing tests, references and check scripts are locked; add a new test instead: "+rel+
+					". If changing this very file is what the item asks for, do not work around the lock: ask the owner (ask_owner) with the option `UNLOCK "+rel+
+					"` and why; once it is unlocked for the item, edit it normally")
 			}
 		}
 	}

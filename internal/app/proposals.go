@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strings"
 	"time"
@@ -94,11 +95,23 @@ func (s *Service) propose(ctx context.Context, p *Project, a Actor, in domain.Pr
 		}
 	}
 	if m, dup := domain.FindDuplicate(&in, props, p.state.ItemList()); dup && p.Cfg().Proposals.Duplicate == "comment" {
-		comment := fmt.Sprintf("%s (%s): %s — evidence: %s", in.By, now.Format("2006-01-02"), in.Problem, in.Evidence)
+		body := fmt.Sprintf("%s — evidence: %s", in.Problem, in.Evidence)
+		comment := fmt.Sprintf("%s (%s): %s", in.By, now.Format("2006-01-02"), body)
 		if strings.HasPrefix(m.ID, "P-") {
 			cur := *p.state.Proposals[m.ID]
+			// The tracker's import sends the same issues again every few
+			// minutes and at every start: the same finding is said once,
+			// and copies left by earlier imports go.
+			comments := dedupeComments(cur.Comments)
+			said := slices.ContainsFunc(comments, func(c string) bool { return commentBody(c) == body })
+			if !said {
+				comments = append(comments, comment)
+			}
+			if said && len(comments) == len(cur.Comments) {
+				return ProposeResult{Proposal: &cur, Duplicate: m.ID}, nil
+			}
 			cur.Version++
-			cur.Comments = append(append([]string(nil), cur.Comments...), comment)
+			cur.Comments = comments
 			if _, err := s.emitLocked(ctx, p, domain.EvProposalUpdated, cur.ID, actorName(a), domain.Payload{Proposal: &cur, Note: "duplicate became a comment"}); err != nil {
 				return ProposeResult{}, err
 			}
@@ -345,4 +358,25 @@ func (s *Service) inventory(p *Project, spec string) ([]InventoryEntry, error) {
 		return nil, fmt.Errorf("%w: inventory %q: use \"screens <dir>\", \"files <path>\" or \"lines <file>\"", ErrInvalid, spec)
 	}
 	return out, nil
+}
+
+// commentBody is a proposal comment without its "who (date): " prefix.
+func commentBody(c string) string {
+	if i := strings.Index(c, "): "); i >= 0 && strings.Contains(c[:i], " (") {
+		return c[i+3:]
+	}
+	return c
+}
+
+// dedupeComments keeps the first comment of each body.
+func dedupeComments(comments []string) []string {
+	seen := map[string]bool{}
+	out := make([]string, 0, len(comments))
+	for _, c := range comments {
+		if b := commentBody(c); !seen[b] {
+			seen[b] = true
+			out = append(out, c)
+		}
+	}
+	return out
 }

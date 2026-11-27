@@ -617,8 +617,11 @@ func (r *Runtime) start(ctx context.Context, p *Project, slot Slot, a *Assignmen
 	// one at its own limit gives the step to the next.
 	choice, acc := s.pickChoice(choices, accounts, p.Name, now)
 	if acc == nil {
-		return errors.New("no account available")
+		why, until := s.noCapacity(choices, accounts, p.Name, now)
+		s.setWaiting(p, it.ID+" "+a.Step.Name+": "+why, until)
+		return errors.New(why)
 	}
+	s.setWaiting(p, "", time.Time{})
 	// The account as this machine runs it: its login folder here.
 	acc = acc.On(s.d.Machine, s.d.DataDir)
 	prov, cli, endpoint, _ := s.providerFor(p.Cfg(), choice.Provider)

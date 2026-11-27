@@ -2,6 +2,8 @@ package app
 
 import (
 	"context"
+	"fmt"
+	"strings"
 	"time"
 
 	"github.com/leandrodaf/barnraise/internal/domain"
@@ -131,4 +133,68 @@ func (s *Service) AdvisorStatus(project string) string {
 		return ot(p, "advisor.limited")
 	}
 	return ot(p, "advisor.until", next.Local().Format("15:04"))
+}
+
+// noCapacity explains why no account here may run any model of choices
+// now, and when the first one frees up: "no account available" told the
+// owner nothing, and the work waited for hours with nothing on screen.
+func (s *Service) noCapacity(choices []domain.ModelChoice, accounts []*domain.Account, project string, now time.Time) (string, time.Time) {
+	var why []string
+	var first time.Time
+	soon := func(t time.Time) {
+		if !t.IsZero() && t.After(now) && (first.IsZero() || t.Before(first)) {
+			first = t
+		}
+	}
+	seen := map[string]bool{}
+	for _, c := range choices {
+		for _, a := range accounts {
+			if a.Provider != c.Provider || !a.UsableOn(s.d.Machine) || (len(a.Projects) > 0 && !domain.Contains(a.Projects, project)) {
+				continue
+			}
+			u := a.Usage
+			switch {
+			case !a.Available(now) && u.FiveHourPct >= 100 && u.FiveHourResets.After(now):
+				if !seen[a.ID] {
+					why = append(why, fmt.Sprintf("%s is at its 5-hour limit until %s", a.ID, u.FiveHourResets.Local().Format("Mon 15:04")))
+				}
+				seen[a.ID] = true
+				soon(u.FiveHourResets)
+			case !a.Available(now):
+				if !seen[a.ID] {
+					msg := a.ID + " is at its weekly limit"
+					if u.WeeklyResets.After(now) {
+						msg += " until " + u.WeeklyResets.Local().Format("Mon 15:04")
+					}
+					why = append(why, msg)
+				}
+				seen[a.ID] = true
+				soon(u.WeeklyResets)
+			case s.modelLimited(a.ID, c.Model, now):
+				if v, ok := s.modelLimits.Load(modelKey(a.ID, c.Model)); ok {
+					until := v.(time.Time)
+					why = append(why, fmt.Sprintf("%s on %s is at its own limit until %s", c.Model, a.ID, until.Local().Format("Mon 15:04")))
+					soon(until)
+				}
+			}
+		}
+	}
+	if len(why) == 0 {
+		return "no account on this machine may run this step's models", first
+	}
+	return "no account on this machine may run this step's models now: " + strings.Join(why, "; "), first
+}
+
+// setWaiting records (or clears, with why empty) the step that waits for
+// capacity on this machine; the heartbeat carries it to every screen.
+func (s *Service) setWaiting(p *Project, why string, until time.Time) {
+	p.mu.Lock()
+	p.waiting, p.waitingUntil = why, until
+	p.mu.Unlock()
+}
+
+func (s *Service) waitingOf(p *Project) (string, time.Time) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	return p.waiting, p.waitingUntil
 }

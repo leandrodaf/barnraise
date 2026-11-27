@@ -304,6 +304,16 @@ func TestProposals(t *testing.T) {
 	if err != nil || dup.Duplicate != "P-1" || len(dup.Proposal.Comments) != 1 {
 		t.Fatalf("duplicate %+v %v", dup, err)
 	}
+	// The tracker sends the same issue again at every import: it is said once,
+	// with no new event, and the copies earlier imports left are cleaned up.
+	before := len(e.store.Events())
+	again, err := e.svc.Propose(e.ctx, "demo", ag, prop("cache quotes", "cards"))
+	if err != nil || again.Duplicate != "P-1" || len(again.Proposal.Comments) != 1 || len(e.store.Events()) != before {
+		t.Fatalf("the same finding again %+v %v (%d new events)", again, err, len(e.store.Events())-before)
+	}
+	if got := dedupeComments([]string{"a (2026-11-26): same", "b (2026-11-27): same", "c (2026-11-27): other"}); len(got) != 2 || got[0] != "a (2026-11-26): same" {
+		t.Fatalf("dedupe %v", got)
+	}
 	it := e.create(NewItem{Title: "slow wallet balance", Body: "the slow wallet balance problem happens often", Area: "wallet", Criteria: crit(ears)})
 	onItem, err := e.svc.Propose(e.ctx, "demo", ag, prop("slow wallet balance", "wallet"))
 	if err != nil || onItem.Duplicate != it.ID || onItem.Proposal != nil {

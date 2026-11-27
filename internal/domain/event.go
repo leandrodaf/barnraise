@@ -226,6 +226,11 @@ type Machine struct {
 	// Claude's own configuration and barnraise.yaml, with the result of
 	// their last test: never their env or headers.
 	MCP []MCPStatus `json:"mcp,omitempty"`
+	// Waiting is why work this machine would start waits for capacity (no
+	// account may run the step's models now), and WaitingUntil when the
+	// first one frees up: shown to the owner instead of a quiet stall.
+	Waiting      string    `json:"waiting,omitempty"`
+	WaitingUntil time.Time `json:"waiting_until,omitzero"`
 	// QueueErr is why this machine's merge queue cannot land its items
 	// right now ("" when it can): every machine shows it to the owner.
 	QueueErr string `json:"queue_err,omitempty"`

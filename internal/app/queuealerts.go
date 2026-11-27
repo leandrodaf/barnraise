@@ -22,6 +22,13 @@ func queueAlerts(snap *domain.State, machines []MachineView, now time.Time) []st
 		if m.QueueErr != "" && m.Health != "red" && !m.Left {
 			out = append(out, fmt.Sprintf("merge queue on %s cannot land: %s", m.Name, m.QueueErr))
 		}
+		if m.Waiting != "" && m.Health != "red" && !m.Left && (m.WaitingUntil.IsZero() || m.WaitingUntil.After(now)) {
+			msg := fmt.Sprintf("work on %s waits for capacity: %s", m.Name, m.Waiting)
+			if !m.WaitingUntil.IsZero() {
+				msg += fmt.Sprintf(" (the first frees up at %s)", m.WaitingUntil.Local().Format("Mon 15:04"))
+			}
+			out = append(out, msg)
+		}
 	}
 	for _, it := range snap.ItemList() {
 		if it.Status != domain.StatusQueued || it.StepStartedAt.IsZero() {

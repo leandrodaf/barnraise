@@ -37,6 +37,7 @@ func (r *Runtime) housekeeping(ctx context.Context, p *Project, m domain.Machine
 	m.TrackerErr = s.TrackerErr(p.Name)
 	m.QueueErr = s.queueErrOf(p)
 	m.MCP = s.mcpStatuses(ctx, p)
+	m.Waiting, m.WaitingUntil = s.waitingOf(p)
 	s.testMCPsInBackground(p)
 	m.Accounts = nil
 	for _, a := range p.Snapshot().AccountList() {

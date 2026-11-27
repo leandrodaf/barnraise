@@ -126,6 +126,9 @@ type Project struct {
 	queueErr, passErr string
 	// mcp is what this machine found of the project's MCP servers.
 	mcp mcpCache
+	// waiting is why a step here could not start for lack of capacity.
+	waiting      string
+	waitingUntil time.Time
 }
 
 // Service is the application.
