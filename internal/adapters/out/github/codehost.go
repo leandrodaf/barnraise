@@ -171,7 +171,29 @@ func (h *CodeHost) Checks(ctx context.Context, sha string) (ports.HostChecks, er
 		} `json:"check_runs"`
 	}
 	if _, err := h.c.do(ctx, http.MethodGet, h.c.repoPath("/commits/%s/check-runs?per_page=100", url.PathEscape(sha)), nil, &runs); err != nil {
-		return out, checksErr(err)
+		if !denied(err) {
+			return out, err
+		}
+		// A fine-grained token can never call the Checks API: GitHub
+		// Actions' own runs of the commit say the same with actions: read.
+		var wf struct {
+			Runs []struct {
+				Name       string `json:"name"`
+				Status     string `json:"status"`
+				Conclusion string `json:"conclusion"`
+			} `json:"workflow_runs"`
+		}
+		if _, err := h.c.do(ctx, http.MethodGet, h.c.repoPath("/actions/runs?head_sha=%s&per_page=100", url.QueryEscape(sha)), nil, &wf); err != nil {
+			return out, checksErr(err)
+		}
+		runs.CheckRuns = runs.CheckRuns[:0]
+		for _, r := range wf.Runs {
+			runs.CheckRuns = append(runs.CheckRuns, struct {
+				Name       string `json:"name"`
+				Status     string `json:"status"`
+				Conclusion string `json:"conclusion"`
+			}{r.Name, r.Status, r.Conclusion})
+		}
 	}
 	for _, r := range runs.CheckRuns {
 		out.Total++
@@ -211,11 +233,19 @@ func (h *CodeHost) Checks(ctx context.Context, sha string) (ports.HostChecks, er
 // Commit statuses permission answers 403) so the queue does not wait for
 // checks it will never be shown.
 func checksErr(err error) error {
-	switch httpx.StatusOf(err) {
-	case http.StatusUnauthorized, http.StatusForbidden:
+	if denied(err) {
 		return fmt.Errorf("%w: %w", ports.ErrChecksDenied, err)
 	}
 	return err
+}
+
+// denied reports a refusal of the token (401 or 403).
+func denied(err error) bool {
+	switch httpx.StatusOf(err) {
+	case http.StatusUnauthorized, http.StatusForbidden:
+		return true
+	}
+	return false
 }
 
 // Merge merges with squash (default), rebase or merge and returns the sha.

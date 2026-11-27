@@ -722,8 +722,46 @@ func TestHostChecksDenied(t *testing.T) {
 		w.WriteHeader(http.StatusForbidden)
 		_, _ = w.Write([]byte(`{"message":"Resource not accessible by personal access token"}`))
 	})
+	forbidden := func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusForbidden)
+		_, _ = w.Write([]byte(`{"message":"Resource not accessible by personal access token"}`))
+	}
+	f.on("GET /repos/acme/app/actions/runs", forbidden)
 	_, err := f.client(t, nil).CodeHost().Checks(context.Background(), sha)
 	if !errors.Is(err, ports.ErrChecksDenied) {
 		t.Fatalf("err = %v, want ErrChecksDenied", err)
+	}
+}
+
+// A fine-grained token never reaches the Checks API: the workflow runs of
+// the commit stand in for its check runs.
+func TestHostChecksFromWorkflowRuns(t *testing.T) {
+	f := newFake(t)
+	sha := "6dcb09b5b57875f334f61aebed695e2e4193db5e"
+	f.on("GET /repos/acme/app/commits/"+sha+"/check-runs", func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusForbidden)
+		_, _ = w.Write([]byte(`{"message":"Resource not accessible by personal access token"}`))
+	})
+	f.on("GET /repos/acme/app/actions/runs", func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Query().Get("head_sha") != sha {
+			t.Errorf("head_sha = %q", r.URL.Query().Get("head_sha"))
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"workflow_runs":[
+			{"name":"ci","status":"completed","conclusion":"success"},
+			{"name":"lint","status":"completed","conclusion":"failure"},
+			{"name":"e2e","status":"in_progress","conclusion":null}]}`))
+	})
+	f.on("GET /repos/acme/app/commits/"+sha+"/status", func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"statuses":[]}`))
+	})
+	c, err := f.client(t, nil).CodeHost().Checks(context.Background(), sha)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if c.Total != 3 || c.Pending != 1 || strings.Join(c.Failed, ",") != "lint" {
+		t.Fatalf("checks %+v", c)
 	}
 }
