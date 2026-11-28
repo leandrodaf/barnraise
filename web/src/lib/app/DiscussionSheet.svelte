@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { go, router } from '$lib/router.svelte';
 	import * as Sheet from '$lib/components/ui/sheet';
 	import { Button } from '$lib/components/ui/button';
 	import { Textarea } from '$lib/components/ui/textarea';
@@ -68,11 +69,14 @@
 		window.addEventListener('pointerup', up);
 	}
 
+	let revision = 0;
 	async function load() {
 		if (!discussion.open || !discussion.thread) return;
 		try {
+			const request = ++revision;
 			const r = await api.getDiscussion({ project: discussion.project, thread: discussion.thread });
-			if (!busy) messages = r.messages;
+			if (request !== revision) return;
+			if (!busy && r.messages.length >= messages.length) messages = r.messages;
 			if (discussion.thread.startsWith('Q-')) {
 				const qs = await api.listQuestions({ project: discussion.project });
 				question = qs.questions.find((q) => q.id === discussion.thread) || null;
@@ -140,7 +144,10 @@
 		try {
 			const r = await api.discuss({ project: discussion.project, thread: discussion.thread, text: v });
 			messages = r.messages;
+			revision++;
 		} catch (err) {
+			messages = messages.slice(0, -1);
+			if (!text) text = v;
 			if (!session.failed(err)) error = errorText(err);
 		} finally {
 			busy = false;
@@ -281,16 +288,20 @@
 			creating = false;
 		}
 	}
+	function setOpen(open: boolean) {
+		discussion.open = open;
+		if (!open && router.current.name === 'queue' && router.current.args[1] === discussion.thread) go('queue');
+	}
 	function byHand() {
 		const project = discussion.project;
-		discussion.open = false;
+		setOpen(false);
 		if (kind === 'goal') setGoal(project);
 		else if (kind === 'focus') setFocus(project);
 		else newItemByHand();
 	}
 </script>
 
-<Sheet.Root bind:open={discussion.open}>
+<Sheet.Root bind:open={() => discussion.open, setOpen}>
 	<Sheet.Content side="right" class="flex !max-w-none flex-col gap-0 p-0 [&>button.absolute]:hidden" style="width:{shown}px">
 		<!-- Drag the left edge to widen. -->
 		<div class="absolute inset-y-0 -left-1 z-10 hidden w-2 cursor-col-resize hover:bg-st-review/30 sm:block" role="separator" aria-orientation="vertical" aria-label={t('discussResize')} onpointerdown={drag}></div>
@@ -304,7 +315,7 @@
 			<Button size="icon" variant="ghost" class="hidden size-8 sm:inline-flex" onclick={() => (wide = !wide)} aria-label={wide ? t('discussNarrow') : t('discussWiden')} title={wide ? t('discussNarrow') : t('discussWiden')}>
 				{#if wide}<MinimizeIcon class="size-4" />{:else}<MaximizeIcon class="size-4" />{/if}
 			</Button>
-			<Button size="icon" variant="ghost" class="size-8" onclick={() => (discussion.open = false)} aria-label={t('close')}><XIcon class="size-4" /></Button>
+			<Button size="icon" variant="ghost" class="size-8" onclick={() => setOpen(false)} aria-label={t('close')}><XIcon class="size-4" /></Button>
 		</header>
 
 		<!-- The decision stays in view, and can be answered from here. -->

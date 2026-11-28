@@ -28,7 +28,7 @@
 	import Empty from '$lib/app/Empty.svelte';
 	import Dot from '$lib/app/Dot.svelte';
 	import GitHubToken from '$lib/app/GitHubToken.svelte';
-	import { addProjectDialog } from '$lib/app/addproject.svelte';
+	import { addProjectDialog } from '$lib/app/addproject.svelte.ts';
 	import AgentMCP from '$lib/app/AgentMCP.svelte';
 
 	// What the CLI does to the daemon, from the panel: projects, tokens and

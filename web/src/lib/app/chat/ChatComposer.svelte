@@ -3,7 +3,8 @@
 	// text, Enter sends and Shift+Enter breaks the line, Esc stops the answer
 	// under way, "/" anywhere puts the cursor in it, and it dictates where
 	// the browser can.
-	import type { Snippet } from 'svelte';
+	import { onMount, onDestroy, type Snippet } from 'svelte';
+	import { localDictationAvailable, recordDictation } from './dictation';
 	import { t } from '$lib/i18n';
 	import { Button } from '$lib/components/ui/button';
 	import { Spinner } from '$lib/components/ui/spinner';
@@ -47,7 +48,7 @@
 
 	function send() {
 		const v = text.trim();
-		if (!v || sending || disabled) return;
+		if (!v || sending || disabled || processing || listening) return;
 		rec?.stop();
 		onsend(v);
 	}
@@ -72,16 +73,40 @@
 	}
 
 	// Dictation, where the browser has speech recognition.
-	type Recognition = { lang: string; interimResults: boolean; continuous: boolean; start(): void; stop(): void; onresult: ((e: any) => void) | null; onend: (() => void) | null };
+	type Recognition = { lang: string; interimResults: boolean; continuous: boolean; start(): void; stop(): void; abort(): void; onerror: ((e: { error: string }) => void) | null; onresult: ((e: any) => void) | null; onend: (() => void) | null };
 	const SR = typeof window !== 'undefined' ? ((window as any).SpeechRecognition || (window as any).webkitSpeechRecognition) : undefined;
 	let rec: Recognition | null = null;
 	let listening = $state(false);
-	function dictate() {
-		if (!SR) return;
-		if (listening) {
-			rec?.stop();
+	let local = $state(false);
+	let processing = $state(false);
+	let feedback = $state('');
+	let stopLocal: (() => void) | undefined;
+	const lifetime = new AbortController();
+	onMount(() => { localDictationAvailable(lifetime.signal).then(v => local = v).catch(() => {}); });
+	onDestroy(() => { lifetime.abort(); rec?.abort(); });
+	function report(code: string) {
+		feedback = t(['not-allowed','service-not-allowed','NotAllowedError'].includes(code) ? 'dictPermission'
+			: ['audio-capture','NotFoundError','NotReadableError'].includes(code) ? 'dictMic'
+			: code === 'no-speech' ? 'dictSilent' : 'dictFailed');
+	}
+	async function dictate() {
+		if (listening) { if (stopLocal) stopLocal(); else rec?.stop(); return; }
+		if (processing) return;
+		feedback = '';
+		if (local) {
+			processing = true;
+			feedback = t('dictWaiting');
+			try {
+				const words = await recordDictation(lifetime.signal, stop => {
+					stopLocal = stop; listening = true; processing = false; feedback = t('dictRecording');
+				}, () => { listening = false; processing = true; feedback = t('dictTranscribing'); });
+				if (words) { text = (text ? text.trimEnd() + ' ' : '') + words; feedback = ''; box?.focus(); }
+				else report('no-speech');
+			} catch (e) { if (!lifetime.signal.aborted) report((e as Error).name); }
+			finally { stopLocal = undefined; processing = false; listening = false; }
 			return;
 		}
+		if (!SR) { report('unavailable'); return; }
 		const base = text ? text.trimEnd() + ' ' : '';
 		rec = new SR() as Recognition;
 		rec.lang = document.documentElement.lang || navigator.language || 'pt-BR';
@@ -92,9 +117,10 @@
 			for (let i = 0; i < e.results.length; i++) said += e.results[i][0].transcript;
 			text = base + said;
 		};
-		rec.onend = () => (listening = false);
+		rec.onerror = e => { if (!lifetime.signal.aborted) report(e.error); };
+		rec.onend = () => { listening = false; if (feedback === t('dictRecording')) feedback = ''; };
 		listening = true;
-		rec.start();
+		try { rec.start(); feedback = t('dictRecording'); } catch (e) { listening = false; report((e as Error).name); }
 	}
 </script>
 
@@ -109,18 +135,19 @@
 			<span class="hidden truncate pl-1 text-[11px] text-muted-foreground lg:block">{hint || t('convKeys')}</span>
 			<span class="ml-auto"></span>
 			{@render actions?.()}
-			{#if SR}
-				<Button type="button" size="icon" variant={listening ? 'default' : 'ghost'} class="size-8 rounded-full {listening ? 'animate-pulse bg-st-fail text-white hover:bg-st-fail' : ''}" onclick={dictate} disabled={disabled} title={listening ? t('convDictateStop') : t('convDictate')} aria-label={listening ? t('convDictateStop') : t('convDictate')} aria-pressed={listening}>
+			{#if SR || local}
+				<Button type="button" size="icon" variant={listening ? 'default' : 'ghost'} class="size-8 rounded-full {listening ? 'animate-pulse bg-st-fail text-white hover:bg-st-fail' : ''}" onclick={dictate} disabled={processing || (disabled && !listening)} title={listening ? t('convDictateStop') : t('convDictate')} aria-label={listening ? t('convDictateStop') : t('convDictate')} aria-pressed={listening}>
 					{#if listening}<MicOffIcon class="size-4" />{:else}<MicIcon class="size-4" />{/if}
 				</Button>
 			{/if}
 			{#if busy && onstop}
 				<Button type="button" size="icon" variant="outline" class="size-8 rounded-full" onclick={onstop} title={t('convStop')} aria-label={t('convStop')}><SquareIcon class="size-3 fill-current" /></Button>
 			{/if}
-			<Button type="submit" size="icon" class="size-8 rounded-full" disabled={!text.trim() || sending || disabled} title={t('convSend')} aria-label={t('convSend')}>
+			<Button type="submit" size="icon" class="size-8 rounded-full" disabled={!text.trim() || sending || disabled || listening || processing} title={t('convSend')} aria-label={t('convSend')}>
 				{#if sending}<Spinner class="size-4" />{:else}<SendIcon class="size-4" />{/if}
 			</Button>
 		</div>
 	</div>
+	{#if feedback}<p class="mx-auto mt-1 max-w-3xl text-xs text-muted-foreground" role="status">{feedback}</p>{/if}
 	{@render footer?.()}
 </form>

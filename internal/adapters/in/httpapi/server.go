@@ -108,6 +108,7 @@ func New(svc *app.Service, opts Options) *Server {
 	s.routeImages()
 	s.routeWork()
 	s.routeConversation()
+	s.routeDictation()
 	s.routeMachines()
 	s.routeLive()
 	s.trustRoutes()

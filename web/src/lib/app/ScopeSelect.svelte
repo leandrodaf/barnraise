@@ -3,7 +3,7 @@
 	import LayersIcon from '@lucide/svelte/icons/layers';
 	import FolderIcon from '@lucide/svelte/icons/folder';
 	import PlusIcon from '@lucide/svelte/icons/plus';
-	import { addProjectDialog } from '$lib/app/addproject.svelte';
+	import { addProjectDialog } from '$lib/app/addproject.svelte.ts';
 	import { t } from '$lib/i18n';
 	import { session } from '$lib/session.svelte';
 

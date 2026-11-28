@@ -17,7 +17,7 @@ const machineStandby = (name: string, on: boolean, why: string) =>
 // newItem opens a conversation with the advisor to ask for work: it reads
 // the code, answers, and writes the item when the owner is happy with it.
 export function newItem() {
-	discussion.show(session.project, chatId('C'), t('chatTitle'));
+	go('queue', session.project, chatId('C'));
 }
 
 // talkGoal and talkFocus open a conversation to shape the goal (CG-…) or the
