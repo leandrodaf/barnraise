@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.7.4 — 2026-11-28
+
+### Correções
+- fix(scheduling): an item's plan.md does not hold it behind every other running item (9ac5bed)
+
 ## v0.7.3 — 2026-11-28
 
 ### Correções
