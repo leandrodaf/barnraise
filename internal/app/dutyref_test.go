@@ -35,3 +35,17 @@ func TestDutiesAreHeldPerCluster(t *testing.T) {
 		t.Fatalf("one cluster, two names for its duty: %s and %s", got, want)
 	}
 }
+
+// In a real repository the shared lease of an older version exists already
+// (lease/housekeeping): the cluster's own lease must not be named under it,
+// since git cannot have a ref below another ref.
+func TestClusterDutyBesideTheSharedLeaseInGit(t *testing.T) {
+	e := newEnv(t, withGit())
+	if _, err := e.arb.Claim(e.ctx, HousekeepingKey, "apolo"); err != nil {
+		t.Fatal(err)
+	}
+	e.ready("feature", "first", "")
+	if !e.svc.holdHousekeeping(e.ctx, e.p) {
+		t.Fatalf("the cluster's housekeeping (%s) could not be claimed beside %s", e.svc.dutyRef(e.p, HousekeepingKey), HousekeepingKey)
+	}
+}

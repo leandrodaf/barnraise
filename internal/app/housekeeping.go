@@ -241,7 +241,11 @@ func (s *Service) dutyRef(p *Project, key string) string {
 	if origin == "" || !validDutyName(origin) {
 		return key
 	}
-	return key + "/" + origin
+	// A sibling, never a child: the shared lease (lease/housekeeping) is a
+	// ref, and git cannot have a ref under another ref's name, so
+	// lease/housekeeping/<cluster> could never be created and every claim
+	// of it failed, holding no duty and slowing every pass.
+	return key + "-" + origin
 }
 
 func validDutyName(n string) bool {
