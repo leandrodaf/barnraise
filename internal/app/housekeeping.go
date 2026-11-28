@@ -78,10 +78,26 @@ func (r *Runtime) housekeeping(ctx context.Context, p *Project, m domain.Machine
 	// to a machine that can run them. The tracker repair starts none: it
 	// stays where it is.
 	if probs := s.machineDistrust(ctx, p); len(probs) > 0 {
-		s.standDown(ctx, p, r.busyItems(p.Name), scopeName(probs[0].Scope)+" changed outside Barnraise")
+		// The owner edits barnraise.yaml and pushes it a moment later: a
+		// root that differs from main only for that moment is no reason to
+		// give every item away. The machine stands down once the change has
+		// stayed for distrustGrace; its sessions are refused meanwhile all
+		// the same (checkProvenance), so nothing runs on the changed files.
+		p.mu.Lock()
+		if p.distrustSince.IsZero() {
+			p.distrustSince = now
+		}
+		since := p.distrustSince
+		p.mu.Unlock()
+		if now.Sub(since) >= distrustGrace {
+			s.standDown(ctx, p, r.busyItems(p.Name), scopeName(probs[0].Scope)+" changed outside Barnraise")
+		}
 		r.repairTracker(ctx, p, now)
 		return
 	}
+	p.mu.Lock()
+	p.distrustSince = time.Time{}
+	p.mu.Unlock()
 	// The autopilot is a duty of its own: a machine whose advisor fails
 	// gives it up and another one takes it.
 	if s.autopilotDue(p, now) {
@@ -149,6 +165,10 @@ func (r *Runtime) housekeeping(ctx context.Context, p *Project, m domain.Machine
 func (s *Service) holdHousekeeping(ctx context.Context, p *Project) bool {
 	return s.holdDuty(ctx, p, HousekeepingKey)
 }
+
+// distrustGrace is how long a changed root stays before the machine gives
+// its items away.
+const distrustGrace = 3 * time.Minute
 
 // holdDuty claims, renews or takes over a project-wide duty held by one
 // machine at a time (a git ref with a deadline).
