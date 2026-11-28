@@ -17,12 +17,13 @@
 	import { standby, resumeProject } from '$lib/app/actions';
 	import FormDialog from '$lib/app/FormDialog.svelte';
 	import AddProject from '$lib/app/AddProject.svelte';
-	import { addProjectDialog } from '$lib/app/addproject.svelte';
+	import { addProjectDialog } from '$lib/app/addproject.svelte.ts';
 	import * as Dialog from '$lib/components/ui/dialog';
 	import AppSidebar from '$lib/app/AppSidebar.svelte';
 	import StatusBar from '$lib/app/StatusBar.svelte';
 	import CommandPalette from '$lib/app/CommandPalette.svelte';
 	import ShortcutsDialog from '$lib/app/ShortcutsDialog.svelte';
+	import { discussion } from '$lib/app/discussion.svelte';
 	import DiscussionSheet from '$lib/app/DiscussionSheet.svelte';
 	import LoginSheet from '$lib/app/LoginSheet.svelte';
 	import ScopeSelect from '$lib/app/ScopeSelect.svelte';
@@ -49,6 +50,14 @@
 	import Documents from './pages/Documents.svelte';
 
 	session.start().catch(() => (session.booting = false));
+
+	$effect(() => {
+		const { name, args } = router.current;
+		const [project, thread] = args;
+		if (!session.signedIn || name !== 'queue' || !project || !/^C-[A-Z0-9]{4,32}$/.test(thread || '')) return;
+		discussion.show(project, thread, t('chatTitle'));
+		return () => { if (discussion.project === project && discussion.thread === thread) discussion.open = false; };
+	});
 
 	let sidebarOpen = $state(window.innerWidth >= 1100);
 	const here = $derived(NAV.find((n) => n.name === (router.current.name === 'item' ? 'queue' : router.current.name)));
@@ -149,7 +158,7 @@
 	</Sidebar.Provider>
 	<CommandPalette />
 	<ShortcutsDialog />
-	<DiscussionSheet />
+	{#key [discussion.project, discussion.thread].join('/')}<DiscussionSheet />{/key}
 	<LoginSheet />
 {/if}
 

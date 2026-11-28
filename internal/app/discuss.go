@@ -227,6 +227,8 @@ func (s *Service) discussMessages(p *Project, itemID string) []*domain.Message {
 const advisorMessages = 12
 
 // advisorSystem is the advisor's standing instructions.
+const advisorFileAccess = "- You only read. Inspect the project files in the supplied working directory before answering questions about them. Use your file-reading tools. If the shell is your file-reading tool, use read-only commands such as ls, rg, cat or sed to inspect repository files. Never modify files, execute project code, run builds or tests, or access the network. If a read fails, give the path and the actual error.\n"
+
 func advisorSystem(p *Project, onMain bool) string {
 	lang := ownerLanguageName(p.Cfg().Language)
 	if lang == "" {
@@ -239,8 +241,7 @@ func advisorSystem(p *Project, onMain bool) string {
 	return "You are the owner's advisor in Barnraise, project " + p.Name + ". The owner must take a decision that waits for them " +
 		"(a question an agent asked, or an approval) and talks it over with you before answering.\n" +
 		"- Answer in " + lang + ", plainly and briefly, for a person who knows the product, not necessarily the code.\n" +
-		"- You only read: look at the files to ground what you say, quote paths and lines when they matter. You never change files, " +
-		"run commands or answer the question in the owner's place. " + where + "\n" + checksAdvice +
+		advisorFileAccess + "- Do not answer the question in the owner's place. " + where + "\n" + checksAdvice +
 		"- Explain what each option means in practice, what it costs and what it risks, and say which one you recommend and why.\n" +
 		"- When the decision only waits because an agent may not change an existing locked file (a test, a reference or a check " +
 		"script) and that change is the right one, recommend option: UNLOCK <path>, <path> (paths from the repository root): " +
@@ -333,6 +334,8 @@ func discussionNotes(p *Project, itemID string) string {
 // now, then the next one. A limit (of the account's window, or of the model
 // alone) is recorded and the next account, then the next model, answers.
 type ProviderAdvisor struct {
+	// Fallback handles the turn when this provider has no eligible account.
+	Fallback *ProviderAdvisor
 	Provider ports.Provider
 	// Account is the one account to use (tests and simple setups); Accounts,
 	// when set, gives the accounts that may run a model now, the least
@@ -378,7 +381,10 @@ func (a *ProviderAdvisor) Ready() (bool, string) {
 			return true, ""
 		}
 	}
-	return false, "every account is at its limit"
+	if a.Fallback != nil {
+		return a.Fallback.Ready()
+	}
+	return false, "no eligible advisor account"
 }
 
 // errAdvisorLimit: the answer was a limit message, not an answer.
@@ -418,6 +424,11 @@ func (a *ProviderAdvisor) Advise(ctx context.Context, req AdviceRequest) (Advice
 				continue
 			}
 			return ans, err
+		}
+	}
+	if a.Fallback != nil {
+		if ready, _ := a.Fallback.Ready(); ready {
+			return a.Fallback.Advise(ctx, req)
 		}
 	}
 	if !tried {

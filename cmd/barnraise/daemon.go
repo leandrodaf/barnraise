@@ -870,23 +870,24 @@ func (d *daemon) projectPorts(cfg *domain.ProjectConfig) (app.ProjectPorts, erro
 		}
 		return *acc.On(d.df.Machine, d.dataDir), true
 	}}
-	// The advisor talks a decision over with the owner, with the strongest
-	// model of the project's Claude ladder, reading only.
-	// When the strongest is at its limit (or every account's window is),
-	// the next model of the ladder answers.
-	ladder := cfg.Models.Ladders["claude"]
-	models := []string{"opus"}
-	if len(ladder) > 0 {
-		models = make([]string, 0, len(ladder))
+	// Preserve Claude as the first choice and use Codex when it has capacity.
+	advisor := func(provider ports.Provider, defaultModel string, ladder []string) *app.ProviderAdvisor {
+		models := make([]string, 0, len(ladder))
 		for i := len(ladder) - 1; i >= 0; i-- {
 			models = append(models, ladder[i])
 		}
+		return &app.ProviderAdvisor{Provider: provider, Models: models, Model: defaultModel, TempDir: os.TempDir(),
+			Accounts: func(model string) []domain.Account { return d.svc.AdvisorAccounts(name, provider.Name(), model) },
+			OnLimit: func(account, model string, resets time.Time, modelOnly bool) {
+				d.svc.AdvisorLimit(name, account, model, resets, modelOnly)
+			}}
 	}
-	pp.Advisor = &app.ProviderAdvisor{Provider: claude.New(claude.Options{}), Models: models, TempDir: os.TempDir(),
-		Accounts: func(model string) []domain.Account { return d.svc.AdvisorAccounts(name, "claude", model) },
-		OnLimit: func(account, model string, resets time.Time, modelOnly bool) {
-			d.svc.AdvisorLimit(name, account, model, resets, modelOnly)
-		}}
+	primary := advisor(claude.New(claude.Options{}), "opus", cfg.Models.Ladders["claude"])
+	primary.Fallback = advisor(codex.New(codex.Options{ExtraArgs: []string{
+		"--ignore-user-config", "--ignore-rules", "--ephemeral",
+		"-c", "approval_policy=\"never\"", "-c", "web_search=\"disabled\"",
+	}}), "", nil)
+	pp.Advisor = primary
 	if d.opts.Fake {
 		pp.Triage, pp.Advisor = nil, nil
 	}

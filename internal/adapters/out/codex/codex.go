@@ -32,6 +32,9 @@ const Sandbox = "workspace-write"
 const ContainerSandbox = "danger-full-access"
 
 func sandboxFor(spec ports.SessionSpec) string {
+	if spec.Role == "advisor" {
+		return "read-only"
+	}
 	if spec.Container != nil || spec.Confine != nil {
 		return ContainerSandbox // the container or Barnraise's own confinement is the boundary
 	}

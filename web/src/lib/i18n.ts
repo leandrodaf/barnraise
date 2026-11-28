@@ -1194,3 +1194,14 @@ Object.assign(pt, {
   projectsPausedHere: 'pausado pelo painel', projectsOnlyWhy: 'só o {0} roda agora',
   projectsPausedOne: '{0} pausado', projectsResumedOne: '{0} rodando de novo', projectsOnlyDone: 'Só o {0} roda agora', projectsAllResumed: 'Todos os projetos rodando', projectsAllPaused: 'Todos os projetos pausados',
 });
+
+Object.assign(en, {
+  dictWaiting: 'Waiting for microphone permission…', dictRecording: 'Recording. Click the microphone again to finish.', dictTranscribing: 'Transcribing on this machine…',
+  dictPermission: 'Allow microphone access for this panel in your browser or Windows settings, then try again.', dictMic: 'No available microphone. Check your input device.',
+  dictSilent: 'No speech detected. Try again.', dictFailed: 'Dictation failed. Check your microphone and try again.'
+});
+Object.assign(pt, {
+  dictWaiting: 'Aguardando acesso ao microfone…', dictRecording: 'Gravando. Clique novamente no microfone para terminar.', dictTranscribing: 'Transcrevendo nesta máquina…',
+  dictPermission: 'Permita o acesso ao microfone para este painel no navegador ou no Windows e tente de novo.', dictMic: 'Microfone indisponível. Confira o dispositivo de entrada.',
+  dictSilent: 'Nenhuma fala detectada. Tente novamente.', dictFailed: 'O ditado falhou. Confira o microfone e tente novamente.'
+});
