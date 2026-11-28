@@ -65,7 +65,14 @@ func (r *Runtime) housekeeping(ctx context.Context, p *Project, m domain.Machine
 			}
 		}()
 	}
-	s.refreshForeignWork(ctx, p, now)
+	// Network and the code host's API: on its own, never in the way of the
+	// heartbeat and the steps of this pass.
+	if p.foreignBusy.CompareAndSwap(false, true) {
+		go func() {
+			defer p.foreignBusy.Store(false)
+			s.refreshForeignWork(context.WithoutCancel(ctx), p, now)
+		}()
+	}
 	if m.Standby {
 		// A machine in standby takes no duty: the cluster's housekeeping
 		// (items of dead machines, imports, digests) goes to one that works.

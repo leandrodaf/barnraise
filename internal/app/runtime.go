@@ -1473,8 +1473,8 @@ func (r *Runtime) renewLeases(ctx context.Context, p *Project) {
 	leases := map[string]ports.Lease{}
 	maps.Copy(leases, p.leases)
 	p.mu.Unlock()
-	for id, l := range leases {
-		nl, err := p.Ports().Arbiter.Renew(ctx, l)
+	for _, rn := range renewAll(ctx, p.Ports().Arbiter, leases) {
+		id, nl, err := rn.id, rn.nl, rn.err
 		switch {
 		case err == nil:
 			p.mu.Lock()
@@ -1512,8 +1512,8 @@ func (r *Runtime) renewLeases(ctx context.Context, p *Project) {
 	issues := map[string]ports.Lease{}
 	maps.Copy(issues, p.issueLeases)
 	p.mu.Unlock()
-	for id, l := range issues {
-		nl, err := p.Ports().Arbiter.Renew(ctx, l)
+	for _, rn := range renewAll(ctx, p.Ports().Arbiter, issues) {
+		id, l, nl, err := rn.id, rn.l, rn.nl, rn.err
 		switch {
 		case err == nil:
 			p.mu.Lock()
@@ -1537,6 +1537,42 @@ func (r *Runtime) renewLeases(ctx context.Context, p *Project) {
 			r.s.d.Log.Debug("issue lease renew failed", "item", id, "err", err)
 		}
 	}
+}
+
+// renewal is one lease renewed: what it was, what it became, and how.
+type renewal struct {
+	id    string
+	l, nl ports.Lease
+	err   error
+}
+
+// renewParallel is how many leases are renewed at once. Each renewal is a
+// round trip to the git server; one after the other, a cluster holding a
+// few dozen leases spent its whole pass renewing them, and the heartbeat
+// and every step waited behind.
+const renewParallel = 4
+
+// renewAll renews the leases at once, a few at a time, and returns every
+// result in the order of their ids.
+func renewAll(ctx context.Context, a ports.Arbiter, leases map[string]ports.Lease) []renewal {
+	out := make([]renewal, 0, len(leases))
+	for id, l := range leases {
+		out = append(out, renewal{id: id, l: l})
+	}
+	slices.SortFunc(out, func(x, y renewal) int { return strings.Compare(x.id, y.id) })
+	sem := make(chan struct{}, renewParallel)
+	var wg sync.WaitGroup
+	for i := range out {
+		wg.Add(1)
+		sem <- struct{}{}
+		go func(rn *renewal) {
+			defer wg.Done()
+			defer func() { <-sem }()
+			rn.nl, rn.err = a.Renew(ctx, rn.l)
+		}(&out[i])
+	}
+	wg.Wait()
+	return out
 }
 
 func asStrings(v any) []string {
