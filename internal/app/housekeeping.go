@@ -97,6 +97,7 @@ func (r *Runtime) housekeeping(ctx context.Context, p *Project, m domain.Machine
 	if !s.holdHousekeeping(ctx, p) {
 		return
 	}
+	s.decideOverdueQuestions(ctx, p, now)
 	s.takeOverDeadItems(ctx, p)
 	s.retireStaleQuestions(ctx, p)
 	if n := s.expireProposals(ctx, p); n > 0 {

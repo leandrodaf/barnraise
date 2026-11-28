@@ -596,3 +596,44 @@ func TestBlockedAgainWaitsBeforeTheAutopilot(t *testing.T) {
 		t.Fatalf("a day later: %d", n)
 	}
 }
+
+// With review.send_back: blockers, only a blocker or failing criteria send
+// the item back; the rest becomes one follow-up proposal and the item goes on.
+func TestReviewSendsBackOnlyBlockers(t *testing.T) {
+	cases := []struct {
+		name     string
+		criteria domain.Verdict
+		severity string
+		back     bool
+	}{
+		{"minor only", domain.VerdictPass, "minor", false},
+		{"a blocker", domain.VerdictPass, "blocker", true},
+		{"criteria fail", domain.VerdictFail, "minor", true},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			e := newEnv(t, withCfg(func(cfg *domain.ProjectConfig) {
+				cfg.Areas = map[string]domain.AreaDef{"cards": {Name: "cards", Paths: []string{"app/cards/**"}}}
+				cfg.Review.SendBack = domain.SendBackBlockers
+			}))
+			it := e.ready("reviewed", "Cards", "cards")
+			e.next("implementer", it.ID)
+			e.mustDeliver(it.ID, domain.Delivery{})
+			before := len(e.p.Snapshot().ProposalList())
+			r := domain.Review{Criteria: c.criteria, Code: domain.VerdictFail, Decision: domain.ReviewRework, Summary: "Meets its criteria. One edge case.",
+				Findings: []domain.Finding{{File: "app/cards/x.go", Line: 3, Severity: c.severity, Text: "typed text with no glyph"}}}
+			got, err := e.svc.Review(e.ctx, "demo", agent("reviewer", it.ID, "review"), r)
+			if err != nil {
+				t.Fatal(err)
+			}
+			sentBack := got.Step != "review" && len(got.Rework) > 0
+			if sentBack != c.back {
+				t.Fatalf("sent back %v, want %v: step %s rework %d", sentBack, c.back, got.Step, len(got.Rework))
+			}
+			follow := len(e.p.Snapshot().ProposalList()) - before
+			if (follow == 1) == c.back {
+				t.Fatalf("follow-up proposals %d with sent back %v", follow, c.back)
+			}
+		})
+	}
+}

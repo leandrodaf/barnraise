@@ -456,6 +456,8 @@ type ProjectConfig struct {
 	Policy          Policy                  `json:"policy"`
 	Egress          EgressDef               `json:"egress"`
 	Merge           MergeDef                `json:"merge"`
+	Review          ReviewDef               `json:"review,omitzero"`
+	Questions       QuestionsDef            `json:"questions,omitzero"`
 	Selection       SelectionDef            `json:"selection,omitzero"`
 	Scheduling      SchedulingDef           `json:"scheduling,omitzero"`
 	Dependencies    DependencyPolicy        `json:"dependencies,omitzero"`
@@ -704,4 +706,25 @@ func GitTokenSecret(host, path string) string {
 		return ""
 	}
 	return "git/" + host + "/" + path
+}
+
+// ReviewDef is what a review may send back.
+type ReviewDef struct {
+	// SendBack: "all" (any finding of the item's area sends it back) or
+	// "blockers" (only a blocker, or criteria that fail, sends it back;
+	// the other findings become one follow-up proposal and the item goes on).
+	SendBack string `json:"send_back,omitempty"`
+}
+
+// Review send-back modes.
+const (
+	SendBackAll      = "all"
+	SendBackBlockers = "blockers"
+)
+
+// QuestionsDef is how long a question to the owner waits.
+type QuestionsDef struct {
+	// DecideAfter: an open question takes its recommended option after this
+	// long with no answer (0: it waits for the owner or the autopilot).
+	DecideAfter time.Duration `json:"decide_after,omitempty"`
 }

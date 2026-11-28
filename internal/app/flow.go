@@ -565,6 +565,7 @@ func (s *Service) Review(ctx context.Context, project string, a Actor, r domain.
 	}
 	areaOf := p.Cfg().AreaOfFile
 	same, other := domain.SplitFindings(cur, r.Findings, areaOf)
+	itemArea := cur.Area
 	p.mu.Unlock()
 	r.Reviewer = actorName(a)
 	r.Family = a.Family
@@ -581,6 +582,22 @@ func (s *Service) Review(ctx context.Context, project string, a Actor, r domain.
 	if outcome != domain.OutcomeApprove && len(same) == 0 {
 		// Every finding was elsewhere: nothing to fix here.
 		outcome = domain.OutcomeApprove
+	}
+	// With review.send_back: blockers, only a blocker or failing criteria
+	// send the item back. The rest, said by a reviewer who found the item
+	// good enough to meet what it promised, becomes one follow-up proposal
+	// in its area and the item goes on to main: work stopped going out for
+	// edge cases and optional polish.
+	if outcome != domain.OutcomeApprove && p.Cfg().Review.SendBack == domain.SendBackBlockers && r.Criteria != domain.VerdictFail && !hasBlocker(same) {
+		outcome = domain.OutcomeApprove
+		if len(same) > 0 || strings.TrimSpace(r.Summary) != "" {
+			_, _ = s.Propose(ctx, p.Name, System(), domain.Proposal{
+				Title:    truncate("Follow-up of "+r.ItemID+": "+firstSentence(r.Summary), 80),
+				Problem:  strings.TrimSpace(r.Summary + "\n" + domain.FormatFindings(same)),
+				Evidence: fmt.Sprintf("review of %s (%s), approved with no blocker", r.ItemID, r.Step),
+				Impact:   "minor", Size: "unknown", Area: itemArea, GoalLink: "found while reviewing " + r.ItemID, Kind: "improvement", By: r.Reviewer})
+		}
+		same = nil
 	}
 	reason := r.Summary
 	if len(same) > 0 {
@@ -719,4 +736,23 @@ func lateMessage(st *domain.State, cur *domain.Item, step, what string) string {
 			"Stop here without delivering: the step resumes with the answer as a message, and you deliver then", cur.ID, q, step, what)
 	}
 	return fmt.Sprintf("%s moved on to step %s (%s); this %s for step %s is no longer needed: stop here", cur.ID, cur.Step, cur.Status, what, step)
+}
+
+// hasBlocker tells whether a finding is marked as a blocker.
+func hasBlocker(fs []domain.Finding) bool {
+	for _, f := range fs {
+		if strings.EqualFold(strings.TrimSpace(f.Severity), "blocker") {
+			return true
+		}
+	}
+	return false
+}
+
+// firstSentence is the text up to its first period or line break.
+func firstSentence(s string) string {
+	s = strings.TrimSpace(s)
+	if i := strings.IndexAny(s, ".\n"); i > 0 {
+		return s[:i]
+	}
+	return s
 }

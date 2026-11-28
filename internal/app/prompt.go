@@ -339,6 +339,12 @@ func (s *Service) reviewMaterial(ctx context.Context, p *Project, it *domain.Ite
 			}
 		}
 	}
+	if p.Cfg().Review.SendBack == domain.SendBackBlockers {
+		b.WriteString("\n## What sends the item back\nIn this project only a `blocker` finding, or criteria that fail, send the item back. " +
+			"A blocker breaks a criterion, makes the checks fail or flaky, or would break main for the player. " +
+			"Everything else (an edge case outside the criteria, polish, a suggestion) is `major` or `minor`: write it, and it becomes " +
+			"a follow-up item while this one goes to main. Do not raise a finding to blocker to have it fixed now.\n")
+	}
 	results := s.checkResultsSince(ctx, p, it.ID, nil)
 	if len(results) > 0 {
 		b.WriteString("\n## Check results\n")
@@ -357,7 +363,8 @@ func (s *Service) reviewMaterial(ctx context.Context, p *Project, it *domain.Ite
 			}
 			diff, err := p.Ports().Git.Diff(ctx, main, head, 60000)
 			if err == nil {
-				diff = filterDiff(diff, ItemFiles)
+				// The repository map is Barnraise's own commit on the branch.
+				diff = filterDiff(diff, append(append([]string{}, ItemFiles...), domain.RepoMapFile))
 				b.WriteString("\n## Diff (main.." + short(head) + ")\n```diff\n" + diff + "\n```\n")
 			}
 		}
@@ -444,6 +451,8 @@ const barnraiseConventions = `
   item change them. When the item replaces what a locked test checks (new art for a placeholder, a removed feature),
   name those files in plan.md and ask the owner for them with ask_owner during the plan step, with the change each
   needs: the answer then comes before the work instead of after a review sends it back.
+- A ` + "`docs(map)`" + ` commit that changes ` + "`" + domain.RepoMapFile + "`" + ` on a branch is Barnraise's own (it refreshes the map):
+  never a finding against the item.
 - The item's own changes are ` + "`git diff origin/main...HEAD`" + ` (three dots: from where the branch left the remote's
   main; use the project's main branch name if it is not main). Never judge an item by ` + "`git diff main`" + ` or two dots:
   that shows main's own newer commits as if the item made them, and sends good work back.

@@ -306,6 +306,14 @@ type rawConfig struct {
 		Contracts []string          `yaml:"contracts"`
 		Standard  string            `yaml:"standard"`
 	} `yaml:"areas"`
+	// Questions to the owner that decide themselves after a while.
+	Questions struct {
+		DecideAfter string `yaml:"decide_after"`
+	} `yaml:"questions"`
+	// Review says what a review may send back.
+	Review struct {
+		SendBack string `yaml:"send_back"`
+	} `yaml:"review"`
 	Merge struct {
 		Mode         string `yaml:"mode"`
 		Batch        int    `yaml:"batch"`
@@ -636,6 +644,18 @@ func (r *rawConfig) compile(root, tmpl string) (*domain.ProjectConfig, error) {
 	c.Selection = domain.SelectionDef{AllWhen: r.Selection.AllWhen, NoneWhen: r.Selection.NoneWhen}
 	c.Scheduling = domain.SchedulingDef{SharedFiles: r.Scheduling.SharedFiles}
 	c.Merge = domain.MergeDef{Mode: def(r.Merge.Mode, "squash"), Batch: r.Merge.Batch, Changelog: r.Merge.Changelog, Tag: r.Merge.Tag, UseHostQueue: r.Merge.UseHostQueue, HostChecks: def(r.Merge.HostChecks, "wait")}
+	if v := strings.TrimSpace(r.Questions.DecideAfter); v != "" && v != "off" {
+		d, err := domain.ParseDuration(v)
+		if err != nil || d < time.Minute {
+			return nil, fmt.Errorf("questions.decide_after: %q is not a duration of a minute or more (30m, 2h) or off", v)
+		}
+		c.Questions.DecideAfter = d
+	}
+	switch c.Review.SendBack = def(r.Review.SendBack, domain.SendBackAll); c.Review.SendBack {
+	case domain.SendBackAll, domain.SendBackBlockers:
+	default:
+		return nil, fmt.Errorf("review.send_back: %q is not all or blockers", r.Review.SendBack)
+	}
 	if c.Merge.Batch <= 0 {
 		c.Merge.Batch = 4
 	}
