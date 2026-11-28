@@ -155,6 +155,12 @@ func (r *Repo) setupStructural(ctx context.Context, s MergeSetup, rep *MergeSetu
 			lines = append(lines, p+" merge="+StructuralDriver)
 		}
 	}
+	// The project's own merge rules, again after Barnraise's: info/attributes
+	// wins over .gitattributes whatever the patterns, so a project rule for
+	// one file (concept/pixel-art.md merge=union) lost to Barnraise's *.md.
+	// Within one file the last matching line wins.
+	structural := len(lines)
+	lines = append(lines, r.projectMergeLines()...)
 	// Where the program is missing (an agent's container, an uninstall since
 	// the daemon started) the driver falls back to git's own line merge, with
 	// conflict markers, instead of failing the merge without them.
@@ -170,7 +176,7 @@ func (r *Repo) setupStructural(ctx context.Context, s MergeSetup, rep *MergeSetu
 	if err := r.writeAttributes(ctx, lines); err != nil {
 		return err
 	}
-	rep.Structural, rep.Patterns = path, len(lines)
+	rep.Structural, rep.Patterns = path, structural
 	return nil
 }
 
@@ -232,6 +238,32 @@ func (r *Repo) projectMergePatterns() map[string]bool {
 			if a == "merge" || a == "-merge" || a == "!merge" || a == "binary" || strings.HasPrefix(a, "merge=") {
 				out[f[0]] = true
 			}
+		}
+	}
+	return out
+}
+
+// projectMergeLines are the project's .gitattributes lines that give a merge
+// behaviour, as they are written there.
+func (r *Repo) projectMergeLines() []string {
+	data, err := os.ReadFile(filepath.Join(r.root, ".gitattributes"))
+	if err != nil {
+		return nil
+	}
+	var out []string
+	for line := range strings.SplitSeq(string(data), "\n") {
+		f := strings.Fields(line)
+		if len(f) < 2 || strings.HasPrefix(f[0], "#") {
+			continue
+		}
+		var keep []string
+		for _, a := range f[1:] {
+			if a == "merge" || a == "-merge" || a == "!merge" || a == "binary" || strings.HasPrefix(a, "merge=") {
+				keep = append(keep, a)
+			}
+		}
+		if len(keep) > 0 {
+			out = append(out, f[0]+" "+strings.Join(keep, " "))
 		}
 	}
 	return out

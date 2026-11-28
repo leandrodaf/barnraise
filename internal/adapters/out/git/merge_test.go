@@ -212,7 +212,8 @@ func TestStructuralDriverResolvesRebase(t *testing.T) {
 	}
 	attrs := read(t, filepath.Join(common, "info", "attributes"))
 	if !strings.HasPrefix(attrs, "*.bin binary\n") || !strings.Contains(attrs, "*.txt merge="+StructuralDriver) ||
-		!strings.Contains(attrs, "go.mod merge="+StructuralDriver) || strings.Contains(attrs, "*.lock") || strings.Contains(attrs, "$(x)") {
+		!strings.Contains(attrs, "go.mod merge="+StructuralDriver) || strings.Contains(attrs, "*.lock merge="+StructuralDriver) ||
+		!strings.Contains(attrs, "*.lock merge=ours\n") || strings.Contains(attrs, "$(x)") {
 		t.Fatalf("attributes:\n%s", attrs)
 	}
 	// Idempotent.
@@ -310,5 +311,24 @@ func TestReplaceBlockAndQuote(t *testing.T) {
 	}
 	if q := shellQuote("/a b/it's"); q != `'/a b/it'\''s'` {
 		t.Fatal(q)
+	}
+}
+
+// A project rule for one file wins over Barnraise's pattern for its kind:
+// info/attributes beats .gitattributes whatever the patterns, so the rule is
+// written again after Barnraise's.
+func TestProjectMergeRuleWinsOverStructuralPattern(t *testing.T) {
+	ctx := context.Background()
+	c := newConflictRepo(t, "MAIN", "ITEM")
+	write(t, c.root, ".gitattributes", "docs/log.md merge=union\n")
+	bin := fakeStructural(t, `*.md merge=mergiraf\n`)
+	if _, err := c.repo.SetupMerge(ctx, MergeSetup{Structural: "auto", StructuralBin: bin}); err != nil {
+		t.Fatal(err)
+	}
+	if got := g(t, c.root, "check-attr", "merge", "docs/log.md"); !strings.HasSuffix(got, "merge: union") {
+		t.Fatalf("docs/log.md: %q", got)
+	}
+	if got := g(t, c.root, "check-attr", "merge", "README.md"); !strings.HasSuffix(got, "merge: "+StructuralDriver) {
+		t.Fatalf("README.md: %q", got)
 	}
 }
