@@ -1,5 +1,13 @@
 # Changelog
 
+## v0.7.7 — 2026-11-28
+
+### Novidades
+- feat(panel): Issues and PRs, with who works on each one, ours and other people's (b005916)
+
+### Correções
+- fix(panel): the chats stop flickering and reloading (38df083)
+
 ## v0.7.6 — 2026-11-28
 
 ### Correções
