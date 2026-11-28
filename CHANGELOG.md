@@ -1,5 +1,13 @@
 # Changelog
 
+## v0.7.5 — 2026-11-28
+
+### Novidades
+- feat(scheduling): items stay small, and nobody's work on the same files is duplicated (cd47857)
+
+### Correções
+- fix(trust): a root edited and pushed a moment later does not give the machine's items away (0844e54)
+
 ## v0.7.4 — 2026-11-28
 
 ### Correções
