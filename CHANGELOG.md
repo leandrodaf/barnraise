@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.7.6 — 2026-11-28
+
+### Correções
+- fix(checks): a change of thousands of files runs its checks, and a check that does not start is no rework (0e783c2)
+
 ## v0.7.5 — 2026-11-28
 
 ### Novidades
