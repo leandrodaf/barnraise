@@ -178,7 +178,7 @@ selection:
   none_when: ["docs/**", "*.md"]                                         # needs no check
 ```
 
-`barnraise check --touched backend/api/user.go --touched web/src/App.tsx` shows which checks would run for those files, and why the others are skipped. Each check also receives `BARNRAISE_TOUCHED` (the files, one per line) and `BARNRAISE_AREAS`, so a command can narrow itself further, for example to the tests related to the touched sources.
+`barnraise check --touched backend/api/user.go --touched web/src/App.tsx` shows which checks would run for those files, and why the others are skipped. Each check also receives `BARNRAISE_TOUCHED` (the files, one per line; for a change too large for one variable it is empty and `BARNRAISE_TOUCHED_FILE` names a file in the worktree with the list) and `BARNRAISE_AREAS`, so a command can narrow itself further, for example to the tests related to the touched sources.
 
 A `github-actions` check needs the code host to be GitHub; see [`action/check`](../action/check) for the workflow side. `barnraise check` reports a check with no command, no workflow or no url.
 

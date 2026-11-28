@@ -525,8 +525,15 @@ func (s *Service) runCheckStep(ctx context.Context, p *Project, it *domain.Item,
 		spec := ports.CheckSpec{Def: def, ItemID: it.ID, Branch: it.Branch, Commit: head, Dir: dir, Touched: touched, Areas: areaList,
 			Env: s.worktreeCmdEnv(p, it.ID, dir), Base: s.checkBase(ctx, p, main, head)}
 		res, pending, err := s.d.Checks.Run(ctx, spec)
+		if err != nil && ctx.Err() == nil {
+			// A check that did not even start says nothing about the item:
+			// once more, then the item waits for this machine to be
+			// repaired instead of going back to its agent for rework.
+			s.d.Log.Warn("check did not start; trying once more", "item", it.ID, "check", n, "err", err)
+			res, pending, err = s.d.Checks.Run(ctx, spec)
+		}
 		if err != nil {
-			res = domain.CheckResult{Check: n, Passed: false, Summary: "check could not run: " + err.Error()}
+			res = domain.CheckResult{Check: n, Passed: false, MainRed: true, CannotRun: true, Summary: "check could not run on " + s.d.Machine + ": " + err.Error()}
 		}
 		if pending {
 			pendingAny = true

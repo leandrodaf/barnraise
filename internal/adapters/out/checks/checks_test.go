@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -306,5 +307,27 @@ func TestPluginCheck(t *testing.T) {
 	}
 	if _, _, err = NewRunner(Options{}).Run(context.Background(), s); err == nil || !strings.Contains(err.Error(), "no plugins are configured") {
 		t.Fatalf("err = %v", err)
+	}
+}
+
+// A change of thousands of files passed Linux's limit for one variable and
+// the check could not start: the list goes in a file instead.
+func TestHugeTouchedListGoesInAFile(t *testing.T) {
+	dir := t.TempDir()
+	r := newRunner(t, Options{})
+	s := spec(dir, `test -z "$BARNRAISE_TOUCHED" && wc -l < "$BARNRAISE_TOUCHED_FILE" > count.txt`)
+	s.Touched = nil
+	for i := range 5000 {
+		s.Touched = append(s.Touched, fmt.Sprintf("art/pixel/keepers/warden/frames/run/east/frame_%04d.png", i))
+	}
+	res, _, err := r.Run(context.Background(), s)
+	if err != nil || !res.Passed {
+		t.Fatalf("%v %+v", err, res)
+	}
+	if b, _ := os.ReadFile(filepath.Join(dir, "count.txt")); strings.TrimSpace(string(b)) != "5000" {
+		t.Fatalf("the check read %q files", b)
+	}
+	if left, _ := filepath.Glob(filepath.Join(dir, ".barnraise-touched-*")); len(left) != 0 {
+		t.Fatalf("left behind: %v", left)
 	}
 }

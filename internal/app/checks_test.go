@@ -38,13 +38,20 @@ func TestCheckStepOutcomes(t *testing.T) {
 		t.Fatalf("rework %+v", got.Rework)
 	}
 
-	e.checks.Script("main", testkit.CheckOutcome{Err: errors.New("runner down")})
+	// A check that does not start says nothing about the item: it is tried
+	// once more, and then the item waits for the machine, with no rework.
+	e.checks.Script("main", testkit.CheckOutcome{Err: errors.New("runner down")}, testkit.CheckOutcome{Err: errors.New("runner down")})
 	broken := e.atCheck("broken")
 	e.drive(broken.ID)
-	got = e.wantStatus(broken.ID, domain.StatusInProgress, "implement")
-	if !strings.Contains(got.Rework[0].Reason, "check could not run: runner down") {
-		t.Fatal(got.Rework[0].Reason)
+	got = e.wantStatus(broken.ID, domain.StatusBlocked, "check")
+	if len(got.Rework) != 0 {
+		t.Fatalf("a check that could not start sent the item back: %+v", got.Rework)
 	}
+	// Once more and it starts: the step goes on.
+	e.checks.Script("main", testkit.CheckOutcome{Err: errors.New("argument list too long")}, testkit.Pass)
+	flaky := e.atCheck("starts the second time")
+	e.drive(flaky.ID)
+	e.wantStatus(flaky.ID, domain.StatusQueued, "integrate")
 }
 
 // A check that is red on main too says nothing about the item. Instead of

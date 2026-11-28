@@ -292,10 +292,26 @@ func (r *Runner) once(ctx context.Context, spec ports.CheckSpec, dir string, onM
 		branch = "main"
 		env = append(env, "BARNRAISE_MAIN=1")
 	}
+	// The touched files go in a variable, one per line. A change of
+	// hundreds of files (a sprite set) passed Linux's limit for one variable
+	// (128 KiB) and the check could not even start: past touchedInline the
+	// list is a file in the worktree, named by BARNRAISE_TOUCHED_FILE, and
+	// the variable is left empty.
+	touched := strings.Join(spec.Touched, "\n")
+	touchedFile := ""
+	if len(touched) > touchedInline {
+		touchedFile = filepath.Join(dir, fmt.Sprintf(".barnraise-touched-%s-%d", safe(def.Name), n))
+		if err := os.WriteFile(touchedFile, []byte(touched+"\n"), 0o600); err != nil {
+			return runOutcome{}, fmt.Errorf("check %s: write the touched files: %w", def.Name, err)
+		}
+		defer os.Remove(touchedFile)
+		touched = ""
+		env = append(env, "BARNRAISE_TOUCHED_FILE="+touchedFile)
+	}
 	env = append(env,
 		"BARNRAISE_ITEM="+spec.ItemID,
 		"BARNRAISE_CHECK="+def.Name,
-		"BARNRAISE_TOUCHED="+strings.Join(spec.Touched, "\n"),
+		"BARNRAISE_TOUCHED="+touched,
 		"BARNRAISE_AREAS="+strings.Join(spec.Areas, "\n"),
 		"BARNRAISE_BRANCH="+branch,
 		"BARNRAISE_COMMIT="+spec.Commit,
@@ -337,6 +353,9 @@ func (r *Runner) once(ctx context.Context, spec ports.CheckSpec, dir string, onM
 	}
 	return runOutcome{passed: passed, summary: summary, logPath: logPath, duration: res.Duration}, nil
 }
+
+// touchedInline is the longest touched list passed in the variable itself.
+const touchedInline = 32 << 10
 
 func (r *Runner) saveLog(spec ports.CheckSpec, side string, n int, out []byte) (string, error) {
 	if err := os.MkdirAll(r.o.LogDir, 0o700); err != nil {

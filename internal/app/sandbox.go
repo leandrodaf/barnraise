@@ -151,7 +151,7 @@ func (s *Service) CheckConfine(project string, def domain.CheckDef, dir string, 
 		extra["NO_PROXY"], extra["no_proxy"] = "localhost,127.0.0.1", "localhost,127.0.0.1"
 	}
 	names := envNames(env, extra)
-	names = append(names, "BARNRAISE_ITEM", "BARNRAISE_CHECK", "BARNRAISE_TOUCHED", "BARNRAISE_AREAS", "BARNRAISE_BRANCH", "BARNRAISE_COMMIT", "BARNRAISE_MAIN")
+	names = append(names, "BARNRAISE_ITEM", "BARNRAISE_CHECK", "BARNRAISE_TOUCHED", "BARNRAISE_TOUCHED_FILE", "BARNRAISE_AREAS", "BARNRAISE_BRANCH", "BARNRAISE_COMMIT", "BARNRAISE_MAIN")
 	conf, err := s.confinement(p, profile, []string{dir, repoGit(p)}, def.Run, names)
 	if err != nil {
 		return nil, nil, err
