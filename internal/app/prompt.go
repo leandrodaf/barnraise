@@ -440,6 +440,9 @@ const barnraiseConventions = `
   (type(scope): subject — imperative, lower case, no final period), whatever language the item is written in.
   Barnraise writes the changelog from ` + "`change`" + `; never edit the changelog file. The header (type, scope and
   subject) fits in 72 characters: the detail goes in the body.
+- The item's own changes are ` + "`git diff origin/main...HEAD`" + ` (three dots: from where the branch left the remote's
+  main; use the project's main branch name if it is not main). Never judge an item by ` + "`git diff main`" + ` or two dots:
+  that shows main's own newer commits as if the item made them, and sends good work back.
 - Waiting: run a long command in the foreground with a timeout (one Bash call may take ten minutes). To wait for
   one running in the background, use a single call such as ` + "`timeout 600 sh -c 'until [ -s <file> ]; do sleep 10; done'`" + `;
   never ` + "`sleep N; <command>`" + `, which the CLI refuses. The Monitor tool must be loaded with ToolSearch first.
