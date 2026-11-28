@@ -452,6 +452,8 @@ const barnraiseConventions = `
   item change them. When the item replaces what a locked test checks (new art for a placeholder, a removed feature),
   name those files in plan.md and ask the owner for them with ask_owner during the plan step, with the change each
   needs: the answer then comes before the work instead of after a review sends it back.
+- A conflict of the branch with main is the merge queue's: it rebases the branch and sends it back if a conflict
+  remains. Never a finding, a proposal or a reason to send the item back.
 - A ` + "`docs(map)`" + ` commit that changes ` + "`" + domain.RepoMapFile + "`" + ` on a branch is Barnraise's own (it refreshes the map):
   never a finding against the item.
 - The item's own changes are ` + "`git diff origin/main...HEAD`" + ` (three dots: from where the branch left the remote's

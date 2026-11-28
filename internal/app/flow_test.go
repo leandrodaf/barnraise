@@ -637,3 +637,14 @@ func TestReviewSendsBackOnlyBlockers(t *testing.T) {
 		})
 	}
 }
+
+func TestBranchConflictFindings(t *testing.T) {
+	for _, s := range []string{"`git merge-tree origin/main HEAD` gives CONFLICT (content) in field_plan.gd", "The branch conflicts with origin/main in x.go", "rebase conflict with main in a.go"} {
+		if !branchConflict(s) {
+			t.Errorf("%q is a branch conflict", s)
+		}
+	}
+	if branchConflict("STUDIES drops the hut study") || branchConflict("a conflict between two tooltips on screen") {
+		t.Error("ordinary findings are not branch conflicts")
+	}
+}

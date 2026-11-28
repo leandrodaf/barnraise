@@ -3,6 +3,7 @@ package app
 import (
 	"context"
 	"fmt"
+	"slices"
 	"strings"
 	"time"
 
@@ -588,6 +589,11 @@ func (s *Service) Review(ctx context.Context, project string, a Actor, r domain.
 		return nil, err
 	}
 	// Findings of other areas become proposals; same-area findings are the rework reason.
+	// A conflict of the reviewed branch with main is not other work: the
+	// merge queue rebases the branch and sends it back if one remains. As a
+	// proposal it became a P0 item of its own (I-105) to merge main into
+	// another item's branch.
+	other = slices.DeleteFunc(other, func(f domain.Finding) bool { return branchConflict(f.Text) })
 	for _, fnd := range other {
 		_, _ = s.Propose(ctx, p.Name, System(), domain.Proposal{Title: truncate(fnd.Text, 80), Problem: fnd.Text, Evidence: fmt.Sprintf("review of %s at %s:%d", r.ItemID, fnd.File, fnd.Line),
 			Impact: def(fnd.Severity, "minor"), Size: "unknown", Area: fnd.Area, GoalLink: "found while reviewing " + r.ItemID, Kind: "improvement", By: r.Reviewer})
@@ -769,4 +775,14 @@ func firstSentence(s string) string {
 		return s[:i]
 	}
 	return s
+}
+
+// branchConflict tells a finding that is about the reviewed branch
+// conflicting with main, not about the code.
+func branchConflict(text string) bool {
+	t := strings.ToLower(text)
+	if strings.Contains(t, "merge-tree") {
+		return true
+	}
+	return strings.Contains(t, "conflict") && (strings.Contains(t, "origin/main") || strings.Contains(t, "rebase") || strings.Contains(t, "merge main") || strings.Contains(t, "with main"))
 }
