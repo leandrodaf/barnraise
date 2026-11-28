@@ -208,6 +208,8 @@ type FakeGit struct {
 	WorktreeErr error
 	SquashSHA   string
 	CommitSHA   string
+	// Branches are the remote's branches for RemoteBranches.
+	Branches map[string]string
 }
 
 var _ ports.Git = (*FakeGit)(nil)
@@ -406,4 +408,18 @@ func (g *FakeGit) DeleteBranch(_ context.Context, branch string) error {
 func firstLine(s string) string {
 	l, _, _ := strings.Cut(s, "\n")
 	return l
+}
+
+// RemoteBranches implements ports.Git.
+func (g *FakeGit) RemoteBranches(_ context.Context, prefix string) (map[string]string, error) {
+	g.record("RemoteBranches %s", prefix)
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	out := map[string]string{}
+	for name, sha := range g.Branches {
+		if strings.HasPrefix(name, prefix) {
+			out[name] = sha
+		}
+	}
+	return out, nil
 }

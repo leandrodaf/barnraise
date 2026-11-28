@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"time"
 
 	"github.com/leandrodaf/barnraise/internal/adapters/out/httpx"
 	"github.com/leandrodaf/barnraise/internal/ports"
@@ -28,7 +29,54 @@ type ghPull struct {
 	MergedAt *string `json:"merged_at"`
 	Head     struct {
 		Ref string `json:"ref"`
+		SHA string `json:"sha"`
 	} `json:"head"`
+	Title     string    `json:"title"`
+	UpdatedAt time.Time `json:"updated_at"`
+	User      struct {
+		Login string `json:"login"`
+	} `json:"user"`
+}
+
+var _ ports.PRLister = (*CodeHost)(nil)
+
+// OpenPRs implements ports.PRLister: every open pull request, anyone's.
+func (h *CodeHost) OpenPRs(ctx context.Context) ([]ports.OpenPR, error) {
+	next := h.c.repoPath("/pulls") + "?" + url.Values{"state": {"open"}, "per_page": {"100"}}.Encode()
+	var out []ports.OpenPR
+	for page := 0; next != "" && page < 20; page++ {
+		var pulls []ghPull
+		resp, err := h.c.do(ctx, http.MethodGet, next, nil, &pulls)
+		if err != nil {
+			return nil, err
+		}
+		for _, p := range pulls {
+			out = append(out, ports.OpenPR{Number: p.Number, Title: p.Title, URL: p.HTMLURL, Author: p.User.Login,
+				Head: p.Head.Ref, SHA: p.Head.SHA, Draft: p.Draft, Updated: p.UpdatedAt})
+		}
+		next = httpx.NextLink(resp.Header)
+	}
+	return out, nil
+}
+
+// PRFiles implements ports.PRLister: the files a pull request changes.
+func (h *CodeHost) PRFiles(ctx context.Context, number int) ([]string, error) {
+	next := h.c.repoPath("/pulls/%d/files", number) + "?per_page=100"
+	var out []string
+	for page := 0; next != "" && page < 30; page++ {
+		var files []struct {
+			Filename string `json:"filename"`
+		}
+		resp, err := h.c.do(ctx, http.MethodGet, next, nil, &files)
+		if err != nil {
+			return nil, err
+		}
+		for _, f := range files {
+			out = append(out, f.Filename)
+		}
+		next = httpx.NextLink(resp.Header)
+	}
+	return out, nil
 }
 
 func (p ghPull) toPR() ports.PR {

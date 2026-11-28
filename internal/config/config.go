@@ -260,8 +260,14 @@ type rawConfig struct {
 	} `yaml:"proposals"`
 	Items struct {
 		TargetSize string `yaml:"target_size"`
-		Smaller    string `yaml:"smaller"`
-		Tweaks     struct {
+		// MaxChange caps what one item may change, measured on its branch.
+		MaxChange struct {
+			Files   int      `yaml:"files"`
+			Lines   int      `yaml:"lines"`
+			Exclude []string `yaml:"exclude"`
+		} `yaml:"max_change"`
+		Smaller string `yaml:"smaller"`
+		Tweaks  struct {
 			GroupBy       string `yaml:"group_by"`
 			BecomeItemAt  int    `yaml:"become_item_at"`
 			AttachOnClaim *bool  `yaml:"attach_on_claim"`
@@ -337,7 +343,9 @@ type rawConfig struct {
 		NoneWhen []string `yaml:"none_when"`
 	} `yaml:"selection"`
 	Scheduling struct {
-		SharedFiles []string `yaml:"shared_files"`
+		SharedFiles   []string `yaml:"shared_files"`
+		OtherClusters string   `yaml:"other_clusters"`
+		StaleAfter    string   `yaml:"stale_after"`
 	} `yaml:"scheduling"`
 	Lease struct {
 		Renew string `yaml:"renew"`
@@ -585,6 +593,10 @@ func (r *rawConfig) compile(root, tmpl string) (*domain.ProjectConfig, error) {
 	if r.Items.Tweaks.AttachOnClaim != nil {
 		c.Tweaks.AttachOnClaim = *r.Items.Tweaks.AttachOnClaim
 	}
+	if r.Items.MaxChange.Files < 0 || r.Items.MaxChange.Lines < 0 {
+		return nil, fmt.Errorf("items.max_change: files and lines are counts, 0 for no limit")
+	}
+	c.MaxChange = domain.MaxChange{Files: r.Items.MaxChange.Files, Lines: r.Items.MaxChange.Lines, Exclude: r.Items.MaxChange.Exclude}
 	c.TargetSize = def(r.Items.TargetSize, "2h-6h")
 	if _, _, err := domain.ParseSizeRange(c.TargetSize); err != nil {
 		return nil, fmt.Errorf("items.target_size: %w", err)
@@ -642,7 +654,18 @@ func (r *rawConfig) compile(root, tmpl string) (*domain.ProjectConfig, error) {
 
 	c.Container = domain.ContainerDef{Image: strings.TrimSpace(r.Container.Image), Engine: r.Container.Engine, Network: r.Container.Network, Mounts: r.Container.Mounts, GPU: r.Container.GPU}
 	c.Selection = domain.SelectionDef{AllWhen: r.Selection.AllWhen, NoneWhen: r.Selection.NoneWhen}
-	c.Scheduling = domain.SchedulingDef{SharedFiles: r.Scheduling.SharedFiles}
+	c.Scheduling = domain.SchedulingDef{SharedFiles: r.Scheduling.SharedFiles, OtherClusters: def(r.Scheduling.OtherClusters, domain.OtherClustersWait)}
+	c.Scheduling.StaleAfter = 72 * time.Hour
+	if v := strings.TrimSpace(r.Scheduling.StaleAfter); v != "" {
+		d, err := domain.ParseDuration(v)
+		if err != nil || d < time.Hour {
+			return nil, fmt.Errorf("scheduling.stale_after: %q is not a duration of an hour or more (3d, 48h)", v)
+		}
+		c.Scheduling.StaleAfter = d
+	}
+	if c.Scheduling.OtherClusters != domain.OtherClustersWait && c.Scheduling.OtherClusters != domain.OtherClustersIgnore {
+		return nil, fmt.Errorf("scheduling.other_clusters: %q is not wait or ignore", r.Scheduling.OtherClusters)
+	}
 	c.Merge = domain.MergeDef{Mode: def(r.Merge.Mode, "squash"), Batch: r.Merge.Batch, Changelog: r.Merge.Changelog, Tag: r.Merge.Tag, UseHostQueue: r.Merge.UseHostQueue, HostChecks: def(r.Merge.HostChecks, "wait")}
 	if v := strings.TrimSpace(r.Questions.DecideAfter); v != "" && v != "off" {
 		d, err := domain.ParseDuration(v)
@@ -1140,7 +1163,7 @@ func Explain(cfg *domain.ProjectConfig) (string, error) {
 		"approves": cfg.Approves, "main_branch": cfg.MainBranch, "tracker": cfg.Tracker, "code_host": cfg.CodeHost,
 		"checks": cfg.Checks, "roles": cfg.Roles, "flows": flows, "kinds": cfg.KindFlows, "capacity": cfg.Capacity,
 		"proposals": map[string]any{"per_agent_per_day": cfg.Proposals.PerAgentPerDay, "expire": cfg.Proposals.Expire.String(), "duplicate": cfg.Proposals.Duplicate},
-		"items":     map[string]any{"target_size": cfg.TargetSize, "smaller": cfg.SmallerBecomes, "tweaks": cfg.Tweaks, "same_area_findings": cfg.SameAreaFinding},
+		"items":     map[string]any{"max_change": cfg.MaxChange, "target_size": cfg.TargetSize, "smaller": cfg.SmallerBecomes, "tweaks": cfg.Tweaks, "same_area_findings": cfg.SameAreaFinding},
 		"models":    cfg.Models, "policy": cfg.Policy, "areas": cfg.Areas, "merge": cfg.Merge,
 		"lease":  map[string]string{"renew": cfg.Lease.Renew.String(), "ttl": cfg.Lease.TTL.String()},
 		"budget": cfg.Budget, "knowledge": cfg.Knowledge, "revalidation": map[string]string{"stale_after": cfg.StaleAfter.String()},

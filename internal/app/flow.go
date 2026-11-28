@@ -412,6 +412,20 @@ func (s *Service) Deliver(ctx context.Context, project string, a Actor, d domain
 		}
 		s.d.Log.Warn("commit step", "item", d.ItemID, "err", err)
 	}
+	// items.max_change: a delivery that changes the product stays small
+	// enough to review and integrate safely. Its work is committed above,
+	// so nothing is lost; the agent splits it and delivers again.
+	if mc := p.Cfg().MaxChange; mc.On() && d.Change != nil {
+		if size, err := s.changeSize(ctx, p, d.ItemID); err == nil {
+			if over := overMaxChange(size, mc); over != "" {
+				return nil, fmt.Errorf("%w: this item changes %s (items.max_change). Split it: keep on this branch only what this item's criteria need, "+
+					"propose the rest as new items with the propose tool (each small enough to review on its own), then deliver again%s",
+					ErrInvalid, over, excludedNote(mc))
+			}
+		} else {
+			s.d.Log.Warn("measure the item's change", "item", d.ItemID, "err", err)
+		}
+	}
 	if _, err := s.emit(ctx, p, domain.EvDeliverySubmitted, d.ItemID, d.Agent, domain.Payload{Delivery: &d}); err != nil {
 		return nil, err
 	}
@@ -595,7 +609,7 @@ func (s *Service) Review(ctx context.Context, project string, a Actor, r domain.
 				Title:    truncate("Follow-up of "+r.ItemID+": "+firstSentence(r.Summary), 80),
 				Problem:  strings.TrimSpace(r.Summary + "\n" + domain.FormatFindings(same)),
 				Evidence: fmt.Sprintf("review of %s (%s), approved with no blocker", r.ItemID, r.Step),
-				Impact:   "minor", Size: "unknown", Area: itemArea, GoalLink: "found while reviewing " + r.ItemID, Kind: "improvement", By: r.Reviewer})
+				Impact:   "minor", Size: "unknown", Area: def(itemArea, "general"), GoalLink: "found while reviewing " + r.ItemID, Kind: "improvement", By: r.Reviewer})
 		}
 		same = nil
 	}

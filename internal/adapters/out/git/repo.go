@@ -700,3 +700,30 @@ func (r *Repo) DeleteBranch(ctx context.Context, branch string) error {
 	_, _ = r.git(ctx, "", "update-ref", "-d", r.TrackingRef(branch))
 	return nil
 }
+
+// RemoteBranches implements ports.Git.
+func (r *Repo) RemoteBranches(ctx context.Context, prefix string) (map[string]string, error) {
+	out := map[string]string{}
+	if !r.HasRemote() {
+		list, err := r.git(ctx, "", "for-each-ref", "--format=%(objectname) %(refname)", "refs/heads/"+prefix)
+		if err != nil {
+			return nil, err
+		}
+		for line := range strings.SplitSeq(list, "\n") {
+			if sha, ref, ok := strings.Cut(strings.TrimSpace(line), " "); ok && strings.HasPrefix(ref, "refs/heads/"+prefix) {
+				out[strings.TrimPrefix(ref, "refs/heads/")] = sha
+			}
+		}
+		return out, nil
+	}
+	list, err := r.git(ctx, "", "ls-remote", "--heads", r.remote, "refs/heads/"+prefix+"*")
+	if err != nil {
+		return nil, fmt.Errorf("%w: %v", ports.ErrOffline, err)
+	}
+	for line := range strings.SplitSeq(list, "\n") {
+		if sha, ref, ok := strings.Cut(strings.TrimSpace(line), "\t"); ok {
+			out[strings.TrimPrefix(ref, "refs/heads/")] = sha
+		}
+	}
+	return out, nil
+}

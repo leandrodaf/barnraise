@@ -66,6 +66,14 @@ type SchedulingDef struct {
 	// time (a central scene or script every item touches): they do not keep
 	// two items apart, and the merge queue settles what they both changed.
 	SharedFiles []string `json:"shared_files,omitempty"`
+	// OtherClusters: "wait" (default) holds a new item whose files a
+	// Barnraise not paired with this one (a teammate's) is changing on the
+	// same repository; "ignore" starts it anyway.
+	OtherClusters string `json:"other_clusters,omitempty"`
+	// StaleAfter: other people's work (a pull request, another cluster's
+	// item) with no activity for this long holds nothing, and is proposed
+	// to be continued or taken over.
+	StaleAfter time.Duration `json:"stale_after,omitempty"`
 }
 
 // Exclusive drops the shared files from what an item is predicted to touch:
@@ -449,6 +457,7 @@ type ProjectConfig struct {
 	Proposals       ProposalRules           `json:"proposals"`
 	Tweaks          TweakRules              `json:"tweaks"`
 	TargetSize      string                  `json:"target_size"`
+	MaxChange       MaxChange               `json:"max_change,omitzero"`
 	SmallerBecomes  string                  `json:"smaller_becomes"`
 	SameAreaFinding string                  `json:"same_area_findings"`
 	SelfApproves    string                  `json:"self_approves"`
@@ -728,3 +737,32 @@ type QuestionsDef struct {
 	// long with no answer (0: it waits for the owner or the autopilot).
 	DecideAfter time.Duration `json:"decide_after,omitempty"`
 }
+
+// MaxChange caps what one item changes on its branch: past it, the item is
+// split into smaller ones instead of growing into a delivery that is hard
+// to review and to integrate. Zero is no limit.
+type MaxChange struct {
+	Files int `json:"files,omitempty"`
+	Lines int `json:"lines,omitempty"`
+	// Exclude are globs not counted (art, screenshots, generated files).
+	Exclude []string `json:"exclude,omitempty"`
+}
+
+// On reports whether a limit is set.
+func (m MaxChange) On() bool { return m.Files > 0 || m.Lines > 0 }
+
+// Counts reports whether path counts toward the limit.
+func (m MaxChange) Counts(path string) bool {
+	for _, g := range m.Exclude {
+		if path == g || MatchGlob(g, path) {
+			return false
+		}
+	}
+	return true
+}
+
+// scheduling.other_clusters values.
+const (
+	OtherClustersWait   = "wait"
+	OtherClustersIgnore = "ignore"
+)

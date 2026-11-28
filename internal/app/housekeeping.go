@@ -65,6 +65,7 @@ func (r *Runtime) housekeeping(ctx context.Context, p *Project, m domain.Machine
 			}
 		}()
 	}
+	s.refreshForeignWork(ctx, p, now)
 	if m.Standby {
 		// A machine in standby takes no duty: the cluster's housekeeping
 		// (items of dead machines, imports, digests) goes to one that works.

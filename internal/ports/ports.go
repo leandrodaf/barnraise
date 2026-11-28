@@ -122,6 +122,9 @@ type Git interface {
 	Log(ctx context.Context, args ...string) ([]Commit, error)
 	Blame(ctx context.Context, file string, line int) (string, error)
 	DeleteBranch(ctx context.Context, branch string) error
+	// RemoteBranches are the remote's branches whose name starts with
+	// prefix, with their commits (the local ones without a remote).
+	RemoteBranches(ctx context.Context, prefix string) (map[string]string, error)
 }
 
 // Commit is one log entry.
@@ -366,6 +369,25 @@ type CodeHost interface {
 	Merge(ctx context.Context, pr PR, method string) (string, error)
 	Close(ctx context.Context, pr PR, reason string) error
 	DispatchWorkflow(ctx context.Context, workflow, ref string, inputs map[string]string) error
+}
+
+// OpenPR is a pull request open on the host, anyone's.
+type OpenPR struct {
+	Number  int       `json:"number"`
+	Title   string    `json:"title"`
+	URL     string    `json:"url"`
+	Author  string    `json:"author"`
+	Head    string    `json:"head"`
+	SHA     string    `json:"sha"`
+	Draft   bool      `json:"draft"`
+	Updated time.Time `json:"updated,omitzero"`
+}
+
+// PRLister is what a code host that can list its open pull requests and
+// their files does (optional: GitHub has it).
+type PRLister interface {
+	OpenPRs(ctx context.Context) ([]OpenPR, error)
+	PRFiles(ctx context.Context, number int) ([]string, error)
 }
 
 // CheckSpec is one check to run for an item.

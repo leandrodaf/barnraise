@@ -121,6 +121,10 @@ type Project struct {
 	// distrustSince is when this machine first found the root's files
 	// changed outside Barnraise, zero while they are trusted.
 	distrustSince time.Time
+	// foreign is the other clusters' work on this repository (foreignwork.go).
+	foreign      []foreignWork
+	foreignAt    time.Time
+	foreignWaits map[string]string
 	// items with a step running on this machine (agent session or check)
 	running map[string]string // item -> runner (agent name or "driver")
 	refined map[string]int    // draft item -> version the analyst last refined

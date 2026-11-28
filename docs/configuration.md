@@ -344,6 +344,8 @@ Self-improvement of Barnraise is a separate lane, set in [self_improvement](#sel
 | `tweaks.become_item_at` | `5` | Pending tweaks of an area that become one item |
 | `tweaks.attach_on_claim` | `true` | Attach the area's pending tweaks to the item an agent takes |
 | `same_area_findings` | `rework` | Review findings in the item's own area are fixed in the same round |
+| `max_change.files`, `max_change.lines` | `0` (no limit) | Most files, and added plus removed lines, one item changes on its branch (from where it left main). The plan and the implementer are told the limit; a delivery past it is refused, its work already committed, with what to do: keep what this item's criteria need and propose the rest as new items. Small items are quicker to review, safer to integrate and less likely to collide with someone else's |
+| `max_change.exclude` | none | Globs not counted (art, screenshots, generated files): `["art/**", "**/*.png", "shots/**"]` |
 
 ## self_improvement
 
@@ -581,7 +583,22 @@ scheduling:
   shared_files: [bastion.gd, bastion.tscn, project.godot]   # globs
 ```
 
-Any other file an item is predicted to touch still keeps the items apart.
+Any other file an item is predicted to touch still keeps the items apart. An item's own `plan.md` and `criteria.json` and the repository map never do.
+
+### Other people's work on the same repository
+
+A teammate can run a Barnraise of their own on the same repository, not paired with yours, and people open pull requests by hand. Item ids come from one counter in the repository and an issue is claimed in the repository too, so two clusters never take the same item or the same issue. On top of that, every machine reads every two minutes the other clusters' items in progress (their claims and their `br/I-…` branches) and the open pull requests that are not its cluster's (GitHub), with the files each one changes, and does not start a new item that would change the same files: the two would conflict at integration or do the same thing twice. What already runs goes on.
+
+```yaml
+scheduling:
+  other_clusters: wait   # wait (default) or ignore
+  stale_after: 3d        # default 3d
+```
+
+| Key | Default | Meaning |
+| --- | --- | --- |
+| `other_clusters` | `wait` | `wait`: hold a new item whose files other people's work in progress changes. `ignore`: start it anyway |
+| `stale_after` | `3d` | Other people's work idle for this long (a pull request with no update, another cluster's item whose machine stopped renewing its claim) holds nothing, and the machine that keeps the housekeeping proposes once to continue it from its branch or take it over; the autopilot or the owner decides |
 
 ## merge
 

@@ -164,6 +164,7 @@ func (s *Service) Context(ctx context.Context, project string, a Actor, id strin
 func (s *Service) itemText(p *Project, it *domain.Item, withPlan bool) string {
 	var b strings.Builder
 	fmt.Fprintf(&b, "Kind: %s · Priority: %s · Area: %s · Size: %s · Step: %s\n", it.Kind, it.Priority, def(it.Area, "-"), def(it.Size, p.Cfg().TargetSize), it.Step)
+	b.WriteString(maxChangeNote(p.Cfg().MaxChange))
 	if it.GoalID != "" {
 		fmt.Fprintf(&b, "Goal: %s\n", it.GoalID)
 	}

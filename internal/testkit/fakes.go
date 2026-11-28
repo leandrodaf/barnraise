@@ -261,9 +261,27 @@ type CodeHost struct {
 	HostChecks func(sha string) (ports.HostChecks, error)
 	// MergeSHA, when set, is the commit Merge reports ("merged" otherwise).
 	MergeSHA func() string
+	// PRs and PRFileMap are the host's open pull requests and their files.
+	PRs       []ports.OpenPR
+	PRFileMap map[int][]string
 }
 
 var _ ports.CodeHost = (*CodeHost)(nil)
+var _ ports.PRLister = (*CodeHost)(nil)
+
+// OpenPRs implements ports.PRLister.
+func (h *CodeHost) OpenPRs(context.Context) ([]ports.OpenPR, error) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	return append([]ports.OpenPR(nil), h.PRs...), nil
+}
+
+// PRFiles implements ports.PRLister.
+func (h *CodeHost) PRFiles(_ context.Context, n int) ([]string, error) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	return append([]string(nil), h.PRFileMap[n]...), nil
+}
 
 func (h *CodeHost) record(format string, args ...any) {
 	h.mu.Lock()

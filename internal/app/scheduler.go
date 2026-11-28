@@ -272,6 +272,10 @@ func (s *Service) candidatesLocked(p *Project, slot Slot) []*domain.Item {
 		if overlap {
 			continue
 		}
+		if their := s.foreignOverlapLocked(p, pf); their != "" {
+			s.noteForeignWaitLocked(p, it.ID, their)
+			continue
+		}
 		// Self-improvement only runs with the owner's approval (it came from an approved proposal).
 		byLane[it.Lane] = append(byLane[it.Lane], it)
 		if it.Lane == domain.LaneBugs && it.Priority == domain.P0 {
