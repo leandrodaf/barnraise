@@ -215,11 +215,24 @@ func FilesOverlap(a, b []string) bool {
 }
 
 // PredictedFiles is what the scheduler uses to keep two agents off the same files.
+// Every item has its own plan.md and criteria.json, and Barnraise refreshes the
+// repository map on every branch: none of them is shared work, and counting
+// them made any item that had delivered once wait for every other one running
+// (I-72 stood ready a day behind I-84 for its plan.md).
 func PredictedFiles(it *Item) []string {
+	files := it.Anchors.Files
 	if len(it.FilesTouched) > 0 {
-		return append(append([]string(nil), it.FilesTouched...), it.Anchors.Files...)
+		files = append(append([]string(nil), it.FilesTouched...), it.Anchors.Files...)
 	}
-	return it.Anchors.Files
+	out := make([]string, 0, len(files))
+	for _, f := range files {
+		switch f {
+		case "plan.md", "criteria.json", RepoMapFile:
+			continue
+		}
+		out = append(out, f)
+	}
+	return out
 }
 
 func setOf(s []string) map[string]bool {
