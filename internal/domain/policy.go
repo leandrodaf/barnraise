@@ -47,9 +47,14 @@ type Policy struct {
 	// PrivateTmp: the session runs in a container whose /tmp and /var/tmp
 	// are its own, in memory. Only then may an agent write scratch files
 	// there; on the machine itself /tmp is shared with the owner.
-	PrivateTmp bool     `json:"private_tmp,omitempty"`
-	MainBranch string   `json:"main_branch,omitempty"`
-	SelfPaths  []string `json:"self_paths,omitempty"` // the Barnraise binary, its config and state
+	PrivateTmp bool `json:"private_tmp,omitempty"`
+	// VirtualDisplay: the project's sessions may run a virtual X server
+	// (Xvfb) to take screenshots with no display. The sandbox lets them
+	// write in /tmp, where X keeps its lock file at a fixed path; Unix
+	// sockets stay closed, so the server listens on local TCP only.
+	VirtualDisplay bool     `json:"virtual_display,omitempty"`
+	MainBranch     string   `json:"main_branch,omitempty"`
+	SelfPaths      []string `json:"self_paths,omitempty"` // the Barnraise binary, its config and state
 }
 
 // DefaultPolicy blocks what is never the agent's.

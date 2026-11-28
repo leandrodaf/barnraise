@@ -291,7 +291,10 @@ type rawConfig struct {
 		DenyRead     []string `yaml:"deny_read"`
 		DenyCommands []string `yaml:"deny_commands"`
 		AllowHosts   []string `yaml:"allow_hosts"`
-		Egress       struct {
+		// VirtualDisplay lets sessions start a virtual X server (Xvfb) for
+		// screenshots: the sandbox then lets them write in /tmp.
+		VirtualDisplay bool `yaml:"virtual_display"`
+		Egress         struct {
 			Inspect   []string `yaml:"inspect"`
 			RepoScope *bool    `yaml:"repo_scope"`
 		} `yaml:"egress"`
@@ -619,6 +622,7 @@ func (r *rawConfig) compile(root, tmpl string) (*domain.ProjectConfig, error) {
 		DenyWrite: r.Policy.DenyWrite, LockExisting: r.Policy.LockExisting, DenyRead: r.Policy.DenyRead,
 		DenyCommands: r.Policy.DenyCommands, AllowHosts: r.Policy.AllowHosts, MainBranch: c.MainBranch,
 	})
+	c.Policy.VirtualDisplay = r.Policy.VirtualDisplay
 	if c.Egress, err = egressDef(r.Policy.AllowHosts, r.Policy.Egress.Inspect, r.Policy.Egress.RepoScope); err != nil {
 		return nil, err
 	}

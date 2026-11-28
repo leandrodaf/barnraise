@@ -1060,6 +1060,14 @@ func (r *Runtime) writeSessionFiles(p *Project, sessDir, worktree string, env ma
 		if ex, err := sandboxExcludes(sessDir); err == nil {
 			gitCfg = append(gitCfg, [2]string{"core.excludesFile", ex})
 		}
+		// A virtual X server for screenshots (policy.virtual_display): X
+		// writes its lock in /tmp, a fixed path, so the sandbox lets the
+		// session write there. Unix sockets stay closed; the server and the
+		// game meet on local TCP inside the sandbox.
+		if pol.VirtualDisplay {
+			perms := settings["permissions"].(map[string]any)
+			perms["allow"] = append(asStrings(perms["allow"]), "Edit(//tmp/**)")
+		}
 	}
 	// The agent's git, set through the environment for every provider:
 	// it does not sign (the owner's key needs a passphrase nobody can type
@@ -1529,4 +1537,9 @@ func (r *Runtime) renewLeases(ctx context.Context, p *Project) {
 			r.s.d.Log.Debug("issue lease renew failed", "item", id, "err", err)
 		}
 	}
+}
+
+func asStrings(v any) []string {
+	out, _ := v.([]string)
+	return out
 }

@@ -835,3 +835,27 @@ func TestDrainingStartsNoSession(t *testing.T) {
 	e.fill()
 	eventually(t, "a session once the drain ends", func() bool { return len(e.prov.Specs()) == 1 })
 }
+
+// A project with virtual_display lets its sandboxed sessions write in /tmp
+// (X's lock file); others do not.
+func TestVirtualDisplayOpensTmpInTheSandbox(t *testing.T) {
+	for _, on := range []bool{false, true} {
+		e := newEnv(t, withCfg(func(c *domain.ProjectConfig) { c.Policy.VirtualDisplay = on }))
+		e.account("fake-1")
+		e.svc.Runtime().Sandbox = true
+		e.ready("simple", "draw", "x")
+		release := e.holdSessions()
+		e.fill()
+		specs := e.prov.Specs()
+		if len(specs) != 1 {
+			t.Fatalf("specs %+v", specs)
+		}
+		data, _ := os.ReadFile(specs[0].SettingsFile)
+		if got := strings.Contains(string(data), `"Edit(//tmp/**)"`); got != on {
+			t.Fatalf("virtual_display %v: /tmp writable %v\n%s", on, got, data)
+		}
+		e.svc.Runtime().MaxSessions = -1
+		release()
+		e.idle()
+	}
+}

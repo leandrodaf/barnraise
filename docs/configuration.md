@@ -469,6 +469,7 @@ Extra rules appended to the built-in policy that the PreToolUse hook and the dae
 | `deny_read` | Absolute or `~` globs agents may never read |
 | `deny_commands` | Regular expressions of shell commands to block |
 | `allow_hosts` | Extra hosts for the sandbox's and the egress proxy's network allow list; also method/host/path rules (below) |
+| `virtual_display` | `true`: sessions may run a virtual X server (Xvfb) to take screenshots with no display (a game, a desktop app). The sandbox then lets them write in `/tmp`, where X keeps its lock at a fixed path; Unix sockets stay closed, so the server listens on local TCP only. Off by default: on the machine itself `/tmp` is shared with the owner |
 | `egress.inspect` | Extra hosts (and their subdomains) whose HTTPS traffic the egress proxy terminates and scans for secrets. Default: none |
 | `egress.repo_scope` | `true` (default): with the egress proxy, writes to the project's GitHub/GitLab host and API only toward the project's own repository. `false` turns that off |
 
