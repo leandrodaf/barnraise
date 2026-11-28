@@ -25,7 +25,7 @@ func TestNewerMachineTakesDutiesFromAnOlderOne(t *testing.T) {
 		e.p.mu.Unlock()
 	}
 	set("0.1.1-55-gbbbbbbb")
-	if _, err := e.arb.Claim(e.ctx, HousekeepingKey, "old"); err != nil {
+	if _, err := e.arb.Claim(e.ctx, e.svc.dutyRef(e.p, HousekeepingKey), "old"); err != nil {
 		t.Fatal(err)
 	}
 	e.svc.d.BuildTime = time.Date(2026, 11, 25, 21, 0, 0, 0, time.UTC)
@@ -37,7 +37,7 @@ func TestNewerMachineTakesDutiesFromAnOlderOne(t *testing.T) {
 	if !e.svc.holdDuty(e.ctx, e.p, HousekeepingKey) {
 		t.Fatal("the newer machine did not take the duty from the older one")
 	}
-	if info, err := e.arb.Inspect(e.ctx, HousekeepingKey); err != nil || info.Holder != e.svc.d.Machine {
+	if info, err := e.arb.Inspect(e.ctx, e.svc.dutyRef(e.p, HousekeepingKey)); err != nil || info.Holder != e.svc.d.Machine {
 		t.Fatalf("holder %+v %v", info, err)
 	}
 }

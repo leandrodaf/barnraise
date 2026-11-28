@@ -87,12 +87,12 @@ func TestStandbyGivesUpHousekeeping(t *testing.T) {
 		r.housekeeping(e.ctx, e.p, r.machine())
 	}
 	pass()
-	if e.backend.Holder(HousekeepingKey) != "m1" {
-		t.Fatalf("housekeeping held by %q before standby", e.backend.Holder(HousekeepingKey))
+	if e.backend.Holder(e.svc.dutyRef(e.p, HousekeepingKey)) != "m1" {
+		t.Fatalf("housekeeping held by %q before standby", e.backend.Holder(e.svc.dutyRef(e.p, HousekeepingKey)))
 	}
 	r.SetStandby(true, "")
 	pass()
-	if h := e.backend.Holder(HousekeepingKey); h != "" {
+	if h := e.backend.Holder(e.svc.dutyRef(e.p, HousekeepingKey)); h != "" {
 		t.Fatalf("a machine in standby still holds the housekeeping (%q)", h)
 	}
 	eventually(t, "the heartbeat to say standby", func() bool {
@@ -102,7 +102,7 @@ func TestStandbyGivesUpHousekeeping(t *testing.T) {
 	pass() // nothing to give up the second time
 	r.SetStandby(false, "")
 	pass()
-	if e.backend.Holder(HousekeepingKey) != "m1" {
+	if e.backend.Holder(e.svc.dutyRef(e.p, HousekeepingKey)) != "m1" {
 		t.Fatal("out of standby the machine takes the housekeeping again")
 	}
 	eventually(t, "the heartbeat to say it works", func() bool {

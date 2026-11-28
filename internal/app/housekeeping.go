@@ -175,13 +175,14 @@ func (s *Service) holdDuty(ctx context.Context, p *Project, key string) bool {
 		delete(p.leases, key)
 		p.mu.Unlock()
 	}
-	nl, err := a.Claim(ctx, key, s.d.Machine)
+	ref := s.dutyRef(p, key)
+	nl, err := a.Claim(ctx, ref, s.d.Machine)
 	if errors.Is(err, ports.ErrTaken) {
 		ttl := p.Cfg().Lease.TTL
-		info, ierr := a.Inspect(ctx, key)
+		info, ierr := a.Inspect(ctx, ref)
 		if ierr == nil && info.Holder == s.d.Machine {
 			// Ours from before a restart: adopt it.
-			nl, err = a.Renew(ctx, ports.Lease{Key: key, Holder: s.d.Machine, Version: info.Version})
+			nl, err = a.Renew(ctx, ports.Lease{Key: ref, Holder: s.d.Machine, Version: info.Version})
 		} else {
 			if ierr == nil && s.olderHolder(p, info.Holder) {
 				// A machine left behind on an older binary would keep
@@ -190,7 +191,7 @@ func (s *Service) holdDuty(ctx context.Context, p *Project, key string) bool {
 				// renewal finds them gone (a negative ttl: however recent).
 				ttl = -1
 			}
-			nl, err = a.TakeOver(ctx, key, s.d.Machine, ttl)
+			nl, err = a.TakeOver(ctx, ref, s.d.Machine, ttl)
 		}
 	}
 	if err != nil {
@@ -199,6 +200,35 @@ func (s *Service) holdDuty(ctx context.Context, p *Project, key string) bool {
 	p.mu.Lock()
 	p.leases[key] = nl
 	p.mu.Unlock()
+	return true
+}
+
+// dutyRef is the lease of a project-wide duty for this cluster. Two
+// clusters that are not paired (two people's machines) can share one
+// repository: with one lease for both, the other cluster held the duties
+// and ran the autopilot and the housekeeping for its own items only, so
+// this one's questions waited forever. The cluster is named by the machine
+// that wrote the first event of the project's log, which every machine of
+// the cluster replicates and no other cluster has.
+func (s *Service) dutyRef(p *Project, key string) string {
+	p.mu.Lock()
+	origin := p.origin
+	p.mu.Unlock()
+	if origin == "" {
+		origin = s.d.Machine
+	}
+	if origin == "" || !validDutyName(origin) {
+		return key
+	}
+	return key + "/" + origin
+}
+
+func validDutyName(n string) bool {
+	for _, r := range n {
+		if !(r >= 'a' && r <= 'z' || r >= 'A' && r <= 'Z' || r >= '0' && r <= '9' || r == '-' || r == '_') {
+			return false
+		}
+	}
 	return true
 }
 

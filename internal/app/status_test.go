@@ -352,7 +352,7 @@ func TestMachineLeave(t *testing.T) {
 			t.Fatalf("%s still held", id)
 		}
 	}
-	if e.backend.Holder(HousekeepingKey) != "" {
+	if e.backend.Holder(e.svc.dutyRef(e.p, HousekeepingKey)) != "" {
 		t.Fatal("housekeeping lease released")
 	}
 	if m := e.p.Snapshot().Machines["m1"]; m == nil || !m.Left {

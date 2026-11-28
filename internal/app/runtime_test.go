@@ -376,7 +376,7 @@ func TestRuntimeRunAndHousekeeping(t *testing.T) {
 		}
 		return digest && weekly
 	})
-	if e.backend.Holder(HousekeepingKey) != "m1" {
+	if e.backend.Holder(e.svc.dutyRef(e.p, HousekeepingKey)) != "m1" {
 		t.Fatal("housekeeping lease")
 	}
 	r.Poke()

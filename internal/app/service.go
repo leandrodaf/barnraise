@@ -113,6 +113,11 @@ type Project struct {
 	// Barnraise that adopted the same issue (not paired with this one)
 	// cannot take it, since both claim it in the same repository.
 	issueLeases map[string]ports.Lease
+	// origin is the machine of the earliest event in the project's log
+	// (originID): every machine of a cluster replicates the whole log and
+	// finds the same one; a cluster that is not paired has its own log.
+	// It names the cluster's project-wide duties (dutyRef).
+	origin, originID string
 	// items with a step running on this machine (agent session or check)
 	running map[string]string // item -> runner (agent name or "driver")
 	refined map[string]int    // draft item -> version the analyst last refined
@@ -235,6 +240,7 @@ func (s *Service) AddProject(ctx context.Context, cfg *domain.ProjectConfig, pp 
 		if err := p.state.Apply(e); err != nil {
 			s.d.Log.Warn("skipping bad event", "id", e.ID, "err", err)
 		}
+		p.noteOriginLocked(e)
 	}
 	s.projects[cfg.Name] = p
 	s.mu.Unlock()
@@ -402,8 +408,20 @@ func (s *Service) emitLocked(ctx context.Context, p *Project, typ, subject, acto
 	if err := p.state.Apply(e); err != nil {
 		return e, err
 	}
+	p.noteOriginLocked(e)
 	s.fanout(p, e)
 	return e, nil
+}
+
+// noteOriginLocked keeps the machine of the earliest event seen. Event ids
+// begin with their time, so the smallest id is the oldest. Callers hold p.mu.
+func (p *Project) noteOriginLocked(e domain.Event) {
+	if e.ID == "" || e.Machine == "" || e.LiveOnly() {
+		return
+	}
+	if p.originID == "" || e.ID < p.originID {
+		p.originID, p.origin = e.ID, e.Machine
+	}
 }
 
 func (s *Service) fanout(p *Project, e domain.Event) {
@@ -490,6 +508,7 @@ func (s *Service) Ingest(ctx context.Context, e domain.Event) error {
 	}
 	p.mu.Lock()
 	err = p.state.Apply(stored[0])
+	p.noteOriginLocked(stored[0])
 	p.mu.Unlock()
 	if err == nil {
 		s.hub.Publish(stored[0])

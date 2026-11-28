@@ -157,9 +157,9 @@ func TestRepairDutyStepsAsideAfterAFailure(t *testing.T) {
 	now := time.Now()
 	r.repairTracker(e.ctx, e.p, now)
 	eventually(t, "down after the failed repair", func() bool { return e.svc.trackerDown("demo", time.Now()) })
-	eventually(t, "duty released", func() bool { return e.backend.Holder(TrackerKey) == "" })
+	eventually(t, "duty released", func() bool { return e.backend.Holder(e.svc.dutyRef(e.p, TrackerKey)) == "" })
 	r.repairTracker(e.ctx, e.p, now.Add(trackerRepairEvery+time.Second))
-	if e.backend.Holder(TrackerKey) != "" {
+	if e.backend.Holder(e.svc.dutyRef(e.p, TrackerKey)) != "" {
 		t.Fatal("a machine that cannot write took the duty again")
 	}
 	if !strings.Contains(e.svc.TrackerErr("demo"), "401") {
