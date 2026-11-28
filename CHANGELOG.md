@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.7.3 — 2026-11-28
+
+### Correções
+- fix(cluster): two unpaired clusters on one repository each run their own duties (1c04ff0)
+
 ## v0.7.2 — 2026-11-28
 
 ### Novidades
