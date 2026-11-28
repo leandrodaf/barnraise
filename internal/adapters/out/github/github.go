@@ -52,6 +52,10 @@ type Client struct {
 
 	mu      sync.Mutex
 	project *projectInfo
+	// labels are the repository's label names, read when a label is
+	// refused as existing under another spelling (labels.go).
+	labels   []string
+	labelsAt time.Time
 }
 
 // New builds a client. Use Tracker() and CodeHost() to get the ports.
@@ -145,6 +149,9 @@ func (c *Client) do(ctx context.Context, method, path string, in, out any) (*htt
 			return resp, fmt.Errorf("github: %w", err)
 		case <-time.After(time.Duration(300*(try+1)) * time.Millisecond):
 		}
+		// The label may exist under another spelling (case, accents):
+		// the request takes the repository's.
+		in = c.withLabelsSpelled(ctx, in)
 		resp, err = c.http.Do(ctx, method, path, in, out)
 	}
 	if err != nil {

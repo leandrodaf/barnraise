@@ -787,3 +787,36 @@ func TestLabelRaceIsRetried(t *testing.T) {
 		t.Fatalf("%v %+v after %d calls", err, out, n)
 	}
 }
+
+// A repository with "área:mobile" refuses to create "area:mobile": GitHub
+// compares names ignoring case and accents. The request takes the
+// repository's spelling.
+func TestLabelsTakeTheRepositorysSpelling(t *testing.T) {
+	if got := spellLabels([]string{"area:mobile", "P1", "kind:improvement"}, []string{"área:mobile", "p1"}); got[0] != "área:mobile" || got[1] != "p1" || got[2] != "kind:improvement" {
+		t.Fatalf("%v", got)
+	}
+	f := newFake(t)
+	var sent []any
+	f.on("GET /repos/acme/app/labels", func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte(`[{"name":"área:mobile"},{"name":"barnraise"}]`))
+	})
+	f.on("POST /repos/acme/app/issues", func(w http.ResponseWriter, r *http.Request) {
+		calls := f.callsTo("POST", "/repos/acme/app/issues")
+		labels, _ := calls[len(calls)-1].Body["labels"].([]any)
+		sent = append(sent, labels)
+		for _, l := range labels {
+			if l == "area:mobile" {
+				w.WriteHeader(http.StatusUnprocessableEntity)
+				_, _ = w.Write([]byte(`{"message":"Validation Failed","errors":[{"resource":"Label","field":"name","code":"already_exists"}]}`))
+				return
+			}
+		}
+		w.WriteHeader(http.StatusCreated)
+		_, _ = w.Write([]byte(`{"number":9,"title":"x","html_url":"u"}`))
+	})
+	c := f.client(t, nil)
+	var out ghIssue
+	if _, err := c.do(context.Background(), http.MethodPost, c.repoPath("/issues"), map[string]any{"title": "x", "labels": []string{"area:mobile", "barnraise"}}, &out); err != nil || out.Number != 9 {
+		t.Fatalf("%v %+v (sent %v)", err, out, sent)
+	}
+}
