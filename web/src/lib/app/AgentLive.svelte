@@ -35,10 +35,20 @@
 	let sending = $state(false);
 	let pending = $state('');
 	let ctrl: AbortController | null = null;
+	// Keys never repeat across reconnections: a line keeps its place in the
+	// thread instead of the whole thread being drawn again.
 	let seq = 0;
+	// fresh: a reconnection whose replay has not started yet. The thread on
+	// screen stays as it is until then, and is replaced in one go, so a
+	// reconnection never blanks it or flashes "connecting".
+	let fresh = false;
 	const MAX_LINES = 400;
 
 	function handle(event: string, data: any) {
+		if (fresh && (event === 'session' || event === 'line')) {
+			fresh = false;
+			lines = [];
+		}
 		switch (event) {
 			case 'session':
 				info = data;
@@ -75,11 +85,10 @@
 		ctrl?.abort();
 		const c = new AbortController();
 		ctrl = c;
-		phase = 'connecting';
-		lines = [];
-		seq = 0;
-		info = null;
-		pulse = null;
+		// The first time the tab opens there is nothing to keep; afterwards
+		// what is on screen stays until the new stream sends its first line.
+		if (lines.length || info) fresh = true;
+		else phase = 'connecting';
 		failure = '';
 		try {
 			const headers: Record<string, string> = { Accept: 'text/event-stream' };
@@ -124,13 +133,29 @@
 		}
 	}
 
-	// One stream while the tab is open; again when another session starts on the item.
+	// One stream while the tab is open; again only when a session that was
+	// not there before starts on the item. The list of sessions comes from
+	// the overview, refreshed every few seconds: reopening on every change
+	// of it (a session gone for a moment, the same ones in another order)
+	// cleared the thread and drew it again each time.
+	let seen = new Set<string>();
+	let target = '';
 	$effect(() => {
-		void running;
-		void project;
-		void id;
+		const now = running.split(',').filter(Boolean);
+		const key = project + '/' + id;
+		const isNew = key !== target || now.some((r) => !seen.has(r));
+		for (const r of now) seen.add(r);
+		if (!isNew) return;
+		if (key !== target) {
+			target = key;
+			seen = new Set(now);
+			lines = [];
+			msgs = [];
+			info = null;
+			pulse = null;
+			fresh = false;
+		}
 		untrack(open);
-		return () => ctrl?.abort();
 	});
 	onDestroy(() => ctrl?.abort());
 

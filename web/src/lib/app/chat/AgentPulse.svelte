@@ -11,9 +11,11 @@
 
 	let { pulse, lastLine = '' }: { pulse: Pulse | null; lastLine?: string } = $props();
 
+	// A calm clock: the times move every five seconds, not every second, so
+	// the line does not flicker while the agent works.
 	let now = $state(Date.now());
 	$effect(() => {
-		const iv = setInterval(() => (now = Date.now()), 1000);
+		const iv = setInterval(() => (now = Date.now()), 5000);
 		return () => clearInterval(iv);
 	});
 	const secs = (iso?: string) => {
@@ -60,16 +62,16 @@
 	const box = { ok: 'border-st-done/25 bg-st-done/[0.06]', warn: 'border-st-needs/40 bg-st-needs/10', dead: 'border-st-fail/40 bg-st-fail/10' };
 </script>
 
-<div class="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-xl border px-3 py-2 text-xs {box[level]}" role="status" aria-live="polite">
-	<span class="relative flex size-2.5 shrink-0">
-		{#if level === 'ok'}<span class="absolute inline-flex size-full animate-ping rounded-full {dot[level]} opacity-60"></span>{/if}
-		<span class="relative inline-flex size-2.5 rounded-full {dot[level]}"></span>
-	</span>
-	<span class="font-medium">{label}</span>
+<!-- One steady line: a still dot (no blinking), what the agent does, and the
+     last sign of life only once it has been quiet for a while. Screen
+     readers hear the state when it changes, not every tick of the clock. -->
+<div class="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-xl border px-3 py-2 text-xs transition-colors duration-500 {box[level]}">
+	<span class="relative inline-flex size-2 shrink-0 rounded-full transition-colors duration-500 {dot[level]}"></span>
+	<span class="font-medium" role="status" aria-live="polite">{label}</span>
 	{#if input}<code class="num min-w-0 max-w-[24rem] truncate text-muted-foreground" title={input}>{shortPath(input)}</code>{/if}
-	{#if Number.isFinite(inState)}<span class="num text-muted-foreground">{t('pulseFor', clock(inState))}</span>{/if}
+	{#if Number.isFinite(inState) && inState >= 10}<span class="num text-muted-foreground">{t('pulseFor', clock(inState))}</span>{/if}
 	<span class="num ml-auto text-muted-foreground">
-		{#if Number.isFinite(silent)}{t('pulseLast', clock(silent))}{/if}
+		{#if Number.isFinite(silent) && silent >= 30}{t('pulseLast', clock(silent))}{/if}
 	</span>
 	{#if level === 'warn' && mode === 'tool'}
 		<p class="basis-full text-st-needs">{t('pulseLongTool')}</p>

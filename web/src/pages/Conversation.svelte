@@ -99,15 +99,19 @@
 		load();
 	}
 
-	// Tell the owner the answer arrived when they looked away.
-	let wasBusy = false;
+	// Tell the owner, once, that an answer arrived while they looked away:
+	// when the answer is complete (no longer busy) and holds text that was
+	// not there before. The working state flips at every tool an answer
+	// runs; notifying on each flip sent several notices for one answer.
+	let answered = -1;
 	$effect(() => {
-		const b = busy;
-		if (wasBusy && !b && document.hidden) {
+		const n = raw.filter((e) => e.role === 'assistant' && (e.text || '').trim()).length;
+		if (busy) return;
+		if (answered >= 0 && n > answered && document.hidden) {
 			document.title = '● ' + t('convTitle') + ' · Barnraise';
 			if ('Notification' in window && Notification.permission === 'granted') new Notification('Barnraise', { body: t('convAnswered'), tag: 'barnraise-conversation' });
 		}
-		wasBusy = b;
+		answered = n;
 	});
 	function onVisible() {
 		if (!document.hidden && document.title.startsWith('● ')) document.title = t('convTitle') + ' · Barnraise';

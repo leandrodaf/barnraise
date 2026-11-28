@@ -88,12 +88,18 @@
 		await tick();
 		list?.scrollTo({ top: list.scrollHeight, behavior: smooth ? 'smooth' : 'auto' });
 	}
+	// Only when the thread grows (a message, the answer being written), not
+	// when the state flips between working and idle: the page stayed put
+	// before, and jumped on every poll. While an answer streams in, the
+	// scroll follows at once; a smooth scroll on every token kept the page
+	// moving.
+	let grown = 0;
 	$effect(() => {
-		void entries.length;
-		void draft.length;
-		void showPending;
-		void busy;
-		if (atBottom) bottom();
+		const size = entries.length * 1e6 + draft.length + (showPending ? 1 : 0);
+		if (size === grown) return;
+		const first = grown === 0;
+		grown = size;
+		if (atBottom) bottom(!first && !draft);
 	});
 	function onScroll() {
 		if (list) atBottom = list.scrollHeight - list.scrollTop - list.clientHeight < 80;
@@ -114,7 +120,7 @@
 
 			{#each turns as turn, ti (turn.kind === 'user' ? 'u' + turn.e.key : 'a' + turn.key)}
 				{#if turn.kind === 'user'}
-					<div class="group flex animate-[fade-in_.2s_ease-out] flex-col items-end gap-1">
+					<div class="group flex flex-col items-end gap-1">
 						<div class="max-w-[85%] rounded-3xl rounded-br-lg bg-muted px-4 py-2.5 text-sm leading-relaxed whitespace-pre-wrap [overflow-wrap:anywhere]">{turn.e.text}</div>
 						{#if turn.e.at}<span class="num px-2 text-[11px] text-muted-foreground opacity-0 transition group-hover:opacity-100" title={when(turn.e.at)}>{turn.e.author ? turn.e.author + ' · ' : ''}{ago(turn.e.at)}</span>{/if}
 					</div>
@@ -200,7 +206,9 @@
 				</div>
 			{/if}
 			{#if showPending}
-				<div class="flex justify-end"><div class="max-w-[85%] rounded-3xl rounded-br-lg bg-muted px-4 py-2.5 text-sm whitespace-pre-wrap opacity-70 [overflow-wrap:anywhere]">{pending}</div></div>
+				<!-- The message as sent, in the same place and look it keeps once the
+				     server has it: the swap is not seen. -->
+				<div class="flex flex-col items-end gap-1"><div class="max-w-[85%] rounded-3xl rounded-br-lg bg-muted px-4 py-2.5 text-sm leading-relaxed whitespace-pre-wrap [overflow-wrap:anywhere]">{pending}</div></div>
 			{/if}
 			{@render after?.()}
 			{#if busy}
