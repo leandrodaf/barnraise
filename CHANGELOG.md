@@ -1,5 +1,13 @@
 # Changelog
 
+## v0.7.1 — 2026-11-27
+
+### Novidades
+- feat(sandbox): policy.virtual_display lets sessions take screenshots with no display (9b04aa3)
+
+### Correções
+- fix(agents): judge an item by its diff from the remote main, never by main..HEAD (09888d1)
+
 ## v0.7.0 — 2026-11-27
 
 ### Novidades
