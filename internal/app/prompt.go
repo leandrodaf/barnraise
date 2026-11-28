@@ -440,6 +440,10 @@ const barnraiseConventions = `
   (type(scope): subject — imperative, lower case, no final period), whatever language the item is written in.
   Barnraise writes the changelog from ` + "`change`" + `; never edit the changelog file. The header (type, scope and
   subject) fits in 72 characters: the detail goes in the body.
+- Existing tests, references and check scripts are locked: only the owner (or the autopilot for the owner) lets an
+  item change them. When the item replaces what a locked test checks (new art for a placeholder, a removed feature),
+  name those files in plan.md and ask the owner for them with ask_owner during the plan step, with the change each
+  needs: the answer then comes before the work instead of after a review sends it back.
 - The item's own changes are ` + "`git diff origin/main...HEAD`" + ` (three dots: from where the branch left the remote's
   main; use the project's main branch name if it is not main). Never judge an item by ` + "`git diff main`" + ` or two dots:
   that shows main's own newer commits as if the item made them, and sends good work back.
