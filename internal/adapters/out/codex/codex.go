@@ -272,6 +272,12 @@ func mcpOverrides(cfg string) ([]string, error) {
 			continue
 		}
 		out = append(out, "-c", key+".command="+tomlString(s.Command))
+		// A worker may report its own delivery without an interactive prompt.
+		if n == "barnraise" && len(s.Args) == 1 && s.Args[0] == "mcp" &&
+			s.Env["BARNRAISE_ITEM"] != "" && s.Env["BARNRAISE_AGENT"] != "" &&
+			s.Env["BARNRAISE_ROLE"] == "implementer" {
+			out = append(out, "-c", key+".tools.deliver.approval_mode="+tomlString("approve"))
+		}
 		if len(s.Args) > 0 {
 			parts := make([]string, len(s.Args))
 			for i, a := range s.Args {

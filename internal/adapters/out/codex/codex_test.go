@@ -254,6 +254,37 @@ func TestOpenBuildsCommand(t *testing.T) {
 	}
 }
 
+func TestWorkerDeliveryApproval(t *testing.T) {
+	cfg := `{"mcpServers":{"barnraise":{"command":"barnraise","args":["mcp"],"env":{"BARNRAISE_ITEM":"I-1","BARNRAISE_AGENT":"worker","BARNRAISE_ROLE":"implementer"}}}}`
+	for _, tc := range []struct {
+		config string
+		want   bool
+	}{
+		{cfg, true},
+		{strings.Replace(cfg, "implementer", "reviewer", 1), false},
+		{strings.Replace(cfg, "I-1", "", 1), false},
+		{strings.Replace(cfg, "barnraise", "external", 1), false},
+	} {
+		args, err := mcpOverrides(tc.config)
+		if err != nil {
+			t.Fatal(err)
+		}
+		var overrides []string
+		for _, arg := range args {
+			if strings.Contains(arg, ".approval_mode=") {
+				overrides = append(overrides, arg)
+			}
+		}
+		var want []string
+		if tc.want {
+			want = []string{`mcp_servers.barnraise.tools.deliver.approval_mode="approve"`}
+		}
+		if !slices.Equal(overrides, want) {
+			t.Errorf("approval overrides = %v, want %v", overrides, want)
+		}
+	}
+}
+
 func TestResumeArgs(t *testing.T) {
 	p := New(Options{})
 	args, err := p.Args(ports.SessionSpec{ResumeID: "th-1", Workdir: "/w", JSONSchema: "/s.json"}, "/s.json")
