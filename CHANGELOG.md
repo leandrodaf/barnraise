@@ -1,5 +1,13 @@
 # Changelog
 
+## v0.7.2 — 2026-11-28
+
+### Novidades
+- feat(review): review.send_back: blockers, and questions.decide_after (0dd70e7)
+
+### Correções
+- fix(agents): ask for locked tests at the plan, not after a review sends the work back (b932d26)
+
 ## v0.7.1 — 2026-11-27
 
 ### Novidades
