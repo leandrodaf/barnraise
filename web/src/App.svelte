@@ -47,6 +47,7 @@
 	import Activity from './pages/Activity.svelte';
 	import Admin from './pages/Admin.svelte';
 	import Documents from './pages/Documents.svelte';
+	import Work from './pages/Work.svelte';
 
 	session.start().catch(() => (session.booting = false));
 
@@ -138,6 +139,7 @@
 								{:else if router.current.name === 'activity'}<Activity />
 								{:else if router.current.name === 'admin'}<Admin />
 								{:else if router.current.name === 'documents'}<Documents />
+								{:else if router.current.name === 'work'}<Work />
 								{/if}
 							</div>
 						{/key}

@@ -13,6 +13,7 @@ import RadioIcon from '@lucide/svelte/icons/radio';
 import SettingsIcon from '@lucide/svelte/icons/settings-2';
 import FileTextIcon from '@lucide/svelte/icons/file-text';
 import MessagesIcon from '@lucide/svelte/icons/messages-square';
+import PullRequestIcon from '@lucide/svelte/icons/git-pull-request';
 import type { RouteName } from '$lib/router.svelte';
 
 export type NavEntry = { name: RouteName; label: string; icon: typeof HouseIcon };
@@ -27,6 +28,7 @@ export const NAV_GROUPS: { label: string; items: NavEntry[] }[] = [
 			{ name: 'home', label: 'navHome', icon: HouseIcon },
 			{ name: 'conversation', label: 'navConversation', icon: MessagesIcon },
 			{ name: 'queue', label: 'navQueue', icon: KanbanIcon },
+			{ name: 'work', label: 'navWork', icon: PullRequestIcon },
 			{ name: 'proposals', label: 'navProposals', icon: LightbulbIcon },
 			{ name: 'agents', label: 'navAgents', icon: BotIcon },
 			{ name: 'activity', label: 'navActivity', icon: RadioIcon }

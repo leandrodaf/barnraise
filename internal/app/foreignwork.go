@@ -38,6 +38,8 @@ type foreignWork struct {
 	// than scheduling.stale_after: it holds nothing.
 	Updated time.Time
 	Stale   bool
+	// Machine is the other cluster's machine that holds the claim (apolo).
+	Machine string
 }
 
 // refreshForeignWork reads the other clusters' work when it is due.
@@ -99,12 +101,16 @@ func (s *Service) refreshForeignWork(ctx context.Context, p *Project, now time.T
 		if branch == "" {
 			continue // claimed, nothing pushed yet
 		}
-		stale := false
-		if info, err := a.Inspect(ctx, "claims/"+id); err == nil && !info.Renewed.IsZero() && now.Sub(info.Renewed) > p.Cfg().Lease.TTL+foreignEvery {
-			stale = true // its machine stopped renewing: nobody works on it now
+		stale, holder := false, ""
+		var renewed time.Time
+		if info, err := a.Inspect(ctx, "claims/"+id); err == nil {
+			holder, renewed = info.Holder, info.Renewed
+			if !info.Renewed.IsZero() && now.Sub(info.Renewed) > p.Cfg().Lease.TTL+foreignEvery {
+				stale = true // its machine stopped renewing: nobody works on it now
+			}
 		}
 		if k := known[id]; k != nil && k.SHA == sha {
-			k.Stale = stale
+			k.Stale, k.Machine, k.Updated = stale, holder, renewed
 			out = append(out, *k)
 			continue
 		}
@@ -125,7 +131,7 @@ func (s *Service) refreshForeignWork(ctx context.Context, p *Project, now time.T
 				keep = append(keep, f)
 			}
 		}
-		out = append(out, foreignWork{ID: id, Branch: branch, SHA: sha, Files: keep, Stale: stale})
+		out = append(out, foreignWork{ID: id, Branch: branch, SHA: sha, Files: keep, Stale: stale, Machine: holder, Updated: renewed})
 	}
 	out = append(out, s.foreignPRs(ctx, p, snap, known, out, now)...)
 	p.mu.Lock()
@@ -286,4 +292,76 @@ func (s *Service) ForeignWork(project string) []string {
 	}
 	slices.Sort(out)
 	return out
+}
+
+// OtherWork is someone else's work on the project's repository, as the
+// panel lists it next to this cluster's items.
+type OtherWork struct {
+	ID      string    `json:"id"` // I-89 or #32
+	Kind    string    `json:"kind"`
+	Title   string    `json:"title,omitempty"`
+	URL     string    `json:"url,omitempty"`
+	Branch  string    `json:"branch,omitempty"`
+	Author  string    `json:"author,omitempty"`
+	Machine string    `json:"machine,omitempty"`
+	Updated time.Time `json:"updated,omitzero"`
+	Stale   bool      `json:"stale,omitempty"`
+	Files   int       `json:"files"`
+	// Holds are this cluster's items that wait for it (same files).
+	Holds []string `json:"holds,omitempty"`
+}
+
+// OtherWorkView lists them.
+type OtherWorkView struct {
+	Work []OtherWork `json:"work"`
+	// Assigned are this cluster's items whose issue a person took.
+	Assigned []AssignedItem `json:"assigned"`
+	Mode     string         `json:"mode"`
+}
+
+// AssignedItem is an item whose tracker entry a person holds.
+type AssignedItem struct {
+	ID     string   `json:"id"`
+	Title  string   `json:"title"`
+	Ref    string   `json:"ref"`
+	URL    string   `json:"url,omitempty"`
+	People []string `json:"people"`
+}
+
+// OtherWork lists other people's work on the repository and what it holds.
+func (s *Service) OtherWork(project string, a Actor) (*OtherWorkView, error) {
+	p, err := s.Project(project)
+	if err != nil {
+		return nil, err
+	}
+	if err := a.Require(ScopeItemsRead, p.Name); err != nil {
+		return nil, err
+	}
+	out := &OtherWorkView{Work: []OtherWork{}, Assigned: []AssignedItem{}, Mode: p.Cfg().Scheduling.OtherClusters}
+	p.mu.Lock()
+	waits := map[string][]string{}
+	for item, their := range p.foreignWaits {
+		if it := p.state.Items[item]; it != nil && it.Status == domain.StatusReady {
+			waits[their] = append(waits[their], item)
+		}
+	}
+	for _, f := range p.foreign {
+		kind := "cluster"
+		if strings.HasPrefix(f.ID, "#") {
+			kind = "pull_request"
+		}
+		holds := waits[f.ID]
+		slices.Sort(holds)
+		out.Work = append(out.Work, OtherWork{ID: f.ID, Kind: kind, Title: f.Title, URL: f.URL, Branch: f.Branch, Author: f.Author, Machine: f.Machine,
+			Updated: f.Updated, Stale: f.Stale, Files: len(f.Files), Holds: holds})
+	}
+	for _, it := range p.state.Items {
+		if len(it.HeldBy) > 0 && !it.Status.Terminal() {
+			out.Assigned = append(out.Assigned, AssignedItem{ID: it.ID, Title: it.Title, Ref: it.TrackerRef, URL: it.TrackerURL, People: it.HeldBy})
+		}
+	}
+	p.mu.Unlock()
+	slices.SortFunc(out.Work, func(x, y OtherWork) int { return strings.Compare(x.ID, y.ID) })
+	slices.SortFunc(out.Assigned, func(x, y AssignedItem) int { return strings.Compare(x.ID, y.ID) })
+	return out, nil
 }

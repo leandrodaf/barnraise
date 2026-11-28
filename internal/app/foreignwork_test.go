@@ -38,6 +38,13 @@ func TestOtherClustersWorkHoldsItemsOnTheSameFiles(t *testing.T) {
 	if e.item(same.ID).Status != domain.StatusReady {
 		t.Fatal("the item on the same files must wait")
 	}
+	v, err := e.svc.OtherWork("demo", owner())
+	if err != nil || len(v.Work) != 1 {
+		t.Fatalf("%+v %v", v, err)
+	}
+	if w := v.Work[0]; w.ID != "I-50" || w.Machine != "apolo" || w.Kind != "cluster" || len(w.Holds) != 1 || w.Holds[0] != same.ID {
+		t.Fatalf("other work %+v", w)
+	}
 	// ignore starts it anyway.
 	e.cfg.Scheduling.OtherClusters = domain.OtherClustersIgnore
 	e.svc.refreshForeignWork(e.ctx, e.p, e.clock.Now().Add(2*foreignEvery))

@@ -1,9 +1,9 @@
 // Hash routes: #/queue, #/item/nobira/I-7. The item carries its project, so
 // opening one never changes the scope picked in the header.
 export type RouteName =
-	| 'home' | 'overview' | 'queue' | 'item' | 'agents' | 'accounts' | 'proposals' | 'machines' | 'capabilities' | 'parts' | 'metrics' | 'processes' | 'activity' | 'admin' | 'documents' | 'conversation';
+	| 'home' | 'overview' | 'queue' | 'item' | 'agents' | 'accounts' | 'proposals' | 'machines' | 'capabilities' | 'parts' | 'metrics' | 'processes' | 'activity' | 'admin' | 'documents' | 'conversation' | 'work';
 
-const NAMES: RouteName[] = ['home', 'overview', 'queue', 'item', 'agents', 'accounts', 'proposals', 'machines', 'capabilities', 'parts', 'metrics', 'processes', 'activity', 'admin', 'documents', 'conversation'];
+const NAMES: RouteName[] = ['home', 'overview', 'queue', 'item', 'agents', 'accounts', 'proposals', 'machines', 'capabilities', 'parts', 'metrics', 'processes', 'activity', 'admin', 'documents', 'conversation', 'work'];
 
 type Route = { name: RouteName; args: string[] };
 

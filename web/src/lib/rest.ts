@@ -128,3 +128,23 @@ export const images = {
 		return p;
 	}
 };
+
+export type OtherWork = {
+	id: string;
+	kind: 'cluster' | 'pull_request';
+	title?: string;
+	url?: string;
+	branch?: string;
+	author?: string;
+	machine?: string;
+	updated?: string;
+	stale?: boolean;
+	files: number;
+	holds?: string[];
+};
+export type AssignedItem = { id: string; title: string; ref: string; url?: string; people: string[] };
+export type OtherWorkView = { work: OtherWork[]; assigned: AssignedItem[]; mode: string };
+
+// Other people's work on a project's repository: a teammate's Barnraise, a
+// person's pull request, an issue a person took.
+export const otherWork = (project: string) => rest<OtherWorkView>('GET', '/v1/other-work', { project });

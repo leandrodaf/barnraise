@@ -12,6 +12,17 @@ import (
 func (s *Server) routeImages() {
 	s.mux.Handle("GET /v1/items/{id}/images", s.auth(s.guardHTTP("ItemImages", http.HandlerFunc(s.handleItemImages))))
 	s.mux.Handle("GET /v1/items/{id}/image", s.auth(s.guardHTTP("ItemImage", http.HandlerFunc(s.handleItemImage))))
+	s.mux.Handle("GET /v1/other-work", s.auth(s.guardHTTP("OtherWork", http.HandlerFunc(s.handleOtherWork))))
+}
+
+// handleOtherWork lists other people's work on the project's repository.
+func (s *Server) handleOtherWork(w http.ResponseWriter, r *http.Request) {
+	v, err := s.svc.OtherWork(r.URL.Query().Get("project"), actorFrom(r.Context()))
+	if err != nil {
+		writeAppErr(w, err)
+		return
+	}
+	writeJSON(w, v)
 }
 
 func (s *Server) handleItemImages(w http.ResponseWriter, r *http.Request) {
